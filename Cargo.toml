@@ -1,0 +1,15 @@
+[package]
+name = "rustphen"
+version = "0.1.0"
+edition = "2021"
+keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
+description = "Generate GA4GH phenopackets from tabular data"
+license = "BSD 3"
+readme = "README.md"
+
+[dependencies]
+calamine = "0.26.1" 
+polars = "0.45.1"
+home = "0.5.11"
+serde = "1.0"
+
