@@ -6,7 +6,7 @@ use crate::individual_template::TableCell;
 
 /// A valid curie must have a non-empty prefix and a non-empty numeric suffic
 /// white-space is not allowed.
-fn check_valid_CURIE(s: &str) -> Result<bool,String> {
+fn check_valid_curie(s: &str) -> Result<bool,String> {
     if s.is_empty() {
         return Err("is empty".to_string());
     } else if let Some(pos) = s.find(':') {
@@ -50,7 +50,7 @@ impl Curie {
 
 
     pub fn new_pmid(value: &str) -> Result<Self, String> {
-        let valid_curie = check_valid_CURIE(value);
+        let valid_curie = check_valid_curie(value);
         if valid_curie.is_err() {
             return Err(format!("Invalid PMID: {}", valid_curie.err().unwrap()));
         } else if ! value.starts_with("PMID") {
@@ -61,7 +61,7 @@ impl Curie {
     }
 
     pub fn new_disease_id(value: &str) -> Result<Self, String> {
-        let valid_curie = check_valid_CURIE(value);
+        let valid_curie = check_valid_curie(value);
         if valid_curie.is_err() {
             return Err(format!("Invalid disease identifier: {}", valid_curie.err().unwrap()));
         } else if ! ( value.starts_with("OMIM") || value.starts_with("MONDO") ) {
@@ -72,7 +72,7 @@ impl Curie {
     }
 
     pub fn new_hgnc_id(value: &str) -> Result<Self, String> {
-        let valid_curie = check_valid_CURIE(value);
+        let valid_curie = check_valid_curie(value);
         if valid_curie.is_err() {
             return Err(format!("Invalid disease identifier: {}", valid_curie.err().unwrap()));
         } else if ! value.starts_with("HGNC") {

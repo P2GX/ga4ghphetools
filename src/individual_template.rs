@@ -8,12 +8,14 @@ use std::fmt::{self, format};
 
 use std::{collections::HashSet};
 
+use crate::allele::Allele;
 use crate::curie::Curie;
 use crate::hpo::{SimpleHPO, HPO};
 use crate::main;
 use crate::simple_label::SimpleLabel;
 use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory, HpoTermStatus};
 use crate::onset::Onset;
+use crate::transcript::Transcript;
 
 
 
@@ -102,7 +104,10 @@ pub struct IndividualTemplate {
     disease_id: Curie,
     disease_label: SimpleLabel,
     hgnc_id: Curie,
-    gene_symbol: SimpleLabel
+    gene_symbol: SimpleLabel,
+    transcript_id: Transcript,
+    allele_1: Allele,
+    allele_2: Allele,
 }
 
 
@@ -114,7 +119,10 @@ impl IndividualTemplate {
                 diseaseId: Curie,
                 diseaseLabel: SimpleLabel,
                 hgnc: Curie,
-                gene_sym: SimpleLabel) -> Self {
+                gene_sym: SimpleLabel,
+                tx_id: Transcript,
+                allele1: Allele,
+                allele2: Allele) -> Self {
                     IndividualTemplate {
                         title: title,
                         pmid: pmid,
@@ -123,6 +131,9 @@ impl IndividualTemplate {
                         disease_label: diseaseLabel,
                         hgnc_id: hgnc,
                         gene_symbol: gene_sym,
+                        transcript_id: tx_id,
+                        allele_1: allele1,
+                        allele_2: allele2,
                     }
                 }
 
@@ -259,6 +270,27 @@ impl IndividualTemplateFactory {
                 None
             }  
         };
+        let tx_id = match Transcript::new(&row[8]) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
+            }
+        };
+        let a1 = match Allele::new(&row[9]) {
+            Ok(allele) => Some(allele),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
+            }
+        };
+        let a2 = match Allele::new(&row[9]) {
+            Ok(allele) => Some(allele),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
+            }
+        };
 
         if ! list_of_errors.is_empty() {
             return Err(list_of_errors);
@@ -270,7 +302,10 @@ impl IndividualTemplateFactory {
                                             disease_id.unwrap(),
                                             disease_label.unwrap(),
                                             hgnc_id.unwrap(),
-                                            gene_sym.unwrap()));
+                                            gene_sym.unwrap(),
+                                            tx_id.unwrap(),
+                                            a1.unwrap(),
+                                            a2.unwrap()));
         }
     }
 

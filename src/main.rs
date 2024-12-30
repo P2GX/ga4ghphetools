@@ -2,6 +2,8 @@
 
 use individual_template::IndividualTemplateFactory;
 
+mod age;
+mod allele;
 mod curie;
 mod excel;
 mod header;
@@ -10,6 +12,8 @@ mod hpo_term_template;
 mod individual_template;
 mod onset;
 mod simple_label;
+mod simple_term;
+mod transcript;
 
 fn main() {
     let file_path = "/Users/robin/GIT/phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx";
