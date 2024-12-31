@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use regex::Regex;
 
+use crate::individual_template::TableCell;
+
 
 /// We offer a simple HPO implementation that checks validity of individual Term identifiers and labels
 /// We may also implement a version that keeps track of the Ontology object to perform other checks in the future TODO
@@ -9,6 +11,7 @@ pub trait AgeTrait {
     fn age_string(&self) -> String;
 }
 
+#[derive(Clone)]
 pub struct GestationalAge {
     weeks: u32,
     days: u32,
@@ -28,8 +31,16 @@ impl GestationalAge {
             days: d, 
             age_string: agestring.into()}
     }
+    pub fn weeks(&self) -> u32 {
+        self.weeks
+    }
+
+    pub fn days(&self) -> u32 {
+        self.days
+    }
 }
 
+#[derive(Clone)]
 pub struct Iso8601Age {
     years: u32,
     months: u32,
@@ -109,10 +120,21 @@ pub trait AgeToolTrait {
     fn parse(&self, cell_value:&str) -> Result<Age, String>;
 }
 
+#[derive(Clone)]
 pub enum Age {
     Gestational(GestationalAge),
     HpoTerm(HpoTermAge),
     Iso8601(Iso8601Age),
+}
+
+impl TableCell for Age {
+    fn value(&self) -> String {
+        match &self {
+            Age::Gestational(ga) => ga.age_string(),
+            Age::HpoTerm(h) => h.age_string(),
+            Age::Iso8601(iso) => iso.age_string(),
+        }
+    }
 }
 
 
@@ -251,15 +273,14 @@ mod test {
             let result = parser.parse(test.1);
             match result {
                 Ok(age) => match age {
-                    Age::Gestational(gestational_age) => {
+                    Age::Gestational(_) => {
                         assert!(false, "Not expecting Gestational Age here");
                     }
                     Age::HpoTerm(hpo_term_age) => {
                         assert_eq!(test.1, hpo_term_age.age_string());
                     }
-                    Age::Iso8601(iso8601_age) => {
+                    Age::Iso8601(_) => {
                         assert!(false, "Not expecting Iso8601 Age here");
-
                     }
                 },
                 Err(e) => {
@@ -297,14 +318,11 @@ mod test {
             let result = parser.parse(test.0);
             match result {
                 Ok(age) => match age {
-                    Age::Gestational(gestational_age) => {
-                        assert!(false, "S")
+                    Age::Gestational(_) => {
+                        assert!(false, "Not expecting gestational age here")
                     }
-                    Age::HpoTerm(hpo_term_age) => {
-                        println!(
-                            "HPO Term: ",
-                           
-                        );
+                    Age::HpoTerm(_) => {
+                        assert!(false, "Not expecting HpoTerm age here")
                     }
                     Age::Iso8601(iso8601_age) => {
                         assert_eq!(*test.1, iso8601_age.years());
@@ -331,13 +349,13 @@ mod test {
             let result = parser.parse(test.0);
             match result {
                 Ok(age) => match age {
-                    Age::Gestational(gestational_age) => {
+                    Age::Gestational(_) => {
                         assert!(false, "Not expecting Gestational Age here")
                     }
-                    Age::HpoTerm(hpo_term_age) => {
+                    Age::HpoTerm(_) => {
                         assert!(false, "Not expecting HpoTerm Age here")
                     }
-                    Age::Iso8601(iso8601_age) => {
+                    Age::Iso8601(_) => {
                         assert!(false, "Not expecting Iso8601 Age here")
                     }
                 },
@@ -347,5 +365,36 @@ mod test {
             }
         }
     }
+
+
+    #[test]
+    fn test_gestational_age() {
+        let tests: Vec<(&str, Box<u32>, Box<u32>)> = vec![
+            ("37+2", Box::new(37), Box::new(2)),
+            ("24+0", Box::new(24), Box::new(0)),
+        ];
+        for test in tests {
+            let parser = AgeTool::new();
+            let result = parser.parse(test.0);
+            match result {
+                Ok(age) => match age {
+                    Age::Gestational(gestational_age) => {
+                        assert_eq!(*test.1, gestational_age.weeks());
+                        assert_eq!(*test.2, gestational_age.days());
+                    }
+                    Age::HpoTerm(_) => {
+                        assert!(false, "Not expecting HpoTerm Age here")
+                    }
+                    Age::Iso8601(_) => {
+                        assert!(false, "Not expecting Iso8601 Age here")
+                    }
+                },
+                Err(e) => {
+                    assert!(false, "Not expecting error in this test: {}", e);
+                }
+            }
+        }
+    }
+
 
 }

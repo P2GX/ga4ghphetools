@@ -9,16 +9,6 @@ fn ends_with_period_and_number(s: &str) -> bool {
     false
 }
 
-fn main() {
-    let test_str1 = "example.123";
-    let test_str2 = "example.";
-    let test_str3 = "example.abc";
-    
-    println!("{}", ends_with_period_and_number(test_str1)); // true
-    println!("{}", ends_with_period_and_number(test_str2)); // false
-    println!("{}", ends_with_period_and_number(test_str3)); // false
-}
-
 
 pub struct Transcript {
     value: String,

@@ -4,6 +4,7 @@ use individual_template::IndividualTemplateFactory;
 
 mod age;
 mod allele;
+mod builder;
 mod curie;
 mod excel;
 mod header;
@@ -11,9 +12,32 @@ mod hpo;
 mod hpo_term_template;
 mod individual_template;
 mod onset;
+mod ppkt;
 mod simple_label;
 mod simple_term;
 mod transcript;
+mod generated {
+    pub mod org {
+        pub mod ga4gh {
+            pub mod vrs {
+                pub mod v1;
+            }
+            pub mod vrsatile {
+                pub mod v1;
+            }
+        }
+        pub mod phenopackets {
+            pub mod schema {
+                pub mod v2 {
+                    pub mod core {
+                        pub mod core;
+                    }
+                    pub mod phenopackets;
+                }
+            }
+        }
+    }
+}
 
 fn main() {
     let file_path = "/Users/robin/GIT/phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx";

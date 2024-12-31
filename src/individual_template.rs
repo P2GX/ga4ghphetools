@@ -8,13 +8,12 @@ use std::fmt::{self, format};
 
 use std::{collections::HashSet};
 
+use crate::age::{Age, AgeTool, AgeToolTrait};
 use crate::allele::Allele;
 use crate::curie::Curie;
 use crate::hpo::{SimpleHPO, HPO};
-use crate::main;
 use crate::simple_label::SimpleLabel;
-use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory, HpoTermStatus};
-use crate::onset::Onset;
+use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
 use crate::transcript::Transcript;
 
 
@@ -95,6 +94,93 @@ impl TableCell for TitleCell {
     }
 }
 
+#[derive(PartialEq)]
+pub enum Deceased {
+    Yes,
+    No,
+    NotAvailable
+}
+
+pub struct DeceasedTableCell {
+    deceased: Deceased,
+}
+
+impl DeceasedTableCell {
+    pub fn new<S: Into<String> >(value: &str) -> Result<Self, String> {
+        match value {
+            "yes" =>  Ok(DeceasedTableCell{deceased: Deceased::Yes}),
+            "no" =>  Ok(DeceasedTableCell{deceased: Deceased::No}),
+            "na" =>  Ok(DeceasedTableCell{deceased: Deceased::NotAvailable}),
+            _ => Err(format!("Unrecognized symbol in deceased column: '{}'", value))
+        }
+    }
+
+    pub fn is_deceased(&self) -> bool {
+        self.deceased == Deceased::Yes
+    }
+
+    pub fn is_alive(&self) -> bool {
+        self.deceased == Deceased::No
+    }
+}
+
+impl TableCell for DeceasedTableCell {
+    fn value(&self) -> String {
+        match self.deceased {
+            Deceased::Yes => "yes".to_string(),
+            Deceased::No => "no".to_string(),
+            Deceased::NotAvailable => "na".to_string(),
+
+        }
+    }
+}
+
+#[derive(PartialEq)]
+pub enum Sex {
+    Male,
+    Female,
+    Other,
+    Unknown
+}
+
+pub struct SexTableCell {
+    sex: Sex,
+}
+
+impl SexTableCell {
+    pub fn new<S: Into<String> >(value: &str) -> Result<Self, String> {
+        match value {
+            "M" =>  Ok(SexTableCell{sex: Sex::Male}),
+            "F" =>  Ok(SexTableCell{sex: Sex::Female}),
+            "O" =>  Ok(SexTableCell{sex: Sex::Other}),
+            "U" =>  Ok(SexTableCell{sex: Sex::Unknown}),
+            _ => Err(format!("Unrecognized symbol in sex column: '{}'", value))
+        }
+    }
+
+    pub fn male(&self) -> bool {
+        return self.sex == Sex::Male;
+    }
+
+    pub fn female(&self) -> bool {
+        return self.sex == Sex::Female;
+    }
+
+    pub fn other_sex(&self) -> bool {
+        return self.sex == Sex::Other;
+    }
+}
+
+impl TableCell for SexTableCell {
+    fn value(&self) -> String {
+        match self.sex {
+            Sex::Male => "M".to_string(),
+            Sex::Female => "F".to_string(),
+            Sex::Other => "O".to_string(),
+            Sex::Unknown => "U".to_string(),
+        }
+    }
+}
 
 
 pub struct IndividualTemplate {
@@ -107,7 +193,12 @@ pub struct IndividualTemplate {
     gene_symbol: SimpleLabel,
     transcript_id: Transcript,
     allele_1: Allele,
-    allele_2: Allele,
+    allele_2: Option<Allele>,
+    age_at_onset: Option<Age>,
+    age_at_last_encounter: Option<Age>,
+    deceased: DeceasedTableCell,
+    sex: SexTableCell,
+    hpo_column_list: Vec<HpoTemplate>,
 }
 
 
@@ -115,27 +206,99 @@ impl IndividualTemplate {
    
    pub fn new(title: TitleCell, 
                 pmid: Curie,
-                individualId: SimpleLabel,
-                diseaseId: Curie,
-                diseaseLabel: SimpleLabel,
+                individual_id: SimpleLabel,
+                disease_id: Curie,
+                disease_label: SimpleLabel,
                 hgnc: Curie,
                 gene_sym: SimpleLabel,
                 tx_id: Transcript,
                 allele1: Allele,
-                allele2: Allele) -> Self {
+                allele2: Option<Allele>,
+                age_onset: Option<Age>,
+                age_last_encounter: Option<Age>,
+                deceased: DeceasedTableCell,
+                sex: SexTableCell,
+                hpo_columns: Vec<HpoTemplate> ) -> Self {
                     IndividualTemplate {
                         title: title,
                         pmid: pmid,
-                        individual_id: individualId,
-                        disease_id: diseaseId,
-                        disease_label: diseaseLabel,
+                        individual_id,
+                        disease_id,
+                        disease_label,
                         hgnc_id: hgnc,
                         gene_symbol: gene_sym,
                         transcript_id: tx_id,
                         allele_1: allele1,
                         allele_2: allele2,
+                        age_at_onset: age_onset,
+                        age_at_last_encounter:age_last_encounter,
+                        deceased: deceased,
+                        sex: sex,
+                        hpo_column_list: hpo_columns,
                     }
                 }
+    pub fn individual_id(&self) -> String {
+        self.individual_id.value()
+    }
+
+    pub fn pmid(&self) -> String {
+        self.pmid.value()
+    }
+
+    pub fn title(&self) -> String {
+        self.title.value()
+    }
+
+    pub fn disease_id(&self) -> String {
+        self.disease_id.value()
+    }
+
+    pub fn disease_label(&self) -> String {
+        self.disease_label.value()
+    }
+
+    pub fn hgnc_id(&self) -> String {
+        self.hgnc_id.value()
+    }
+
+    pub fn gene_symbol(&self) -> String {
+        self.gene_symbol.value()
+    }
+
+    pub fn transcript_id(&self) -> String {
+        self.transcript_id.value()
+    }
+
+    pub fn allele_1(&self) -> String {
+        self.allele_1.value()
+    }
+
+    pub fn allele_2(&self) -> Option<String> {
+        match &self.allele_2 {
+            Some(a) => Some(a.value()),
+            None => None
+        }
+    }
+
+    pub fn age_of_onset(&self) -> Option<Age> {
+        self.age_at_onset.clone()
+    }
+
+    pub fn age_at_last_encounter(&self) -> Option<Age> {
+        self.age_at_last_encounter.clone()
+    }
+
+    pub fn deceased(&self) -> &DeceasedTableCell {
+        &self.deceased
+    }
+
+    pub fn sex(&self) -> &SexTableCell {
+        &self.sex
+    }
+
+    pub fn hpo_terms(&self) -> &Vec<HpoTemplate> {
+        &self.hpo_column_list
+    }
 
 }
 
@@ -219,7 +382,7 @@ impl IndividualTemplateFactory {
     /// # Returns
     /// 
     /// A result containing the corresponding IndividualTemplate object or an Err with Vector of strings representing the problems
-    pub fn individual_template_row(row: Vec<String>) -> Result<IndividualTemplate, Vec<String>> {
+    pub fn individual_template_row(&self, row: Vec<String>) -> Result<IndividualTemplate, Vec<String>> {
         let mut list_of_errors: Vec<String> = vec![];
         let title = match TitleCell::new(&row[0]) {
             Ok(title) => Some(title),
@@ -291,6 +454,55 @@ impl IndividualTemplateFactory {
                 None
             }
         };
+        let age_parser = AgeTool::new();
+        let onset = match age_parser.parse(&row[10]) {
+            Ok(result) => Some(result),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
+            }
+        };
+        let encounter = match age_parser.parse(&row[11]) {
+            Ok(result) => Some(result),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
+            }
+        };
+        let deceased = match DeceasedTableCell::new::<&str>(&row[12]) {
+            Ok(result) => Some(result),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
+            }
+        };
+        let sex = match SexTableCell::new::<&str>(&row[13]) {
+            Ok(result) => Some(result),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
+            }
+        };
+        // when we get here, we have parsed all of the constant columns. We can begin to parse the HPO
+        // columns. The template contains a variable number of such columns
+        let mut hpo_column_list: Vec<HpoTemplate> = vec![];
+
+        // Iterate over key-value pairs
+        for (idx, hpo_template_factory) in &self.index_to_hpo_factory_d {
+            let cell_contents = row.get(*idx);
+            match cell_contents {
+                Some(val) => {
+                    let hpo_tplt = hpo_template_factory.from_cell_value(val);
+                    match hpo_tplt {
+                        Ok(hpo_column) => hpo_column_list.push(hpo_column),
+                        Err(err) => list_of_errors.push(err),
+                    }
+                 },
+                 None => {
+                    println!("Probably this means there was nothing in the cell -- check this later todo");
+                 }
+            }
+        }
 
         if ! list_of_errors.is_empty() {
             return Err(list_of_errors);
@@ -305,9 +517,16 @@ impl IndividualTemplateFactory {
                                             gene_sym.unwrap(),
                                             tx_id.unwrap(),
                                             a1.unwrap(),
-                                            a2.unwrap()));
+                                            a2,
+                                            onset,
+                                            encounter,
+                                            deceased.unwrap(),
+                                            sex.unwrap(),
+                                            hpo_column_list));
         }
     }
+
+    
 
 }
 
