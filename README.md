@@ -2,10 +2,13 @@
 Rust implementation of GA4GH Phenopacket Schema Tooling
 
 
+To run the example program, enter
+```bash
+cargo run --bin rustphen -- --pyphetools /.../.../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json /.../.../hp.json 
+```
 
 
-
-## Generating rust code from phenopackets
+## Generating rust code from phenopackets (experiment)
 
 1. Download google's protoc compiler
 2. Copy code from phenopacket schema (only v2) to a local directory

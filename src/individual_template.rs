@@ -6,8 +6,6 @@
 use std::collections::HashMap;
 use std::fmt::{self, format};
 
-use std::{collections::HashSet};
-
 use crate::age::{Age, AgeTool, AgeToolTrait};
 use crate::allele::Allele;
 use crate::curie::Curie;
@@ -303,6 +301,22 @@ impl IndividualTemplate {
 }
 
 
+/// This object collects all errors found in a template when parsing the content rows
+/// 
+/// If we find one or more individual errors, we will return this error
+#[derive(Debug)]
+pub struct TemplateError {
+    messages: Vec<String>,
+}
+
+impl TemplateError {
+    pub fn new(messages: Vec<String>) -> Self {
+        TemplateError { messages }
+    }
+}
+
+
+
 /// This struct sets up code to generate the IndividualtemplateRow objects that we will
 /// use to generate phenopacket code. Each IndivudalTemplateRow object is an intermediate
 /// object in which we have performed sufficient quality control to know that we are able
@@ -315,6 +329,7 @@ pub struct IndividualTemplateFactory {
     hpo: SimpleHPO,
     expected_n_fields: usize,
     index_to_hpo_factory_d: HashMap<usize, HpoTemplateFactory>,
+    content_rows: Vec<Vec<String>>
 }
 
 impl IndividualTemplateFactory {
@@ -368,7 +383,8 @@ impl IndividualTemplateFactory {
         Ok(IndividualTemplateFactory {
             hpo: simple_hpo,
             expected_n_fields: n1,
-            index_to_hpo_factory_d: index_to_hpo_factory
+            index_to_hpo_factory_d: index_to_hpo_factory,
+            content_rows: list_of_rows.iter().skip(2).cloned().collect()
         })
     }
 
@@ -526,7 +542,27 @@ impl IndividualTemplateFactory {
         }
     }
 
-    
+    /// Return all phenopacket templates or a list of errors if there was one or more problems
+    pub fn get_templates(&self) -> Result<Vec<IndividualTemplate>, TemplateError> {
+        let mut errors = Vec::new();
+        let mut templates = Vec::new();
+        for row in &self.content_rows {
+            let itemplate = self.individual_template_row(row.to_vec());
+            match itemplate {
+                Ok(template) => {
+                    templates.push(template);
+                },
+                Err(errs) => {
+                    errors.extend_from_slice(&errs);
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(templates)
+        } else {
+            Err(TemplateError::new(errors))
+        }   
+    }
 
 }
 
@@ -556,6 +592,13 @@ fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<(), Str
         return Err(s);
     }
     Ok(())
+}
+
+
+pub fn generate_qc_summary(template_factory: IndividualTemplateFactory) -> Vec<String> {
+    let mut messages: Vec<String> = Vec::new();
+    
+    messages
 }
 
 
