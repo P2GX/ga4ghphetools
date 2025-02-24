@@ -17,12 +17,12 @@ path = "bin/main.rs"
 
 [dependencies]
 calamine = "0.26.1" 
-polars = "0.45.1"
-prost = "0.13.4"  # Or the latest version
-prost-types = "0.13.4"
+polars = "0.46.0"
+prost = "0.13.5"  # Or the latest version
+prost-types = "0.13.5"
 home = "0.5.11"
 clap = {version = "4.5.30", features = ["derive"] }
-ontolius = { git = 'https://github.com/ielis/ontolius.git', tag = 'v0.3.1' }
+ontolius = { git = 'https://github.com/ielis/ontolius.git', tag = 'v0.4.1' }
 regex = "1"
 
 
