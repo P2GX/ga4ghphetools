@@ -28,6 +28,7 @@ pub struct SimpleHPO {
 
 impl HPO for SimpleHPO {
     fn is_valid_term_id(&self, tid: &str) -> Result<bool, String> {
+        println!("SimpleHPO::is_valid_term_id for {}", &tid);
         if self.tid_to_label_d.contains_key(tid) {
             return Ok(true);
         } else if self.obsolete_d.contains_key(tid) {
@@ -41,6 +42,7 @@ impl HPO for SimpleHPO {
     }
 
     fn is_valid_term_label(&self, tid: &str, label: &str) -> Result<bool, String> {
+        println!("SimpleHPO::is_valid_term_label for tid={} label={}", &tid, &label);
         if self.tid_to_label_d.contains_key(tid) {
             let expected = self.tid_to_label_d.get(tid).expect("could not retrieve label (should never happen)");
             if expected == label {

@@ -20,20 +20,26 @@ pub fn qc_check(hp_json_path: &str, pyphetools_template_path: &str) {
         eprintln!("[ERROR] could not read excel file: '{}", list_of_rows.err().unwrap());
         return;
     }
-    let template_factory = IndividualTemplateFactory::new(hp_json_path, list_of_rows.unwrap().as_ref());
-    if template_factory.is_err() {
-        print!("Could not create template factory!");
-        return;
-    }
-    let template_factory = template_factory.unwrap();
-    let result = template_factory. get_templates();
-    match result {
-        Ok(template_list) => {
-            println!("We parsed {} templates successfuly", template_list.len());
-        },
-        Err(errs) => {
-            println!("We encountered errors");
-        }
-    }
    
+    let result =  IndividualTemplateFactory::new(hp_json_path, list_of_rows.unwrap().as_ref());
+    match result {
+        Ok(template_factory) => {
+            let result = template_factory. get_templates();
+            match result {
+                Ok(template_list) => {
+                    println!("We parsed {} templates successfuly", template_list.len());
+                },
+                Err(errs) => {
+                    println!("We encountered errors");
+                    for e in errs.messages {
+                        println!("{}", e);
+                    }
+                }
+            }
+    },
+    Err(error) => {
+        println!("Could not create template factory! {}", error);
+    }
+}
+
 }

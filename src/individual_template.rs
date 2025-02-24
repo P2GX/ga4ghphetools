@@ -306,7 +306,7 @@ impl IndividualTemplate {
 /// If we find one or more individual errors, we will return this error
 #[derive(Debug)]
 pub struct TemplateError {
-    messages: Vec<String>,
+    pub messages: Vec<String>,
 }
 
 impl TemplateError {
@@ -369,14 +369,15 @@ impl IndividualTemplateFactory {
         let simple_hpo = hpo.unwrap();
         let mut index_to_hpo_factory: HashMap<usize, HpoTemplateFactory> = HashMap::new();
         for i in (NUMBER_OF_CONSTANT_HEADER_FIELDS + 1)..header_duplets.len() {
-            let valid_tid =  simple_hpo.is_valid_term_id(&header_duplets[i].h1);
-            if valid_tid.is_err() {
-                return Err(format!("Invalid term id: {}", valid_tid.err().unwrap()));
-            }
-            let valid_label = simple_hpo.is_valid_term_label(&header_duplets[i].h1, &header_duplets[i].h2);
+           
+            let valid_label = simple_hpo.is_valid_term_label(&header_duplets[i].h2, &header_duplets[i].h1);
             if valid_label.is_err() {
                 return Err(format!("Invalid HPO label: {}", valid_label.err().unwrap()));
-            }  
+            } 
+            let valid_tid =  simple_hpo.is_valid_term_id(&header_duplets[i].h2);
+            if valid_tid.is_err() {
+                return Err(format!("Invalid term id: {}", valid_tid.err().unwrap()));
+            } 
             let hpo_fac = HpoTemplateFactory::new(&header_duplets[i].h1, &header_duplets[i].h2);
             index_to_hpo_factory.insert(i,hpo_fac);          
         }
