@@ -4,13 +4,15 @@
 //! We garantee that if these objects are created, then we are ready to create phenopackets.
 
 use std::collections::HashMap;
-use std::fmt::{self, format};
+use std::fmt::{self};
 use std::time::Instant;
 
 use crate::age::{Age, AgeTool, AgeToolTrait};
 use crate::allele::Allele;
 use crate::curie::Curie;
-use crate::hpo::{SimpleHPO, HPO};
+use crate::simple_hpo::{SimpleHPO, HPO};
+use crate::pptcolumn::deceased::DeceasedTableCell;
+use crate::rpyphetools_traits::TableCell;
 use crate::simple_label::SimpleLabel;
 use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
 use crate::transcript::Transcript;
@@ -59,9 +61,7 @@ pub enum TableCellDataType {
 
 
 
-pub trait TableCell {
-    fn value(&self) -> String;
-}
+
 
 
 pub struct HeaderItem {
@@ -73,6 +73,7 @@ pub struct HeaderItem {
 pub struct TitleCell {
     title: String,
 }
+
 
 impl TitleCell {
     pub fn new(title: &str) -> Result<Self, String> {
@@ -93,46 +94,20 @@ impl TableCell for TitleCell {
     }
 }
 
-#[derive(PartialEq)]
-pub enum Deceased {
-    Yes,
-    No,
-    NotAvailable
-}
 
-pub struct DeceasedTableCell {
-    deceased: Deceased,
-}
-
-impl DeceasedTableCell {
-    pub fn new<S: Into<String> >(value: &str) -> Result<Self, String> {
-        match value {
-            "yes" =>  Ok(DeceasedTableCell{deceased: Deceased::Yes}),
-            "no" =>  Ok(DeceasedTableCell{deceased: Deceased::No}),
-            "na" =>  Ok(DeceasedTableCell{deceased: Deceased::NotAvailable}),
-            _ => Err(format!("Unrecognized symbol in deceased column: '{}'", value))
-        }
-    }
-
-    pub fn is_deceased(&self) -> bool {
-        self.deceased == Deceased::Yes
-    }
-
-    pub fn is_alive(&self) -> bool {
-        self.deceased == Deceased::No
+fn qc_cell_entry(value: &str) -> Result<(), String> {
+    if value.is_empty() {
+        return Err("String is empty".to_string())
+    } else if value.chars().last().map_or(false, |c| c.is_whitespace()) {
+        return Err(format!("String '{}' ends with whitespace", value));
+    } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
+        return Err(format!("String '{}' begins with whitepsace", value));
+    } else {
+        Ok(())
     }
 }
 
-impl TableCell for DeceasedTableCell {
-    fn value(&self) -> String {
-        match self.deceased {
-            Deceased::Yes => "yes".to_string(),
-            Deceased::No => "no".to_string(),
-            Deceased::NotAvailable => "na".to_string(),
 
-        }
-    }
-}
 
 #[derive(PartialEq)]
 pub enum Sex {

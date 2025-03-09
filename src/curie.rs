@@ -1,5 +1,4 @@
-use crate::individual_template::TableCell;
-
+use crate::rpyphetools_traits::TableCell;
 
 
 

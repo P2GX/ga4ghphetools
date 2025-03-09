@@ -1,4 +1,6 @@
-use crate::individual_template::TableCell;
+use crate::rpyphetools_traits::TableCell;
+
+
 
 
 /// We use this function to check that transcripts end with a version

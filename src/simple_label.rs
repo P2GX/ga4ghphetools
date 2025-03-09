@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
-use crate::individual_template::TableCell;
+use crate::rpyphetools_traits::TableCell;
+
+
 
 /// A valid label does not begin with or end with a white space
 /// Valid labels also may not contain /,\, (,  ), or perdiod (".").

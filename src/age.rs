@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use regex::Regex;
 
-use crate::individual_template::TableCell;
+use crate::rpyphetools_traits::TableCell;
+
+
 
 
 /// We offer a simple HPO implementation that checks validity of individual Term identifiers and labels

@@ -1,17 +1,27 @@
 mod age;
 mod allele;
 mod curie;
+mod disease_gene_bundle;
 mod excel;
 mod header;
-mod hpo;
+mod simple_hpo;
 mod hpo_term_template;
 mod individual_template;
 mod onset;
+pub mod hpo {
+    pub mod hpo_term_arranger;
+}
+pub mod pptcolumn {
+    pub mod deceased;
+    pub mod pptheaders;
+}
 mod simple_label;
 mod simple_term;
+pub mod template_creator;
 mod transcript;
+pub mod rpyphetools_traits;
 
-use individual_template::{generate_qc_summary, IndividualTemplateFactory};
+use individual_template::IndividualTemplateFactory;
 
 
 pub fn qc_check(hp_json_path: &str, pyphetools_template_path: &str) {

@@ -8,7 +8,7 @@ cargo run --bin rustphen -- --pyphetools /.../.../phenopacket-store/notebooks/CD
 ```
 For faster performance, enter
 ```bash
-cargo run --release --bin rustphen -- --pyphetools /.../.../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json /.../.../hp.json 
+cargo run --release --bin rustphen -- --pyphetools ./../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json ./../../data/hpo/hp.json 
 ```
 
 ## Generating rust code from phenopackets (experiment)
