@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, format};
+use std::time::Instant;
 
 use crate::age::{Age, AgeTool, AgeToolTrait};
 use crate::allele::Allele;
@@ -352,7 +353,7 @@ impl IndividualTemplateFactory {
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
         for i in 0..(n1-1) {
             header_duplets.push(HeaderDuplet::new(&first_row_headers[i], &second_row_headers[i]));
-            println!("{} ", header_duplets[i]); // Print each column name (header)
+            //println!("{} ", header_duplets[i]); // Print each column name (header)
         }
         if let Err(res) = qc_list_of_header_items(&header_duplets) {
             return Err(res);
@@ -362,11 +363,14 @@ impl IndividualTemplateFactory {
         // new term request columns, for which we only output a warning
         // Because of the structure of the template, we know that the index of
         // the HPO columns begins. We require that there is at least one such column.
+        let start = Instant::now();
         let hpo = SimpleHPO::new(hpo_json_path);
         if hpo.is_err() {
             return Err(hpo.err().unwrap());
         }
         let simple_hpo = hpo.unwrap();
+        let duration = start.elapsed(); // 
+        println!("Parsed HPO in: {:.3} seconds", duration.as_secs_f64());
         let mut index_to_hpo_factory: HashMap<usize, HpoTemplateFactory> = HashMap::new();
         for i in (NUMBER_OF_CONSTANT_HEADER_FIELDS + 1)..header_duplets.len() {
            
@@ -401,18 +405,18 @@ impl IndividualTemplateFactory {
     /// A result containing the corresponding IndividualTemplate object or an Err with Vector of strings representing the problems
     pub fn individual_template_row(&self, row: Vec<String>) -> Result<IndividualTemplate, Vec<String>> {
         let mut list_of_errors: Vec<String> = vec![];
-        let title = match TitleCell::new(&row[0]) {
-            Ok(title) => Some(title),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let pmid = match Curie::new_pmid(&row[1]) {
+        let pmid = match Curie::new_pmid(&row[0]) {
             Ok(pmid) => Some(pmid), 
             Err(err) => {
                 list_of_errors.push(err.to_string()); 
                 None 
+            }
+        };
+        let title = match TitleCell::new(&row[1]) {
+            Ok(title) => Some(title),
+            Err(err) => {
+                list_of_errors.push(err);
+                None
             }
         };
         let individual_id = match SimpleLabel::individual_id(&row[2]) {
@@ -436,7 +440,7 @@ impl IndividualTemplateFactory {
                 None
             }
         };
-        let hgnc_id = match Curie::new_disease_id(&row[6]) {
+        let hgnc_id = match Curie::new_hgnc_id(&row[6]) {
             Ok(id) => Some(id),
             Err(err) => {
                 list_of_errors.push(err);
@@ -464,36 +468,37 @@ impl IndividualTemplateFactory {
                 None
             }
         };
-        let a2 = match Allele::new(&row[9]) {
+        let a2 = match Allele::new(&row[10]) {
             Ok(allele) => Some(allele),
             Err(err) => {
                 list_of_errors.push(err);
                 None
             }
         };
+        // field 11 is variant comment - skip it here!
         let age_parser = AgeTool::new();
-        let onset = match age_parser.parse(&row[10]) {
+        let onset = match age_parser.parse(&row[12]) {
             Ok(result) => Some(result),
             Err(err) => {
                 list_of_errors.push(err);
                 None
             }
         };
-        let encounter = match age_parser.parse(&row[11]) {
+        let encounter = match age_parser.parse(&row[13]) {
             Ok(result) => Some(result),
             Err(err) => {
                 list_of_errors.push(err);
                 None
             }
         };
-        let deceased = match DeceasedTableCell::new::<&str>(&row[12]) {
+        let deceased = match DeceasedTableCell::new::<&str>(&row[14]) {
             Ok(result) => Some(result),
             Err(err) => {
                 list_of_errors.push(err);
                 None
             }
         };
-        let sex = match SexTableCell::new::<&str>(&row[13]) {
+        let sex = match SexTableCell::new::<&str>(&row[15]) {
             Ok(result) => Some(result),
             Err(err) => {
                 list_of_errors.push(err);

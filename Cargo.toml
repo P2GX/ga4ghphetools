@@ -1,6 +1,6 @@
 [package]
 name = "rustphen"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -18,7 +18,7 @@ path = "bin/main.rs"
 [dependencies]
 calamine = "0.26.1" 
 polars = "0.46.0"
-prost = "0.13.5"  # Or the latest version
+prost = "0.13.5" 
 prost-types = "0.13.5"
 home = "0.5.11"
 clap = {version = "4.5.30", features = ["derive"] }

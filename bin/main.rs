@@ -28,12 +28,12 @@ use rustphen::qc_check;
 fn main() {
     let cli = Cli::parse();
     if ! Path::new(&cli.pyphetools).exists() {
-    } else {
         println!("Could not find pyphetools template at {}.", &cli.pyphetools);
+        return;
     }
     if ! Path::new(&cli.json).exists() {
-    } else {
         println!("Could not find HPO JSON file at {}.", &cli.json);
+        return;
     }
 
 

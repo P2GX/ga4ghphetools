@@ -31,7 +31,7 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
     // Now, iterate over the remaining rows
     for (i, row) in row_iter.enumerate() {
         let row_data: Vec<String> = row.iter().map(|cell| cell.to_string()).collect();
-        println!("Row {}: {:?}", i + 3, row_data); 
+        //println!("Row {}: {:?}", i + 3, row_data); 
         if row_data.len() != n1 {
             return Err(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Malformed line:: expected {} fields, got {}", n1, row_data.len()))) as Box<dyn Error>);
         }

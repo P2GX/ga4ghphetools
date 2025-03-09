@@ -27,18 +27,18 @@ pub fn qc_check(hp_json_path: &str, pyphetools_template_path: &str) {
             let result = template_factory. get_templates();
             match result {
                 Ok(template_list) => {
-                    println!("We parsed {} templates successfuly", template_list.len());
+                    println!("[INFO] We parsed {} templates successfully.", template_list.len());
                 },
                 Err(errs) => {
-                    println!("We encountered errors");
+                    eprintln!("[ERROR] We encountered errors");
                     for e in errs.messages {
-                        println!("{}", e);
+                        eprintln!("[ERROR] {}", e);
                     }
                 }
             }
     },
     Err(error) => {
-        println!("Could not create template factory! {}", error);
+        eprintln!("Could not create template factory! {}", error);
     }
 }
 
