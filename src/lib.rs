@@ -1,4 +1,3 @@
-mod age;
 mod allele;
 mod curie;
 mod disease_gene_bundle;
@@ -12,6 +11,7 @@ pub mod hpo {
     pub mod hpo_term_arranger;
 }
 pub mod pptcolumn {
+    pub mod age;
     pub mod deceased;
     pub mod pptheaders;
 }

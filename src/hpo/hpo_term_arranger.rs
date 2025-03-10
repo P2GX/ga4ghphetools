@@ -6,7 +6,7 @@ use std::{collections::HashSet, str::FromStr};
 /// Use a DFS to arrange a list of HPO terms for curation into an easily grokable order
 /// 
 /// 
-use ontolius::{base::{term::simple::SimpleMinimalTerm, Identified, TermId}, ontology::csr::MinimalCsrOntology, prelude::{ChildNodes, HierarchyAware, Term, TermAware}};
+use ontolius::{base::{term::simple::SimpleMinimalTerm, Identified, TermId}, ontology::csr::MinimalCsrOntology, prelude::{ChildNodes, HierarchyAware, TermAware}};
 
 /// Objects of this class are created to perform a DSF to find a good way of arranging HPO term columns
 /// We do not need to take ownership of the ontology, therefore indicate explicit lifetime 

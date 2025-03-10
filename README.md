@@ -4,11 +4,11 @@ Rust implementation of GA4GH Phenopacket Schema Tooling
 
 To run the example program, enter
 ```bash
-cargo run --bin rustphen -- --pyphetools /.../.../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json /.../.../hp.json 
+cargo run --bin rustphen -- --rpt /.../.../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json /.../.../hp.json 
 ```
 For faster performance, enter
 ```bash
-cargo run --release --bin rustphen -- --pyphetools ./../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json ./../../data/hpo/hp.json 
+cargo run --release --bin rpt -- --pyphetools ./../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json ./../../data/hpo/hp.json 
 ```
 
 ## Generating rust code from phenopackets (experiment)

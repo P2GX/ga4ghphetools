@@ -108,12 +108,23 @@ impl AgeTrait for HpoTermAge {
     }
 }
 
+/// It is valid to put "na" in the Age column. We represent this is NaAge
+
+#[derive(Clone)]
+pub struct NaAge;
+
+impl AgeTrait for NaAge {
+    fn age_string(&self) -> String {
+        return "na".to_string();
+    }
+}
 impl AgeTrait for Age {
     fn age_string(&self) -> String {
         match self {
             Age::Gestational(ga) => ga.age_string(),
             Age::HpoTerm(ht) => ht.age_string(),
             Age::Iso8601(iso) => iso.age_string(),
+            Age::NaAge(na) => na.age_string(), 
         }
     }
 }
@@ -127,6 +138,7 @@ pub enum Age {
     Gestational(GestationalAge),
     HpoTerm(HpoTermAge),
     Iso8601(Iso8601Age),
+    NaAge(NaAge),
 }
 
 impl TableCell for Age {
@@ -135,6 +147,7 @@ impl TableCell for Age {
             Age::Gestational(ga) => ga.age_string(),
             Age::HpoTerm(h) => h.age_string(),
             Age::Iso8601(iso) => iso.age_string(),
+            Age::NaAge(na) => na.age_string(),
         }
     }
 }
@@ -161,8 +174,8 @@ impl AgeTool {
         let mut age_term_d: HashMap<String, String>  = HashMap::new();
         let onset_tuples = [("HP:0003584","Late onset"),
             ("HP:0003596", "Middle age onset"),
-            ( "HP:0011462","Young adult onset"),
-            ( "HP:0025710","Late young adult onset"),
+            ("HP:0011462","Young adult onset"),
+            ("HP:0025710","Late young adult onset"),
             ("HP:0025709", "Intermediate young adult onset"),
             ( "HP:0025708", "Early young adult onset"),
             ("HP:0003581", "Adult onset"),
@@ -253,10 +266,10 @@ mod test {
     fn test_hpo_term_age() {
         let tests = vec![
             ("HP:0003596", "Middle age onset"),
-            ( "HP:0011462","Young adult onset"),
-            ( "HP:0025710","Late young adult onset"),
+            ("HP:0011462","Young adult onset"),
+            ("HP:0025710","Late young adult onset"),
             ("HP:0025709", "Intermediate young adult onset"),
-            ( "HP:0025708", "Early young adult onset"),
+            ("HP:0025708", "Early young adult onset"),
             ("HP:0003581", "Adult onset"),
             ("HP:0003621", "Juvenile onset"),
             ("HP:0011463", "Childhood onset"),
@@ -268,7 +281,7 @@ mod test {
             ("HP:0011461", "Fetal onset"),
             ("HP:0034199", "Late first trimester onset"),
             ("HP:0034198",  "Second trimester onset"),
-            ( "HP:0034197", "Third trimester onset"),
+            ("HP:0034197", "Third trimester onset"),
         ];
         let parser = AgeTool::new();
         for test in tests {
@@ -283,6 +296,9 @@ mod test {
                     }
                     Age::Iso8601(_) => {
                         assert!(false, "Not expecting Iso8601 Age here");
+                    },
+                    Age::NaAge(_) => {
+                        assert!(false, "Not expecting na age here");
                     }
                 },
                 Err(e) => {
@@ -330,6 +346,9 @@ mod test {
                         assert_eq!(*test.1, iso8601_age.years());
                         assert_eq!(*test.2, iso8601_age.months());
                         assert_eq!(*test.3, iso8601_age.days());
+                    },
+                    Age::NaAge(_) => {
+                        assert!(false, "Not expecting na age here")
                     }
                 },
                 Err(e) => {
@@ -359,6 +378,9 @@ mod test {
                     }
                     Age::Iso8601(_) => {
                         assert!(false, "Not expecting Iso8601 Age here")
+                    },
+                    Age::NaAge(_) => {
+                        assert!(false, "Not expecting na age here")
                     }
                 },
                 Err(e) => {
@@ -389,6 +411,9 @@ mod test {
                     }
                     Age::Iso8601(_) => {
                         assert!(false, "Not expecting Iso8601 Age here")
+                    },
+                    Age::NaAge(_) => {
+                        assert!(false, "Not expecting na age here")
                     }
                 },
                 Err(e) => {

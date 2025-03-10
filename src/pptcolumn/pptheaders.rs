@@ -65,8 +65,6 @@ impl PptHeader {
             header_duplets.push(HeaderDuplet::new(EXPECTED_H1_FIELDS[i], EXPECTED_H2_FIELDS[i]));
         }
         for term in hpo_terms {
-            let hpo_id = term.identifier().to_string();
-            let hpo_label = term.name().to_string();
             header_duplets.push(HeaderDuplet::new(term.name(), term.identifier().to_string()));
         }
         if let Err(res) = self.qc_list_of_header_items(&header_duplets) {
@@ -167,7 +165,7 @@ impl PptHeader {
         matrix.push(row1);
         matrix.push(row2);
         // We add a default value of 5 additional rows
-        for i in 0..5 {
+        for _ in 0..5 {
             matrix.push(self.get_empty_row(&dg_bundle, n_columns));
         }
 

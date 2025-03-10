@@ -5,7 +5,7 @@ use std::path::Path;
 
 /// A simple CLI example
 #[derive(Parser)]
-#[command(name = "rustphen")]
+#[command(name = "rpt")]
 #[command(about = "Process pyphetools Excel template", long_about = None)]
 struct Cli {
     /// A required input file

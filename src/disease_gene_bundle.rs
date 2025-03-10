@@ -1,13 +1,9 @@
-use clap::builder::Str;
 use ontolius::base::TermId;
-
-use crate::transcript;
 
 ///! This class bundles and performs QC on the data needed to specify a disease and the
 /// corresponding disease gene information for a pyphetools template file.
 /// 
 /// 
-
 
 pub struct DiseaseGeneBundle {
     disease_id: TermId,

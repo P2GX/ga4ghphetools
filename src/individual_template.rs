@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt::{self};
 use std::time::Instant;
 
-use crate::age::{Age, AgeTool, AgeToolTrait};
+use crate::pptcolumn::age::{Age, AgeTool, AgeToolTrait};
 use crate::allele::Allele;
 use crate::curie::Curie;
 use crate::simple_hpo::{SimpleHPO, HPO};

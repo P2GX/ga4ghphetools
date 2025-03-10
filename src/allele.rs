@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use crate::rpyphetools_traits::TableCell;
 
 use regex::Regex;

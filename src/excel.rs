@@ -29,7 +29,7 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
     list_of_rows.push(first_row_headers);
     list_of_rows.push(second_row_headers);
     // Now, iterate over the remaining rows
-    for (i, row) in row_iter.enumerate() {
+    for (_, row) in row_iter.enumerate() {
         let row_data: Vec<String> = row.iter().map(|cell| cell.to_string()).collect();
         //println!("Row {}: {:?}", i + 3, row_data); 
         if row_data.len() != n1 {
