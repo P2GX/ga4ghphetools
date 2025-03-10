@@ -36,9 +36,6 @@ fn main() {
         return;
     }
 
-
-    let pyphetools_template_path = "/Users/robin/GIT/phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx";
-    let hpo_json_path = "/Users/robin/GIT/human-phenotype-ontology/hp.json";
     qc_check(&cli.json, &cli.pyphetools);
    
      

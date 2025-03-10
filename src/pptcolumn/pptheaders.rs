@@ -6,8 +6,12 @@
 use std::fmt;
 
 use ontolius::{base::{term::simple::SimpleMinimalTerm, Identified}, prelude::MinimalTerm};
+use regex::Regex;
 
-use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo};
+use crate::disease_gene_bundle::DiseaseGeneBundle;
+
+
+/// The fields of row one and two of the pyphetools template file (i.e., the header)
 pub struct HeaderDuplet {
     h1: String,
     h2: String,
@@ -39,20 +43,23 @@ impl fmt::Display for HeaderDuplet {
 
 /// These fields are always required by our template
 const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17; 
-static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= ["PMID", "title", "individual_id", "comment", "disease_id", 
-"disease_label", "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", 
-"variant.comment", "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO"];
-const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= ["CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", 
- "str", "str", "str", "str", "optional", "age", "age", "yes/no/na", "M:F:O:U", "na"];
+/// The constant header fields for the first row of the pyphetools template file
+static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= [
+    "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", 
+    "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", "variant.comment", 
+    "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO"];
+/// The constant header fields for the second row of the pyphetools template file
+const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= [
+    "CURIE", "str", "str", "optional", "CURIE", "str", 
+    "CURIE",  "str", "str", "str", "str", "optional", 
+    "age", "age", "yes/no/na", "M:F:O:U", "na"];
 
+ /// PptHeader: Pyphetools Header - manage the generation of the first two rows of our template.
 pub struct PptHeader;
 
 
-
-
-
 impl PptHeader {
-    pub fn getHeaderDuplets(&self, hpo_terms: &Vec<SimpleMinimalTerm>) -> Result<Vec<HeaderDuplet>, Vec<String>> {
+    pub fn get_header_duplets(&self, hpo_terms: &Vec<SimpleMinimalTerm>) -> Result<Vec<HeaderDuplet>, Vec<String>> {
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
         for i in 0..NUMBER_OF_CONSTANT_HEADER_FIELDS {
             header_duplets.push(HeaderDuplet::new(EXPECTED_H1_FIELDS[i], EXPECTED_H2_FIELDS[i]));
@@ -86,8 +93,20 @@ impl PptHeader {
                                 EXPECTED_H2_FIELDS[i], 
                                 duplet.h1))
             } 
+            // for the following fields, we are in the HPO columns
+            // these columns are different for each template. The first row contains the term label
+            // and the second row contains the HPO term id. We just do some basic format checks
             if i > NUMBER_OF_CONSTANT_HEADER_FIELDS {
-                break;
+                if duplet.h1.starts_with(|c: char| c.is_whitespace()) {
+                    errors.push(format!("Column {}: Term label '{}' starts with whitespace", i, duplet.h1));
+                }
+                if duplet.h1.ends_with(|c: char| c.is_whitespace()) {
+                    errors.push(format!("Column {}: Term label '{}' ends with whitespace", i, duplet.h1));
+                }
+                let re = Regex::new(r"^HP:\d{7}$").unwrap();
+                if ! re.is_match(&duplet.h2) {
+                    errors.push(format!("Column {}: Invalid HPO id '{}'", i, duplet.h2));
+                }
             }
         }
         if errors.len() > 0 {
@@ -96,8 +115,9 @@ impl PptHeader {
         Ok(())
     }
 
-    /// 	disease_id	disease_label	HGNC_id	gene_symbol	transcript	
-    /// allele_1	allele_2	variant.comment	age_of_onset	age_at_last_encounter	deceased	sex	HPO
+    /// When we first create the pyphetools template, we create the first two (header) lines
+    /// and then we create 5 additional lines that are empty except for the constant parts
+    /// i.e., information about the disease and disease gene that are constant in all lines
     fn get_empty_row(&self, dg_bundle: &DiseaseGeneBundle, row_len: usize) -> Vec<String> {
         let mut row = vec![];
         for _ in 0..4 {
@@ -125,7 +145,7 @@ impl PptHeader {
 
     pub fn get_initialized_matrix(&self, dg_bundle: DiseaseGeneBundle, hpo_terms: &Vec<SimpleMinimalTerm>) -> 
                     Result<Vec<Vec<String>>, Vec<String>>   {
-        let header_duplets = self.getHeaderDuplets(hpo_terms)?;
+        let header_duplets = self.get_header_duplets(hpo_terms)?;
         self.qc_list_of_header_items(&header_duplets)?;
         let mut errors = vec![];
         let mut matrix: Vec<Vec<String>> = vec![];
