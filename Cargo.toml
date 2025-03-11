@@ -1,6 +1,6 @@
 [package]
 name = "rpyphetools"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -8,7 +8,7 @@ license = "BSD 3"
 readme = "README.md"
 
 [lib]
-name = "rustphen"
+name = "rphetools"
 path = "src/lib.rs"
 
 [[bin]]

@@ -20,7 +20,7 @@ struct Cli {
     verbose: bool,
 }
 
-use rustphen::qc_check;
+use rphetools::qc_check;
 
 
 
