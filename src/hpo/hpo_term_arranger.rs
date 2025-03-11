@@ -53,7 +53,7 @@ impl<'a> HpoTermArranger<'a> {
         let hierarchy = self.ontology.hierarchy();
         if ! hierarchy.is_descendant_of(idx, &self.phenotypic_abn_idx) {
             self.errors.push(format!("TermId {} does not belong to phenotypic abnormality subhierarchy", start_tid));
-            return;
+            //return;
         }
         if self.hpo_curation_term_id_set.contains(&start_tid) {
             ordered_tids.push(start_tid); // Only include terms we want to curate!
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_term_rerrange() {
-        let liver_leiomyoma = TermId::from_str("HP:4000154").unwrap();
+        let liver_leiomyoma = "HP:4000154".parse().unwrap();
         let renal_cortical_hyperechogenicity  = TermId::from_str("HP:0033132").unwrap();
         let gait_ataxia = TermId::from_str("HP:0002066").unwrap();
         let vsd = TermId::from_str("HP:0001629").unwrap();

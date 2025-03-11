@@ -3,12 +3,12 @@
 /// shown in the second field. The purpose of this struct is simply to record the strings in
 /// both rows so that we can do some Q/C prior to starting to create the DataFrame object.
 /// 
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
-use ontolius::{base::{term::simple::SimpleMinimalTerm, Identified}, prelude::MinimalTerm};
+use ontolius::{base::{term::simple::SimpleMinimalTerm, Identified, TermId}, ontology::csr::MinimalCsrOntology, prelude::MinimalTerm};
 use regex::Regex;
 
-use crate::disease_gene_bundle::DiseaseGeneBundle;
+use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo::hpo_term_arranger::HpoTermArranger};
 
 
 /// The fields of row one and two of the pyphetools template file (i.e., the header)
@@ -59,16 +59,34 @@ pub struct PptHeader;
 
 
 impl PptHeader {
-    pub fn get_header_duplets(&self, hpo_terms: &Vec<SimpleMinimalTerm>) -> Result<Vec<HeaderDuplet>, Vec<String>> {
+    pub fn get_header_duplets<'a>(&self, hpo_terms: &Vec<SimpleMinimalTerm>, 
+                                        hpo:&'a MinimalCsrOntology) -> Result<Vec<HeaderDuplet>, Vec<String>> {
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
+        let mut errors: Vec<String> = Vec::new();
         for i in 0..NUMBER_OF_CONSTANT_HEADER_FIELDS {
             header_duplets.push(HeaderDuplet::new(EXPECTED_H1_FIELDS[i], EXPECTED_H2_FIELDS[i]));
         }
-        for term in hpo_terms {
-            header_duplets.push(HeaderDuplet::new(term.name(), term.identifier().to_string()));
+        // Arrange the HPO terms in a sensible order.
+        let mut hpo_arranger = HpoTermArranger::new(hpo);
+        let term_id_to_label_d: HashMap<TermId, String> = hpo_terms
+            .iter()
+            .map(|term| (term.identifier().clone(), term.name().to_string()))
+            .collect();
+        let term_ids: Vec<TermId> = term_id_to_label_d.keys().cloned().collect();
+        let arranged_term_ids = hpo_arranger.arrange_terms(&term_ids);
+
+        for tid in arranged_term_ids {
+            let result = term_id_to_label_d.get(&tid);
+            match result {
+                Some(name) => header_duplets.push(HeaderDuplet::new(name, tid.to_string())),
+                None => errors.push(format!("Could not get HPO term label for {}", tid)),
+            }
+        }
+        if ! errors.is_empty() {
+            return Err(errors);
         }
         if let Err(res) = self.qc_list_of_header_items(&header_duplets) {
-            return Err(res);
+            return Err(errors);
         } else {
             return Ok(header_duplets);
         }
@@ -141,9 +159,11 @@ impl PptHeader {
         row
     }
 
-    pub fn get_initialized_matrix(&self, dg_bundle: DiseaseGeneBundle, hpo_terms: &Vec<SimpleMinimalTerm>) -> 
+    pub fn get_initialized_matrix<'a>(&self, dg_bundle: DiseaseGeneBundle, 
+                                        hpo_terms: &Vec<SimpleMinimalTerm>,
+                                        hpo:&'a MinimalCsrOntology) -> 
                     Result<Vec<Vec<String>>, Vec<String>>   {
-        let header_duplets = self.get_header_duplets(hpo_terms)?;
+        let header_duplets = self.get_header_duplets(hpo_terms, hpo)?;
         self.qc_list_of_header_items(&header_duplets)?;
         let mut errors = vec![];
         let mut matrix: Vec<Vec<String>> = vec![];
