@@ -1,6 +1,6 @@
 use ontolius::base::term::simple::SimpleMinimalTerm;
 
-use crate::{disease_gene_bundle::DiseaseGeneBundle, rpyphetools_traits::PyphetoolsTemplateCreator};
+use crate::{disease_gene_bundle::DiseaseGeneBundle, rphetools_traits::PyphetoolsTemplateCreator};
 
 
 

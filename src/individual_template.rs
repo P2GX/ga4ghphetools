@@ -12,7 +12,7 @@ use crate::allele::Allele;
 use crate::curie::Curie;
 use crate::simple_hpo::{SimpleHPO, HPO};
 use crate::pptcolumn::deceased::DeceasedTableCell;
-use crate::rpyphetools_traits::TableCell;
+use crate::rphetools_traits::TableCell;
 use crate::simple_label::SimpleLabel;
 use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
 use crate::transcript::Transcript;

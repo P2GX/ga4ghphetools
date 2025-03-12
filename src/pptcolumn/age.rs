@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use regex::Regex;
 
-use crate::rpyphetools_traits::TableCell;
+use crate::rphetools_traits::TableCell;
 
 
 

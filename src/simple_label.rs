@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::rpyphetools_traits::TableCell;
+use crate::rphetools_traits::TableCell;
 
 
 

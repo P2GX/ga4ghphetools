@@ -19,7 +19,7 @@ mod simple_label;
 mod simple_term;
 pub mod template_creator;
 mod transcript;
-pub mod rpyphetools_traits;
+pub mod rphetools_traits;
 
 use individual_template::IndividualTemplateFactory;
 
