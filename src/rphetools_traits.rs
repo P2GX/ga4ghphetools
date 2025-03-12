@@ -1,6 +1,4 @@
-use ontolius::base::term::simple::SimpleMinimalTerm;
-use crate::disease_gene_bundle::DiseaseGeneBundle;
-
+use ontolius::{base::term::simple::SimpleMinimalTerm, ontology::csr::MinimalCsrOntology};
 
 
 
@@ -8,8 +6,14 @@ use crate::disease_gene_bundle::DiseaseGeneBundle;
 /// We create a rows with string fields, and from this we will create the rows
 /// of individual templates that will be quality-checked.
 pub trait PyphetoolsTemplateCreator {
-    fn create_pyphetools_template(disease_gene_bdl: DiseaseGeneBundle, hpo_terms: Vec<SimpleMinimalTerm>) ->   
-        Vec<Vec<String>>;
+    fn create_pyphetools_template<'a>(
+        disease_id: &str,
+        disease_name: &str,
+        hgnc_id: &str,
+        gene_symbol: &str,
+        transcript_id: &str,
+        hpo_terms: Vec<SimpleMinimalTerm>,
+        hpo:&'a MinimalCsrOntology) ->  Result<Vec<Vec<String>>, String>;
 }
 
 
