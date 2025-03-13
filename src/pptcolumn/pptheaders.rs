@@ -5,7 +5,9 @@
 /// 
 use std::{collections::HashMap, fmt};
 
-use ontolius::{base::{term::simple::SimpleMinimalTerm, Identified, TermId}, ontology::csr::MinimalCsrOntology, prelude::MinimalTerm};
+use ontolius::Identified;
+use ontolius::term::MinimalTerm;
+use ontolius::{ontology::csr::MinimalCsrOntology, term::simple::SimpleMinimalTerm, TermId};
 use regex::Regex;
 
 use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo::hpo_term_arranger::HpoTermArranger};

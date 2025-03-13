@@ -1,4 +1,4 @@
-use ontolius::base::TermId;
+use ontolius::TermId;
 
 ///! This class bundles and performs QC on the data needed to specify a disease and the
 /// corresponding disease gene information for a pyphetools template file.

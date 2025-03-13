@@ -1,6 +1,7 @@
 use ontolius::io::OntologyLoaderBuilder;
 use ontolius::ontology::csr::MinimalCsrOntology;
-use ontolius::prelude::*;
+use ontolius::ontology::OntologyTerms;
+use ontolius::term::MinimalTerm;
 use std::collections::HashMap;
 
 
@@ -62,7 +63,7 @@ impl SimpleHPO {
 
     pub fn new(hpo_json_path: &str) -> Result<Self, String> {
         let loader = OntologyLoaderBuilder::new()
-                .obographs_parser::<usize>() 
+                .obographs_parser() 
                .build();
             let hpo: MinimalCsrOntology = loader.load_from_path(hpo_json_path)
                                                 .expect("HPO should be loaded");
@@ -75,7 +76,7 @@ impl SimpleHPO {
                         if term_id != primary_hpo_id {
                             obsolete_identifiers.insert(term_id.to_string(), primary_hpo_id.to_string());
                         } else {
-                            let term = hpo.id_to_term(term_id);
+                            let term = hpo.term_by_id(term_id);
                             match term {
                                 Some(term) => {
                                     tid_to_label_d.insert(term_id.to_string(), term.name().to_string());

@@ -5,18 +5,18 @@
 //! Objects of this class are created to perform a DSF to find a good way of arranging HPO term columns
 //! We do not need to take ownership of the ontology, therefore indicate explicit lifetime 
 use std::{collections::HashSet, str::FromStr};
-use ontolius::{base::{term::simple::SimpleMinimalTerm, Identified, TermId}, ontology::csr::MinimalCsrOntology, prelude::{AncestorNodes, ChildNodes, HierarchyAware, TermAware}};
+
+use ontolius::{common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{HierarchyQueries, HierarchyWalks}, TermId};
 
 /// Arranges HPO terms into a meaningful order for curation using DFS.
-pub struct HpoTermArranger<'a> {
-    ontology: &'a MinimalCsrOntology,
+pub struct HpoTermArranger<'a, O> {
+    hpo: &'a O,
     hpo_curation_term_id_set: HashSet<TermId>,
     errors: Vec<String>,
-    phenotypic_abn_idx: usize
 }
 
 
-impl<'a> HpoTermArranger<'a> {
+impl<'a, O> HpoTermArranger<'a, O> where O: HierarchyQueries + HierarchyWalks {
     /// Create a new HpoTermArranger 
     /// 
     /// We use a specified life time so we can borrow a reference to the ontology.
@@ -24,46 +24,35 @@ impl<'a> HpoTermArranger<'a> {
     /// # Arguments
     /// 
     /// * `ontology` - reference to an Ontolius HPO ontology. 
-    pub fn new(ontology: &'a MinimalCsrOntology) -> Self {
-        let phenotypic_abnormality = TermId::from_str("HP:000118").unwrap();
-        let phen_ab_idx = ontology.id_to_idx(&phenotypic_abnormality).unwrap();
+    pub fn new(ontology: &'a O) -> Self {
         Self {
-            ontology,
+            hpo: ontology,
             hpo_curation_term_id_set: HashSet::new(),
             errors: Vec::new(),
-            phenotypic_abn_idx: *phen_ab_idx
         }
     }
 
     /// Perform a depth-first search to arrange the terms for curation into an order that
     /// tends to keep related terms together
     /// We only store the terms we are interested in in ordered_tids.
-    fn dfs(&mut self, start_tid: TermId, visited: &mut HashSet<TermId>, ordered_tids: &mut Vec<TermId>) {
+    fn dfs(&mut self, start_tid: &TermId, visited: &mut HashSet<TermId>, ordered_tids: &mut Vec<TermId>) {
         if visited.contains(&start_tid) {
             return;
         }
        
         visited.insert(start_tid.clone());
-        let result = self.ontology.id_to_idx(&start_tid);
-        if result.is_none() {
-            self.errors.push(format!("Could not find index for TermId {}", start_tid.clone()));
-            return; 
-        }
-        let idx = result.unwrap();
-        let hierarchy = self.ontology.hierarchy();
-        if ! hierarchy.is_descendant_of(idx, &self.phenotypic_abn_idx) {
+        
+        if ! self.hpo.is_equal_or_descendant_of(start_tid, &PHENOTYPIC_ABNORMALITY) {
             self.errors.push(format!("TermId {} does not belong to phenotypic abnormality subhierarchy", start_tid));
-            //return;
+            return;
         }
+
         if self.hpo_curation_term_id_set.contains(&start_tid) {
-            ordered_tids.push(start_tid); // Only include terms we want to curate!
+            ordered_tids.push(start_tid.clone()); // Only include terms we want to curate!
         }
-        let children: Vec<&SimpleMinimalTerm> = hierarchy.iter_children_of(idx)
-            .flat_map(|idx| self.ontology.idx_to_term(idx))
-            .collect();
-        for child in children {
-            let child_id = child.identifier().clone();
-            self.dfs(child_id, visited, ordered_tids);
+
+        for child in self.hpo.iter_child_ids(start_tid) {
+            self.dfs(child, visited, ordered_tids);
         }
     }
 
@@ -81,17 +70,17 @@ impl<'a> HpoTermArranger<'a> {
     pub fn arrange_terms(&mut self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
         self.hpo_curation_term_id_set.clear();
         for smt in hpo_terms_for_curation {
-            self.hpo_curation_term_id_set.insert(smt.identifier().clone());
+            self.hpo_curation_term_id_set.insert(smt.clone());
         }
-        let phenotypic_abnormality = TermId::from_str("HP:000118").unwrap();
+
         let neoplasm = TermId::from_str("HP:0002664").unwrap();
         let mut visited: HashSet<TermId> = HashSet::new();
         let mut result: Vec<TermId> = Vec::new();
         let mut neoplasm_terms = Vec::new();
         // First get any Neoplasm terms
-        self.dfs(neoplasm, &mut visited, &mut neoplasm_terms);
+        self.dfs(&neoplasm, &mut visited, &mut neoplasm_terms);
         // then arrange the remaining terms according to organ system
-        self.dfs(phenotypic_abnormality, &mut visited, &mut result);
+        self.dfs(&PHENOTYPIC_ABNORMALITY, &mut visited, &mut result);
         result.extend(neoplasm_terms);
         result
     }
@@ -103,7 +92,7 @@ impl<'a> HpoTermArranger<'a> {
 mod tests {
     use std::time::Instant;
 
-    use ontolius::{io::OntologyLoaderBuilder, prelude::MinimalTerm};
+    use ontolius::{io::OntologyLoaderBuilder, ontology::{csr::MinimalCsrOntology, OntologyTerms}, term::MinimalTerm};
 
     use super::*;
 
@@ -141,7 +130,7 @@ mod tests {
         let duration = start.elapsed();
         println!("Arranged terms: {:?}", duration);
         for t in ordered_terms {
-            let result = hpo.id_to_term(&t);
+            let result = hpo.term_by_id(&t);
             match result {
                 Some(term) => println!("{} ({})",term.name(), t),
                 None => eprint!("Could not retrieve term for {}.", t)

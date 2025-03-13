@@ -1,6 +1,7 @@
+
 use std::str::FromStr;
 
-use ontolius::{base::{term::simple::SimpleMinimalTerm, TermId}, ontology::csr::MinimalCsrOntology};
+use ontolius::{ontology::csr::MinimalCsrOntology, term::simple::SimpleMinimalTerm, TermId};
 
 use crate::{disease_gene_bundle::DiseaseGeneBundle, pptcolumn::pptheaders::PptHeader, rphetools_traits::PyphetoolsTemplateCreator};
 

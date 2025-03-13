@@ -1,4 +1,4 @@
-use ontolius::{base::term::simple::SimpleMinimalTerm, ontology::csr::MinimalCsrOntology};
+use ontolius::{ontology::csr::MinimalCsrOntology, term::simple::SimpleMinimalTerm};
 
 
 
@@ -19,5 +19,4 @@ pub trait PyphetoolsTemplateCreator {
 
 pub trait TableCell {
     fn value(&self) -> String;
-    
 }
