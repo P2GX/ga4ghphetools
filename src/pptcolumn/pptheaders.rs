@@ -5,11 +5,13 @@
 /// 
 use std::{collections::HashMap, fmt};
 
-use ontolius::Identified;
+
+use ontolius::term::simple::SimpleMinimalTerm;
 use ontolius::term::MinimalTerm;
-use ontolius::{ontology::csr::MinimalCsrOntology, term::simple::SimpleMinimalTerm, TermId};
+use ontolius::{ontology::csr::FullCsrOntology, Identified, TermId};
 use regex::Regex;
 
+use crate::simple_term::SimpleTerm;
 use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo::hpo_term_arranger::HpoTermArranger};
 
 
@@ -21,7 +23,9 @@ pub struct HeaderDuplet {
 
 impl HeaderDuplet {
 
-    pub fn new<S: Into<String>, T: Into<String>>(header1: S ,  header2: T) -> Self {
+    pub fn new<S, T>(header1: S , header2: T) -> Self 
+        where S: Into<String>, T: Into<String>
+       {
         HeaderDuplet {
             h1: header1.into(),
             h2: header2.into(),
@@ -61,8 +65,8 @@ pub struct PptHeader;
 
 
 impl PptHeader {
-    pub fn get_header_duplets<'a>(&self, hpo_terms: &Vec<SimpleMinimalTerm>, 
-                                        hpo:&'a MinimalCsrOntology) -> Result<Vec<HeaderDuplet>, Vec<String>> {
+    pub fn get_header_duplets<'a>(hpo_terms: &Vec<SimpleMinimalTerm>, 
+                                        hpo:&'a FullCsrOntology) -> Result<Vec<HeaderDuplet>, Vec<String>> {
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
         let mut errors: Vec<String> = Vec::new();
         for i in 0..NUMBER_OF_CONSTANT_HEADER_FIELDS {
@@ -87,7 +91,7 @@ impl PptHeader {
         if ! errors.is_empty() {
             return Err(errors);
         }
-        if let Err(res) = self.qc_list_of_header_items(&header_duplets) {
+        if let Err(res) = Self::qc_list_of_header_items(&header_duplets) {
             return Err(errors);
         } else {
             return Ok(header_duplets);
@@ -96,7 +100,7 @@ impl PptHeader {
 
     
     /// perform quality control of the two header rows of a pyphetools template file
-    pub fn qc_list_of_header_items(&self, header_duplets: &Vec<HeaderDuplet>) -> Result<(), Vec<String>> {
+    pub fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<(), Vec<String>> {
         // check each of the items in turn
 
         let mut errors: Vec<String> = vec![];
@@ -136,7 +140,7 @@ impl PptHeader {
     /// When we first create the pyphetools template, we create the first two (header) lines
     /// and then we create 5 additional lines that are empty except for the constant parts
     /// i.e., information about the disease and disease gene that are constant in all lines
-    fn get_empty_row(&self, dg_bundle: &DiseaseGeneBundle, row_len: usize) -> Vec<String> {
+    fn get_empty_row(dg_bundle: &DiseaseGeneBundle, row_len: usize) -> Vec<String> {
         let mut row = vec![];
         for _ in 0..4 {
             row.push(String::new()); // empty PMID, title, individual_id, comment
@@ -161,12 +165,12 @@ impl PptHeader {
         row
     }
 
-    pub fn get_initialized_matrix<'a>(&self, dg_bundle: DiseaseGeneBundle, 
-                                        hpo_terms: &Vec<SimpleMinimalTerm>,
-                                        hpo:&'a MinimalCsrOntology) -> 
+    pub fn get_initialized_matrix<'a>(dg_bundle: DiseaseGeneBundle, 
+                                      hpo_terms: &Vec<SimpleMinimalTerm>,
+                                      hpo:&'a FullCsrOntology) -> 
                     Result<Vec<Vec<String>>, Vec<String>>   {
-        let header_duplets = self.get_header_duplets(hpo_terms, hpo)?;
-        self.qc_list_of_header_items(&header_duplets)?;
+        let header_duplets = Self::get_header_duplets(hpo_terms, hpo)?;
+        Self::qc_list_of_header_items(&header_duplets)?;
         let mut errors = vec![];
         let mut matrix: Vec<Vec<String>> = vec![];
         // initialize the first two rows
@@ -188,7 +192,7 @@ impl PptHeader {
         matrix.push(row2);
         // We add a default value of 5 additional rows
         for _ in 0..5 {
-            matrix.push(self.get_empty_row(&dg_bundle, n_columns));
+            matrix.push(Self::get_empty_row(&dg_bundle, n_columns));
         }
 
 

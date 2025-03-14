@@ -7,21 +7,72 @@ mod simple_hpo;
 mod hpo_term_template;
 mod individual_template;
 mod onset;
-pub mod hpo {
+mod hpo {
     pub mod hpo_term_arranger;
 }
-pub mod pptcolumn {
+mod pptcolumn {
     pub mod age;
     pub mod deceased;
     pub mod pptheaders;
 }
 mod simple_label;
 mod simple_term;
-pub mod template_creator;
+mod template_creator;
 mod transcript;
-pub mod rphetools_traits;
+mod rphetools_traits;
 
+use hpo::hpo_term_arranger::HpoTermArranger;
 use individual_template::IndividualTemplateFactory;
+use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use rphetools_traits::PyphetoolsTemplateCreator;
+
+
+pub struct PheTools<'a> {
+    hpo: &'a FullCsrOntology
+}
+
+impl<'a> PheTools<'a> {
+    pub fn new(hpo: &'a FullCsrOntology) -> Self {
+        PheTools{hpo}
+    }
+}
+
+impl <'a> PyphetoolsTemplateCreator for PheTools<'a> {
+    fn create_pyphetools_template (
+        &self,
+        disease_id: &str,
+        disease_name: &str,
+        hgnc_id: &str,
+        gene_symbol: &str,
+        transcript_id: &str,
+        hpo_term_ids: Vec<TermId>
+    ) ->  Result<Vec<Vec<String>>, String> {
+        return template_creator::create_pyphetools_template(
+            disease_id,
+            disease_name,
+            hgnc_id,
+            gene_symbol,
+            transcript_id,
+            hpo_term_ids,
+            self.hpo
+        );
+    }
+
+    fn arrange_terms(
+        &self, 
+        hpo_terms_for_curation: &Vec<TermId>
+    ) -> Vec<TermId> {
+        let mut term_arrager = HpoTermArranger::new(
+            self.hpo
+        );
+        let arranged_terms = term_arrager.arrange_terms(hpo_terms_for_curation);
+        arranged_terms
+    }
+}
+
+
+
+
 
 
 pub fn qc_check(hp_json_path: &str, pyphetools_template_path: &str) {
