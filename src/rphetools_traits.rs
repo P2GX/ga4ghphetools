@@ -27,6 +27,8 @@ pub trait PyphetoolsTemplateCreator {
         hpo_terms_for_curation: &Vec<TermId>
     ) -> Vec<TermId>;
 
+    fn template_qc(&self, pyphetools_template_path: &str) -> Vec<String>;
+
 }
 
 

@@ -7,10 +7,12 @@ use std::collections::HashMap;
 use std::fmt::{self};
 use std::time::Instant;
 
+use ontolius::ontology::csr::FullCsrOntology;
+
 use crate::pptcolumn::age::{Age, AgeTool, AgeToolTrait};
 use crate::allele::Allele;
 use crate::curie::Curie;
-use crate::simple_hpo::{SimpleHPO, HPO};
+use crate::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::pptcolumn::deceased::DeceasedTableCell;
 use crate::rphetools_traits::TableCell;
 use crate::simple_label::SimpleLabel;
@@ -302,7 +304,7 @@ impl TemplateError {
 /// that perform Q/C. The HPO columns require somewhat more functionality and use HpoTemplateFactory,
 /// one for each column.
 pub struct IndividualTemplateFactory {
-    hpo: SimpleHPO,
+    hpo: SimpleHPOMapper,
     expected_n_fields: usize,
     index_to_hpo_factory_d: HashMap<usize, HpoTemplateFactory>,
     content_rows: Vec<Vec<String>>
@@ -310,7 +312,7 @@ pub struct IndividualTemplateFactory {
 
 impl IndividualTemplateFactory {
     pub fn new (
-            hpo_json_path: &str, 
+            hpo: &FullCsrOntology, 
             list_of_rows: &Vec<Vec<String>>,
         ) -> Result<Self, String>  {
         if list_of_rows.len() < 3 {
@@ -339,7 +341,7 @@ impl IndividualTemplateFactory {
         // Because of the structure of the template, we know that the index of
         // the HPO columns begins. We require that there is at least one such column.
         let start = Instant::now();
-        let hpo = SimpleHPO::new(hpo_json_path);
+        let hpo = SimpleHPOMapper::new(hpo);
         if hpo.is_err() {
             return Err(hpo.err().unwrap());
         }
@@ -575,12 +577,6 @@ fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<(), Str
     Ok(())
 }
 
-
-pub fn generate_qc_summary(template_factory: IndividualTemplateFactory) -> Vec<String> {
-    let mut messages: Vec<String> = Vec::new();
-    
-    messages
-}
 
 
 

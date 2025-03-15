@@ -21,6 +21,8 @@ mod template_creator;
 mod transcript;
 mod rphetools_traits;
 
+use std::vec;
+
 use hpo::hpo_term_arranger::HpoTermArranger;
 use individual_template::IndividualTemplateFactory;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
@@ -35,10 +37,8 @@ impl<'a> PheTools<'a> {
     pub fn new(hpo: &'a FullCsrOntology) -> Self {
         PheTools{hpo}
     }
-}
 
-impl <'a> PyphetoolsTemplateCreator for PheTools<'a> {
-    fn create_pyphetools_template (
+    pub fn create_pyphetools_template (
         &self,
         disease_id: &str,
         disease_name: &str,
@@ -58,7 +58,7 @@ impl <'a> PyphetoolsTemplateCreator for PheTools<'a> {
         );
     }
 
-    fn arrange_terms(
+    pub fn arrange_terms(
         &self, 
         hpo_terms_for_curation: &Vec<TermId>
     ) -> Vec<TermId> {
@@ -68,39 +68,39 @@ impl <'a> PyphetoolsTemplateCreator for PheTools<'a> {
         let arranged_terms = term_arrager.arrange_terms(hpo_terms_for_curation);
         arranged_terms
     }
-}
 
-
-
-
-
-
-pub fn qc_check(hp_json_path: &str, pyphetools_template_path: &str) {
-    let list_of_rows     = excel::read_excel_to_dataframe(pyphetools_template_path);
-    if list_of_rows.is_err() {
-        eprintln!("[ERROR] could not read excel file: '{}", list_of_rows.err().unwrap());
-        return;
-    }
-   
-    let result =  IndividualTemplateFactory::new(hp_json_path, list_of_rows.unwrap().as_ref());
-    match result {
-        Ok(template_factory) => {
-            let result = template_factory. get_templates();
-            match result {
-                Ok(template_list) => {
-                    println!("[INFO] We parsed {} templates successfully.", template_list.len());
-                },
-                Err(errs) => {
-                    eprintln!("[ERROR] We encountered errors");
-                    for e in errs.messages {
-                        eprintln!("[ERROR] {}", e);
-                    }
+    pub fn template_qc(&self, pyphetools_template_path: &str) -> Vec<String> {
+        let mut err_list = Vec::new();
+        let row_result     = excel::read_excel_to_dataframe(pyphetools_template_path);
+        match row_result {
+            Ok(list_of_rows) => {
+                        let result =  IndividualTemplateFactory::new(self.hpo, list_of_rows.as_ref());
+                        match result {
+                            Ok(template_factory) => {
+                                                let result = template_factory. get_templates();
+                                                match result {
+                                                    Ok(template_list) => {
+                                                        println!("[INFO] We parsed {} templates successfully.", template_list.len());
+                                                        vec![]
+                                                    },
+                                                    Err(errs) => {
+                                                        eprintln!("[ERROR] We encountered errors");
+                                                        return  errs.messages;
+                                                    }
+                                                }
+                                            }
+                            Err(e) =>  {
+                                err_list.push(e);
+                                return err_list;
+                            },
+                    }  
                 }
-            }
-    },
-    Err(error) => {
-        eprintln!("Could not create template factory! {}", error);
+                Err(e) =>  {
+                    err_list.push(e.to_string());
+                    return err_list;
+                },
+        }
     }
-}
+
 
 }

@@ -10,8 +10,6 @@ use ontolius::term::simple::SimpleMinimalTerm;
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, Identified, TermId};
 use regex::Regex;
-
-use crate::simple_term::SimpleTerm;
 use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo::hpo_term_arranger::HpoTermArranger};
 
 

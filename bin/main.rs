@@ -1,5 +1,6 @@
 // src/main.rs
 use clap::Parser;
+use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::path::Path;
 
 
@@ -20,7 +21,7 @@ struct Cli {
     verbose: bool,
 }
 
-use rphetools::qc_check;
+use rphetools::PheTools;
 
 
 
@@ -35,8 +36,14 @@ fn main() {
         println!("Could not find HPO JSON file at {}.", &cli.json);
         return;
     }
-
-    qc_check(&cli.json, &cli.pyphetools);
+    // Configure the loader to parse the input as an Obographs file
+    let loader = OntologyLoaderBuilder::new()
+        .obographs_parser()
+        .build();
+    let hpo: FullCsrOntology = loader.load_from_path(&cli.json)
+                                                .expect("HPO should be loaded");
+    let pyphetools = PheTools::new(&hpo);
+    pyphetools.template_qc(&cli.pyphetools);
    
      
 }

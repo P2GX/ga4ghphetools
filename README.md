@@ -4,7 +4,7 @@ Rust implementation of GA4GH Phenopacket Schema Tooling
 
 To run the example program, enter
 ```bash
-cargo run --bin rustphen -- --rpt /.../.../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json /.../.../hp.json 
+cargo run --bin rpt -- --rpt /.../.../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json /.../.../hp.json 
 ```
 For faster performance, enter
 ```bash

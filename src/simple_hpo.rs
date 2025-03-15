@@ -1,5 +1,5 @@
 use ontolius::io::OntologyLoaderBuilder;
-use ontolius::ontology::csr::MinimalCsrOntology;
+use ontolius::ontology::csr::{FullCsrOntology, MinimalCsrOntology};
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::MinimalTerm;
 use std::collections::HashMap;
@@ -22,12 +22,12 @@ pub trait HPO {
 /// used then we output an error message that allows the user to find the current identifier. 
 /// Likewise if the identifier is correct but the label is incorrect, we output the correct
 /// label to help the user to correct the error in the template input file.
-pub struct SimpleHPO {
+pub struct SimpleHPOMapper {
     obsolete_d: HashMap<String, String>,
     tid_to_label_d: HashMap<String, String>,
 }
 
-impl HPO for SimpleHPO {
+impl HPO for SimpleHPOMapper {
     fn is_valid_term_id(&self, tid: &str) -> Result<bool, String> {
         if self.tid_to_label_d.contains_key(tid) {
             return Ok(true);
@@ -59,14 +59,9 @@ impl HPO for SimpleHPO {
 }
 
 
-impl SimpleHPO {
+impl SimpleHPOMapper {
 
-    pub fn new(hpo_json_path: &str) -> Result<Self, String> {
-        let loader = OntologyLoaderBuilder::new()
-                .obographs_parser() 
-               .build();
-            let hpo: MinimalCsrOntology = loader.load_from_path(hpo_json_path)
-                                                .expect("HPO should be loaded");
+    pub fn new(hpo: &FullCsrOntology) -> Result<Self, String> {
             let mut obsolete_identifiers: HashMap<String,String> = HashMap::new();
             let mut tid_to_label_d: HashMap<String,String> = HashMap::new();
             for term_id in hpo.iter_all_term_ids() {
@@ -88,7 +83,7 @@ impl SimpleHPO {
                     None => return Err(format!("Could not retrieve primary ID for {}", term_id))// should never happen
                 } 
             }
-           return Ok(SimpleHPO{obsolete_d: obsolete_identifiers, tid_to_label_d: tid_to_label_d});
+           return Ok(SimpleHPOMapper{obsolete_d: obsolete_identifiers, tid_to_label_d: tid_to_label_d});
         }
 
 
