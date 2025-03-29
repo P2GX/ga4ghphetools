@@ -18,10 +18,25 @@ use crate::rphetools_traits::TableCell;
 use crate::simple_label::SimpleLabel;
 use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
 use crate::transcript::Transcript;
+use crate::error::{self, Error, Result};
 
+impl Error {
+    fn unrecognized_value(val: &str, field_name: &str) -> Self {
+        Error::UnrecognizedValue { value: val.to_string(), column_name: field_name.to_string() }
+    }
 
+    fn template_error(val: &str) -> Self {
+        Error::TemplateError { msg: val.to_string() }
+    }
 
+    fn header_error(val: String) -> Self {
+        Error::HeaderError { msg: val  }
+    }
 
+    fn term_error(val: String) -> Self {
+        Error::TermError { msg: val }
+    }
+}
 
 struct HeaderDuplet {
     h1: String,
@@ -80,13 +95,13 @@ pub struct TitleCell {
 
 
 impl TitleCell {
-    pub fn new(title: &str) -> Result<Self, String> {
+    pub fn new(title: &str) -> Result<Self> {
         if title.is_empty() {
-            return Err("Title field is empty".to_string())
+            return Err(Error::EmptyField { field_name: "".to_ascii_lowercase() })
         } else if title.chars().last().map_or(false, |c| c.is_whitespace()) {
-            return Err(format!("Title '{}' ends with whitespace", title));
+            return Err(Error::white_space_end(title.to_string()));
         } else if title.chars().next().map_or(false, |c| c.is_whitespace()) {
-            return Err(format!("Title '{}' begins with whitepsace", title));
+            return Err(Error::white_space_start( title.to_string()));
         } 
         Ok(TitleCell { title: title.to_string(), })
     }
@@ -99,13 +114,13 @@ impl TableCell for TitleCell {
 }
 
 
-fn qc_cell_entry(value: &str) -> Result<(), String> {
+fn qc_cell_entry(value: &str) -> Result<()> {
     if value.is_empty() {
-        return Err("String is empty".to_string())
+        return Err(Error::EmptyField { field_name: "".to_ascii_lowercase() })
     } else if value.chars().last().map_or(false, |c| c.is_whitespace()) {
-        return Err(format!("String '{}' ends with whitespace", value));
+        return Err(Error::white_space_end(value));
     } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
-        return Err(format!("String '{}' begins with whitepsace", value));
+        return Err(Error::white_space_start( value));
     } else {
         Ok(())
     }
@@ -126,13 +141,13 @@ pub struct SexTableCell {
 }
 
 impl SexTableCell {
-    pub fn new<S: Into<String> >(value: &str) -> Result<Self, String> {
+    pub fn new<S: Into<String> >(value: &str) -> Result<Self> {
         match value {
             "M" =>  Ok(SexTableCell{sex: Sex::Male}),
             "F" =>  Ok(SexTableCell{sex: Sex::Female}),
             "O" =>  Ok(SexTableCell{sex: Sex::Other}),
             "U" =>  Ok(SexTableCell{sex: Sex::Unknown}),
-            _ => Err(format!("Unrecognized symbol in sex column: '{}'", value))
+            _ => Err(Error::unrecognized_value( value, "Sex"))
         }
     }
 
@@ -286,11 +301,11 @@ impl IndividualTemplate {
 /// If we find one or more individual errors, we will return this error
 #[derive(Debug)]
 pub struct TemplateError {
-    pub messages: Vec<String>,
+    pub messages: Vec<Error>,
 }
 
 impl TemplateError {
-    pub fn new(messages: Vec<String>) -> Self {
+    pub fn new(messages: Vec<Error>) -> Self {
         TemplateError { messages }
     }
 }
@@ -316,10 +331,10 @@ impl IndividualTemplateFactory {
     pub fn new (
             hpo: &FullCsrOntology, 
             list_of_rows: &Vec<Vec<String>>,
-        ) -> Result<Self, String>  {
+        ) -> Result<Self>  {
         if list_of_rows.len() < 3 {
-            return Err(format!("Templates must have at least one data line, but overall length was only {}",
-                list_of_rows.len()))
+            return Err(Error::header_error(format!("Templates must have at least one data line, but overall length was only {}",
+                list_of_rows.len())));
         }
         let first_row_headers = &list_of_rows[0];
         let second_row_headers= &list_of_rows[1];
@@ -327,7 +342,7 @@ impl IndividualTemplateFactory {
         let n2 = second_row_headers.len();
 
         if n1 != n2 {
-            return Err(format!("Malformed headers: first line has {} fields, second line has {}", n1, n2));
+            return Err(Error::header_error(format!("Malformed headers: first line has {} fields, second line has {}", n1, n2)));
         }
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
         for i in 0..(n1-1) {
@@ -355,11 +370,11 @@ impl IndividualTemplateFactory {
            
             let valid_label = simple_hpo.is_valid_term_label(&header_duplets[i].h2, &header_duplets[i].h1);
             if valid_label.is_err() {
-                return Err(format!("Invalid HPO label: {}", valid_label.err().unwrap()));
+                return Err(Error::term_error(format!("Invalid HPO label: {}", valid_label.err().unwrap())));
             } 
             let valid_tid =  simple_hpo.is_valid_term_id(&header_duplets[i].h2);
             if valid_tid.is_err() {
-                return Err(format!("Invalid term id: {}", valid_tid.err().unwrap()));
+                return Err(Error::term_error(format!("Invalid term id: {}", valid_tid.err().unwrap())));
             } 
             let hpo_fac = HpoTemplateFactory::new(&header_duplets[i].h1, &header_duplets[i].h2);
             index_to_hpo_factory.insert(i,hpo_fac);          
@@ -382,108 +397,23 @@ impl IndividualTemplateFactory {
     /// # Returns
     /// 
     /// A result containing the corresponding IndividualTemplate object or an Err with Vector of strings representing the problems
-    pub fn individual_template_row(&self, row: Vec<String>) -> Result<IndividualTemplate, Vec<String>> {
-        let mut list_of_errors: Vec<String> = vec![];
-        let pmid = match Curie::new_pmid(&row[0]) {
-            Ok(pmid) => Some(pmid), 
-            Err(err) => {
-                list_of_errors.push(err.to_string()); 
-                None 
-            }
-        };
-        let title = match TitleCell::new(&row[1]) {
-            Ok(title) => Some(title),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let individual_id = match SimpleLabel::individual_id(&row[2]) {
-            Ok(id ) => Some(id),
-            Err(err) => {
-                list_of_errors.push(err.to_string());
-                None
-            }
-        };
-        let disease_id = match Curie::new_disease_id(&row[4]) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                list_of_errors.push(err.to_string());
-                None
-            }
-        };
-        let disease_label = match SimpleLabel::disease_label(&row[5]) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let hgnc_id = match Curie::new_hgnc_id(&row[6]) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let gene_sym = match SimpleLabel::gene_symbol(&row[7]) {
-            Ok(sym) => Some(sym),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }  
-        };
-        let tx_id = match Transcript::new(&row[8]) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let a1 = match Allele::new(&row[9]) {
-            Ok(allele) => Some(allele),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let a2 = match Allele::new(&row[10]) {
-            Ok(allele) => Some(allele),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
+    pub fn individual_template_row(&self, row: Vec<String>) -> Result<IndividualTemplate> {
+        let pmid = Curie::new_pmid(&row[0])?; 
+        let title = TitleCell::new(&row[1])?;
+        let individual_id = SimpleLabel::individual_id(&row[2])?;
+        let disease_id =  Curie::new_disease_id(&row[4])?;
+        let disease_label = SimpleLabel::disease_label(&row[5])?;
+        let hgnc_id = Curie::new_hgnc_id(&row[6])?;
+        let gene_sym = SimpleLabel::gene_symbol(&row[7])?;
+        let tx_id = Transcript::new(&row[8])?;
+        let a1 = Allele::new(&row[9])?;
+        let a2 = Allele::new(&row[10])?;
         // field 11 is variant comment - skip it here!
         let age_parser = AgeTool::new();
-        let onset = match age_parser.parse(&row[12]) {
-            Ok(result) => Some(result),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let encounter = match age_parser.parse(&row[13]) {
-            Ok(result) => Some(result),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let deceased = match DeceasedTableCell::new::<&str>(&row[14]) {
-            Ok(result) => Some(result),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
-        let sex = match SexTableCell::new::<&str>(&row[15]) {
-            Ok(result) => Some(result),
-            Err(err) => {
-                list_of_errors.push(err);
-                None
-            }
-        };
+        let onset = age_parser.parse(&row[12])?;
+        let encounter = age_parser.parse(&row[13])?;
+        let deceased = DeceasedTableCell::new::<&str>(&row[14])?;
+        let sex = SexTableCell::new::<&str>(&row[15])?;
         // when we get here, we have parsed all of the constant columns. We can begin to parse the HPO
         // columns. The template contains a variable number of such columns
         let mut hpo_column_list: Vec<HpoTemplate> = vec![];
@@ -493,11 +423,8 @@ impl IndividualTemplateFactory {
             let cell_contents = row.get(*idx);
             match cell_contents {
                 Some(val) => {
-                    let hpo_tplt = hpo_template_factory.from_cell_value(val);
-                    match hpo_tplt {
-                        Ok(hpo_column) => hpo_column_list.push(hpo_column),
-                        Err(err) => list_of_errors.push(err),
-                    }
+                    let hpo_tplt = hpo_template_factory.from_cell_value(val)?;
+                    hpo_column_list.push(hpo_tplt);
                  },
                  None => {
                     println!("Probably this means there was nothing in the cell -- check this later todo");
@@ -505,31 +432,29 @@ impl IndividualTemplateFactory {
             }
         }
 
-        if ! list_of_errors.is_empty() {
-            return Err(list_of_errors);
-        } else {
-            // If we get here, then we know we can safely unwrap the following items
-            return Ok(IndividualTemplate::new(title.unwrap(), 
-                                            pmid.unwrap(), 
-                                            individual_id.unwrap(),
-                                            disease_id.unwrap(),
-                                            disease_label.unwrap(),
-                                            hgnc_id.unwrap(),
-                                            gene_sym.unwrap(),
-                                            tx_id.unwrap(),
-                                            a1.unwrap(),
-                                            a2,
-                                            onset,
-                                            encounter,
-                                            deceased.unwrap(),
-                                            sex.unwrap(),
-                                            hpo_column_list));
-        }
+    
+        // If we get here, then we know we can safely unwrap the following items
+        // TODO -- FIGURE OUT WHETHER WE NEED SOME ETC.
+        return Ok(IndividualTemplate::new(title, 
+                                        pmid, 
+                                        individual_id,
+                                        disease_id,
+                                        disease_label,
+                                        hgnc_id,
+                                        gene_sym,
+                                        tx_id,
+                                        a1,
+                                        Some(a2),
+                                        Some(onset),
+                                        Some(encounter),
+                                        deceased,
+                                        sex,
+                                        hpo_column_list));
     }
+    
 
     /// Return all phenopacket templates or a list of errors if there was one or more problems
-    pub fn get_templates(&self) -> Result<Vec<IndividualTemplate>, TemplateError> {
-        let mut errors = Vec::new();
+    pub fn get_templates(&self) -> Result<Vec<IndividualTemplate>> {
         let mut templates = Vec::new();
         for row in &self.content_rows {
             let itemplate = self.individual_template_row(row.to_vec());
@@ -538,22 +463,18 @@ impl IndividualTemplateFactory {
                     templates.push(template);
                 },
                 Err(errs) => {
-                    errors.extend_from_slice(&errs);
+                    return Err(errs);
                 }
             }
         }
-        if errors.is_empty() {
-            Ok(templates)
-        } else {
-            Err(TemplateError::new(errors))
-        }   
+        Ok(templates)
     }
 
 }
 
 
 
-fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<(), String> {
+fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<()> {
     // check each of the items in turn
 
     let mut errors: Vec<String> = vec![];
@@ -571,10 +492,6 @@ fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<(), Str
         if i > NUMBER_OF_CONSTANT_HEADER_FIELDS {
             break;
         }
-    }
-    if errors.len() > 0 {
-        let s = format!("Could not parse headers: {}", errors.join(", "));
-        return Err(s);
     }
     Ok(())
 }
@@ -598,7 +515,7 @@ mod test {
             let title = TitleCell::new(test.0);
             match title {
                 Ok(title) => assert_eq!(test.1, title.value()),
-                Err(err) => assert_eq!(test.1, err),
+                Err(err) => assert_eq!(test.1, err.to_string()),
             }
         }
     }

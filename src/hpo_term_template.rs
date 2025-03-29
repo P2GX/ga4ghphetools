@@ -1,4 +1,5 @@
 use crate::onset::Onset;
+use crate::error::{self, Error, Result};
 
 
 
@@ -50,7 +51,7 @@ impl HpoTemplateFactory {
         }
     }
 
-    fn with_status(&self, status: HpoTermStatus) -> Result<HpoTemplate, String> {
+    fn with_status(&self, status: HpoTermStatus) -> Result<HpoTemplate> {
         Ok(HpoTemplate {
             hpo_id: self.hpo_id.clone(),
             label: self.label.clone(),
@@ -58,7 +59,7 @@ impl HpoTemplateFactory {
         })
     }
 
-    pub fn from_cell_value(&self, val: &str) -> Result<HpoTemplate, String> {
+    pub fn from_cell_value(&self, val: &str) -> Result<HpoTemplate> {
         match val {
             "observed" => self.with_status(HpoTermStatus::Observed),
             "excluded" => self.with_status(HpoTermStatus::Excluded),

@@ -51,9 +51,28 @@ pub enum Error {
     WhiteSpaceEnd{ element: String },
     TranscriptWithoutVersion{ transcript: String },
     LabelTooShort{ label: String, actual: usize, min: usize},
+    EmptyLabel,
+    ForbiddenLabelChar{ msg: String },
+    MalformedLabel{ label: String },
+    MalformedDiseaseLabel{ label: String},
     TermIdError{ id: String },
     HpIdNotFound{ id: String },
-
+    ObsoleteTermId{ id: String, replacement: String },
+    UnrecognizeTranscriptPrefix{ transcript: String },
+    WrongLabel{ id:String, actual: String, expected: String},
+    EmptyField{field_name: String},
+    CurieError{ msg: String},
+    PmidError{msg: String},
+    DiseaseIdError{msg: String },
+    HgncError{msg: String},
+    HgvsError{msg: String},
+    HeaderError{ msg: String},
+    UnrecognizedValue{value: String, column_name: String },
+    TemplateError{ msg: String },
+    TermError{msg: String},
+    AgeParseError{msg: String},
+    DeceasedError{value: String}
+   
     // arrange according to module
     // -- pptcolumn
 
@@ -87,7 +106,22 @@ impl core::fmt::Display for Error {
             }
             Error::LabelTooShort { label, actual, min } => {
                 write!(fmt, "Label '{}' is too short ({} < required {})", label, actual, min)
-            }
+            },
+            Error::TermIdError { id } => {
+                write!(fmt, "Malformed TermId: {id}")
+            },
+            Error::HpIdNotFound { id } => {
+                write!(fmt, "Not able to find HPO TermId: {id}")
+            },
+            Error::ObsoleteTermId { id , replacement } => {
+                write!(fmt, "Obsolete HPO TermId: {id}; replace with {replacement}.")
+            },
+            Error::MalformedLabel { label } => {
+                write!(fmt, "Malformed label: '{label}'")
+            },
+            Error::MalformedDiseaseLabel { label } => {
+                write!(fmt, "Malformed disease label: '{label}'")
+            },
             _ =>  write!(fmt, "{self:?}")
         }
     }

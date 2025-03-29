@@ -9,7 +9,6 @@ use ontolius::{Identified, TermId};
 use crate::disease_gene_bundle::DiseaseGeneBundle;
 
 use crate::ppt_template::PptTemplate;
-use crate::pptcolumn::pptheaders::PptHeader;
 use crate::error::{self, Error, Result};
 
 

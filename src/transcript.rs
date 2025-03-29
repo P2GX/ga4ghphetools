@@ -1,4 +1,9 @@
+//! Transcript
+//! 
+//! Crate to represent a transcript identifier
+
 use crate::rphetools_traits::TableCell;
+use crate::error::{self, Error, Result};
 
 
 
@@ -23,16 +28,16 @@ impl TableCell for Transcript {
 }
 
 impl Transcript {
-    pub fn new(val: &str) -> Result<Self, String> {
+    pub fn new(val: &str) -> Result<Self> {
         if val.starts_with("ENST") || val.starts_with("NM_") {
             let valid_version = ends_with_period_and_number(val);
             if valid_version {
                 return Ok(Transcript{value: val.to_string()});
             } else {
-                return Err(format!("Invalid version: {}", val));
+                return Err(Error::TranscriptWithoutVersion { transcript: val.to_string() });
             }
         } 
-        Err(format!("Transcript starts with unrecognized prefix: '{}'", val))
+        Err(Error::UnrecognizeTranscriptPrefix { transcript: val.to_string() })
     }
 }
 
@@ -52,7 +57,7 @@ mod test {
         for test in tests {
             match Transcript::new(test.0) {
                 Ok(id) => assert_eq!(test.1, id.value()),
-                Err(err) => assert_eq!(test.1, err)
+                Err(err) => assert_eq!(test.1, err.to_string())
             };
         }
     }

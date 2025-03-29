@@ -1,21 +1,39 @@
 use std::collections::HashSet;
 
 use crate::rphetools_traits::TableCell;
+use crate::error::{self, Error, Result};
 
+
+
+impl Error {
+
+    fn forbidden_char(val: String) -> Self {
+        Error::ForbiddenLabelChar { msg: val }
+    }
+
+    fn malformed_label(label: &str) -> Self {
+        Error::MalformedLabel { label: label.to_string() }
+    }
+
+    fn malformed_disease_label(label: &str) -> Self {
+        Error::MalformedDiseaseLabel { label: label.to_string() }
+    }
+
+}
 
 
 /// A valid label does not begin with or end with a white space
 /// Valid labels also may not contain /,\, (,  ), or perdiod (".").
-fn check_valid_label(value: &str) -> Result<bool,String> {
+fn check_valid_label(value: &str) -> Result<bool> {
     let forbidden_chars: HashSet<char> = ['/', '\\', '(', ')', '.'].iter().copied().collect();
     if value.is_empty() {
-        return Err("is empty".to_string());
+        return Err(Error::EmptyLabel);
     } else if let Some(forbidden) = value.chars().find(|&c| forbidden_chars.contains(&c)) {
-        return Err(format!("Forbidden character '{}' found: '{}'", forbidden, value));
+        return Err(Error::forbidden_char(format!("Forbidden character '{}' found: '{}'", forbidden, value)));
     } else if value.chars().last().map_or(false, |c| c.is_whitespace()) {
-        return Err(format!("'{}' ends with whitespace", value));
+        return Err(Error::malformed_label(value));
     } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
-        return Err(format!("'{}' begins with whitepsace", value));
+        return Err(Error::malformed_label(value));
     } else {
         Ok(true)
     }
@@ -34,28 +52,28 @@ impl TableCell for SimpleLabel {
 }
 
 impl SimpleLabel {
-    pub fn individual_id(value: &str) -> Result<Self, String> {
+    pub fn individual_id(value: &str) -> Result<Self> {
         let valid_curie = check_valid_label(value);
         if valid_curie.is_err() {
-            return Err(format!("Invalid individual_id: {}", valid_curie.err().unwrap()));
+            return Err(Error::malformed_label(value));
         }  else {
             return Ok(SimpleLabel { label: value.to_string(), });
         }
     }
 
-    pub fn disease_label(value: &str) -> Result<Self, String> {
+    pub fn disease_label(value: &str) -> Result<Self> {
         let valid_curie = check_valid_label(value);
         if valid_curie.is_err() {
-            return Err(format!("Invalid disease label: {}", valid_curie.err().unwrap()));
+            return Err(Error::malformed_disease_label(value));
         }  else {
             return Ok(SimpleLabel { label: value.to_string(), });
         }
     }
 
-    pub fn gene_symbol(value: &str) -> Result<Self, String> {
+    pub fn gene_symbol(value: &str) -> Result<Self> {
         let valid_curie = check_valid_label(value);
         if valid_curie.is_err() {
-            return Err(format!("Invalid gene symbol: {}", valid_curie.err().unwrap()));
+            return Err(Error::malformed_label(value));
         }  else {
             return Ok(SimpleLabel { label: value.to_string(), });
         }
@@ -82,7 +100,7 @@ mod test {
             let individual_id = SimpleLabel::individual_id(test.0);
             match individual_id {
                 Ok(id) => assert_eq!(test.1, id.value()),
-                Err(err) => assert_eq!(test.1, err),
+                Err(err) => assert_eq!(test.1, err.to_string()),
             }
         }
     }
@@ -101,7 +119,7 @@ mod test {
             let disease_label = SimpleLabel::disease_label(test.0);
             match disease_label {
                 Ok(id) => assert_eq!(test.1, id.value()),
-                Err(err) => assert_eq!(test.1, err),
+                Err(err) => assert_eq!(test.1, err.to_string()),
             }
         }
     }

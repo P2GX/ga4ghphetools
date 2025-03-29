@@ -3,7 +3,6 @@ mod curie;
 mod disease_gene_bundle;
 mod error;
 mod excel;
-mod header;
 mod simple_hpo;
 mod hpo_term_template;
 mod individual_template;
@@ -15,7 +14,6 @@ mod pptcolumn {
     pub mod age;
     pub mod deceased;
     pub mod header_duplet;
-    pub mod pptheaders;
     pub mod ppt_column;
 }
 mod ppt_template;
@@ -35,14 +33,55 @@ use rphetools_traits::PyphetoolsTemplateCreator;
 use crate::error::Result;
 
 pub struct PheTools<'a> {
+    /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: &'a FullCsrOntology
 }
 
 impl<'a> PheTools<'a> {
+    /// Creates a new instance of `PheTools`.
+    ///
+    /// # Arguments
+    ///
+    /// * `hpo` - A reference to a `FullCsrOntology` that provides hierarchical phenotype data.
+    ///
+    /// # Returns
+    ///
+    /// A new `PheTools` instance.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    ///  let loader = OntologyLoaderBuilder::new()
+    ///                 .obographs_parser()
+    ///                 .build();
+    ///  let hpo: FullCsrOntology = loader.load_from_path("hp.json")
+    ///                 .expect("HPO should be loaded");
+    ///  let pyphetools = PheTools::new(&hpo);
+    /// ```
     pub fn new(hpo: &'a FullCsrOntology) -> Self {
         PheTools{hpo}
     }
 
+     /// Creates a template to be used for curating phenopackets
+     /// 
+     /// A 2D matrix of Strings is provided for curation with the intention that curation software will
+     /// fill in the matrix with additional Strings representing the cases to be curated. 
+     /// 
+     /// # Arguments
+     /// 
+    /// * `disease_id` - A string slice representing the disease identifier.
+    /// * `disease_name` - A string slice representing the name of the disease.
+    /// * `hgnc_id` - A string slice representing the HGNC identifier for the gene.
+    /// * `gene_symbol` - A string slice representing the gene symbol.
+    /// * `transcript_id` - A string slice representing the transcript identifier.
+    /// * `hpo_term_ids` - A vector of `TermId` objects representing associated HPO terms.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing:
+    /// - `Ok(Vec<Vec<String>>)` - A nested vector of strings representing the generated template.
+    /// - `Err(ErrorType)` - An error if template generation fails.
+    ///
     pub fn create_pyphetools_template (
         &self,
         disease_id: &str,
@@ -66,9 +105,30 @@ impl<'a> PheTools<'a> {
                 Err(e)
             }
         }
-        
     }
 
+
+    /// Arranges the given HPO terms into a specific order for curation.
+    ///
+    /// # Arguments
+    ///
+    /// * `hpo_terms_for_curation` - A vector reference containing `TermId` elements that need to be arranged.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<TermId>` containing the reordered HPO terms.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let phetools = PheTools::new(&ontology);
+    /// let terms = vec![TermId::from_str("HP:0001250"), TermId::from_str("HP:0004322")];
+    /// let arranged_terms = phetools.arrange_terms(&terms);
+    /// ```
+    ///
+    /// # Notes
+    ///
+    /// - Terms are ordered using depth-first search (DFS) over the HPO hierarchy so that related terms are displayed near each other
     pub fn arrange_terms(
         &self, 
         hpo_terms_for_curation: &Vec<TermId>
@@ -80,7 +140,17 @@ impl<'a> PheTools<'a> {
         arranged_terms
     }
 
-    pub fn template_qc(&self, pyphetools_template_path: &str) -> Vec<String> {
+
+    pub fn template_qc(&self, matrix: Vec<Vec<String>>) -> Vec<String> {
+        let mut err_list = Vec::new();
+       
+
+
+        err_list
+    }
+
+
+    pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
         let mut err_list = Vec::new();
         let row_result     = excel::read_excel_to_dataframe(pyphetools_template_path);
         match row_result {
@@ -96,19 +166,19 @@ impl<'a> PheTools<'a> {
                                                     },
                                                     Err(errs) => {
                                                         eprintln!("[ERROR] We encountered errors");
-                                                        return  errs.messages;
+                                                        vec![]
                                                     }
                                                 }
                                             }
                             Err(e) =>  {
                                 err_list.push(e);
-                                return err_list;
+                                return  vec![];
                             },
                     }  
                 }
                 Err(e) =>  {
-                    err_list.push(e.to_string());
-                    return err_list;
+                    
+                    return  vec![];
                 },
         }
     }

@@ -1,7 +1,7 @@
 use crate::rphetools_traits::TableCell;
 
 use regex::Regex;
-
+use crate::error::{self, Error, Result};
 
 #[derive(Debug, PartialEq)]
 enum AlleleType {
@@ -25,15 +25,21 @@ impl TableCell for Allele {
     }
 }
 
-fn is_valid_hgvs(value: &str) -> Result<(), String> {
+impl Error {
+    fn hgnc<T>(val: T)  -> Self where T: Into<String> {
+        Error::HgvsError { msg: val.into() }
+    }
+}
+
+fn is_valid_hgvs(value: &str) -> Result<()> {
     if value.is_empty() {
-        return Err("HGVS is empty".to_string());
+        return Err(Error::hgnc("HGVS is empty"));
     } else if ! value.trim().starts_with("c") {
-        return Err(format!("HGVS does not start with c: '{}", value));
+        return Err(Error::hgnc(format!("HGVS does not start with c: '{}", value)));
     } else if value.chars().any(|c| c.is_whitespace()) {
-        return Err(format!("HGVS contains stray whitespace: '{}'", value));
+        return Err(Error::hgnc(format!("HGVS contains stray whitespace: '{}'", value)));
     } else if ! value.starts_with("c.") {
-        return Err(format!("HGVS expression did not start with c.: '{}'", value));
+        return Err(Error::hgnc(format!("HGVS expression did not start with c.: '{}'", value)));
     } 
     // if we get here, there was a non-empty string that starts with "c."
     let re = Regex::new(r"c.[\d_]+(.*)").unwrap(); // Capture everything after digits or underscores
@@ -54,7 +60,7 @@ fn is_valid_hgvs(value: &str) -> Result<(), String> {
             } else if delins_re.is_match(remaining_hgvs) {
                 return Ok(());
             }
-            return Err(format!("Could not id {}", remaining_hgvs));
+            return Err(Error::hgnc(format!("Could not identify HGVS '{}'", remaining_hgvs)));
         }
     }
 
@@ -64,9 +70,9 @@ fn is_valid_hgvs(value: &str) -> Result<(), String> {
 
 impl Allele {
 
-    pub fn new(value: &str) -> Result<Self, String> {
+    pub fn new(value: &str) -> Result<Self> {
         if value != value.trim() {
-            return Err(format!("Could not parse allele: HGVS contains stray whitespace: '{}'", value));
+            return Err(Error::hgnc(format!("Could not parse allele: HGVS contains stray whitespace: '{}'", value)));
         }
         if value == "na" {
             return Ok(Allele{allele: "na".to_string(), allele_type: AlleleType::NotAvailable});
@@ -76,7 +82,7 @@ impl Allele {
             Ok(_) => Ok(Allele {allele: value.to_string(), allele_type:AlleleType::SmallHgvs}),
             Err(err) => {   
                 if ! value.contains(":") {
-                    return Err(format!("Could not parse allele: {}", err));
+                    return Err(Error::hgnc(format!("Could not parse allele: {}", err)));
                 } else if value.starts_with("c") {
                     return Err(err);
                 }
@@ -89,7 +95,7 @@ impl Allele {
                     "INS"  => Ok(Allele{allele: structural_var.to_string(), allele_type:AlleleType::ChromosomalInsertion}),
                     "INV"  => Ok(Allele{allele: structural_var.to_string(), allele_type:AlleleType::ChromosomalInversion}),
                     "TRANS" => Ok(Allele{allele: structural_var.to_string(), allele_type:AlleleType::ChromosomalTranslocation}),
-                    _ => Err(format!("Unrecognized non-HGVS prefix: '{}' for {}", prefix, value)),
+                    _ => Err(Error::hgnc(format!("Unrecognized non-HGVS prefix: '{}' for {}", prefix, value))),
                 };
             }
         }
@@ -118,7 +124,7 @@ mod test {
             let allele = Allele::new(test.0);
             match allele {
                 Ok(a) => assert_eq!(test.1, a.value()),
-                Err(err) => assert_eq!(test.1, err)
+                Err(err) => assert_eq!(test.1, err.to_string())
             }
         }
     }
@@ -134,7 +140,7 @@ mod test {
             let allele = Allele::new(test.0);
             match allele {
                 Ok(a) => assert_eq!(test.1, a.value()),
-                Err(err) => assert_eq!(test.1, err)
+                Err(err) => assert_eq!(test.1, err.to_string())
             }
         }
     }

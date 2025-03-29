@@ -1,9 +1,11 @@
+
+//! Deceased
+//!
+//! This module represents data in the deceased table column
+//! Valid values are "yes", "no", "na" (NotAvailable)
+//! 
 use crate::rphetools_traits::TableCell;
-
-///! Deceased
-/// This module represents data in the deceased table column
-/// Valid values are "yes", "no", "na" (NotAvailable)
-
+use crate::error::{self, Error, Result};
 #[derive(Debug, PartialEq)]
 pub enum Deceased {
     Yes,
@@ -16,12 +18,12 @@ pub struct DeceasedTableCell {
 }
 
 impl DeceasedTableCell {
-    pub fn new<S: Into<String> >(value: S) -> Result<Self, String> {
+    pub fn new<S: Into<String> >(value: S) -> Result<Self> {
         match value.into().as_str() {
             "yes" =>  Ok(DeceasedTableCell{deceased: Deceased::Yes}),
             "no" =>  Ok(DeceasedTableCell{deceased:  Deceased::No}),
             "na" =>  Ok(DeceasedTableCell{deceased:  Deceased::NotAvailable}),
-            other => Err(format!("Unrecognized symbol in deceased column: '{}'", other))
+            other => Err(Error::DeceasedError { value:  other.to_string()} )
         }
     }
 

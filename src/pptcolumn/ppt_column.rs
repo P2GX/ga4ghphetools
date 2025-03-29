@@ -1,16 +1,6 @@
 
 
-/*
-static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= [
-    "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", 
-    "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", "variant.comment", 
-    "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO"];
-/// The constant header fields for the second row of the pyphetools template file
-const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= [
-    "CURIE", "str", "str", "optional", "CURIE", "str", 
-    "CURIE",  "str", "str", "str", "str", "optional", 
-    "age", "age", "yes/no/na", "M:F:O:U", "na"];
-     */
+
 
 use std::fmt::format;
 

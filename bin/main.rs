@@ -43,7 +43,7 @@ fn main() {
     let hpo: FullCsrOntology = loader.load_from_path(&cli.json)
                                                 .expect("HPO should be loaded");
     let pyphetools = PheTools::new(&hpo);
-    pyphetools.template_qc(&cli.pyphetools);
+    pyphetools.template_qc_excel_file(&cli.pyphetools);
    
      
 }

@@ -2,9 +2,13 @@ use std::collections::HashMap;
 use regex::Regex;
 
 use crate::rphetools_traits::TableCell;
+use crate::error::{self, Error, Result};
 
-
-
+impl Error {
+    fn age_parse_error<T>(val: T)  -> Self where T: Into<String> {
+        Error::AgeParseError { msg: val.into() }
+    }
+}
 
 /// We offer a simple HPO implementation that checks validity of individual Term identifiers and labels
 /// We may also implement a version that keeps track of the Ontology object to perform other checks in the future TODO
@@ -130,7 +134,7 @@ impl AgeTrait for Age {
 }
 
 pub trait AgeToolTrait {
-    fn parse(&self, cell_value:&str) -> Result<Age, String>;
+    fn parse(&self, cell_value:&str) -> Result<Age>;
 }
 
 #[derive(Clone)]
@@ -200,7 +204,7 @@ impl AgeTool {
 }
 
 impl AgeToolTrait for AgeTool {
-    fn parse(&self, cell_value:&str) -> Result<Age, String> {
+    fn parse(&self, cell_value:&str) -> Result<Age> {
         if cell_value.starts_with("P") {
             let iso8601_re = Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").unwrap();
             if let Some(captures) = iso8601_re.captures(cell_value) {
@@ -225,7 +229,7 @@ impl AgeToolTrait for AgeTool {
                 let iso_age = Iso8601Age::new(years, months, days, cell_value);
                 return Ok(Age::Iso8601(iso_age));
             } else {
-                return Err(format!("Input string '{}' starts with P but was not valid ISO8601 period", cell_value));
+                return Err(Error::age_parse_error(format!("Input string '{}' starts with P but was not valid ISO8601 period", cell_value)));
             }
         } else if self.hpo_label_to_age_term_d.contains_key(cell_value) {
             let onset_id = self.hpo_label_to_age_term_d.get(cell_value).expect("Could not retrieve SimpleTerm for onset");
@@ -249,10 +253,10 @@ impl AgeToolTrait for AgeTool {
                 let ga = GestationalAge::new(weeks, days, cell_value);
                 return Ok(Age::Gestational(ga));
             } else {
-                return Err(format!("Could not parse '{}' as gestational age", cell_value));
+                return Err(Error::age_parse_error(format!("Could not parse '{}' as gestational age", cell_value)));
             }
         }
-        return Err(format!("Could not parse '{}' as Age", cell_value));
+        return Err(Error::age_parse_error(format!("Could not parse '{}' as Age", cell_value)));
     }
 }
 
@@ -318,7 +322,7 @@ mod test {
         for test in tests {
             let result = parser.parse(test.1);
             assert!(result.is_err());
-            assert_eq!(test.2, result.err().unwrap());
+            assert_eq!(test.2, result.err().unwrap().to_string());
         }
     }
 
@@ -384,7 +388,7 @@ mod test {
                     }
                 },
                 Err(e) => {
-                    assert_eq!(test.1, e);
+                    assert_eq!(test.1, e.to_string());
                 }
             }
         }
