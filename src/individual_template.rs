@@ -22,10 +22,7 @@ use crate::transcript::Transcript;
 
 
 
-/// There are two header lines. For the static fields, the information is only needed from the
-/// first header. For the HPO columns, the label is shown in the first header and the HPO id is
-/// shown in the second field. The purpose of this struct is simply to record the strings in
-/// both rows so that we can do some Q/C prior to starting to create the DataFrame object.
+
 struct HeaderDuplet {
     h1: String,
     h2: String,
@@ -49,11 +46,16 @@ impl fmt::Display for HeaderDuplet {
 
 /// These fields are always required by our template
 const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17; 
-static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= ["PMID", "title", "individual_id", "comment", "disease_id", 
-"disease_label", "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", 
-"variant.comment", "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO"];
-const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= ["CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", 
- "str", "str", "str", "str", "optional", "age", "age", "yes/no/na", "M:F:O:U", "na"];
+static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] =  [
+    "PMID", "title", "individual_id", "comment", "disease_id", 
+    "disease_label", "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", 
+    "variant.comment", "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO"
+    ];
+const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
+    "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", 
+    "str", "str", "str", "str", "optional", "age", 
+    "age", "yes/no/na", "M:F:O:U", "na"
+    ];
 
 #[derive(Debug)]
 pub enum TableCellDataType {

@@ -1,15 +1,49 @@
-use ontolius::TermId;
+//! DiseaseGeneBundle contains the data needed to specify a disease and the associated gene.
+//! 
+//! 
 
-///! This class bundles and performs QC on the data needed to specify a disease and the
-/// corresponding disease gene information for a pyphetools template file.
-/// 
-/// 
+
+use std::str::FromStr;
+
+use ontolius::TermId;
+use crate::error::{self, Error, Result};
+
+impl Error {
+    pub fn white_space_start<E: Into<String>>(element: E) -> Self {
+        Error::WhiteSpaceStart {
+            element: element.into(),
+        }
+    }
+
+    pub fn white_space_end<E: Into<String>>(element: E) -> Self {
+        Error::WhiteSpaceEnd {
+            element: element.into(),
+        }
+    }
+
+    pub fn transcript_lacks_version<E: Into<String>>(element: E) -> Self {
+        Error::TranscriptWithoutVersion { 
+            transcript: element.into(),
+        }
+    }
+
+    pub fn short_label<E: Into<String>>(label: E, actual: usize, min: usize) -> Self {
+        Error::LabelTooShort { label: label.into(), actual, min } 
+    }
+
+
+}
 
 pub struct DiseaseGeneBundle {
+    /// A CURIE representing a disease identifier (e.g., OMIM:256550)
     disease_id: TermId,
+    /// The corresponding label of the disease (e.g., Sialidosis, type I)
     disease_name: String,
+    /// The HHUGO Gene Nomenclature Committe identifier, e.g., HGNC:7758
     hgnc_id: TermId,
+    /// The corresponding gene symbol, e.g., NEU1
     gene_symbol: String,
+    /// The transcript used for annotation, usually MANE Select, e.g., NM_000434.4
     transcript: String
 }
 
@@ -20,36 +54,36 @@ impl DiseaseGeneBundle {
                         disease_name: T,
                         hgnc: &TermId,
                         symbol: U,
-                        transcript: V) -> Result<Self, String>
+                        transcript: V) -> Result<Self>
         where   T: Into<String>,
                 U: Into<String>,
                 V: Into<String> {
         let name = disease_name.into();
         if name.starts_with(|c: char| c.is_whitespace()) {
-                return Err(format!("Disease name '{}' starts with whitespace", name));
+            return Err(Error::white_space_start( name));
         }
         if name.ends_with(|c: char| c.is_whitespace()) {
-            return Err(format!("Disease name '{}' ends with whitespace", name));
+            return Err(Error::white_space_end( name));
         }
         if name.len() < 5 {
-            return Err(format!("Disease name '{}' too short", name));
+            return Err(Error::short_label(&name, name.len(), 5));
         }
         let gene_symbol = symbol.into();
         if gene_symbol.starts_with(|c: char| c.is_whitespace()) {
-            return Err(format!("Gene symbol '{}' starts with whitespace", gene_symbol));
+            return Err(Error::white_space_start( name));
         }
         if gene_symbol.ends_with(|c: char| c.is_whitespace()) {
-            return Err(format!("Gene symbol '{}' ends with whitespace", gene_symbol));
+            return Err(Error::white_space_end( name));
         }
         let tx = transcript.into();
         if tx.starts_with(|c: char| c.is_whitespace()) {
-            return Err(format!("Transcript '{}' starts with whitespace", tx));
+            return Err(Error::white_space_start( name));
         }
         if tx.ends_with(|c: char| c.is_whitespace()) {
-            return Err(format!("Transcript '{}' ends with whitespace", tx));
+            return Err(Error::white_space_end( name));
         }
         if ! tx.contains(".") {
-            return Err(format!("Transcript '{}' does not contain version", tx));
+            return Err(Error::transcript_lacks_version(tx));
         }
 
         Ok(Self {
@@ -59,6 +93,24 @@ impl DiseaseGeneBundle {
             gene_symbol: gene_symbol,
             transcript: tx
         })
+    }
+
+    pub fn new_from_str(disease_id: &str, 
+        disease_name: &str,
+        hgnc: &str,
+        symbol: &str,
+        transcript: &str) -> Result<Self> {
+            let disease_tid = TermId::from_str(disease_id);
+            let hgnc_tid = TermId::from_str(hgnc);
+            if disease_tid.is_err() {
+                return Err(Error::TermIdError { id: disease_id.to_string() });
+            }
+            if hgnc_tid.is_err() {
+                return Err(Error::TermIdError { id: hgnc.to_string() });
+            }
+            let disease_tid = disease_tid.unwrap();
+            let hgnc_tid = hgnc_tid.unwrap();
+            return Self::new(&disease_tid, disease_name, &hgnc_tid, symbol, transcript);
     }
 
     pub fn disease_id_as_string(&self) -> String {
