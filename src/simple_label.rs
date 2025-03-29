@@ -6,11 +6,6 @@ use crate::error::{self, Error, Result};
 
 
 impl Error {
-
-    fn forbidden_char(val: String) -> Self {
-        Error::ForbiddenLabelChar { msg: val }
-    }
-
     fn malformed_label(label: &str) -> Self {
         Error::MalformedLabel { label: label.to_string() }
     }
@@ -24,18 +19,21 @@ impl Error {
 
 /// A valid label does not begin with or end with a white space
 /// Valid labels also may not contain /,\, (,  ), or perdiod (".").
-fn check_valid_label(value: &str) -> Result<bool> {
-    let forbidden_chars: HashSet<char> = ['/', '\\', '(', ')', '.'].iter().copied().collect();
-    if value.is_empty() {
-        return Err(Error::EmptyLabel);
-    } else if let Some(forbidden) = value.chars().find(|&c| forbidden_chars.contains(&c)) {
-        return Err(Error::forbidden_char(format!("Forbidden character '{}' found: '{}'", forbidden, value)));
-    } else if value.chars().last().map_or(false, |c| c.is_whitespace()) {
-        return Err(Error::malformed_label(value));
+fn check_white_space(value: &str) -> Result<()> {
+    if value.chars().last().map_or(false, |c| c.is_whitespace()) {
+        return Err(Error::trailing_ws(value));
     } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
-        return Err(Error::malformed_label(value));
+        return Err(Error::leading_ws(value));
     } else {
-        Ok(true)
+        Ok(())
+    }
+}
+
+fn check_forbidden_chars(value: &str) -> Result<()> {
+    let forbidden_chars: HashSet<char> = ['/', '\\', '(', ')', '.'].iter().copied().collect();
+    match value.chars().find(|&c| forbidden_chars.contains(&c)) {
+        Some(fc) => Err(Error::forbidden_character(fc, value)),
+        None => Ok(())
     }
 }
 
@@ -53,25 +51,25 @@ impl TableCell for SimpleLabel {
 
 impl SimpleLabel {
     pub fn individual_id(value: &str) -> Result<Self> {
-        let valid_curie = check_valid_label(value);
-        if valid_curie.is_err() {
-            return Err(Error::malformed_label(value));
-        }  else {
-            return Ok(SimpleLabel { label: value.to_string(), });
+        if value.is_empty() {
+            return Err(Error::EmptyLabel);
         }
+        check_forbidden_chars(value)?;
+        check_white_space(value)?;
+        return Ok(SimpleLabel { label: value.to_string() });
     }
 
     pub fn disease_label(value: &str) -> Result<Self> {
-        let valid_curie = check_valid_label(value);
-        if valid_curie.is_err() {
-            return Err(Error::malformed_disease_label(value));
-        }  else {
-            return Ok(SimpleLabel { label: value.to_string(), });
+        if value.is_empty() {
+            return Err(Error::EmptyLabel);
         }
+        check_forbidden_chars(value)?;
+        check_white_space(value)?;
+        return Ok(SimpleLabel { label: value.to_string(), });
     }
 
     pub fn gene_symbol(value: &str) -> Result<Self> {
-        let valid_curie = check_valid_label(value);
+        let valid_curie = check_white_space(value);
         if valid_curie.is_err() {
             return Err(Error::malformed_label(value));
         }  else {
@@ -90,10 +88,10 @@ mod test {
         let tests = vec![
             ("proband", "proband"),
             ("individual II:3", "individual II:3"),
-            ("patient (II:2)", "Invalid individual_id: Forbidden character '(' found: 'patient (II:2)'"),
-            ("individual II/3", "Invalid individual_id: Forbidden character '/' found: 'individual II/3'"),
-            ("individual II\\3", "Invalid individual_id: Forbidden character '\\' found: 'individual II\\3'"),
-            ("", "Invalid individual_id: is empty")
+            ("patient (II:2)", "Forbidden character '(' found in label 'patient (II:2)'"),
+            ("individual II/3", "Forbidden character '/' found in label 'individual II/3'"),
+            ("individual II\\3", "Forbidden character '\\' found in label 'individual II\\3'"),
+            ("", "Empty label")
 
         ];
         for test in tests {
@@ -109,10 +107,10 @@ mod test {
     fn test_disease_label_ctor() {
         let tests = vec![
             ("Marfan syndrome", "Marfan syndrome"),
-            ("Marfan syndrome(", "Invalid disease label: Forbidden character '(' found: 'Marfan syndrome('"),
-            ("Marfan/syndrome", "Invalid disease label: Forbidden character '/' found: 'Marfan/syndrome'"),
-            ("Marfan syndrome ", "Invalid disease label: 'Marfan syndrome ' ends with whitespace"),
-            ("", "Invalid disease label: is empty")
+            ("Marfan syndrome(", "Forbidden character '(' found in label 'Marfan syndrome('"),
+            ("Marfan/syndrome", "Forbidden character '/' found in label 'Marfan/syndrome'"),
+            ("Marfan syndrome ", "Trailing whitespace in 'Marfan syndrome '"),
+            ("", "Empty label")
 
         ];
         for test in tests {

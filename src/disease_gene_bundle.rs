@@ -8,32 +8,6 @@ use std::str::FromStr;
 use ontolius::TermId;
 use crate::error::{self, Error, Result};
 
-impl Error {
-    pub fn white_space_start<E: Into<String>>(element: E) -> Self {
-        Error::WhiteSpaceStart {
-            element: element.into(),
-        }
-    }
-
-    pub fn white_space_end<E: Into<String>>(element: E) -> Self {
-        Error::WhiteSpaceEnd {
-            element: element.into(),
-        }
-    }
-
-    pub fn transcript_lacks_version<E: Into<String>>(element: E) -> Self {
-        Error::TranscriptWithoutVersion { 
-            transcript: element.into(),
-        }
-    }
-
-    pub fn short_label<E: Into<String>>(label: E, actual: usize, min: usize) -> Self {
-        Error::LabelTooShort { label: label.into(), actual, min } 
-    }
-
-
-}
-
 pub struct DiseaseGeneBundle {
     /// A CURIE representing a disease identifier (e.g., OMIM:256550)
     disease_id: TermId,
@@ -60,30 +34,30 @@ impl DiseaseGeneBundle {
                 V: Into<String> {
         let name = disease_name.into();
         if name.starts_with(|c: char| c.is_whitespace()) {
-            return Err(Error::white_space_start( name));
+            return Err(Error::leading_ws( name));
         }
         if name.ends_with(|c: char| c.is_whitespace()) {
-            return Err(Error::white_space_end( name));
+            return Err(Error::trailing_ws( name));
         }
         if name.len() < 5 {
             return Err(Error::short_label(&name, name.len(), 5));
         }
         let gene_symbol = symbol.into();
         if gene_symbol.starts_with(|c: char| c.is_whitespace()) {
-            return Err(Error::white_space_start( name));
+            return Err(Error::leading_ws( name));
         }
         if gene_symbol.ends_with(|c: char| c.is_whitespace()) {
-            return Err(Error::white_space_end( name));
+            return Err(Error::trailing_ws( name));
         }
         let tx = transcript.into();
         if tx.starts_with(|c: char| c.is_whitespace()) {
-            return Err(Error::white_space_start( name));
+            return Err(Error::leading_ws( name));
         }
         if tx.ends_with(|c: char| c.is_whitespace()) {
-            return Err(Error::white_space_end( name));
+            return Err(Error::trailing_ws( name));
         }
         if ! tx.contains(".") {
-            return Err(Error::transcript_lacks_version(tx));
+            return Err(Error::lacks_transcript_version(tx));
         }
 
         Ok(Self {

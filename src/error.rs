@@ -49,16 +49,16 @@ pub enum Error {
     Custom(String),
     WhiteSpaceStart{ element: String },
     WhiteSpaceEnd{ element: String },
-    TranscriptWithoutVersion{ transcript: String },
+    WhiteSpaceError{ message: String},
+    TranscriptError{ msg: String},
     LabelTooShort{ label: String, actual: usize, min: usize},
     EmptyLabel,
-    ForbiddenLabelChar{ msg: String },
+    ForbiddenLabelChar{ c: char, label: String},
     MalformedLabel{ label: String },
     MalformedDiseaseLabel{ label: String},
     TermIdError{ id: String },
     HpIdNotFound{ id: String },
     ObsoleteTermId{ id: String, replacement: String },
-    UnrecognizeTranscriptPrefix{ transcript: String },
     WrongLabel{ id:String, actual: String, expected: String},
     EmptyField{field_name: String},
     CurieError{ msg: String},
@@ -87,6 +87,39 @@ impl Error {
     pub fn custom(val: impl std::fmt::Display) -> Self {
         Self::Custom(val.to_string())
     }
+
+    pub fn forbidden_character<T>(c: char, label: T) -> Self
+        where T: Into<String> {
+        Self::ForbiddenLabelChar { c, label: label.into() }
+    }
+
+    pub fn leading_ws<T>(value: T) -> Self
+        where T: Into<String> {
+        Self::WhiteSpaceError { message: format!("Leading whitespace in '{}'", value.into()) }
+    }
+
+    pub fn trailing_ws<T>(value: T) -> Self
+        where T: Into<String> {
+            Self::WhiteSpaceError { message:  format!("Trailing whitespace in '{}'", value.into()) }
+    }
+
+    pub fn short_label<T>(value: T, actual: usize, min: usize) -> Self 
+        where T: Into<String> {
+            Self::LabelTooShort { label:value.into(), actual, min }
+    }
+
+    pub fn lacks_transcript_version<T>(tx: T) -> Self
+        where T: Into<String> {
+            let msg =  format!("Transcript '{}' is missing a version", tx.into());
+            Self::TranscriptError { msg: msg }
+    }
+
+    pub fn unrecognized_transcript_prefix<T>(tx: T) -> Self
+        where T: Into<String> {
+            let msg = format!("Unrecognized transcript prefix '{}'", tx.into());
+            Self::TranscriptError { msg }
+    }
+    
 }
 
 impl From<&str> for Error {
@@ -99,11 +132,6 @@ impl From<&str> for Error {
 impl core::fmt::Display for Error {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
         match self {
-            Error::WhiteSpaceStart { element } => write!(fmt, "Whitespace at start of: '{}'", element),
-            Error::WhiteSpaceEnd { element } => write!(fmt, "Whitespace at end of: '{}'", element),
-            Error::TranscriptWithoutVersion { transcript } => {
-                write!(fmt, "Transcript '{}' is missing a version", transcript)
-            }
             Error::LabelTooShort { label, actual, min } => {
                 write!(fmt, "Label '{}' is too short ({} < required {})", label, actual, min)
             },
@@ -121,6 +149,36 @@ impl core::fmt::Display for Error {
             },
             Error::MalformedDiseaseLabel { label } => {
                 write!(fmt, "Malformed disease label: '{label}'")
+            },
+            Error::ForbiddenLabelChar { c, label } => {
+                write!(fmt, "Forbidden character '{c}' found in label '{label}'")
+            }
+            Error::WhiteSpaceError { message } => {
+                write!(fmt, "{message}")
+            },
+            Error::EmptyLabel  => {
+                write!(fmt, "Empty label")
+            },
+            Error::HgvsError { msg } => {
+                write!(fmt, "{msg}")
+            },
+            Error::PmidError { msg } => {
+                write!(fmt, "{msg}")
+            },
+            Error::CurieError { msg } => {
+                write!(fmt, "{msg}")
+            },
+            Error::DiseaseIdError { msg } => {
+                write!(fmt, "{msg}")
+            },
+            Error::TranscriptError { msg } => {
+                write!(fmt, "{msg}")
+            },
+            Error::AgeParseError { msg } => {
+                write!(fmt, "{msg}")
+            },
+            Error::EmptyField { field_name } => {
+                write!(fmt, "{field_name} field is empty")
             },
             _ =>  write!(fmt, "{self:?}")
         }

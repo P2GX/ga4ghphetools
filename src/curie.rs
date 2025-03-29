@@ -7,10 +7,10 @@ use crate::error::{self, Error, Result};
 /// white-space is not allowed.
 fn check_valid_curie(s: &str) -> Result<bool> {
     if s.is_empty() {
-        return Err(Error::CurieError { msg: "empty CURIE".to_string()});
+        return Err(Error::CurieError { msg: "Empty CURIE".to_string()});
     } else if let Some(pos) = s.find(':') {
         if s.chars().any(|c| c.is_whitespace()) {
-            return Err(Error::CurieError { msg: format!("contains stray whitespace: '{}'", s)});
+            return Err(Error::CurieError { msg: format!("Contains stray whitespace: '{}'", s)});
         } else if s.matches(':').count() != 1 {
             return Err(Error::CurieError { msg: format!("Invalid CURIE with more than one colon: '{}", s)});
         } else if pos == 0 {
@@ -49,14 +49,11 @@ impl Curie {
 
 
     pub fn new_pmid(value: &str) -> Result<Self> {
-        let valid_curie = check_valid_curie(value);
-        if valid_curie.is_err() {
-            return Err(Error::PmidError { msg: format!("Invalid PMID: {}", valid_curie.err().unwrap())});
-        } else if ! value.starts_with("PMID") {
-            return Err(Error::PmidError { msg: format!("Invalid PMID: contains malformed prefix: '{}'", value)});
-        } else {
-            return Ok(Curie { curie_value: value.to_string()});
+        check_valid_curie(value)?;
+        if ! value.starts_with("PMID") {
+            return Err(Error::CurieError { msg: format!("Invalid PubMed prefix: '{}'", value)});
         }
+        return Ok(Curie { curie_value: value.to_string()});
     }
 
     pub fn new_disease_id(value: &str) -> Result<Self> {
@@ -92,14 +89,13 @@ mod test {
     fn test_pmid_ctor() {
         let tests = vec![
             ("PMID:12345", "PMID:12345"),
-            ("PMID: 12345", "Invalid PMID: contains stray whitespace: 'PMID: 12345'"),
-            ("PMID:12345 ", "Invalid PMID: contains stray whitespace: 'PMID:12345 '"),
-            (" PMID:12345", "Invalid PMID: contains stray whitespace: ' PMID:12345'"),
-            ("PMD:12345", "Invalid PMID: contains malformed prefix: 'PMD:12345'"),
-            ("PMID12345", "Invalid PMID: Invalid CURIE with no colon: 'PMID12345'"),
-            ("PMD:12345", "Invalid PMID: contains malformed prefix: 'PMD:12345'"),
-            ("PMID:12a45", "Invalid PMID: Invalid CURIE with non-digit characters in suffix: 'PMID:12a45'"),
-            ("", "Invalid PMID: is empty"),
+            ("PMID: 12345", "Contains stray whitespace: 'PMID: 12345'"),
+            ("PMID:12345 ", "Contains stray whitespace: 'PMID:12345 '"),
+            (" PMID:12345", "Contains stray whitespace: ' PMID:12345'"),
+            ("PMD:12345", "Invalid PubMed prefix: 'PMD:12345'"),
+            ("PMID12345", "Invalid CURIE with no colon: 'PMID12345'"),
+            ("PMID:12a45", "Invalid CURIE with non-digit characters in suffix: 'PMID:12a45'"),
+            ("", "Empty CURIE"),
         ];
         for test in tests {
             let pmid = Curie::new_pmid(test.0);
@@ -115,10 +111,10 @@ mod test {
         let tests = vec![
             ("OMIM:154700", "OMIM:154700"),
             ("OMIM154700", "Invalid disease identifier: Invalid CURIE with no colon: 'OMIM154700'"),
-            ("OMIM: 154700", "Invalid disease identifier: contains stray whitespace: 'OMIM: 154700'"),
-            ("OMIM:154700 ", "Invalid disease identifier: contains stray whitespace: 'OMIM:154700 '"),
-            (" OMIM:154700", "Invalid disease identifier: contains stray whitespace: ' OMIM:154700'"),
-            (" OMIM:154700 ", "Invalid disease identifier: contains stray whitespace: ' OMIM:154700 '"),
+            ("OMIM: 154700", "Invalid disease identifier: Contains stray whitespace: 'OMIM: 154700'"),
+            ("OMIM:154700 ", "Invalid disease identifier: Contains stray whitespace: 'OMIM:154700 '"),
+            (" OMIM:154700", "Invalid disease identifier: Contains stray whitespace: ' OMIM:154700'"),
+            (" OMIM:154700 ", "Invalid disease identifier: Contains stray whitespace: ' OMIM:154700 '"),
             ("OMIM:", "Invalid disease identifier: Invalid CURIE with no suffix: 'OMIM:'"),
             (":154700", "Invalid disease identifier: Invalid CURIE with no prefix: ':154700'"),
             ("OMM:154700", "Disease id has invalid prefix: 'OMM:154700'"),

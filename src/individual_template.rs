@@ -97,11 +97,11 @@ pub struct TitleCell {
 impl TitleCell {
     pub fn new(title: &str) -> Result<Self> {
         if title.is_empty() {
-            return Err(Error::EmptyField { field_name: "".to_ascii_lowercase() })
+            return Err(Error::EmptyField { field_name: "Title".to_string() })
         } else if title.chars().last().map_or(false, |c| c.is_whitespace()) {
-            return Err(Error::white_space_end(title.to_string()));
+            return Err(Error::trailing_ws(title.to_string()));
         } else if title.chars().next().map_or(false, |c| c.is_whitespace()) {
-            return Err(Error::white_space_start( title.to_string()));
+            return Err(Error::leading_ws( title.to_string()));
         } 
         Ok(TitleCell { title: title.to_string(), })
     }
@@ -118,9 +118,9 @@ fn qc_cell_entry(value: &str) -> Result<()> {
     if value.is_empty() {
         return Err(Error::EmptyField { field_name: "".to_ascii_lowercase() })
     } else if value.chars().last().map_or(false, |c| c.is_whitespace()) {
-        return Err(Error::white_space_end(value));
+        return Err(Error::trailing_ws(value));
     } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
-        return Err(Error::white_space_start( value));
+        return Err(Error::leading_ws( value));
     } else {
         Ok(())
     }
@@ -507,8 +507,8 @@ mod test {
     fn test_title_ctor() {
         let tests = vec![
             ("We are missing something", "We are missing something"),
-            ("We are missing something ", "Title 'We are missing something ' ends with whitespace"),
-            (" We are missing something", "Title ' We are missing something' begins with whitepsace"),
+            ("We are missing something ", "Trailing whitespace in 'We are missing something '"),
+            (" We are missing something", "Leading whitespace in ' We are missing something'"),
             ("", "Title field is empty")
         ];
         for test in tests {

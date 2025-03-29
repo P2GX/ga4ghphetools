@@ -34,10 +34,10 @@ impl Transcript {
             if valid_version {
                 return Ok(Transcript{value: val.to_string()});
             } else {
-                return Err(Error::TranscriptWithoutVersion { transcript: val.to_string() });
+                return Err(Error::lacks_transcript_version( val));
             }
         } 
-        Err(Error::UnrecognizeTranscriptPrefix { transcript: val.to_string() })
+        Err(Error::unrecognized_transcript_prefix( val))
     }
 }
 
@@ -50,8 +50,8 @@ mod test {
     fn test_transcripts() {
         let tests = vec![
             ("NM_006139.4", "NM_006139.4"),
-            ("NM_006139", "Invalid version: NM_006139"),
-            ("NM006139.4", "Transcript starts with unrecognized prefix: 'NM006139.4'"),
+            ("NM_006139", "Transcript 'NM_006139' is missing a version"),
+            ("NM006139.4", "Unrecognized transcript prefix 'NM006139.4'"),
             ("ENST00000316623.10", "ENST00000316623.10")
         ];
         for test in tests {
