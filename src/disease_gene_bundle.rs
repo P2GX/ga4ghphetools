@@ -22,6 +22,8 @@ pub struct DiseaseGeneBundle {
 }
 
 
+
+
 impl DiseaseGeneBundle {
 
     pub fn new<T,U,V>(disease_id: &TermId, 
@@ -74,16 +76,10 @@ impl DiseaseGeneBundle {
         hgnc: &str,
         symbol: &str,
         transcript: &str) -> Result<Self> {
-            let disease_tid = TermId::from_str(disease_id);
-            let hgnc_tid = TermId::from_str(hgnc);
-            if disease_tid.is_err() {
-                return Err(Error::TermIdError { id: disease_id.to_string() });
-            }
-            if hgnc_tid.is_err() {
-                return Err(Error::TermIdError { id: hgnc.to_string() });
-            }
-            let disease_tid = disease_tid.unwrap();
-            let hgnc_tid = hgnc_tid.unwrap();
+            let disease_tid = TermId::from_str(disease_id)
+                .map_err(|e| Error::termid_parse_error(disease_id))?;
+            let hgnc_tid = TermId::from_str(hgnc)
+                .map_err(|e| Error::termid_parse_error(hgnc))?;
             return Self::new(&disease_tid, disease_name, &hgnc_tid, symbol, transcript);
     }
 
@@ -140,7 +136,7 @@ mod tests {
         for test in tests {
             let disease_id = TermId::from_str("OMIM:154700").unwrap();
             let hgnc_id = TermId::from_str("HGNC:1234").unwrap();
-            let result = DiseaseGeneBundle::new(&           disease_id, 
+            let result = DiseaseGeneBundle::new(&disease_id, 
                         test.0, 
                         &hgnc_id, 
                         "FBN1",

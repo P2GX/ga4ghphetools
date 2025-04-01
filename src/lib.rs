@@ -1,3 +1,10 @@
+//! PheTools
+//! 
+//! Users interact with the library via the PheTools structure.
+//! The library does not expose custom datatypes, and errors are translated into strings to 
+//! simplify the use of rphetools in applications
+
+
 mod allele;
 mod curie;
 mod disease_gene_bundle;
@@ -10,6 +17,7 @@ mod onset;
 mod hpo {
     pub mod hpo_term_arranger;
 }
+mod phetools_qc;
 mod pptcolumn {
     pub mod age;
     pub mod deceased;
@@ -29,12 +37,15 @@ use disease_gene_bundle::DiseaseGeneBundle;
 use hpo::hpo_term_arranger::HpoTermArranger;
 use individual_template::IndividualTemplateFactory;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use ppt_template::PptTemplate;
 use rphetools_traits::PyphetoolsTemplateCreator;
-use crate::error::Result;
+use crate::error::Error;
+
 
 pub struct PheTools<'a> {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
-    hpo: &'a FullCsrOntology
+    hpo: &'a FullCsrOntology,
+    template: Option<PptTemplate<'a>>
 }
 
 impl<'a> PheTools<'a> {
@@ -59,7 +70,14 @@ impl<'a> PheTools<'a> {
     ///  let pyphetools = PheTools::new(&hpo);
     /// ```
     pub fn new(hpo: &'a FullCsrOntology) -> Self {
-        PheTools{hpo}
+        PheTools{
+            hpo: hpo,
+            template: None,
+        } 
+    }
+
+    fn set_template(&mut self, template:  PptTemplate<'a>) {
+        self.template = Some(template)
     }
 
      /// Creates a template to be used for curating phenopackets
@@ -79,30 +97,37 @@ impl<'a> PheTools<'a> {
     /// # Returns
     ///
     /// A `Result` containing:
-    /// - `Ok(Vec<Vec<String>>)` - A nested vector of strings representing the generated template.
-    /// - `Err(ErrorType)` - An error if template generation fails.
+    /// - `Ok(())` - empty result signifying success.
+    /// - `Err(String)` - An error if template generation fails.
     ///
     pub fn create_pyphetools_template (
-        &self,
+        &mut self,
         disease_id: &str,
         disease_name: &str,
         hgnc_id: &str,
         gene_symbol: &str,
         transcript_id: &str,
         hpo_term_ids: Vec<TermId>
-    ) ->  Result<Vec<Vec<String>>> {
+    ) ->  Result<(), String> {
         let dgb_result = DiseaseGeneBundle::new_from_str(disease_id, disease_name, hgnc_id, gene_symbol, transcript_id);
         match dgb_result {
             Ok(dgb) => {
-                let tmplt_res = template_creator::create_pyphetools_template(
+                match template_creator::create_pyphetools_template(
                     dgb,
                     hpo_term_ids,
-                    self.hpo
-                );
-                return tmplt_res;
+                    self.hpo) {
+                        Ok(template) => {
+                            self.set_template(template);
+                            Ok(())
+                        },
+                        Err(e) => {
+                            return Err(e.to_string()); // convert to String error for external use
+                        }
+                }
+                 
             }, 
             Err(e) => {
-                Err(e)
+                return Err(e.to_string()); // convert to String error for external use
             }
         }
     }
@@ -149,31 +174,45 @@ impl<'a> PheTools<'a> {
         err_list
     }
 
+    pub fn load_excel_template(&mut self, pyphetools_template_path: &str) 
+        -> Result<(), String> 
+        {
+            let result    = excel::read_excel_to_dataframe(pyphetools_template_path);
+            match result {
+                Ok(matrix) => { 
+                    let ppt_res = PptTemplate::from_string_matrix(matrix, self.hpo);
+                    
+                    
+                    return Ok(()); },
+                Err(e) => {return Err(e.to_string()); }
+            }
+    }
+
 
     pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
         let mut err_list = Vec::new();
         let row_result     = excel::read_excel_to_dataframe(pyphetools_template_path);
         match row_result {
             Ok(list_of_rows) => {
-                        let result =  IndividualTemplateFactory::new(self.hpo, list_of_rows.as_ref());
-                        match result {
-                            Ok(template_factory) => {
-                                                let result = template_factory. get_templates();
-                                                match result {
-                                                    Ok(template_list) => {
-                                                        println!("[INFO] We parsed {} templates successfully.", template_list.len());
-                                                        vec![]
-                                                    },
-                                                    Err(errs) => {
-                                                        eprintln!("[ERROR] We encountered errors");
-                                                        vec![]
-                                                    }
-                                                }
-                                            }
-                            Err(e) =>  {
-                                err_list.push(e);
-                                return  vec![];
-                            },
+                    let result =  IndividualTemplateFactory::new(self.hpo, list_of_rows.as_ref());
+                    match result {
+                        Ok(template_factory) => {
+                            let result = template_factory. get_templates();
+                            match result {
+                                Ok(template_list) => {
+                                    println!("[INFO] We parsed {} templates successfully.", template_list.len());
+                                    vec![]
+                                },
+                                Err(errs) => {
+                                    eprintln!("[ERROR] We encountered errors");
+                                    vec![]
+                                }
+                            }
+                        }
+                        Err(e) =>  {
+                            err_list.push(e);
+                            return  vec![];
+                        },
                     }  
                 }
                 Err(e) =>  {

@@ -56,7 +56,7 @@ pub enum Error {
     ForbiddenLabelChar{ c: char, label: String},
     MalformedLabel{ label: String },
     MalformedDiseaseLabel{ label: String},
-    TermIdError{ id: String },
+    TermIdError{ msg: String },
     HpIdNotFound{ id: String },
     ObsoleteTermId{ id: String, replacement: String },
     WrongLabel{ id:String, actual: String, expected: String},
@@ -119,6 +119,12 @@ impl Error {
             let msg = format!("Unrecognized transcript prefix '{}'", tx.into());
             Self::TranscriptError { msg }
     }
+
+    pub fn termid_parse_error<T>(identifier: T) -> Self 
+        where T: Into<String>
+    {
+        Error::TermIdError{msg: format!("Failed to parse TermId: {}", identifier.into())}
+    }
     
 }
 
@@ -134,9 +140,6 @@ impl core::fmt::Display for Error {
         match self {
             Error::LabelTooShort { label, actual, min } => {
                 write!(fmt, "Label '{}' is too short ({} < required {})", label, actual, min)
-            },
-            Error::TermIdError { id } => {
-                write!(fmt, "Malformed TermId: {id}")
             },
             Error::HpIdNotFound { id } => {
                 write!(fmt, "Not able to find HPO TermId: {id}")
@@ -159,24 +162,15 @@ impl core::fmt::Display for Error {
             Error::EmptyLabel  => {
                 write!(fmt, "Empty label")
             },
-            Error::HgvsError { msg } => {
-                write!(fmt, "{msg}")
-            },
-            Error::PmidError { msg } => {
-                write!(fmt, "{msg}")
-            },
-            Error::CurieError { msg } => {
-                write!(fmt, "{msg}")
-            },
-            Error::DiseaseIdError { msg } => {
-                write!(fmt, "{msg}")
-            },
-            Error::TranscriptError { msg } => {
-                write!(fmt, "{msg}")
-            },
-            Error::AgeParseError { msg } => {
-                write!(fmt, "{msg}")
-            },
+            Error::TermIdError { msg }
+            | Error::WhiteSpaceError { message: msg }
+            | Error::HgvsError { msg }
+            | Error::PmidError { msg }
+            | Error::CurieError { msg }
+            | Error::DiseaseIdError { msg }
+            | Error::TranscriptError { msg }
+            | Error::AgeParseError { msg } => 
+                write!(fmt, "{msg}"),
             Error::EmptyField { field_name } => {
                 write!(fmt, "{field_name} field is empty")
             },

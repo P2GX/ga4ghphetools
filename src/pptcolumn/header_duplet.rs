@@ -4,8 +4,9 @@
 //! We refer to the two rows of one column as a header duplet.
 
 use std::fmt;
-
 use regex::Regex;
+use lazy_static::lazy_static;
+use crate::error::{self, Error, Result};
 
 
 /// The HeaderDuplet represents the first two rows of the pyphetools template.
@@ -14,8 +15,11 @@ use regex::Regex;
 /// first header. For the HPO columns, the label is shown in the first header and the HPO id is
 /// shown in the second field. The purpose of this struct is simply to record the strings in
 /// both rows so that we can do some Q/C prior to starting to create the DataFrame object.
+#[derive(Debug, PartialEq, Eq)]
 pub struct HeaderDuplet {
+    /// field in the first row
     h1: String,
+    /// field in the second row
     h2: String,
 }
 
@@ -39,6 +43,20 @@ impl HeaderDuplet {
     pub fn row2(&self) -> String {
         self.h2.clone()
     }
+
+
+    pub fn extract_from_string_matrix(matrix: &Vec<Vec<String>>) -> Result<Vec<HeaderDuplet>> {
+        if matrix.len() < 2 {
+            return Err(Error::TemplateError { msg: format!("Insuffient rows ({}) to construct header duplets", matrix.len()) });
+        }
+        let row_len = matrix[0].len();
+        let mut header_duplet_list: Vec<HeaderDuplet> = Vec::new();
+        for i in 0..row_len {
+            let hdup = HeaderDuplet::new(matrix[0][i].clone(), matrix[1][i].clone());
+            header_duplet_list.push(hdup);
+        }
+        Ok(header_duplet_list)
+    }
 }
 
 impl fmt::Display for HeaderDuplet {
@@ -46,6 +64,46 @@ impl fmt::Display for HeaderDuplet {
         write!(f, "HeaderDuplet(h1: {}, h2: {})", self.h1, self.h2)
     }
 }
+
+
+const NUMBER_OF_CONSTANT_HEADER_FIELDS_MENDELIAN: usize = 17; 
+
+lazy_static! {
+    static ref PMID_HEADER: HeaderDuplet = HeaderDuplet::new("PMID", "CURIE");
+    static ref TITLE_HEADER: HeaderDuplet = HeaderDuplet::new("title", "str");
+    static ref INDIVIDUAL_ID_HEADER: HeaderDuplet = HeaderDuplet::new("individual_id", "str");
+    static ref COMMENT_HEADER: HeaderDuplet = HeaderDuplet::new("comment", "optional");
+    static ref DISEASE_ID_HEADER: HeaderDuplet = HeaderDuplet::new("disease_id", "CURIE");
+    static ref DISEASE_LABEL_HEADER: HeaderDuplet = HeaderDuplet::new("disease_label", "str");
+    static ref HGNC_ID_HEADER: HeaderDuplet = HeaderDuplet::new("HGNC_id", "CURIE");
+    static ref GENE_SYMBOL_HEADER: HeaderDuplet = HeaderDuplet::new("gene_symbol", "str");
+    static ref TRANSCRIPT_HEADER: HeaderDuplet = HeaderDuplet::new("transcript", "str");
+    static ref ALLELE_1_HEADER: HeaderDuplet = HeaderDuplet::new("allele_1", "str");
+    static ref ALLELE_2_HEADER: HeaderDuplet = HeaderDuplet::new("allele_2", "str");
+    static ref VARIANT_COMMENT_HEADER: HeaderDuplet = HeaderDuplet::new("variant.comment", "optional");
+    static ref AGE_OF_ONSET_HEADER: HeaderDuplet = HeaderDuplet::new("age_of_onset", "age");
+    static ref AGE_AT_LAST_ECOUNTER_HEADER: HeaderDuplet = HeaderDuplet::new("age_at_last_encounter", "age");
+    static ref DECEASED_HEADER: HeaderDuplet = HeaderDuplet::new("deceased", "yes/no/na");
+    static ref SEX_HEADER: HeaderDuplet = HeaderDuplet::new("sex", "M:F:O:U");
+    static ref HPO_SEPARATOR_HEADER: HeaderDuplet = HeaderDuplet::new("HPO", "na");
+
+   
+}
+
+
+fn expected_mendelian_fields() -> Vec<&'static HeaderDuplet> {
+    vec![
+        &PMID_HEADER, &TITLE_HEADER, &INDIVIDUAL_ID_HEADER, &COMMENT_HEADER,  
+        &DISEASE_ID_HEADER, &DISEASE_LABEL_HEADER, &HGNC_ID_HEADER, &GENE_SYMBOL_HEADER, 
+        &TRANSCRIPT_HEADER, &ALLELE_1_HEADER, &ALLELE_2_HEADER, &VARIANT_COMMENT_HEADER, 
+        &AGE_OF_ONSET_HEADER, &AGE_AT_LAST_ECOUNTER_HEADER, &DECEASED_HEADER, 
+        &SEX_HEADER, &HPO_SEPARATOR_HEADER
+    ]
+}
+
+
+
+
 
 /// These fields are always required by our template
 const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17; 
@@ -64,7 +122,7 @@ const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS]= [
 
 
  /// perform quality control of the two header rows of a pyphetools template file
-pub fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<(), Vec<String>> {
+pub fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> core::result::Result<(), Vec<String>> {
     // check each of the items in turn
 
     let mut errors: Vec<String> = vec![];
@@ -100,3 +158,27 @@ pub fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<(),
     }
     Ok(())
 }
+
+
+// region:    --- Tests
+
+#[cfg(test)]
+mod tests {
+    type Error = Box<dyn std::error::Error>;
+    type Result<T> = core::result::Result<T, Error>; // For tests.
+
+    use super::*;
+
+    #[test]
+    fn test_ctor() -> Result<()> {
+        let hdup_a = HeaderDuplet::new("Title", "str");
+        let hdup_b =  HeaderDuplet::new("Title", "str");
+        let hdup_c =  HeaderDuplet::new("HGNC", "CURIE");
+        assert_eq!(hdup_a, hdup_b);
+        assert_ne!(hdup_a, hdup_c);
+    
+        Ok(())
+    }
+}
+
+// endregion: --- Tests

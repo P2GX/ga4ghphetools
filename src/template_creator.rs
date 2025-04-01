@@ -10,8 +10,7 @@ use crate::disease_gene_bundle::DiseaseGeneBundle;
 
 use crate::ppt_template::PptTemplate;
 use crate::error::{self, Error, Result};
-
-
+use crate::PheTools;
 
 /// Create the initial pyphetools template (Table) with empty values so the curator can start to make
 /// a template with cases for a specific cohort
@@ -20,7 +19,7 @@ pub fn create_pyphetools_template<'a>(
     dg_bundle: DiseaseGeneBundle,
     hpo_term_ids: Vec<TermId>,
     hpo: &'a FullCsrOntology,
-    ) ->  Result<Vec<Vec<String>>> {
+    ) -> Result<PptTemplate> {
         let mut smt_list: Vec<SimpleMinimalTerm> = Vec::new();
         for hpo_id in &hpo_term_ids {
             match hpo.term_by_id(hpo_id) {
@@ -32,5 +31,8 @@ pub fn create_pyphetools_template<'a>(
         }
        
         let result = PptTemplate::create_pyphetools_template_mendelian(dg_bundle, hpo_term_ids, hpo)?;
-        return result.get_string_matrix();
-}
+        Ok(result)
+    }
+
+
+
