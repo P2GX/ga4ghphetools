@@ -14,8 +14,8 @@ pub struct PheToolsQc<'a> {
 
 impl Error {
     fn mismatched_header(idx: usize, expected: &HeaderDuplet, observed: &HeaderDuplet) -> Self {
-        let msg = format!("Expected header '{}' ({}) at column {} but got '{}' ({})",
-            idx, expected.row1(), expected.row2(), observed.row1(), observed.row2());
+        let msg = format!("Expected header '{}'/{}' at column {} but got '{}'/{}'",
+            expected.row1(), expected.row2(), idx, observed.row1(), observed.row2());
         Error::TemplateError { msg }
     }
 }

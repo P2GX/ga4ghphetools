@@ -176,6 +176,7 @@ impl core::fmt::Display for Error {
             | Error::DiseaseIdError { msg }
             | Error::TranscriptError { msg }
             | Error::DeceasedError { msg }
+            | Error::TemplateError { msg }
             | Error::SexFieldError { msg }
             | Error::SeparatorError { msg }
             | Error::AgeParseError { msg } => 

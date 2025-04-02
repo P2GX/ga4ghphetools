@@ -32,10 +32,11 @@ mod transcript;
 mod rphetools_traits;
 
 use std::{fmt::format, str::FromStr, vec};
-
+use std::fmt::{self};
 use disease_gene_bundle::DiseaseGeneBundle;
 use hpo::hpo_term_arranger::HpoTermArranger;
 use individual_template::IndividualTemplateFactory;
+use ontolius::ontology::MetadataAware;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use ppt_template::PptTemplate;
 use rphetools_traits::PyphetoolsTemplateCreator;
@@ -179,10 +180,9 @@ impl<'a> PheTools<'a> {
                         },
                         Err(e) => {
                             eprint!("Could not create ppttemplate: {}", e);
-                            return Err(e.to_string());}
+                            return Err(e.to_string());
+                        }
                     }
-                    
-                    
                     return Ok(()); },
                 Err(e) => {
                     return Err(e.to_string()); }
@@ -239,6 +239,29 @@ impl<'a> PheTools<'a> {
 
 }
 
+impl<'a> core::fmt::Display for PheTools<'a> {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
+        match &self.template {
+            Some(tplt) => {
+                let gene_sym = tplt.gene_symbol();
+                let hgnc = tplt.hgnc();
+                let dis = tplt.disease();
+                let ds_id = tplt.disease_id();
+                let ppkt_n = tplt.phenopacket_count();
+                let hpo_v = "HPO: to-do update ontolius".to_string(); // TODO
+                write!(fmt, r#"
+{hpo_v}
+phenopackets: {ppkt_n}
+Gene: {gene_sym}
+HGNC: {hgnc}
+Disease: {dis}
+Disease id: {ds_id}
+"#)
+            },
+            None => write!(fmt, "Phetype template not initialized")
+        }
+    }
+}
 
 // region:    --- Tests
 

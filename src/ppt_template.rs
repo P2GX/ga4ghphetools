@@ -3,6 +3,7 @@
 //! The struct that contains all data needed to create or edit a cohort of phenopackets
 //! in "pyphetools" format, and to export GA4GH Phenopackets.
 
+
 use std::{collections::HashMap, fmt::format, str::FromStr, vec};
 
 use ontolius::{ontology::{csr::FullCsrOntology, OntologyTerms}, term::{simple::SimpleMinimalTerm, MinimalTerm}, Identified, TermId};
@@ -262,5 +263,30 @@ impl<'a> PptTemplate<'a> {
 
         Ok(())
     }
+
+    pub fn phenopacket_count(&self) -> usize {
+        match self.columns.get(0) {
+            Some(col0) => col0.phenopacket_count(),
+            None => 0
+        }
+    }
+
+    pub fn disease(&self) -> String {
+        self.disease_gene_bundle.disease_name()
+    }
     
+    pub fn disease_id(&self) -> String {
+        self.disease_gene_bundle.disease_id_as_string()
+    }
+
+    pub fn hgnc(&self) -> String {
+        self.disease_gene_bundle.hgnc_id_as_string()
+    }
+
+    pub fn gene_symbol(&self) -> String {
+        self.disease_gene_bundle.gene_symbol()
+    }
 }
+
+
+            
