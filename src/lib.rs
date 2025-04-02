@@ -31,7 +31,7 @@ mod template_creator;
 mod transcript;
 mod rphetools_traits;
 
-use std::{str::FromStr, vec};
+use std::{fmt::format, str::FromStr, vec};
 
 use disease_gene_bundle::DiseaseGeneBundle;
 use hpo::hpo_term_arranger::HpoTermArranger;
@@ -166,26 +166,40 @@ impl<'a> PheTools<'a> {
     }
 
 
-    pub fn template_qc(&self, matrix: Vec<Vec<String>>) -> Vec<String> {
-        let mut err_list = Vec::new();
-       
-
-
-        err_list
-    }
-
     pub fn load_excel_template(&mut self, pyphetools_template_path: &str) 
         -> Result<(), String> 
         {
             let result    = excel::read_excel_to_dataframe(pyphetools_template_path);
             match result {
-                Ok(matrix) => { 
-                    let ppt_res = PptTemplate::from_string_matrix(matrix, self.hpo);
+                Ok(ppt_template) => { 
+                    let ppt_res = PptTemplate::from_string_matrix(ppt_template, self.hpo);
+                    match ppt_res {
+                        Ok(ppt) => {
+                            self.template = Some(ppt);
+                        },
+                        Err(e) => {
+                            eprint!("Could not create ppttemplate: {}", e);
+                            return Err(e.to_string());}
+                    }
                     
                     
                     return Ok(()); },
-                Err(e) => {return Err(e.to_string()); }
+                Err(e) => {
+                    return Err(e.to_string()); }
             }
+    }
+
+    pub fn template_qc(&self) -> Vec<String> {
+        match &self.template {
+            None => {
+                let msg = format!("template not initialized");
+                let errs = vec![msg];
+                return errs;
+            },
+            Some(template) => {
+                vec![]
+            }
+        }
     }
 
 
@@ -203,8 +217,8 @@ impl<'a> PheTools<'a> {
                                     println!("[INFO] We parsed {} templates successfully.", template_list.len());
                                     vec![]
                                 },
-                                Err(errs) => {
-                                    eprintln!("[ERROR] We encountered errors");
+                                Err(err) => {
+                                    eprintln!("[ERROR] {err}");
                                     vec![]
                                 }
                             }
@@ -224,3 +238,36 @@ impl<'a> PheTools<'a> {
 
 
 }
+
+
+// region:    --- Tests
+
+#[cfg(test)]
+mod tests {
+    type Error = Box<dyn std::error::Error>;
+    type Result<T> = core::result::Result<T, Error>; // For tests.
+
+    use ontolius::io::OntologyLoaderBuilder;
+
+    use super::*;
+
+    #[test]
+    #[ignore]
+    fn test_name() -> Result<()> {
+        let hpo_json = "../../data/hpo/hp.json";
+        let template = "../phenopacket-store/notebooks/FBN2/input/FBN2_CCA_individuals.xlsx";
+        let loader = OntologyLoaderBuilder::new()
+        .obographs_parser()
+        .build();
+    let hpo: FullCsrOntology = loader.load_from_path(hpo_json)
+                                                .expect("HPO should be loaded");
+        let mut pyphetools = PheTools::new(&hpo);
+        pyphetools.load_excel_template(template);
+        let errors = pyphetools.template_qc();
+        assert!(errors.is_empty());
+    
+        Ok(())
+    }
+}
+
+// endregion: --- Tests

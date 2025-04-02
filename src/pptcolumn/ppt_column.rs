@@ -155,7 +155,17 @@ impl PptColumn {
 
     pub fn new(column_type: ColumnType, header1: &str, header2: &str, column: &[String]) -> Self {
         let hd = HeaderDuplet::new(header1, header2);
-        PptColumn { column_type:column_type, header_duplet: hd, column_data: column.to_vec() }
+        // the first two columns are the header and do make contain column data
+        // note that we have checked that the vector is at least three
+        let coldata: Vec<String> = match column.len() {
+            2 => Vec::new(),
+            _ => column.iter().skip(2).cloned().collect() 
+        };
+        PptColumn { 
+            column_type:column_type, 
+            header_duplet: hd, 
+            column_data: coldata, 
+        }
     }
 
     pub fn pmid(col: &Vec<String>) -> Self {
@@ -251,6 +261,15 @@ impl PptColumn {
             Some(data) =>  Ok(data.clone()),
             None => Err(Error::TemplateError {msg: format!("Could not get column data")})
         }
+    }
+
+   
+    /// Validate entry according to column specific rules.
+    pub fn add_entry<T: Into<String>>(&mut self, value: T) -> Result<()>{
+        let val = value.into();
+        self.validate(&val)?;
+        self.column_data.push(val);
+        Ok(())
     }
 
     pub fn phenopacket_count(&self) -> usize {

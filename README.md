@@ -20,5 +20,10 @@ cargo run --release --bin rpt -- --pyphetools ./../phenopacket-store/notebooks/C
 
 ## To build the binary demo (with clap)
 ```bash
-cargo build --features cli
+cargo build --release --features cli
+```
+(the binary is then in ``./target/release/rpt``)
+to run it
+```bash
+cargo run --features cli --bin rpt
 ```

@@ -178,7 +178,8 @@ impl<'a> PptTemplate<'a> {
         ptools_qc.is_valid_mendelian_header(&hdup_list)?;
         // transpose the String matrix so we can create PptColumns
         let mut columns = vec![Vec::with_capacity(matrix.len()); row_len];
-        for row in matrix {
+        // Skip the first two rows, which were for the header
+        for row in matrix.into_iter() {
             for (col_idx, value) in row.into_iter().enumerate() {
                 columns[col_idx].push(value);
             }

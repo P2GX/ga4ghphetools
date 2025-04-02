@@ -42,8 +42,18 @@ fn main() {
         .build();
     let hpo: FullCsrOntology = loader.load_from_path(&cli.json)
                                                 .expect("HPO should be loaded");
-    let pyphetools = PheTools::new(&hpo);
-    pyphetools.template_qc_excel_file(&cli.pyphetools);
+    let mut pyphetools = PheTools::new(&hpo);
+    pyphetools.load_excel_template(&cli.pyphetools);
+    let errors = pyphetools.template_qc();
+    if errors.is_empty() {
+        println!("[INFO] No errors identified for {}", &cli.pyphetools);
+    } else {
+        println!("[ERROR] Errors identified for {}", &cli.pyphetools);
+        for e in errors {
+            println!("{}", e);
+        }
+    }
+    
    
      
 }
