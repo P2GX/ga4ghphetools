@@ -11,6 +11,7 @@ use ontolius::{ontology::{csr::FullCsrOntology, OntologyTerms}, term::{simple::S
 use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo::hpo_term_arranger::HpoTermArranger, phetools_qc::PheToolsQc, pptcolumn::{header_duplet::HeaderDuplet, ppt_column::PptColumn}};
 use crate::error::{self, Error, Result};
 
+#[derive(PartialEq)]
 pub enum TemplateType {
     Mendelian,
     Melded
@@ -158,18 +159,10 @@ impl<'a> PptTemplate<'a> {
     }
 
 
-    /// Extract the disease and gene information from the String template (e.g., from an Excel file)
+    /// Generate a PptTemplate from a String matrix (e.g., from an Excel file)
     /// 
     /// In most cases, we expect only one disease, but for melded genetic diagnoses we expect two
     /// We inspect the first two header rows to determine if a template has one or two diseases.
-    fn extract_disease_gene_bundles(matrix: &Vec<Vec<String>>) -> Vec<DiseaseGeneBundle> {
-
-
-
-        vec![]
-    }
-
-
     pub fn from_string_matrix(matrix: Vec<Vec<String>>, hpo: &'a FullCsrOntology) -> Result<Self> {
         if matrix.len() < 3 {
             return Err(Error::empty_template(matrix.len()));
@@ -236,7 +229,37 @@ impl<'a> PptTemplate<'a> {
             template_type: TemplateType::Mendelian,
             ptools_qc: ptools_qc
         })
+    }
 
+    /// Validate the current template
+    /// 
+    ///  * Returns
+    /// 
+    /// - a vector of errors (can be empty)
+    /// 
+    pub fn validate(&self) -> Vec<Error> {
+        // for now, validate Mendelian only TODO extend for Melded
+        let mut error_list: Vec<Error> = Vec::new();
+        if let Err(e) = self.qc_headers() {
+            error_list.push(e);
+        }
+        
+       
+        error_list
+    }
+
+
+    fn qc_headers(&self) -> Result<()>{
+        let mut headers = Vec::new();
+        for c in &self.columns {
+            headers.push(c.get_header_duplet());
+        }
+        if self.template_type == TemplateType::Mendelian {
+            self.ptools_qc.is_valid_mendelian_header(&headers)?;
+        }
+        // TODO MELDED
+
+        Ok(())
     }
     
 }

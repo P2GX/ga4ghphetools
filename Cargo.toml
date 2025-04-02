@@ -1,6 +1,6 @@
 [package]
 name = "rphetools"
-version = "0.1.12"
+version = "0.1.13"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -14,6 +14,11 @@ path = "src/lib.rs"
 [[bin]]
 name = "rpt"
 path = "bin/main.rs"
+required-features = ["cli"]
+
+[features]
+default = []   # Library does not enable CLI by default
+cli = ["dep:clap"]  # Enable clap only when the CLI feature is enabled
 
 [dependencies]
 calamine = "0.26.1" 
@@ -22,13 +27,13 @@ polars = "0.46.0"
 prost = "0.13.5" 
 prost-types = "0.13.5"
 home = "0.5.11"
-clap = {version = "4.5.34", features = ["derive"] }
 ontolius = "0.5.2"
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 phenopackets-dev = "0.2.2"
 once_cell = "1.21.3"
 lazy_static = "1.5.0"
+clap = { version = "4.5.35", features = ["derive"], optional = true }
 
 [lints.rust]
 unsafe_code = "forbid"

@@ -5,6 +5,7 @@
 use std::{collections::HashSet, fmt::format};
 
 use ontolius::TermId;
+use polars::error::ErrString;
 use regex::Regex;
 use once_cell::sync::Lazy;
 use super::header_duplet::HeaderDuplet;
@@ -34,7 +35,7 @@ const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
     ];
 
 trait PptCellValidator {
-    fn validate(&self, value: &str) -> bool;
+    fn validate(&self, value: &str) -> Result<()>;
 }
 
 
@@ -60,42 +61,88 @@ pub enum ColumnType {
     NtrRequestColumn
 }
 
+impl Error {
+    fn pmid_error(val: &str) -> Self {
+        Error::PmidError { msg: format!("Malformed PMID entry: '{}'", val) }
+    }
+
+    fn title_error(val: &str) -> Self {
+        Error::WhiteSpaceError { msg: format!("Malformed title: '{}'", val) }
+    }
+
+    fn disease_id_error(val: &str) -> Self {
+        Error::DiseaseIdError { msg: format!("Malformed disease id '{}'", val) }
+    }
+
+    fn ws_error(val: &str, field: &str) -> Self {
+        Error::DiseaseIdError { msg: format!("{field} field has whitespace error '{}'", val) }
+    }
+}
+
+
+
 impl PptCellValidator for PptColumn {
-    fn validate(&self, value: &str) -> bool {
+    fn validate(&self, value: &str) -> Result<()> {
         match &self.column_type {
-            ColumnType::PmidColumn => PMID_REGEX.is_match(value),
-            ColumnType::TitleColumn => NO_LEADING_TRAILING_WS.is_match(value),
-            ColumnType::IndividualIdColumn => NO_LEADING_TRAILING_WS.is_match(value),
-            ColumnType::IndividualCommentColumn => true,
-            ColumnType::DiseaseIdColumn => DISEASE_ID_REGEX.is_match(value),
-            ColumnType::DiseaseLabelColumn => NO_LEADING_TRAILING_WS.is_match(value),
-            ColumnType::HgncIdColumn => HGNC_ID_REGEX.is_match(value),
-            ColumnType::GeneSymbolColumn => NO_LEADING_TRAILING_WS.is_match(value),
-            ColumnType::TranscriptColumn => TRANSCRIPT_REGEX.is_match(value),
-            ColumnType::AlleleOneColumn => NO_LEADING_TRAILING_WS.is_match(value), //TODO BETTER FUNCTION
-            ColumnType::AlleleTwoColumn => NO_LEADING_TRAILING_WS.is_match(value),
+            ColumnType::PmidColumn => { 
+                if !PMID_REGEX.is_match(value) { 
+                    return Err(Error::pmid_error(value)); 
+                }
+            },
+            ColumnType::TitleColumn => {
+                if !NO_LEADING_TRAILING_WS.is_match(value) {
+                    return Err(Error::ws_error(value, "title")); 
+                }
+            },
+            ColumnType::IndividualIdColumn => {
+                if !NO_LEADING_TRAILING_WS.is_match(value) {
+                    return Err(Error::ws_error(value, "individual_id"));
+                }
+            },
+            ColumnType::IndividualCommentColumn => {return Ok(());},
+            ColumnType::DiseaseIdColumn => if ! DISEASE_ID_REGEX.is_match(value) {
+                return Err(Error::disease_id_error(value));
+            },
+            ColumnType::DiseaseLabelColumn => if ! NO_LEADING_TRAILING_WS.is_match(value) {
+                return Err(Error::ws_error(value, "disease_label"));
+            },
+            ColumnType::HgncIdColumn => if ! HGNC_ID_REGEX.is_match(value) {
+                return Err(Error::HgncError { msg: format!("Malformed HGNC id: '{value}'") });
+            },
+            ColumnType::GeneSymbolColumn => if ! NO_LEADING_TRAILING_WS.is_match(value){
+                return Err(Error::ws_error(value, "gene_symbol"));
+            },
+            ColumnType::TranscriptColumn => if ! TRANSCRIPT_REGEX.is_match(value) {
+                return Err(Error::TranscriptError { msg: format!("Malformed transcript: '{value}'")}) 
+            },
+            ColumnType::AlleleOneColumn => if ! NO_LEADING_TRAILING_WS.is_match(value) {
+                return Err(Error::ws_error(value, "allele_1"));
+            },
+            ColumnType::AlleleTwoColumn => if ! NO_LEADING_TRAILING_WS.is_match(value) {
+                return Err(Error::ws_error(value, "allele_2"));
+            },
             ColumnType::AgeOfOnsetColumn => {
-                true // TODO BETTER FUNCTION
+                return Ok(());
             },
             ColumnType::AgeAtLastExaminationColumn => {
-                true // TODO BETTER FUNCTION
+                return Ok(()); // TODO BETTER FUNCTION
             }
-            ColumnType::DeceasedColumn => DECEASED_REGEX.is_match(value),
-            ColumnType::SexColumn => SEX_REGEX.is_match(value),
-            ColumnType::SeparatorColumn => SEPARATOR_REGEX.is_match(value),
-
-            _ => false
-            
+            ColumnType::DeceasedColumn => if ! DECEASED_REGEX.is_match(value) {
+                return Err(Error::DeceasedError { msg: format!("Malformed deceased entry: '{value}'") })
+            }
+            ColumnType::SexColumn => if ! SEX_REGEX.is_match(value) {
+                return Err(Error::sex_field_error(value));
+            }
+            ColumnType::SeparatorColumn => if ! SEPARATOR_REGEX.is_match(value) {
+                return Err(Error::separator(value))
+            },
+            _ => {return Ok(());}   
         }
-        
+        Ok(())
     }
 }
 
-impl PptCellValidator for crate::pptcolumn::ppt_column::ColumnType {
-    fn validate(&self, value: &str) -> bool {
-        PMID_REGEX.is_match(value)
-    }
-}
+
 
 pub struct PptColumn {
     column_type: ColumnType,
@@ -189,7 +236,10 @@ impl PptColumn {
         let hpid = &col[1];
         let rest: &[String] = &col[2..];
         Self::new(ColumnType::HpoTermColumn, &name, &hpid, rest)
+    }
 
+    pub fn get_header_duplet(&self) -> HeaderDuplet {
+        self.header_duplet.clone()
     }
 
     pub fn get(&self, idx: usize) -> Result<String> {
@@ -223,4 +273,15 @@ impl PptColumn {
         }
     }
 
+    pub fn validate_data(&self) -> Vec<Error> {
+        let mut error_list = Vec::new();
+        for val in &self.column_data {
+            if let Err(e) = self.validate(&val) {
+                error_list.push(e);
+            }
+        }
+        error_list
+    }
+
 }
+

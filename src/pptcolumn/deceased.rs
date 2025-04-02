@@ -23,7 +23,7 @@ impl DeceasedTableCell {
             "yes" =>  Ok(DeceasedTableCell{deceased: Deceased::Yes}),
             "no" =>  Ok(DeceasedTableCell{deceased:  Deceased::No}),
             "na" =>  Ok(DeceasedTableCell{deceased:  Deceased::NotAvailable}),
-            other => Err(Error::DeceasedError { value:  other.to_string()} )
+            other => Err(Error::DeceasedError { msg: format!("Unrecognized deceased field entry '{}'",other.to_string())} )
         }
     }
 

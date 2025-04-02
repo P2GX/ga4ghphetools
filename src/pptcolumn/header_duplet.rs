@@ -15,7 +15,7 @@ use crate::error::{self, Error, Result};
 /// first header. For the HPO columns, the label is shown in the first header and the HPO id is
 /// shown in the second field. The purpose of this struct is simply to record the strings in
 /// both rows so that we can do some Q/C prior to starting to create the DataFrame object.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HeaderDuplet {
     /// field in the first row
     h1: String,

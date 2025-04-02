@@ -47,9 +47,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     #[from]
     Custom(String),
-    WhiteSpaceStart{ element: String },
-    WhiteSpaceEnd{ element: String },
-    WhiteSpaceError{ message: String},
+    WhiteSpaceError{ msg: String},
     TranscriptError{ msg: String},
     LabelTooShort{ label: String, actual: usize, min: usize},
     EmptyLabel,
@@ -71,7 +69,9 @@ pub enum Error {
     TemplateError{ msg: String },
     TermError{msg: String},
     AgeParseError{msg: String},
-    DeceasedError{value: String}
+    DeceasedError{msg: String},
+    SexFieldError{msg: String},
+    SeparatorError{msg: String}
    
     // arrange according to module
     // -- pptcolumn
@@ -95,12 +95,12 @@ impl Error {
 
     pub fn leading_ws<T>(value: T) -> Self
         where T: Into<String> {
-        Self::WhiteSpaceError { message: format!("Leading whitespace in '{}'", value.into()) }
+        Self::WhiteSpaceError { msg: format!("Leading whitespace in '{}'", value.into()) }
     }
 
     pub fn trailing_ws<T>(value: T) -> Self
         where T: Into<String> {
-            Self::WhiteSpaceError { message:  format!("Trailing whitespace in '{}'", value.into()) }
+            Self::WhiteSpaceError { msg:  format!("Trailing whitespace in '{}'", value.into()) }
     }
 
     pub fn short_label<T>(value: T, actual: usize, min: usize) -> Self 
@@ -124,6 +124,14 @@ impl Error {
         where T: Into<String>
     {
         Error::TermIdError{msg: format!("Failed to parse TermId: {}", identifier.into())}
+    }
+
+    pub fn sex_field_error<T>(val: T) -> Self  where T: Into<String> {
+        Error::SexFieldError { msg: format!("Malformed sex field entry '{}'",val.into()) }
+    }
+
+    pub fn separator<T>(val: T) -> Self  where T: Into<String> {
+        Error::SexFieldError { msg: format!("Malformed separator entry '{}'",val.into()) }
     }
     
 }
@@ -156,19 +164,20 @@ impl core::fmt::Display for Error {
             Error::ForbiddenLabelChar { c, label } => {
                 write!(fmt, "Forbidden character '{c}' found in label '{label}'")
             }
-            Error::WhiteSpaceError { message } => {
-                write!(fmt, "{message}")
-            },
+            
             Error::EmptyLabel  => {
                 write!(fmt, "Empty label")
             },
             Error::TermIdError { msg }
-            | Error::WhiteSpaceError { message: msg }
+            | Error::WhiteSpaceError { msg }
             | Error::HgvsError { msg }
             | Error::PmidError { msg }
             | Error::CurieError { msg }
             | Error::DiseaseIdError { msg }
             | Error::TranscriptError { msg }
+            | Error::DeceasedError { msg }
+            | Error::SexFieldError { msg }
+            | Error::SeparatorError { msg }
             | Error::AgeParseError { msg } => 
                 write!(fmt, "{msg}"),
             Error::EmptyField { field_name } => {

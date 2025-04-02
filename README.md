@@ -18,4 +18,7 @@ cargo run --release --bin rpt -- --pyphetools ./../phenopacket-store/notebooks/C
 3. Copy versionof VRS and VRSATILE
 4. Run cargo build with the following code in build.rs
 
-
+## To build the binary demo (with clap)
+```bash
+cargo build --features cli
+```
