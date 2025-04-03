@@ -168,7 +168,7 @@ impl<'a> PheTools<'a> {
 
 
     pub fn load_excel_template(&mut self, pyphetools_template_path: &str) 
-        -> Result<(), String> 
+        -> Result<(), Vec<String>> 
         {
             let result    = excel::read_excel_to_dataframe(pyphetools_template_path);
             match result {
@@ -179,13 +179,15 @@ impl<'a> PheTools<'a> {
                             self.template = Some(ppt);
                         },
                         Err(e) => {
-                            eprint!("Could not create ppttemplate: {}", e);
-                            return Err(e.to_string());
+                            eprint!("Could not create ppttemplate");
+                            let err_string = e.iter().map(|e| e.to_string()).collect();
+                            return Err(err_string);
                         }
                     }
                     return Ok(()); },
                 Err(e) => {
-                    return Err(e.to_string()); }
+                    let err_string = vec![e.to_string()];
+                    return Err(err_string); }
             }
     }
 

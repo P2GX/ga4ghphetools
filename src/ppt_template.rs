@@ -164,19 +164,31 @@ impl<'a> PptTemplate<'a> {
     /// 
     /// In most cases, we expect only one disease, but for melded genetic diagnoses we expect two
     /// We inspect the first two header rows to determine if a template has one or two diseases.
-    pub fn from_string_matrix(matrix: Vec<Vec<String>>, hpo: &'a FullCsrOntology) -> Result<Self> {
+    pub fn from_string_matrix(matrix: Vec<Vec<String>>, hpo: &'a FullCsrOntology) 
+        -> std::result::Result<Self, Vec<Error>> {
+        let mut error_list: Vec<Error> = Vec::new();
         if matrix.len() < 3 {
-            return Err(Error::empty_template(matrix.len()));
+            error_list.push(Error::empty_template(matrix.len()));
+            return Err(error_list);
         }
         // check equal length of all rows
         let row_len = matrix[0].len();
         if ! matrix.iter().all(|v| v.len() == row_len) {
-            return Err(Error::unequal_row_lengths());
+            error_list.push(Error::unequal_row_lengths());
+            return Err(error_list);
         }
-        let hdup_list = HeaderDuplet::extract_from_string_matrix(&matrix)?;
+        let hdup_list = match HeaderDuplet::extract_from_string_matrix(&matrix){
+            Ok(val) => val,
+            Err(e) => {
+                error_list.push(e);
+                return Err(error_list); // not recoverable
+            }
+        };
         /// TODO separate for Mendelian and Melded here
         let ptools_qc = PheToolsQc::new(hpo);
-        ptools_qc.is_valid_mendelian_header(&hdup_list)?;
+        if let Err(e) = ptools_qc.is_valid_mendelian_header(&hdup_list) {
+            error_list.push(e);
+        };
         // transpose the String matrix so we can create PptColumns
         let mut columns = vec![Vec::with_capacity(matrix.len()); row_len];
         // Skip the first two rows, which were for the header
@@ -187,18 +199,58 @@ impl<'a> PptTemplate<'a> {
         }
         let mut column_list: Vec<PptColumn> = vec![];
         let disease_id_col = PptColumn::disease_id(&columns[4]);
-        let disease_id_str = disease_id_col.get_unique()?;
-        let disease_id_tid = TermId::from_str(&disease_id_str).map_err(|e| Error::termid_parse_error(&disease_id_str))?;
+        let disease_id_str = match disease_id_col.get_unique(){
+            Ok(val)=> val,
+            Err(e) => {error_list.push(e); String::default()}
+        };
+        let disease_id_str = match disease_id_col.get_unique() {
+            Ok(val) => val,
+            Err(e) => {
+                error_list.push(e); // Capture the actual error
+                String::new()   // Placeholder to allow further processing
+            }
+        };
+        let disease_id_tid = match TermId::from_str(&disease_id_str) {
+            Ok(tid) => tid,
+            Err(e) => {
+                error_list.push(Error::termid_parse_error(&disease_id_str));
+                return Err(error_list); // not recoverable
+            }
+        };
         let disease_label_col = PptColumn::disease_label(&columns[5]);
-        let disease_label_str = disease_label_col.get_unique()?;
+        let disease_label_str = match disease_label_col.get_unique() {
+            Ok(val) => val,
+            Err(e) => { 
+                error_list.push(e);
+                String::default()
+            }
+        };
         let hgnc_col = PptColumn::hgnc(&columns[6]);
-        let hgnc_str = hgnc_col.get_unique()?;
-        let hgnc_tid = TermId::from_str(&hgnc_str).map_err(|e| Error::termid_parse_error(&hgnc_str))?;
+        let hgnc_str = match hgnc_col.get_unique() {
+            Ok(val) => val,
+            Err(e) => {error_list.push(e); String::default()}
+        };
+        let hgnc_tid = match TermId::from_str(&hgnc_str) {
+            Ok(tid) => tid,
+            Err(e) => {
+            error_list.push(Error::termid_parse_error(&hgnc_str));
+            return Err(error_list); // not recoverable
+            }
+        };
         let gene_symbol_col = PptColumn::gene_symbol(&columns[7]);
-        let gene_symbol_str = gene_symbol_col.get_unique()?;
+        let gene_symbol_str = match gene_symbol_col.get_unique() {
+            Ok(val) => val,
+            Err(e)=> { error_list.push(e);String::default()}
+        };
         let transcript_col = PptColumn::transcript(&columns[8]);
-        let transcript_str = transcript_col.get_unique()?;
-        let dg_bundle = DiseaseGeneBundle::new(&disease_id_tid, disease_label_str, &hgnc_tid, gene_symbol_str, transcript_str)?;
+        let transcript_str = match transcript_col.get_unique() {
+            Ok(val) => val,
+            Err(e)=> { error_list.push(e);String::default()}
+        };
+        let dg_bundle = match DiseaseGeneBundle::new(&disease_id_tid, disease_label_str, &hgnc_tid, gene_symbol_str, transcript_str){
+            Ok(val)=> val,
+            Err(e)=> { error_list.push(e); return Err(error_list);}
+        };
         column_list.push(PptColumn::pmid(&columns[0]));
         column_list.push(PptColumn::title(&columns[1]));
         column_list.push(PptColumn::individual_id(&columns[2]));
@@ -219,18 +271,22 @@ impl<'a> PptTemplate<'a> {
         // Every column after this must be an HPO column
         // We must have at least one HPO column for the template to be valid
         if row_len < 18 {
-            return Err(Error::TemplateError { msg: format!("No HPO column found (number of columns: {})", row_len) });
+            error_list.push(Error::TemplateError { msg: format!("No HPO column found (number of columns: {})", row_len) });
         }
         for i in 17..row_len {
             let hp_column = PptColumn::hpo_term_from_column(&columns[i]);
             column_list.push(hp_column);
         }
-        Ok(Self {
-            disease_gene_bundle: dg_bundle,
-            columns: column_list,
-            template_type: TemplateType::Mendelian,
-            ptools_qc: ptools_qc
-        })
+        if error_list.is_empty() {
+            Ok(Self {
+                disease_gene_bundle: dg_bundle,
+                columns: column_list,
+                template_type: TemplateType::Mendelian,
+                ptools_qc: ptools_qc
+            })
+        } else {
+            Err(error_list)
+        }
     }
 
     /// Validate the current template

@@ -62,19 +62,19 @@ pub enum ColumnType {
 }
 
 impl Error {
-    fn pmid_error(val: &str) -> Self {
+    pub fn pmid_error(val: &str) -> Self {
         Error::PmidError { msg: format!("Malformed PMID entry: '{}'", val) }
     }
 
-    fn title_error(val: &str) -> Self {
+    pub fn title_error(val: &str) -> Self {
         Error::WhiteSpaceError { msg: format!("Malformed title: '{}'", val) }
     }
 
-    fn disease_id_error(val: &str) -> Self {
+    pub fn disease_id_error(val: &str) -> Self {
         Error::DiseaseIdError { msg: format!("Malformed disease id '{}'", val) }
     }
 
-    fn ws_error(val: &str, field: &str) -> Self {
+    pub fn ws_error(val: &str, field: &str) -> Self {
         Error::DiseaseIdError { msg: format!("{field} field has whitespace error '{}'", val) }
     }
 }
