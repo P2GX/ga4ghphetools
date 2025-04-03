@@ -302,5 +302,21 @@ impl PptColumn {
         error_list
     }
 
+    /// Add a new line to the column
+    /// 
+    /// This function is used to create a new row by calling this function on
+    /// all columns in a template.
+    pub fn add_blank_field(&mut self)  {
+        self.column_data.push(String::default());
+    }
+
+    pub fn set_value(&mut self, idx: usize, val: impl Into<String>) -> Result<()> {
+        if idx >= self.phenopacket_count() {
+            return Err(Error::row_index_error(idx, self.phenopacket_count()));
+        }
+        self.column_data[idx] = val.into();
+        Ok(())
+    }
+
 }
 

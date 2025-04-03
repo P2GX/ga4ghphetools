@@ -39,6 +39,8 @@ use core::fmt;
 use derive_more::{From, Display};
 use serde::Serialize;
 
+use crate::individual_template::TemplateError;
+
 // can be used for test modules pub type Error = Box<dyn std::err::Err>;
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -101,6 +103,18 @@ impl Error {
     pub fn trailing_ws<T>(value: T) -> Self
         where T: Into<String> {
             Self::WhiteSpaceError { msg:  format!("Trailing whitespace in '{}'", value.into()) }
+    }
+
+    pub fn column_not_found(colname: impl Into<String>) -> Self {
+        Error::TemplateError{msg: format!("Could not find column {}", colname.into())}
+    }
+
+    pub fn row_index_error(idx: usize, rowcount: usize) -> Self {
+        Error::TemplateError { msg: format!("Attempt to index row at index {idx} with row count {rowcount}") }
+    }
+
+    pub fn column_index_error(idx: usize, colcount: usize) -> Self {
+        Error::TemplateError { msg: format!("Attempt to index column at index {idx} with column count {colcount}") }
     }
 
     pub fn short_label<T>(value: T, actual: usize, min: usize) -> Self 

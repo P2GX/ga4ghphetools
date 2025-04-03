@@ -26,6 +26,12 @@ pub struct PptTemplate<'a> {
     ptools_qc: PheToolsQc<'a>,
 }
 
+const PMID_COL: usize = 0;
+const TITLE_COL: usize = 1;
+const INDIVIDUAL_ID_COL: usize = 2;
+const INDIVIDUAL_COMMENT: usize = 3;
+const EMPTY_STRING: &str = "";
+
 
 impl Error {
 
@@ -306,6 +312,10 @@ impl<'a> PptTemplate<'a> {
         error_list
     }
 
+    pub fn is_mendelian(&self) -> bool {
+        return self.template_type == TemplateType::Mendelian
+    }
+
 
     fn qc_headers(&self) -> Result<()>{
         let mut headers = Vec::new();
@@ -342,6 +352,54 @@ impl<'a> PptTemplate<'a> {
     pub fn gene_symbol(&self) -> String {
         self.disease_gene_bundle.gene_symbol()
     }
+
+    pub fn transcript(&self) -> String {
+        self.disease_gene_bundle.transcript()
+    }
+
+    pub fn column_count(&self) -> usize {
+        self.columns.len()
+    }
+
+  
+
+    /// Intended to be used as part of the process to add a new
+    /// row to a template. 
+    /// 
+    /// * Returns row index of the new row
+    /// 
+    /// 
+    pub fn add_blank_row(&mut self) -> Result<usize> {
+
+        for col in  &mut self.columns {
+            col.add_blank_field();
+        }
+        // check equal length of all rows
+        let row_len = self.columns[0].phenopacket_count();
+        if ! self.columns.iter().all(|v| v.phenopacket_count() == row_len) {
+            return Err(Error::unequal_row_lengths());
+        }
+        // The last index is one less than the row len
+        Ok(row_len-1)
+    }
+
+    pub fn set_value(&mut self, 
+                        row: usize,
+                        col: usize,
+                        value: impl Into<String>) -> Result<()> {
+        if row >=self.columns[0].phenopacket_count() {
+            return Err(Error::row_index_error(row, self.columns[0].phenopacket_count()));
+        }
+        if col >= self.columns.len() {
+            return Err(Error::column_index_error(col, self.columns.len()));
+        }
+        let mut col = &mut self.columns[col];
+        col.set_value(row, value)?;
+
+
+        Ok(())
+    }
+
 }
 
 

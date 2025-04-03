@@ -24,6 +24,9 @@ mod pptcolumn {
     pub mod header_duplet;
     pub mod ppt_column;
 }
+mod template {
+    pub mod template_row_adder;
+}
 mod ppt_template;
 mod simple_label;
 mod simple_term;
@@ -40,8 +43,9 @@ use ontolius::ontology::MetadataAware;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use ppt_template::PptTemplate;
 use rphetools_traits::PyphetoolsTemplateCreator;
+use template::template_row_adder::MendelianRowAdder;
 use crate::error::Error;
-
+use crate::template::template_row_adder::TemplateRowAdder;
 
 pub struct PheTools<'a> {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
@@ -202,6 +206,31 @@ impl<'a> PheTools<'a> {
                 vec![]
             }
         }
+    }
+
+    pub fn new_row(&mut self, 
+                    pmid: impl Into<String>, 
+                    title: impl Into<String>, 
+                    individual_id: impl Into<String>) -> Result<(), String> {
+            match &mut self.template {
+                Some(template) => {
+                    if template.is_mendelian() {
+                        let row_adder = MendelianRowAdder{};
+                        row_adder.add_row(
+                            pmid, 
+                            title, 
+                            individual_id,
+                            template)
+                            .map_err(|e| e.to_string())?;
+                        Ok(())
+                    } else {
+                        return Err(format!("Non mendelian not implemenet"));
+                    } 
+                },
+                None => {
+                    Err(format!("Attempt to add row to null template!"))
+                }
+            }
     }
 
 
