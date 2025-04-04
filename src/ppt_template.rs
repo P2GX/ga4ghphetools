@@ -383,6 +383,25 @@ impl<'a> PptTemplate<'a> {
         Ok(row_len-1)
     }
 
+    /// Delete a row. We expect this to come from a GUI where the rows include 
+    /// the headers (two rows) and adjust here. TODO - Consider 
+    /// adjusting the count in the GUI
+    pub fn delete_row(&mut self, row: usize) -> Result<()> {
+        let row_len = self.columns[0].phenopacket_count() + 2;
+        if row < 2 {
+            Err(Error::cannot_delete_header(row))
+        } else if row >= row_len {
+            Err(Error::delete_beyond_max_row(row, row_len))
+        } else {
+            for col in &mut self.columns {
+                let row = row - 2; // adjust for header
+                col.delete_entry_at_row(row);
+            }
+            Ok(())
+        }
+        
+    }
+
     pub fn set_value(&mut self, 
                         row: usize,
                         col: usize,
@@ -395,9 +414,27 @@ impl<'a> PptTemplate<'a> {
         }
         let mut col = &mut self.columns[col];
         col.set_value(row, value)?;
-
-
         Ok(())
+    }
+
+    pub fn get_options(&self,
+                        row: usize,
+                        col: usize,
+                        addtl: Vec<String>) -> Result<Vec<String>> {
+        if col >= self.columns.len() {
+            return Err(Error::column_index_error(col, self.columns.len()))
+        }
+        match self.columns.get(col) {
+            Some(column) =>  {
+                return Ok(column.get_options(row, col, addtl));
+            }, 
+            None => {  // should never happen
+                return Err(Error::TemplateError { 
+                    msg: format!("could not retrieve column") 
+                }); 
+            }
+        }
+        Ok(vec![])
     }
 
 }

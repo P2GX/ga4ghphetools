@@ -38,7 +38,7 @@ trait PptCellValidator {
     fn validate(&self, value: &str) -> Result<()>;
 }
 
-
+#[derive(Clone, Debug, PartialEq)]
 pub enum ColumnType {
     PmidColumn,
     TitleColumn,
@@ -263,6 +263,48 @@ impl PptColumn {
         }
     }
 
+    pub fn column_type(&self) -> ColumnType {
+        self.column_type.clone()
+    }
+
+    pub fn get_options_for_header(&self, row: usize, col: usize) -> Vec<String> {
+        if self.column_type == ColumnType::HpoTermColumn {
+            return vec!["edit".to_string()];
+        } else {
+            return vec![];
+        }
+    }
+
+    pub fn get_options(&self, row: usize, col: usize, addtl: Vec<String>) -> Vec<String> {
+        if row < 2 {
+            // special treatment for the first two rows, which make up the header
+            return self.get_options_for_header(row, col);
+        }
+        match self.column_type {
+            ColumnType::HpoTermColumn => {
+                let mut items = vec!["observed".to_string(), 
+                    "excluded".to_string(), "na".to_string()];
+                items.extend(addtl);
+                return items;
+            },
+            ColumnType::SexColumn => {
+                return vec!["M".to_string(), "F".to_string(), 
+                    "O".to_string(), "U".to_string()];
+            },
+            ColumnType::DeceasedColumn => {
+                return vec!["yes".to_string(), "no".to_string(), "na".to_string()];
+            }
+            _ => {
+                return vec!["edit".to_string()];
+            }
+            _ => {}
+        }
+        
+       
+
+        vec![]
+    }
+
    
     /// Validate entry according to column specific rules.
     pub fn add_entry<T: Into<String>>(&mut self, value: T) -> Result<()>{
@@ -274,6 +316,10 @@ impl PptColumn {
 
     pub fn phenopacket_count(&self) -> usize {
         self.column_data.len()
+    }
+
+    pub fn delete_entry_at_row(&mut self, row: usize) {
+        self.column_data.remove(row);
     }
 
     /// Some columns, such as HGNC or disease id, must always have the same content in any given template

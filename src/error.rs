@@ -56,6 +56,7 @@ pub enum Error {
     ForbiddenLabelChar{ c: char, label: String},
     MalformedLabel{ label: String },
     MalformedDiseaseLabel{ label: String},
+    EditError{ msg: String },
     TermIdError{ msg: String },
     HpIdNotFound{ id: String },
     ObsoleteTermId{ id: String, replacement: String },
@@ -147,6 +148,16 @@ impl Error {
     pub fn separator<T>(val: T) -> Self  where T: Into<String> {
         Error::SexFieldError { msg: format!("Malformed separator entry '{}'",val.into()) }
     }
+
+    pub fn cannot_delete_header(row: usize) -> Self {
+        let msg = format!("Cannot delete row {row} (header)");
+        Error::EditError { msg }
+    }
+
+    pub fn delete_beyond_max_row(row: usize, max_row: usize) -> Self {
+        let msg = format!("Attempt to delete row {row} in columns with {max_row} rows");
+        Error::EditError { msg }
+    }
     
 }
 
@@ -178,15 +189,18 @@ impl core::fmt::Display for Error {
             Error::ForbiddenLabelChar { c, label } => {
                 write!(fmt, "Forbidden character '{c}' found in label '{label}'")
             }
-            
             Error::EmptyLabel  => {
                 write!(fmt, "Empty label")
+            },
+            Error::EmptyField { field_name } => {
+                write!(fmt, "{field_name} field is empty")
             },
             Error::TermIdError { msg }
             | Error::WhiteSpaceError { msg }
             | Error::HgvsError { msg }
             | Error::PmidError { msg }
             | Error::CurieError { msg }
+            | Error::EditError { msg }
             | Error::DiseaseIdError { msg }
             | Error::TranscriptError { msg }
             | Error::DeceasedError { msg }
@@ -195,9 +209,6 @@ impl core::fmt::Display for Error {
             | Error::SeparatorError { msg }
             | Error::AgeParseError { msg } => 
                 write!(fmt, "{msg}"),
-            Error::EmptyField { field_name } => {
-                write!(fmt, "{field_name} field is empty")
-            },
             _ =>  write!(fmt, "{self:?}")
         }
     }

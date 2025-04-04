@@ -1,8 +1,8 @@
 //! PheTools
 //! 
 //! Users interact with the library via the PheTools structure.
-//! The library does not expose custom datatypes, and errors are translated into strings to 
-//! simplify the use of rphetools in applications
+//! The library does not expose custom datatypes, and errors are translated 
+//! into strings to simplify the use of rphetools in applications
 
 
 mod allele;
@@ -172,27 +172,28 @@ impl<'a> PheTools<'a> {
 
 
     pub fn load_excel_template(&mut self, pyphetools_template_path: &str) 
-        -> Result<(), Vec<String>> 
-        {
-            let result    = excel::read_excel_to_dataframe(pyphetools_template_path);
-            match result {
-                Ok(ppt_template) => { 
-                    let ppt_res = PptTemplate::from_string_matrix(ppt_template, self.hpo);
-                    match ppt_res {
-                        Ok(ppt) => {
-                            self.template = Some(ppt);
-                        },
-                        Err(e) => {
-                            eprint!("Could not create ppttemplate");
-                            let err_string = e.iter().map(|e| e.to_string()).collect();
-                            return Err(err_string);
-                        }
+        -> Result<(), Vec<String>> {
+        let result    = excel::read_excel_to_dataframe(pyphetools_template_path);
+        match result {
+            Ok(ppt_template) => { 
+                let ppt_res = PptTemplate::from_string_matrix(ppt_template, self.hpo);
+                match ppt_res {
+                    Ok(ppt) => {
+                        self.template = Some(ppt);
+                    },
+                    Err(e) => {
+                        eprint!("Could not create ppttemplate");
+                        let err_string = e.iter().map(|e| e.to_string()).collect();
+                        return Err(err_string);
                     }
-                    return Ok(()); },
-                Err(e) => {
-                    let err_string = vec![e.to_string()];
-                    return Err(err_string); }
+                }
+                return Ok(()); 
+            },
+            Err(e) => {
+                let err_string = vec![e.to_string()];
+                return Err(err_string); 
             }
+        }
     }
 
     pub fn template_qc(&self) -> Vec<String> {
@@ -208,29 +209,67 @@ impl<'a> PheTools<'a> {
         }
     }
 
-    pub fn new_row(&mut self, 
+    pub fn add_row(&mut self, 
                     pmid: impl Into<String>, 
                     title: impl Into<String>, 
                     individual_id: impl Into<String>) -> Result<(), String> {
             match &mut self.template {
-                Some(template) => {
-                    if template.is_mendelian() {
-                        let row_adder = MendelianRowAdder{};
-                        row_adder.add_row(
-                            pmid, 
-                            title, 
-                            individual_id,
-                            template)
-                            .map_err(|e| e.to_string())?;
-                        Ok(())
-                    } else {
-                        return Err(format!("Non mendelian not implemenet"));
-                    } 
-                },
-                None => {
-                    Err(format!("Attempt to add row to null template!"))
-                }
+            Some(template) => {
+                if template.is_mendelian() {
+                    let row_adder = MendelianRowAdder{};
+                    row_adder.add_row(
+                        pmid, 
+                        title, 
+                        individual_id,
+                        template)
+                        .map_err(|e| e.to_string())?;
+                    Ok(())
+                } else {
+                    return Err(format!("Non mendelian not implemenet"));
+                } 
+            },
+            None => {
+                Err(format!("Attempt to add row to null template!"))
             }
+        }
+    }
+
+    pub fn set_value(&mut self, row: usize, col: usize, value: impl Into<String>) 
+        -> Result<(), String> {
+        match &mut self.template {
+            Some(template) => {
+                template.set_value(row, col, value).map_err(|e| e.to_string())?;
+                return Ok(());
+            },
+            None => {
+                return Err(format!("template not initialized"));
+            }
+        }
+    }
+
+    pub fn get_options(&self, row: usize, col: usize, addtl: Vec<String>) 
+        -> Result<Vec<String>, String> {
+        match &self.template {
+            Some(template) => {
+                match template.get_options(row, col, addtl) {
+                    Ok(options) => Ok(options),
+                    Err(e) => Err(e.to_string())
+                }
+            },
+            None => {
+                return Err(format!("template not initialized"));
+            }
+        }
+    }
+
+    pub fn delete_row(&mut self, row: usize) -> Result<(), String> {
+        match &mut self.template {
+            Some(template) => {
+                template.delete_row(row);
+                Ok(())
+            },
+            None => Err(format!("template not initialized"))
+        }
     }
 
 
