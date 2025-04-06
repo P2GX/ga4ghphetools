@@ -2,7 +2,7 @@
 use clap::Parser;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::path::Path;
-
+use std::sync::Arc;
 
 /// A simple CLI example
 #[derive(Parser)]
@@ -42,7 +42,8 @@ fn main() {
         .build();
     let hpo: FullCsrOntology = loader.load_from_path(&cli.json)
                                                 .expect("HPO should be loaded");
-    let mut pyphetools = PheTools::new(&hpo);
+    let hpo_arc = Arc::new(hpo);
+    let mut pyphetools = PheTools::new(hpo_arc);
     match pyphetools.load_excel_template(&cli.pyphetools) {
         Ok(template) => {
             println!("[INFO] No errors identified for {}", &cli.pyphetools);

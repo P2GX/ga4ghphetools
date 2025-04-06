@@ -46,14 +46,14 @@ use rphetools_traits::PyphetoolsTemplateCreator;
 use template::template_row_adder::MendelianRowAdder;
 use crate::error::Error;
 use crate::template::template_row_adder::TemplateRowAdder;
-
-pub struct PheTools<'a> {
+use std::sync::Arc;
+pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
-    hpo: &'a FullCsrOntology,
+    hpo: Arc<FullCsrOntology>,
     template: Option<PptTemplate>
 }
 
-impl<'a> PheTools<'a> {
+impl PheTools {
     /// Creates a new instance of `PheTools`.
     ///
     /// # Arguments
@@ -74,7 +74,7 @@ impl<'a> PheTools<'a> {
     ///                 .expect("HPO should be loaded");
     ///  let pyphetools = PheTools::new(&hpo);
     /// ```
-    pub fn new(hpo: &'a FullCsrOntology) -> Self {
+    pub fn new(hpo: Arc<FullCsrOntology>) -> Self {
         PheTools{
             hpo: hpo,
             template: None,
@@ -163,9 +163,9 @@ impl<'a> PheTools<'a> {
         &self, 
         hpo_terms_for_curation: &Vec<TermId>
     ) -> Vec<TermId> {
-        let mut term_arrager = HpoTermArranger::new(
-            self.hpo
-        );
+        let hpo_arc = Arc::clone(&self.hpo);
+        let hpo_ref = hpo_arc.as_ref();
+        let mut term_arrager = HpoTermArranger::new(hpo_ref);
         let arranged_terms = term_arrager.arrange_terms(hpo_terms_for_curation);
         arranged_terms
     }
@@ -362,7 +362,7 @@ impl<'a> PheTools<'a> {
 
 }
 
-impl<'a> core::fmt::Display for PheTools<'a> {
+impl core::fmt::Display for PheTools {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
         match &self.template {
             Some(tplt) => {
@@ -405,13 +405,14 @@ mod tests {
         let loader = OntologyLoaderBuilder::new()
         .obographs_parser()
         .build();
-    let hpo: FullCsrOntology = loader.load_from_path(hpo_json)
-                                                .expect("HPO should be loaded");
-        let mut pyphetools = PheTools::new(&hpo);
+        let hpo: FullCsrOntology = loader.load_from_path(hpo_json)
+                                                    .expect("HPO should be loaded");
+        let hpo_arc = Arc::new(hpo);
+        let mut pyphetools = PheTools::new(hpo_arc);
         pyphetools.load_excel_template(template);
         let errors = pyphetools.template_qc();
         assert!(errors.is_empty());
-    
+
         Ok(())
     }
 }
