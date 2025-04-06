@@ -4,17 +4,17 @@
 //! It throws an error if there are syntactic errors in the input file.
 
 
-use calamine::{Reader, open_workbook, Xlsx};
+use calamine::{open_workbook, Reader, Xlsx, XlsxError};
 use std::error::Error;
 
 
 pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<dyn Error>> {
-    let mut workbook: Xlsx<_> = open_workbook(file_path).expect("Cannot open file at {file_path}");
+    let mut workbook: Xlsx<_> = open_workbook(file_path)
+        .map_err(|e: XlsxError| format!("Could not open Excel file at '{}': {}", file_path, e.to_string()))?;
     let range = workbook
         .worksheet_range("Sheet1")
-        .map_err(|_| calamine::Error::Msg("Cannot find Sheet1")).expect("Could not find Excel Sheet 1");
+        .map_err(|e: XlsxError| format!("Error reading workbook: {}",e.to_string()))?;
     let mut row_iter = range.rows(); // Create a single iterator over the rows
-
     let first_row = row_iter.next().ok_or_else(|| calamine::Error::Msg("No data in the worksheet"))?;
     let first_row_headers: Vec<String> = first_row.iter().map(|cell| cell.to_string()).collect();
     let second_row = row_iter.next().ok_or_else(|| calamine::Error::Msg("No data in the worksheet"))?;
@@ -41,5 +41,26 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
 }
 
 
+// region:    --- Tests
 
+#[cfg(test)]
+mod tests {
+    type Error = Box<dyn std::error::Error>;
+    type Result<T> = core::result::Result<T, Error>; // For tests.
+
+    use super::*;
+
+    #[test]
+    fn test_invalid_file_path() -> Result<()> {
+        let fake_path = "wrong/path/template.xlsx";
+        let result = read_excel_to_dataframe(fake_path);
+        assert!(result.is_err());
+        let error_msg = result.err().unwrap().to_string();
+        let expected = "Could not open Excel file at 'wrong/path/template.xlsx': I/O error: No such file or directory (os error 2)";
+        assert_eq!(expected, error_msg);
+        Ok(())
+    }
+}
+
+// endregion: --- Tests
 
