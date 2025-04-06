@@ -47,13 +47,13 @@ use template::template_row_adder::MendelianRowAdder;
 use crate::error::Error;
 use crate::template::template_row_adder::TemplateRowAdder;
 
-pub struct PheTools {
+pub struct PheTools<'a> {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
-    hpo: FullCsrOntology,
+    hpo: &'a FullCsrOntology,
     template: Option<PptTemplate>
 }
 
-impl PheTools {
+impl<'a> PheTools<'a> {
     /// Creates a new instance of `PheTools`.
     ///
     /// # Arguments
@@ -74,7 +74,7 @@ impl PheTools {
     ///                 .expect("HPO should be loaded");
     ///  let pyphetools = PheTools::new(&hpo);
     /// ```
-    pub fn new(hpo: FullCsrOntology) -> Self {
+    pub fn new(hpo: &'a FullCsrOntology) -> Self {
         PheTools{
             hpo: hpo,
             template: None,
@@ -164,7 +164,7 @@ impl PheTools {
         hpo_terms_for_curation: &Vec<TermId>
     ) -> Vec<TermId> {
         let mut term_arrager = HpoTermArranger::new(
-            &self.hpo
+            self.hpo
         );
         let arranged_terms = term_arrager.arrange_terms(hpo_terms_for_curation);
         arranged_terms
@@ -362,7 +362,7 @@ impl PheTools {
 
 }
 
-impl<'a> core::fmt::Display for PheTools {
+impl<'a> core::fmt::Display for PheTools<'a> {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
         match &self.template {
             Some(tplt) => {
@@ -407,7 +407,7 @@ mod tests {
         .build();
     let hpo: FullCsrOntology = loader.load_from_path(hpo_json)
                                                 .expect("HPO should be loaded");
-        let mut pyphetools = PheTools::new(hpo);
+        let mut pyphetools = PheTools::new(&hpo);
         pyphetools.load_excel_template(template);
         let errors = pyphetools.template_qc();
         assert!(errors.is_empty());
