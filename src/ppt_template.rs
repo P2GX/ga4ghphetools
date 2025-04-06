@@ -339,11 +339,19 @@ impl<'a> PptTemplate<'a> {
         }
     }
 
+    pub fn columns_iter(&self) -> impl Iterator<Item = &PptColumn> {
+        self.columns.iter()
+    }
+
     pub fn phenopacket_count(&self) -> usize {
         match self.columns.get(0) {
             Some(col0) => col0.phenopacket_count(),
             None => 0
         }
+    }
+
+    pub fn header_row_count(&self) -> usize {
+        2
     }
 
     pub fn disease(&self) -> String {

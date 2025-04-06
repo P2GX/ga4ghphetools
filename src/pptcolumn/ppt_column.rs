@@ -375,5 +375,21 @@ impl PptColumn {
         col
     }
 
+    pub fn get_string(&self, idx: usize) 
+        -> Result<String> 
+    {
+        if idx == 0 {
+            return Ok(self.header_duplet.row1());
+        } else if idx == 1 {
+            return Ok(self.header_duplet.row2());
+        } else {
+            let i = idx - 2;
+            match self.column_data.get(i) {
+                Some(item) => Ok(item.clone()),
+                None => Err(Error::row_index_error(idx, self.column_data.len()))
+            }
+        }
+    }
+
 }
 

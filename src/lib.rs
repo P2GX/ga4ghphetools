@@ -295,6 +295,36 @@ impl<'a> PheTools<'a> {
                 }
             }
         }
+    
+    /// get number of rows including header
+    pub fn nrows(&self) -> usize {
+        match &self.template {
+            Some(template) => {
+                template.phenopacket_count() + template.header_row_count()
+            },
+            None => 0
+        }
+    }
+
+    /// idx refers to row including the two headers
+    pub fn get_string_row(&self, idx: usize)
+        -> Result<Vec<String>, String>
+    {
+        match &self.template {
+            Some(template) => {
+                let mut row: Vec<String> = Vec::new();
+                for col in template.columns_iter() {
+                    let elem = col.get_string(idx)
+                        .map_err(|e| e.to_string())?;
+                    row.push(elem);
+                }
+                return Ok(row);
+            },
+            None => {
+                Err(format!("phetools template not initialized"))
+            }
+        }
+    }
 
     pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
         let mut err_list = Vec::new();
