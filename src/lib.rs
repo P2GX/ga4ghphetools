@@ -272,6 +272,15 @@ impl<'a> PheTools<'a> {
         }
     }
 
+    
+    pub fn ncols(&self) -> usize {
+        match &self.template {
+            Some(template) => {
+                template.column_count()
+            },
+            None => 0
+        }
+    }
 
     pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
         let mut err_list = Vec::new();
