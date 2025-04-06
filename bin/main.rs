@@ -48,8 +48,11 @@ fn main() {
             println!("[INFO] No errors identified for {}", &cli.pyphetools);
             println!("{}", &pyphetools);
         }, 
-        Err(e) => {
-            println!("{}", e);
+        Err(evec) => {
+            println!("[ERROR]");
+            for e in evec {
+                println!("[ERROR] {:?}", e);
+            }
         }
     }
     /*let errors = pyphetools.template_qc();
