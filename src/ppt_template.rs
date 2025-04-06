@@ -19,11 +19,11 @@ pub enum TemplateType {
 }
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
-pub struct PptTemplate<'a> {
+pub struct PptTemplate {
     disease_gene_bundle: DiseaseGeneBundle,
     columns: Vec<PptColumn>,
     template_type: TemplateType,
-    ptools_qc: PheToolsQc<'a>,
+    ptools_qc: PheToolsQc,
 }
 
 const PMID_COL: usize = 0;
@@ -50,7 +50,7 @@ impl Error {
 
 
 
-impl<'a> PptTemplate<'a> {
+impl PptTemplate {
 
 
 
@@ -60,7 +60,7 @@ impl<'a> PptTemplate<'a> {
     pub fn create_pyphetools_template_mendelian(
         dg_bundle: DiseaseGeneBundle,
         hpo_term_ids: Vec<TermId>,
-        hpo: &'a FullCsrOntology,
+        hpo: &FullCsrOntology,
         ) ->  Result<Self> {
             
 
@@ -81,7 +81,7 @@ impl<'a> PptTemplate<'a> {
                         disease_gene_bundle: dg_bundle,
                         columns: columns,
                         template_type: TemplateType::Mendelian,
-                        ptools_qc: PheToolsQc::new(hpo)
+                        ptools_qc: PheToolsQc::new()
                     })
                 },
                 Err(e) => Err(e)
@@ -91,7 +91,7 @@ impl<'a> PptTemplate<'a> {
 
     pub fn get_ppt_columns (
         hpo_terms: &Vec<SimpleMinimalTerm>, 
-        hpo:&'a FullCsrOntology
+        hpo: &FullCsrOntology
     ) -> Result<Vec<PptColumn>> {
         let empty_col: Vec<String> = vec![]; // initialize to empty column
         let mut column_list: Vec<PptColumn> = vec![];
@@ -170,7 +170,7 @@ impl<'a> PptTemplate<'a> {
     /// 
     /// In most cases, we expect only one disease, but for melded genetic diagnoses we expect two
     /// We inspect the first two header rows to determine if a template has one or two diseases.
-    pub fn from_string_matrix(matrix: Vec<Vec<String>>, hpo: &'a FullCsrOntology) 
+    pub fn from_string_matrix(matrix: Vec<Vec<String>>, hpo: &FullCsrOntology) 
         -> std::result::Result<Self, Vec<Error>> {
         let mut error_list: Vec<Error> = Vec::new();
         if matrix.len() < 3 {
@@ -191,7 +191,7 @@ impl<'a> PptTemplate<'a> {
             }
         };
         /// TODO separate for Mendelian and Melded here
-        let ptools_qc = PheToolsQc::new(hpo);
+        let ptools_qc = PheToolsQc::new();
         if let Err(e) = ptools_qc.is_valid_mendelian_header(&hdup_list) {
             error_list.push(e);
         };

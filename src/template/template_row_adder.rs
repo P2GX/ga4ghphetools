@@ -1,24 +1,24 @@
 use crate::{error::{self, Error, Result}, ppt_template::PptTemplate};
 
 
-pub(crate) trait TemplateRowAdder<'a> {
+pub(crate) trait TemplateRowAdder {
     fn add_row(&self, 
         pmid: impl Into<String>, 
         title: impl Into<String>, 
         individual_id: impl Into<String>,
-        ppt_template: &mut PptTemplate<'a>) -> Result<()>;
+        ppt_template: &mut PptTemplate) -> Result<()>;
 }
 
 pub struct MendelianRowAdder {
 
 }
 /// Add one new row that is empty except for the patient information
-impl<'a> TemplateRowAdder<'a> for MendelianRowAdder {
+impl TemplateRowAdder for MendelianRowAdder {
     fn add_row(&self, 
         pmid: impl Into<String>, 
         title: impl Into<String>, 
         individual_id: impl Into<String>,
-        ppt_template: &mut PptTemplate<'a>) -> Result<()> {
+        ppt_template: &mut PptTemplate) -> Result<()> {
             /// Add an empty string to all fields (columns) of the template
             /// except for the few where we know the values
             const EMPTY: &str = "";

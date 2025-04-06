@@ -7,9 +7,8 @@ use std::sync::Arc;
 use ontolius::ontology::csr::FullCsrOntology;
 use crate::error::{self, Error, Result};
 use crate::pptcolumn::header_duplet::HeaderDuplet;
-pub struct PheToolsQc<'a> {
+pub struct PheToolsQc {
     mendelian_headers: Arc<[HeaderDuplet]>,
-    hpo: &'a FullCsrOntology,
 }
 
 impl Error {
@@ -43,11 +42,10 @@ fn expected_mendelian_fields() -> Vec<HeaderDuplet> {
     ]
 }
 
-impl<'a> PheToolsQc<'a> {
-    pub fn new(hpo: &'a FullCsrOntology) -> Self {
+impl PheToolsQc {
+    pub fn new() -> Self {
         Self {
             mendelian_headers: Arc::from(expected_mendelian_fields()),
-            hpo: hpo
         }
     }
 

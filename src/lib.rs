@@ -47,13 +47,13 @@ use template::template_row_adder::MendelianRowAdder;
 use crate::error::Error;
 use crate::template::template_row_adder::TemplateRowAdder;
 
-pub struct PheTools<'a> {
+pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
-    hpo: &'a FullCsrOntology,
-    template: Option<PptTemplate<'a>>
+    hpo: FullCsrOntology,
+    template: Option<PptTemplate>
 }
 
-impl<'a> PheTools<'a> {
+impl PheTools {
     /// Creates a new instance of `PheTools`.
     ///
     /// # Arguments
@@ -74,14 +74,14 @@ impl<'a> PheTools<'a> {
     ///                 .expect("HPO should be loaded");
     ///  let pyphetools = PheTools::new(&hpo);
     /// ```
-    pub fn new(hpo: &'a FullCsrOntology) -> Self {
+    pub fn new(hpo: FullCsrOntology) -> Self {
         PheTools{
             hpo: hpo,
             template: None,
         } 
     }
 
-    fn set_template(&mut self, template:  PptTemplate<'a>) {
+    fn set_template(&mut self, template:  PptTemplate) {
         self.template = Some(template)
     }
 
@@ -120,7 +120,7 @@ impl<'a> PheTools<'a> {
                 match template_creator::create_pyphetools_template(
                     dgb,
                     hpo_term_ids,
-                    self.hpo) {
+                    &self.hpo) {
                         Ok(template) => {
                             self.set_template(template);
                             Ok(())
@@ -164,7 +164,7 @@ impl<'a> PheTools<'a> {
         hpo_terms_for_curation: &Vec<TermId>
     ) -> Vec<TermId> {
         let mut term_arrager = HpoTermArranger::new(
-            self.hpo
+            &self.hpo
         );
         let arranged_terms = term_arrager.arrange_terms(hpo_terms_for_curation);
         arranged_terms
@@ -176,7 +176,7 @@ impl<'a> PheTools<'a> {
         let result    = excel::read_excel_to_dataframe(pyphetools_template_path);
         match result {
             Ok(ppt_template) => { 
-                let ppt_res = PptTemplate::from_string_matrix(ppt_template, self.hpo);
+                let ppt_res = PptTemplate::from_string_matrix(ppt_template, &self.hpo);
                 match ppt_res {
                     Ok(ppt) => {
                         self.template = Some(ppt);
@@ -331,7 +331,7 @@ impl<'a> PheTools<'a> {
         let row_result     = excel::read_excel_to_dataframe(pyphetools_template_path);
         match row_result {
             Ok(list_of_rows) => {
-                    let result =  IndividualTemplateFactory::new(self.hpo, list_of_rows.as_ref());
+                    let result =  IndividualTemplateFactory::new(&self.hpo, list_of_rows.as_ref());
                     match result {
                         Ok(template_factory) => {
                             let result = template_factory. get_templates();
@@ -362,7 +362,7 @@ impl<'a> PheTools<'a> {
 
 }
 
-impl<'a> core::fmt::Display for PheTools<'a> {
+impl<'a> core::fmt::Display for PheTools {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
         match &self.template {
             Some(tplt) => {
@@ -407,7 +407,7 @@ mod tests {
         .build();
     let hpo: FullCsrOntology = loader.load_from_path(hpo_json)
                                                 .expect("HPO should be loaded");
-        let mut pyphetools = PheTools::new(&hpo);
+        let mut pyphetools = PheTools::new(hpo);
         pyphetools.load_excel_template(template);
         let errors = pyphetools.template_qc();
         assert!(errors.is_empty());
