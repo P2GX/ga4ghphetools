@@ -330,6 +330,15 @@ impl<'a> PptTemplate<'a> {
         Ok(())
     }
 
+    pub fn get_string_column(&self, idx: usize) -> Result<Vec<String>> {
+        if idx >= self.column_count() {
+            return Err(Error::column_index_error(idx, self.column_count()));
+        } else {
+            let col = self.get_string_column(idx)?;
+            Ok(col)
+        }
+    }
+
     pub fn phenopacket_count(&self) -> usize {
         match self.columns.get(0) {
             Some(col0) => col0.phenopacket_count(),

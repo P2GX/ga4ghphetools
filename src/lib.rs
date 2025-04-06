@@ -282,6 +282,20 @@ impl<'a> PheTools<'a> {
         }
     }
 
+    pub fn get_string_column(&self, idx: usize)
+        -> Result<Vec<String>, String>
+        {
+            match &self.template {
+                Some(template) => {
+                    let col = template.get_string_column(idx).map_err(|e| e.to_string())?;
+                    Ok(col)
+                },
+                None => {
+                    Err(format!("phetools template not initialized"))
+                }
+            }
+        }
+
     pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
         let mut err_list = Vec::new();
         let row_result     = excel::read_excel_to_dataframe(pyphetools_template_path);

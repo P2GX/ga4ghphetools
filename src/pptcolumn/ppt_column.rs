@@ -364,5 +364,16 @@ impl PptColumn {
         Ok(())
     }
 
+    pub fn get_string_column(&self) -> Vec<String> {
+        let mut col: Vec<String> = Vec::new();
+        let hd = self.get_header_duplet();
+        col.push(hd.row1());
+        col.push(hd.row2());
+        for item in &self.column_data {
+            col.push(item.clone());
+        }
+        col
+    }
+
 }
 
