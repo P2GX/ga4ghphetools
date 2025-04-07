@@ -170,6 +170,18 @@ impl PheTools {
         arranged_terms
     }
 
+    /// Get a table of values as Strings for display/export
+    pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>, String> {
+        match &self.template {
+            Some(template) => {
+                let matrix = template.get_string_matrix().map_err(|e| e.to_string())?;
+                return Ok(matrix);
+            },
+            Note => {
+                return Err(format!("Template is not initialized"));
+            }
+        }
+    }
 
     pub fn load_excel_template(&mut self, pyphetools_template_path: &str) 
         -> Result<(), Vec<String>> {
