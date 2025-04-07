@@ -150,9 +150,13 @@ impl PptTemplate {
     pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>> {
         let mut rows: Vec<Vec<String>> = Vec::new();
         let nrows = self.nrows()?;
+        
         for idx in 0..nrows {
             let mut row: Vec<String> = Vec::new();
+            let mut i = 0 as usize;
             for col in &self.columns {
+                println!("Column {} row {}\n{}",i, idx,  col);
+                i += 1;
                 match col.get(idx) {
                     Ok(data) => row.push(data),
                     Err(e) => {
@@ -197,8 +201,8 @@ impl PptTemplate {
         };
         // transpose the String matrix so we can create PptColumns
         let mut columns = vec![Vec::with_capacity(matrix.len()); row_len];
-        // Skip the first two rows, which were for the header
-        for row in matrix.into_iter() {
+        const HEADER_ROWS: usize = 2;
+        for row in matrix.into_iter().skip(HEADER_ROWS) {
             for (col_idx, value) in row.into_iter().enumerate() {
                 columns[col_idx].push(value);
             }
@@ -280,7 +284,7 @@ impl PptTemplate {
             error_list.push(Error::TemplateError { msg: format!("No HPO column found (number of columns: {})", row_len) });
         }
         for i in 17..row_len {
-            let hp_column = PptColumn::hpo_term_from_column(&columns[i]);
+            let hp_column = PptColumn::hpo_term_from_column(&hdup_list[i], &columns[i]);
             column_list.push(hp_column);
         }
         if error_list.is_empty() {

@@ -2,7 +2,7 @@
 
 
 
-use std::{collections::HashSet, fmt::format};
+use std::{collections::HashSet, fmt::{self, format}};
 
 use ontolius::TermId;
 use polars::error::ErrString;
@@ -158,8 +158,8 @@ impl PptColumn {
         // the first two columns are the header and do make contain column data
         // note that we have checked that the vector is at least three
         let coldata: Vec<String> = match column.len() {
-            2 => Vec::new(),
-            _ => column.iter().skip(2).cloned().collect() 
+            0 => Vec::new(),
+            _ => column.iter().cloned().collect() 
         };
         PptColumn { 
             column_type:column_type, 
@@ -201,7 +201,7 @@ impl PptColumn {
     }
 
     pub fn transcript(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::GeneSymbolColumn, "transcript", "str", col)
+        Self::new(ColumnType::TranscriptColumn, "transcript", "str", col)
     }
 
     pub fn allele_1(col: &Vec<String>) -> Self {
@@ -225,7 +225,7 @@ impl PptColumn {
     }
 
     pub fn deceased(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::AgeAtLastExaminationColumn, "deceased", "yes/no/na", col)
+        Self::new(ColumnType::DeceasedColumn, "deceased", "yes/no/na", col)
     }
 
     pub fn sex(col: &Vec<String>) -> Self {
@@ -241,11 +241,12 @@ impl PptColumn {
         Self::new(ColumnType::HpoTermColumn, name, &term_id.to_string(), &empty_col)
     } 
 
-    pub fn hpo_term_from_column(col: &Vec<String>) -> Self {
-        let name = &col[0];
-        let hpid = &col[1];
-        let rest: &[String] = &col[2..];
-        Self::new(ColumnType::HpoTermColumn, &name, &hpid, rest)
+    /// Method to be called from PptTemplate::from_string_matrix
+    /// generates an HPO column from data taken from an Excel template file
+    pub fn hpo_term_from_column(header_dup: &HeaderDuplet, col: &Vec<String>) -> Self {
+        let name = header_dup.row1();
+        let hpid = header_dup.row2();
+        Self::new(ColumnType::HpoTermColumn, &name, &hpid, col)
     }
 
     pub fn get_header_duplet(&self) -> HeaderDuplet {
@@ -253,13 +254,20 @@ impl PptColumn {
     }
 
     pub fn get(&self, idx: usize) -> Result<String> {
-        if idx >= self.column_data.len() {
-            let msg = format!("Attempted to access column at index {} but column has only {} entries", idx, self.column_data.iter().len());
-            return Err(Error::TemplateError { msg });
-        }
-        match self.column_data.get(idx).cloned() {
-            Some(data) =>  Ok(data.clone()),
-            None => Err(Error::TemplateError {msg: format!("Could not get column data")})
+        match idx {
+            0 => { return Ok(self.header_duplet.row1()); },
+            1 => { return Ok(self.header_duplet.row2()); },
+            i if i <= self.column_data.len() + 2 => {
+                let col_idx = i-2;
+                match self.column_data.get(col_idx) {
+                    Some(data) =>  { return Ok(data.clone()); },
+                    None => { return Err(Error::TemplateError {msg: format!("Could not get column data at column index {}", col_idx)}); }
+                }
+            },
+            _ => {
+                let msg = format!("Attempted to access column at index {} but column has only {} entries", idx, self.column_data.iter().len());
+                return Err(Error::TemplateError { msg });
+            }
         }
     }
 
@@ -316,6 +324,10 @@ impl PptColumn {
 
     pub fn phenopacket_count(&self) -> usize {
         self.column_data.len()
+    }
+
+    pub fn nrows(&self) -> usize {
+        2 + self.column_data.len()
     }
 
     pub fn delete_entry_at_row(&mut self, row: usize) {
@@ -393,3 +405,105 @@ impl PptColumn {
 
 }
 
+
+impl core::fmt::Display for PptColumn {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
+        writeln!(fmt, "Column Type: {:?}", self.column_type)?;
+        writeln!(fmt, "Header: {}", self.header_duplet)?;
+        writeln!(fmt, "Data:")?;
+        for (i, value) in self.column_data.iter().enumerate() {
+            writeln!(fmt, "  [{}]: {}", i, value)?;
+        }
+        Ok(())
+    }
+}
+
+// region:    --- Tests
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use once_cell::sync::Lazy;
+    use ontolius::common::hpo;
+    type Error = Box<dyn std::error::Error>;
+    type Result<T> = core::result::Result<T, Error>; // For tests.
+
+    static PMID_COLUMN: Lazy<PptColumn> = Lazy::new(|| {
+        // Create and return the shared test object
+        let mut column = PptColumn::pmid(&vec![]);
+        column.add_entry("PMID:123");
+        column.add_entry("PMID:234");
+        column.add_entry("PMID:345");
+        column
+    });
+
+    static HPO_COLUMN: Lazy<PptColumn> = Lazy::new(|| {
+        let entries: Vec<&str> = vec!["excluded", "observed", "excluded", "observed","excluded", "observed"];
+        let tid = TermId::from_str("HP:0001166").unwrap();
+        let mut hpo_col = PptColumn::hpo_term("Arachnodactyly", &tid);
+        for e in entries {
+            hpo_col.add_entry(e);
+        }
+        hpo_col
+    });
+
+    static DISEASE_ID_COLUMN: Lazy<PptColumn> = Lazy::new(|| {
+        let entries: Vec<&str> = vec!["OMIM:121050", "OMIM:121050", "OMIM:121050", "OMIM:121050"];
+        let tid = TermId::from_str("HP:0001166").unwrap();
+        let mut disease_col = PptColumn::disease_id(&vec![]);
+        for e  in entries {
+            disease_col.add_entry(e);
+        }
+        disease_col
+    });
+
+
+    use super::*;
+
+    #[test]
+    fn test_pmid_colum() -> Result<()> {
+        let pmid_col = &*PMID_COLUMN;
+        assert_eq!("PMID", pmid_col.get(0).unwrap());
+        assert_eq!("CURIE", pmid_col.get(1).unwrap());
+        assert_eq!("PMID:123", pmid_col.get(2).unwrap());
+        assert_eq!("PMID:234", pmid_col.get(3).unwrap());
+        assert_eq!("PMID:345", pmid_col.get(4).unwrap());
+        assert_eq!(3, pmid_col.phenopacket_count());
+        assert_eq!(5, pmid_col.nrows());
+        Ok(())
+    }
+
+    #[test]
+    fn test_hpo_colum() -> Result<()> {
+        let hpo_col = &*HPO_COLUMN;
+        assert_eq!("Arachnodactyly", hpo_col.get(0).unwrap());
+        assert_eq!("HP:0001166", hpo_col.get(1).unwrap());
+        assert_eq!("excluded", hpo_col.get(2).unwrap());
+        assert_eq!("observed", hpo_col.get(3).unwrap());
+        assert_eq!("excluded", hpo_col.get(4).unwrap());
+        assert_eq!("observed", hpo_col.get(5).unwrap());
+        assert_eq!("excluded", hpo_col.get(6).unwrap());
+        assert_eq!("observed", hpo_col.get(7).unwrap());
+        assert_eq!(6, hpo_col.phenopacket_count());
+        assert_eq!(8, hpo_col.nrows());
+        Ok(())
+    }
+
+    #[test]
+    fn test_unique() -> Result<()> {
+        let disease_id_col = &*DISEASE_ID_COLUMN;
+        assert_eq!("disease_id", disease_id_col.get(0).unwrap());
+        assert_eq!("CURIE", disease_id_col.get(1).unwrap());
+        assert_eq!("OMIM:121050", disease_id_col.get(2).unwrap());
+        let result = disease_id_col.get_unique();
+        assert!(result.is_ok());
+        let uniq = result.unwrap();
+        assert_eq!("OMIM:121050", uniq);
+
+        Ok(())
+    }
+
+}
+
+// endregion: --- Tests

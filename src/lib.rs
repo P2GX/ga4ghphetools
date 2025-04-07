@@ -410,7 +410,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
+   #[ignore]
     fn test_name() -> Result<()> {
         let hpo_json = "../../data/hpo/hp.json";
         let template = "../phenopacket-store/notebooks/FBN2/input/FBN2_CCA_individuals.xlsx";
@@ -424,7 +424,15 @@ mod tests {
         pyphetools.load_excel_template(template);
         let errors = pyphetools.template_qc();
         assert!(errors.is_empty());
-
+        let matrix = pyphetools.get_string_matrix();
+        match matrix {
+            Ok(mat) => {
+                println!("{:?}", mat);
+            },
+            Err(e) => {
+                println!("{}", e)
+            }
+        }
         Ok(())
     }
 }

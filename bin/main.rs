@@ -48,6 +48,7 @@ fn main() {
         Ok(template) => {
             println!("[INFO] No errors identified for {}", &cli.pyphetools);
             println!("{}", &pyphetools);
+            println!("{:?}", pyphetools.get_string_matrix());
         }, 
         Err(evec) => {
             println!("[ERROR]");
@@ -55,16 +56,6 @@ fn main() {
                 println!("[ERROR] {:?}", e);
             }
         }
-    }
-    /*let errors = pyphetools.template_qc();
-    if errors.is_empty() {
-    } else {
-        println!("\n[ERROR] Errors identified for '{}'", &cli.pyphetools);
-        for e in errors {
-            println!("{}", e);  
-        }
-    }*/
-    
+    }    
    
-     
 }
