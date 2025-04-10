@@ -184,6 +184,21 @@ impl PheTools {
         }
     }
 
+    pub fn get_hpo_col_with_context(&mut self, col: usize)
+        -> Result<Vec<Vec<String>>, String>
+    {
+        match &mut self.template {
+            Some(template) => {
+                let matrix = template.get_hpo_col_with_context(col).map_err(|e| e.to_string())?;
+                return Ok(matrix);
+            },
+            None => {
+                return Err(format!("Template is not initialized"));
+            }
+        }
+    }
+
+
     pub fn load_excel_template(&mut self, pyphetools_template_path: &str) 
         -> Result<(), Vec<String>> {
         let result    = excel::read_excel_to_dataframe(pyphetools_template_path);

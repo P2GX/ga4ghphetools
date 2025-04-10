@@ -44,6 +44,11 @@ impl Error {
         Error::TemplateError { msg }
     }
 
+    fn could_not_find_column(colname: &str) -> Self {
+        let msg = format!("Could not retrieve {colname} column");
+        Error::TemplateError { msg }
+    }
+
    
 }
 
@@ -329,6 +334,40 @@ impl PptTemplate {
             } ,
             None => Err(Error::TemplateError { msg: format!("Could not get column at {i}") })
         }
+    }
+
+    pub fn get_hpo_col_with_context(&mut self, i: usize)
+        -> Result<Vec<Vec<String>>>
+    {
+        let mut focused_cols: Vec<&PptColumn>  = Vec::new();
+        let pmid_col = self.columns.get(0).ok_or(Error::could_not_find_column("pmid"))?;
+        let title_col = self.columns.get(1).ok_or(Error::could_not_find_column("title"))?;
+        let ind_id_col = self.columns.get(2).ok_or(Error::could_not_find_column("individual_id"))?;
+        let hpo_col = self.columns.get(i).ok_or(Error::could_not_find_column("hpo"))?; // should never happen
+        focused_cols.push(pmid_col);
+        focused_cols.push(title_col);
+        focused_cols.push(ind_id_col);
+        focused_cols.push(hpo_col);
+
+        let mut rows: Vec<Vec<String>> = Vec::new();
+        let nrows = self.nrows()?;
+        
+        for idx in 0..nrows {
+            let mut row: Vec<String> = Vec::new();
+            let mut i = 0 as usize;
+            for col in &focused_cols {
+                println!("Column {} row {}\n{}",i, idx,  col);
+                i += 1;
+                match col.get(idx) {
+                    Ok(data) => row.push(data),
+                    Err(e) => {
+                        return Err(Error::Custom(format!("Could not retrieve column at index {idx}")));
+                    }
+                }
+            }
+            rows.push(row);
+        }
+        Ok(rows)
     }
 
 
