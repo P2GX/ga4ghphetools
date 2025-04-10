@@ -340,7 +340,7 @@ impl PptColumn {
     pub fn get_unique(&self) -> Result<String> {
         let unique_values: HashSet<&String> = self.column_data.iter().collect();
         match unique_values.len() {
-            1 => Ok(unique_values.iter().next().unwrap().clone().to_string()),
+            1 => Ok(unique_values.iter().next().unwrap().to_string()),
             _ => {
                 let joined = unique_values.iter().cloned().cloned().collect::<Vec<_>>().join(", ");
                 Err(Error::TemplateError {

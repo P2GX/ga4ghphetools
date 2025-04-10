@@ -9,7 +9,7 @@ use std::{collections::HashMap, fmt::format, str::FromStr, vec};
 use ontolius::{ontology::{csr::FullCsrOntology, OntologyTerms}, term::{simple::SimpleMinimalTerm, MinimalTerm}, Identified, TermId};
 
 
-use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo::hpo_term_arranger::HpoTermArranger, phetools_qc::PheToolsQc, pptcolumn::{header_duplet::HeaderDuplet, ppt_column::PptColumn}};
+use crate::{disease_gene_bundle::DiseaseGeneBundle, hpo::hpo_term_arranger::HpoTermArranger, phetools_qc::PheToolsQc, pptcolumn::{header_duplet::HeaderDuplet, ppt_column::{ColumnType, PptColumn}}};
 use crate::error::{self, Error, Result};
 
 #[derive(PartialEq)]
@@ -318,6 +318,17 @@ impl PptTemplate {
 
     pub fn is_mendelian(&self) -> bool {
         return self.template_type == TemplateType::Mendelian
+    }
+
+    pub fn col_type_at(&self, i: usize) 
+        -> Result<ColumnType>
+    {
+        match &self.columns.get(i) {
+            Some(column) => {
+                Ok(column.column_type())
+            } ,
+            None => Err(Error::TemplateError { msg: format!("Could not get column at {i}") })
+        }
     }
 
 

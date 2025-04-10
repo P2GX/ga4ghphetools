@@ -42,6 +42,7 @@ use individual_template::IndividualTemplateFactory;
 use ontolius::ontology::MetadataAware;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use ppt_template::PptTemplate;
+use pptcolumn::ppt_column::ColumnType;
 use rphetools_traits::PyphetoolsTemplateCreator;
 use template::template_row_adder::MendelianRowAdder;
 use crate::error::Error;
@@ -177,7 +178,7 @@ impl PheTools {
                 let matrix = template.get_string_matrix().map_err(|e| e.to_string())?;
                 return Ok(matrix);
             },
-            Note => {
+            None => {
                 return Err(format!("Template is not initialized"));
             }
         }
@@ -218,6 +219,23 @@ impl PheTools {
             Some(template) => {
                 vec![]
             }
+        }
+    }
+
+    pub fn is_hpo_col(&self, col: usize) -> bool {
+        match &self.template {
+            Some(tplt) => {
+                if col >= tplt.column_count(){
+                    return false;
+                }
+                match tplt.col_type_at(col) {
+                    Ok(ctype) => {
+                        return ctype == ColumnType::HpoTermColumn;
+                    },
+                    Err(_) => { return false; }
+                }
+            },
+            None => false
         }
     }
 
