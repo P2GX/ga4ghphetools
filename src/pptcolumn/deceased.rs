@@ -1,11 +1,10 @@
-
 //! Deceased
 //!
 //! This module represents data in the deceased table column
 //! Valid values are "yes", "no", "na" (NotAvailable)
-//! 
-use crate::rphetools_traits::TableCell;
+//!
 use crate::error::{self, Error, Result};
+use crate::rphetools_traits::TableCell;
 #[derive(Debug, PartialEq)]
 pub enum Deceased {
     Yes,
@@ -18,23 +17,30 @@ pub struct DeceasedTableCell {
 }
 
 impl DeceasedTableCell {
-    pub fn new<S: Into<String> >(value: S) -> Result<Self> {
+    pub fn new<S: Into<String>>(value: S) -> Result<Self> {
         match value.into().as_str() {
-            "yes" =>  Ok(DeceasedTableCell{deceased: Deceased::Yes}),
-            "no" =>  Ok(DeceasedTableCell{deceased:  Deceased::No}),
-            "na" =>  Ok(DeceasedTableCell{deceased:  Deceased::NotAvailable}),
-            other => Err(Error::DeceasedError { msg: format!("Unrecognized deceased field entry '{}'",other.to_string())} )
+            "yes" => Ok(DeceasedTableCell {
+                deceased: Deceased::Yes,
+            }),
+            "no" => Ok(DeceasedTableCell {
+                deceased: Deceased::No,
+            }),
+            "na" => Ok(DeceasedTableCell {
+                deceased: Deceased::NotAvailable,
+            }),
+            other => Err(Error::DeceasedError {
+                msg: format!("Unrecognized deceased field entry '{}'", other.to_string()),
+            }),
         }
     }
 
     pub fn is_deceased(&self) -> bool {
-        self.deceased  == Deceased::Yes
+        self.deceased == Deceased::Yes
     }
 
     pub fn is_alive(&self) -> bool {
-        self.deceased  == Deceased::No
+        self.deceased == Deceased::No
     }
-
 }
 
 impl TableCell for DeceasedTableCell {
@@ -47,16 +53,17 @@ impl TableCell for DeceasedTableCell {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-  
+
     #[test]
     fn test_construct() {
-        let tests = vec![("yes", Deceased::Yes),
+        let tests = vec![
+            ("yes", Deceased::Yes),
             ("no", Deceased::No),
-            ("na", Deceased::NotAvailable)];
+            ("na", Deceased::NotAvailable),
+        ];
         for test in tests {
             let deceased = DeceasedTableCell::new(test.0);
             assert!(deceased.is_ok());
@@ -73,5 +80,4 @@ mod tests {
             assert!(deceased.is_err())
         }
     }
-
 }

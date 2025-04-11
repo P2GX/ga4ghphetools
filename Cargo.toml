@@ -1,6 +1,6 @@
 [package]
 name = "rphetools"
-version = "0.1.31"
+version = "0.1.32"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"

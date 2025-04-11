@@ -9,28 +9,33 @@ use std::time::Instant;
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::pptcolumn::age::{Age, AgeTool, AgeToolTrait};
 use crate::allele::Allele;
 use crate::curie::Curie;
-use crate::simple_hpo::{SimpleHPOMapper, HPO};
+use crate::error::{self, Error, Result};
+use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
+use crate::pptcolumn::age::{Age, AgeTool, AgeToolTrait};
 use crate::pptcolumn::deceased::DeceasedTableCell;
 use crate::rphetools_traits::TableCell;
+use crate::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::simple_label::SimpleLabel;
-use crate::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
 use crate::transcript::Transcript;
-use crate::error::{self, Error, Result};
 
 impl Error {
     fn unrecognized_value(val: &str, field_name: &str) -> Self {
-        Error::UnrecognizedValue { value: val.to_string(), column_name: field_name.to_string() }
+        Error::UnrecognizedValue {
+            value: val.to_string(),
+            column_name: field_name.to_string(),
+        }
     }
 
     fn template_error(val: &str) -> Self {
-        Error::TemplateError { msg: val.to_string() }
+        Error::TemplateError {
+            msg: val.to_string(),
+        }
     }
 
     fn header_error(val: String) -> Self {
-        Error::HeaderError { msg: val  }
+        Error::HeaderError { msg: val }
     }
 
     fn term_error(val: String) -> Self {
@@ -44,8 +49,7 @@ struct HeaderDuplet {
 }
 
 impl HeaderDuplet {
-
-    pub fn new(header1: &str ,  header2: &str) -> Self {
+    pub fn new(header1: &str, header2: &str) -> Self {
         HeaderDuplet {
             h1: header1.to_string(),
             h2: header2.to_string(),
@@ -60,17 +64,45 @@ impl fmt::Display for HeaderDuplet {
 }
 
 /// These fields are always required by our template
-const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17; 
-static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] =  [
-    "PMID", "title", "individual_id", "comment", "disease_id", 
-    "disease_label", "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", 
-    "variant.comment", "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO"
-    ];
+const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
+static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
+    "PMID",
+    "title",
+    "individual_id",
+    "comment",
+    "disease_id",
+    "disease_label",
+    "HGNC_id",
+    "gene_symbol",
+    "transcript",
+    "allele_1",
+    "allele_2",
+    "variant.comment",
+    "age_of_onset",
+    "age_at_last_encounter",
+    "deceased",
+    "sex",
+    "HPO",
+];
 const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
-    "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", 
-    "str", "str", "str", "str", "optional", "age", 
-    "age", "yes/no/na", "M:F:O:U", "na"
-    ];
+    "CURIE",
+    "str",
+    "str",
+    "optional",
+    "CURIE",
+    "str",
+    "CURIE",
+    "str",
+    "str",
+    "str",
+    "str",
+    "optional",
+    "age",
+    "age",
+    "yes/no/na",
+    "M:F:O:U",
+    "na",
+];
 
 #[derive(Debug)]
 pub enum TableCellDataType {
@@ -78,14 +110,7 @@ pub enum TableCellDataType {
     PMID(Curie),
 }
 
-
-
-
-
-
-pub struct HeaderItem {
-
-}
+pub struct HeaderItem {}
 
 /// This struct represents the contents of a cell of the Excel table that represents the title of a publication
 #[derive(Debug)]
@@ -93,17 +118,20 @@ pub struct TitleCell {
     title: String,
 }
 
-
 impl TitleCell {
     pub fn new(title: &str) -> Result<Self> {
         if title.is_empty() {
-            return Err(Error::EmptyField { field_name: "Title".to_string() })
+            return Err(Error::EmptyField {
+                field_name: "Title".to_string(),
+            });
         } else if title.chars().last().map_or(false, |c| c.is_whitespace()) {
             return Err(Error::trailing_ws(title.to_string()));
         } else if title.chars().next().map_or(false, |c| c.is_whitespace()) {
-            return Err(Error::leading_ws( title.to_string()));
-        } 
-        Ok(TitleCell { title: title.to_string(), })
+            return Err(Error::leading_ws(title.to_string()));
+        }
+        Ok(TitleCell {
+            title: title.to_string(),
+        })
     }
 }
 
@@ -113,27 +141,26 @@ impl TableCell for TitleCell {
     }
 }
 
-
 fn qc_cell_entry(value: &str) -> Result<()> {
     if value.is_empty() {
-        return Err(Error::EmptyField { field_name: "".to_ascii_lowercase() })
+        return Err(Error::EmptyField {
+            field_name: "".to_ascii_lowercase(),
+        });
     } else if value.chars().last().map_or(false, |c| c.is_whitespace()) {
         return Err(Error::trailing_ws(value));
     } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
-        return Err(Error::leading_ws( value));
+        return Err(Error::leading_ws(value));
     } else {
         Ok(())
     }
 }
-
-
 
 #[derive(PartialEq)]
 pub enum Sex {
     Male,
     Female,
     Other,
-    Unknown
+    Unknown,
 }
 
 pub struct SexTableCell {
@@ -141,13 +168,13 @@ pub struct SexTableCell {
 }
 
 impl SexTableCell {
-    pub fn new<S: Into<String> >(value: &str) -> Result<Self> {
+    pub fn new<S: Into<String>>(value: &str) -> Result<Self> {
         match value {
-            "M" =>  Ok(SexTableCell{sex: Sex::Male}),
-            "F" =>  Ok(SexTableCell{sex: Sex::Female}),
-            "O" =>  Ok(SexTableCell{sex: Sex::Other}),
-            "U" =>  Ok(SexTableCell{sex: Sex::Unknown}),
-            _ => Err(Error::unrecognized_value( value, "Sex"))
+            "M" => Ok(SexTableCell { sex: Sex::Male }),
+            "F" => Ok(SexTableCell { sex: Sex::Female }),
+            "O" => Ok(SexTableCell { sex: Sex::Other }),
+            "U" => Ok(SexTableCell { sex: Sex::Unknown }),
+            _ => Err(Error::unrecognized_value(value, "Sex")),
         }
     }
 
@@ -175,7 +202,6 @@ impl TableCell for SexTableCell {
     }
 }
 
-
 pub struct IndividualTemplate {
     title: TitleCell,
     pmid: Curie,
@@ -194,42 +220,42 @@ pub struct IndividualTemplate {
     hpo_column_list: Vec<HpoTemplate>,
 }
 
-
 impl IndividualTemplate {
-   
-   pub fn new(title: TitleCell, 
-                pmid: Curie,
-                individual_id: SimpleLabel,
-                disease_id: Curie,
-                disease_label: SimpleLabel,
-                hgnc: Curie,
-                gene_sym: SimpleLabel,
-                tx_id: Transcript,
-                allele1: Allele,
-                allele2: Option<Allele>,
-                age_onset: Option<Age>,
-                age_last_encounter: Option<Age>,
-                deceased: DeceasedTableCell,
-                sex: SexTableCell,
-                hpo_columns: Vec<HpoTemplate> ) -> Self {
-                    IndividualTemplate {
-                        title: title,
-                        pmid: pmid,
-                        individual_id,
-                        disease_id,
-                        disease_label,
-                        hgnc_id: hgnc,
-                        gene_symbol: gene_sym,
-                        transcript_id: tx_id,
-                        allele_1: allele1,
-                        allele_2: allele2,
-                        age_at_onset: age_onset,
-                        age_at_last_encounter:age_last_encounter,
-                        deceased: deceased,
-                        sex: sex,
-                        hpo_column_list: hpo_columns,
-                    }
-                }
+    pub fn new(
+        title: TitleCell,
+        pmid: Curie,
+        individual_id: SimpleLabel,
+        disease_id: Curie,
+        disease_label: SimpleLabel,
+        hgnc: Curie,
+        gene_sym: SimpleLabel,
+        tx_id: Transcript,
+        allele1: Allele,
+        allele2: Option<Allele>,
+        age_onset: Option<Age>,
+        age_last_encounter: Option<Age>,
+        deceased: DeceasedTableCell,
+        sex: SexTableCell,
+        hpo_columns: Vec<HpoTemplate>,
+    ) -> Self {
+        IndividualTemplate {
+            title: title,
+            pmid: pmid,
+            individual_id,
+            disease_id,
+            disease_label,
+            hgnc_id: hgnc,
+            gene_symbol: gene_sym,
+            transcript_id: tx_id,
+            allele_1: allele1,
+            allele_2: allele2,
+            age_at_onset: age_onset,
+            age_at_last_encounter: age_last_encounter,
+            deceased: deceased,
+            sex: sex,
+            hpo_column_list: hpo_columns,
+        }
+    }
     pub fn individual_id(&self) -> String {
         self.individual_id.value()
     }
@@ -269,7 +295,7 @@ impl IndividualTemplate {
     pub fn allele_2(&self) -> Option<String> {
         match &self.allele_2 {
             Some(a) => Some(a.value()),
-            None => None
+            None => None,
         }
     }
 
@@ -292,12 +318,10 @@ impl IndividualTemplate {
     pub fn hpo_terms(&self) -> &Vec<HpoTemplate> {
         &self.hpo_column_list
     }
-
 }
 
-
 /// This object collects all errors found in a template when parsing the content rows
-/// 
+///
 /// If we find one or more individual errors, we will return this error
 #[derive(Debug)]
 pub struct TemplateError {
@@ -309,8 +333,6 @@ impl TemplateError {
         TemplateError { messages }
     }
 }
-
-
 
 /// This struct sets up code to generate the IndividualtemplateRow objects that we will
 /// use to generate phenopacket code. Each IndivudalTemplateRow object is an intermediate
@@ -324,29 +346,34 @@ pub struct IndividualTemplateFactory {
     hpo: SimpleHPOMapper,
     expected_n_fields: usize,
     index_to_hpo_factory_d: HashMap<usize, HpoTemplateFactory>,
-    content_rows: Vec<Vec<String>>
+    content_rows: Vec<Vec<String>>,
 }
 
 impl IndividualTemplateFactory {
-    pub fn new (
-            hpo: &FullCsrOntology, 
-            list_of_rows: &Vec<Vec<String>>,
-        ) -> Result<Self>  {
+    pub fn new(hpo: &FullCsrOntology, list_of_rows: &Vec<Vec<String>>) -> Result<Self> {
         if list_of_rows.len() < 3 {
-            return Err(Error::header_error(format!("Templates must have at least one data line, but overall length was only {}",
-                list_of_rows.len())));
+            return Err(Error::header_error(format!(
+                "Templates must have at least one data line, but overall length was only {}",
+                list_of_rows.len()
+            )));
         }
         let first_row_headers = &list_of_rows[0];
-        let second_row_headers= &list_of_rows[1];
+        let second_row_headers = &list_of_rows[1];
         let n1 = first_row_headers.len();
         let n2 = second_row_headers.len();
 
         if n1 != n2 {
-            return Err(Error::header_error(format!("Malformed headers: first line has {} fields, second line has {}", n1, n2)));
+            return Err(Error::header_error(format!(
+                "Malformed headers: first line has {} fields, second line has {}",
+                n1, n2
+            )));
         }
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
-        for i in 0..(n1-1) {
-            header_duplets.push(HeaderDuplet::new(&first_row_headers[i], &second_row_headers[i]));
+        for i in 0..(n1 - 1) {
+            header_duplets.push(HeaderDuplet::new(
+                &first_row_headers[i],
+                &second_row_headers[i],
+            ));
             //println!("{} ", header_duplets[i]); // Print each column name (header)
         }
         if let Err(res) = qc_list_of_header_items(&header_duplets) {
@@ -363,27 +390,33 @@ impl IndividualTemplateFactory {
             return Err(hpo.err().unwrap());
         }
         let simple_hpo = hpo.unwrap();
-        let duration = start.elapsed(); // 
+        let duration = start.elapsed(); //
         println!("Parsed HPO in: {:.3} seconds", duration.as_secs_f64());
         let mut index_to_hpo_factory: HashMap<usize, HpoTemplateFactory> = HashMap::new();
         for i in (NUMBER_OF_CONSTANT_HEADER_FIELDS + 1)..header_duplets.len() {
-           
-            let valid_label = simple_hpo.is_valid_term_label(&header_duplets[i].h2, &header_duplets[i].h1);
+            let valid_label =
+                simple_hpo.is_valid_term_label(&header_duplets[i].h2, &header_duplets[i].h1);
             if valid_label.is_err() {
-                return Err(Error::term_error(format!("Invalid HPO label: {}", valid_label.err().unwrap())));
-            } 
-            let valid_tid =  simple_hpo.is_valid_term_id(&header_duplets[i].h2);
+                return Err(Error::term_error(format!(
+                    "Invalid HPO label: {}",
+                    valid_label.err().unwrap()
+                )));
+            }
+            let valid_tid = simple_hpo.is_valid_term_id(&header_duplets[i].h2);
             if valid_tid.is_err() {
-                return Err(Error::term_error(format!("Invalid term id: {}", valid_tid.err().unwrap())));
-            } 
+                return Err(Error::term_error(format!(
+                    "Invalid term id: {}",
+                    valid_tid.err().unwrap()
+                )));
+            }
             let hpo_fac = HpoTemplateFactory::new(&header_duplets[i].h1, &header_duplets[i].h2);
-            index_to_hpo_factory.insert(i,hpo_fac);          
+            index_to_hpo_factory.insert(i, hpo_fac);
         }
         Ok(IndividualTemplateFactory {
             hpo: simple_hpo,
             expected_n_fields: n1,
             index_to_hpo_factory_d: index_to_hpo_factory,
-            content_rows: list_of_rows.iter().skip(2).cloned().collect()
+            content_rows: list_of_rows.iter().skip(2).cloned().collect(),
         })
     }
 
@@ -395,13 +428,13 @@ impl IndividualTemplateFactory {
     /// * `row` - A vector of the fields of the Excel file row, represented as Strings
     ///
     /// # Returns
-    /// 
+    ///
     /// A result containing the corresponding IndividualTemplate object or an Err with Vector of strings representing the problems
     pub fn individual_template_row(&self, row: Vec<String>) -> Result<IndividualTemplate> {
-        let pmid = Curie::new_pmid(&row[0])?; 
+        let pmid = Curie::new_pmid(&row[0])?;
         let title = TitleCell::new(&row[1])?;
         let individual_id = SimpleLabel::individual_id(&row[2])?;
-        let disease_id =  Curie::new_disease_id(&row[4])?;
+        let disease_id = Curie::new_disease_id(&row[4])?;
         let disease_label = SimpleLabel::disease_label(&row[5])?;
         let hgnc_id = Curie::new_hgnc_id(&row[6])?;
         let gene_sym = SimpleLabel::gene_symbol(&row[7])?;
@@ -425,33 +458,33 @@ impl IndividualTemplateFactory {
                 Some(val) => {
                     let hpo_tplt = hpo_template_factory.from_cell_value(val)?;
                     hpo_column_list.push(hpo_tplt);
-                 },
-                 None => {
+                }
+                None => {
                     println!("Probably this means there was nothing in the cell -- check this later todo");
-                 }
+                }
             }
         }
 
-    
         // If we get here, then we know we can safely unwrap the following items
         // TODO -- FIGURE OUT WHETHER WE NEED SOME ETC.
-        return Ok(IndividualTemplate::new(title, 
-                                        pmid, 
-                                        individual_id,
-                                        disease_id,
-                                        disease_label,
-                                        hgnc_id,
-                                        gene_sym,
-                                        tx_id,
-                                        a1,
-                                        Some(a2),
-                                        Some(onset),
-                                        Some(encounter),
-                                        deceased,
-                                        sex,
-                                        hpo_column_list));
+        return Ok(IndividualTemplate::new(
+            title,
+            pmid,
+            individual_id,
+            disease_id,
+            disease_label,
+            hgnc_id,
+            gene_sym,
+            tx_id,
+            a1,
+            Some(a2),
+            Some(onset),
+            Some(encounter),
+            deceased,
+            sex,
+            hpo_column_list,
+        ));
     }
-    
 
     /// Return all phenopacket templates or a list of errors if there was one or more problems
     pub fn get_templates(&self) -> Result<Vec<IndividualTemplate>> {
@@ -461,7 +494,7 @@ impl IndividualTemplateFactory {
             match itemplate {
                 Ok(template) => {
                     templates.push(template);
-                },
+                }
                 Err(errs) => {
                     return Err(errs);
                 }
@@ -469,10 +502,7 @@ impl IndividualTemplateFactory {
         }
         Ok(templates)
     }
-
 }
-
-
 
 fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<()> {
     // check each of the items in turn
@@ -480,24 +510,23 @@ fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<()> {
     let mut errors: Vec<String> = vec![];
     for (i, duplet) in header_duplets.into_iter().enumerate() {
         if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.h1 != EXPECTED_H1_FIELDS[i] {
-            errors.push(format!("Malformed header: expected {}, got {}", 
-                            EXPECTED_H1_FIELDS[i], 
-                            duplet.h1))
-        } 
+            errors.push(format!(
+                "Malformed header: expected {}, got {}",
+                EXPECTED_H1_FIELDS[i], duplet.h1
+            ))
+        }
         if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.h2 != EXPECTED_H2_FIELDS[i] {
-            errors.push(format!("Malformed header (row 2): expected {}, got {}", 
-                            EXPECTED_H2_FIELDS[i], 
-                            duplet.h1))
-        } 
+            errors.push(format!(
+                "Malformed header (row 2): expected {}, got {}",
+                EXPECTED_H2_FIELDS[i], duplet.h1
+            ))
+        }
         if i > NUMBER_OF_CONSTANT_HEADER_FIELDS {
             break;
         }
     }
     Ok(())
 }
-
-
-
 
 #[cfg(test)]
 mod test {
@@ -507,9 +536,15 @@ mod test {
     fn test_title_ctor() {
         let tests = vec![
             ("We are missing something", "We are missing something"),
-            ("We are missing something ", "Trailing whitespace in 'We are missing something '"),
-            (" We are missing something", "Leading whitespace in ' We are missing something'"),
-            ("", "Title field is empty")
+            (
+                "We are missing something ",
+                "Trailing whitespace in 'We are missing something '",
+            ),
+            (
+                " We are missing something",
+                "Leading whitespace in ' We are missing something'",
+            ),
+            ("", "Title field is empty"),
         ];
         for test in tests {
             let title = TitleCell::new(test.0);
@@ -520,9 +555,6 @@ mod test {
         }
     }
 
-   
-
-
     #[test]
     fn test_header_duplet_ctor() {
         let hd = HeaderDuplet::new("Arachnodactly", "HP:0001166");
@@ -531,8 +563,4 @@ mod test {
         assert_eq!(expected_header1, hd.h1);
         assert_eq!(expected_header2, hd.h2);
     }
-
-
-
-
 }

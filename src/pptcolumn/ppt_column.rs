@@ -1,15 +1,17 @@
+use std::{
+    collections::HashSet,
+    fmt::{self, format},
+};
 
-
-
-
-use std::{collections::HashSet, fmt::{self, format}};
-
+use super::header_duplet::HeaderDuplet;
+use crate::{
+    error::{self, Error, Result},
+    individual_template::TemplateError,
+};
+use once_cell::sync::Lazy;
 use ontolius::TermId;
 use polars::error::ErrString;
 use regex::Regex;
-use once_cell::sync::Lazy;
-use super::header_duplet::HeaderDuplet;
-use crate::{error::{self, Error, Result}, individual_template::TemplateError};
 
 static PMID_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^PMID:\d+$").unwrap());
 static NO_LEADING_TRAILING_WS: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\S.*\S$|^\S$").unwrap());
@@ -20,19 +22,46 @@ static DECEASED_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(yes|no|na)").unw
 static SEX_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(M|F|O|U)").unwrap());
 static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"na").unwrap());
 
-
 /// These fields are always required by our template
-const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17; 
-static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] =  [
-    "PMID", "title", "individual_id", "comment", "disease_id", 
-    "disease_label", "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", 
-    "variant.comment", "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO"
-    ];
+const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
+static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
+    "PMID",
+    "title",
+    "individual_id",
+    "comment",
+    "disease_id",
+    "disease_label",
+    "HGNC_id",
+    "gene_symbol",
+    "transcript",
+    "allele_1",
+    "allele_2",
+    "variant.comment",
+    "age_of_onset",
+    "age_at_last_encounter",
+    "deceased",
+    "sex",
+    "HPO",
+];
 const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
-    "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", 
-    "str", "str", "str", "str", "optional", "age", 
-    "age", "yes/no/na", "M:F:O:U", "na"
-    ];
+    "CURIE",
+    "str",
+    "str",
+    "optional",
+    "CURIE",
+    "str",
+    "CURIE",
+    "str",
+    "str",
+    "str",
+    "str",
+    "optional",
+    "age",
+    "age",
+    "yes/no/na",
+    "M:F:O:U",
+    "na",
+];
 
 trait PptCellValidator {
     fn validate(&self, value: &str) -> Result<()>;
@@ -58,91 +87,125 @@ pub enum ColumnType {
     SexColumn,
     SeparatorColumn,
     HpoTermColumn,
-    NtrRequestColumn
+    NtrRequestColumn,
 }
 
 impl Error {
     pub fn pmid_error(val: &str) -> Self {
-        Error::PmidError { msg: format!("Malformed PMID entry: '{}'", val) }
+        Error::PmidError {
+            msg: format!("Malformed PMID entry: '{}'", val),
+        }
     }
 
     pub fn title_error(val: &str) -> Self {
-        Error::WhiteSpaceError { msg: format!("Malformed title: '{}'", val) }
+        Error::WhiteSpaceError {
+            msg: format!("Malformed title: '{}'", val),
+        }
     }
 
     pub fn disease_id_error(val: &str) -> Self {
-        Error::DiseaseIdError { msg: format!("Malformed disease id '{}'", val) }
+        Error::DiseaseIdError {
+            msg: format!("Malformed disease id '{}'", val),
+        }
     }
 
     pub fn ws_error(val: &str, field: &str) -> Self {
-        Error::DiseaseIdError { msg: format!("{field} field has whitespace error '{}'", val) }
+        Error::DiseaseIdError {
+            msg: format!("{field} field has whitespace error '{}'", val),
+        }
     }
 }
-
-
 
 impl PptCellValidator for PptColumn {
     fn validate(&self, value: &str) -> Result<()> {
         match &self.column_type {
-            ColumnType::PmidColumn => { 
-                if !PMID_REGEX.is_match(value) { 
-                    return Err(Error::pmid_error(value)); 
+            ColumnType::PmidColumn => {
+                if !PMID_REGEX.is_match(value) {
+                    return Err(Error::pmid_error(value));
                 }
-            },
+            }
             ColumnType::TitleColumn => {
                 if !NO_LEADING_TRAILING_WS.is_match(value) {
-                    return Err(Error::ws_error(value, "title")); 
+                    return Err(Error::ws_error(value, "title"));
                 }
-            },
+            }
             ColumnType::IndividualIdColumn => {
                 if !NO_LEADING_TRAILING_WS.is_match(value) {
                     return Err(Error::ws_error(value, "individual_id"));
                 }
-            },
-            ColumnType::IndividualCommentColumn => {return Ok(());},
-            ColumnType::DiseaseIdColumn => if ! DISEASE_ID_REGEX.is_match(value) {
-                return Err(Error::disease_id_error(value));
-            },
-            ColumnType::DiseaseLabelColumn => if ! NO_LEADING_TRAILING_WS.is_match(value) {
-                return Err(Error::ws_error(value, "disease_label"));
-            },
-            ColumnType::HgncIdColumn => if ! HGNC_ID_REGEX.is_match(value) {
-                return Err(Error::HgncError { msg: format!("Malformed HGNC id: '{value}'") });
-            },
-            ColumnType::GeneSymbolColumn => if ! NO_LEADING_TRAILING_WS.is_match(value){
-                return Err(Error::ws_error(value, "gene_symbol"));
-            },
-            ColumnType::TranscriptColumn => if ! TRANSCRIPT_REGEX.is_match(value) {
-                return Err(Error::TranscriptError { msg: format!("Malformed transcript: '{value}'")}) 
-            },
-            ColumnType::AlleleOneColumn => if ! NO_LEADING_TRAILING_WS.is_match(value) {
-                return Err(Error::ws_error(value, "allele_1"));
-            },
-            ColumnType::AlleleTwoColumn => if ! NO_LEADING_TRAILING_WS.is_match(value) {
-                return Err(Error::ws_error(value, "allele_2"));
-            },
+            }
+            ColumnType::IndividualCommentColumn => {
+                return Ok(());
+            }
+            ColumnType::DiseaseIdColumn => {
+                if !DISEASE_ID_REGEX.is_match(value) {
+                    return Err(Error::disease_id_error(value));
+                }
+            }
+            ColumnType::DiseaseLabelColumn => {
+                if !NO_LEADING_TRAILING_WS.is_match(value) {
+                    return Err(Error::ws_error(value, "disease_label"));
+                }
+            }
+            ColumnType::HgncIdColumn => {
+                if !HGNC_ID_REGEX.is_match(value) {
+                    return Err(Error::HgncError {
+                        msg: format!("Malformed HGNC id: '{value}'"),
+                    });
+                }
+            }
+            ColumnType::GeneSymbolColumn => {
+                if !NO_LEADING_TRAILING_WS.is_match(value) {
+                    return Err(Error::ws_error(value, "gene_symbol"));
+                }
+            }
+            ColumnType::TranscriptColumn => {
+                if !TRANSCRIPT_REGEX.is_match(value) {
+                    return Err(Error::TranscriptError {
+                        msg: format!("Malformed transcript: '{value}'"),
+                    });
+                }
+            }
+            ColumnType::AlleleOneColumn => {
+                if !NO_LEADING_TRAILING_WS.is_match(value) {
+                    return Err(Error::ws_error(value, "allele_1"));
+                }
+            }
+            ColumnType::AlleleTwoColumn => {
+                if !NO_LEADING_TRAILING_WS.is_match(value) {
+                    return Err(Error::ws_error(value, "allele_2"));
+                }
+            }
             ColumnType::AgeOfOnsetColumn => {
                 return Ok(());
-            },
+            }
             ColumnType::AgeAtLastExaminationColumn => {
                 return Ok(()); // TODO BETTER FUNCTION
             }
-            ColumnType::DeceasedColumn => if ! DECEASED_REGEX.is_match(value) {
-                return Err(Error::DeceasedError { msg: format!("Malformed deceased entry: '{value}'") })
+            ColumnType::DeceasedColumn => {
+                if !DECEASED_REGEX.is_match(value) {
+                    return Err(Error::DeceasedError {
+                        msg: format!("Malformed deceased entry: '{value}'"),
+                    });
+                }
             }
-            ColumnType::SexColumn => if ! SEX_REGEX.is_match(value) {
-                return Err(Error::sex_field_error(value));
+            ColumnType::SexColumn => {
+                if !SEX_REGEX.is_match(value) {
+                    return Err(Error::sex_field_error(value));
+                }
             }
-            ColumnType::SeparatorColumn => if ! SEPARATOR_REGEX.is_match(value) {
-                return Err(Error::separator(value))
-            },
-            _ => {return Ok(());}   
+            ColumnType::SeparatorColumn => {
+                if !SEPARATOR_REGEX.is_match(value) {
+                    return Err(Error::separator(value));
+                }
+            }
+            _ => {
+                return Ok(());
+            }
         }
         Ok(())
     }
 }
-
-
 
 pub struct PptColumn {
     column_type: ColumnType,
@@ -150,30 +213,28 @@ pub struct PptColumn {
     column_data: Vec<String>,
 }
 
-
 impl PptColumn {
-
     pub fn new(column_type: ColumnType, header1: &str, header2: &str, column: &[String]) -> Self {
         let hd = HeaderDuplet::new(header1, header2);
         // the first two columns are the header and do make contain column data
         // note that we have checked that the vector is at least three
         let coldata: Vec<String> = match column.len() {
             0 => Vec::new(),
-            _ => column.iter().cloned().collect() 
+            _ => column.iter().cloned().collect(),
         };
-        PptColumn { 
-            column_type:column_type, 
-            header_duplet: hd, 
-            column_data: coldata, 
+        PptColumn {
+            column_type: column_type,
+            header_duplet: hd,
+            column_data: coldata,
         }
     }
 
     pub fn pmid(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::PmidColumn,  "PMID", "CURIE", col)
+        Self::new(ColumnType::PmidColumn, "PMID", "CURIE", col)
     }
 
     pub fn title(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::TitleColumn,"title", "str", col)
+        Self::new(ColumnType::TitleColumn, "title", "str", col)
     }
 
     pub fn individual_id(col: &Vec<String>) -> Self {
@@ -181,7 +242,12 @@ impl PptColumn {
     }
 
     pub fn individual_comment(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::IndividualCommentColumn, "comment", "optional", col)
+        Self::new(
+            ColumnType::IndividualCommentColumn,
+            "comment",
+            "optional",
+            col,
+        )
     }
 
     pub fn disease_id(col: &Vec<String>) -> Self {
@@ -213,7 +279,12 @@ impl PptColumn {
     }
 
     pub fn variant_comment(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::VariantCommentColumn, "variant.comment", "optional", col)
+        Self::new(
+            ColumnType::VariantCommentColumn,
+            "variant.comment",
+            "optional",
+            col,
+        )
     }
 
     pub fn age_of_onset(col: &Vec<String>) -> Self {
@@ -221,7 +292,12 @@ impl PptColumn {
     }
 
     pub fn age_at_last_encounter(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::AgeAtLastExaminationColumn, "age_at_last_encounter", "age", col)
+        Self::new(
+            ColumnType::AgeAtLastExaminationColumn,
+            "age_at_last_encounter",
+            "age",
+            col,
+        )
     }
 
     pub fn deceased(col: &Vec<String>) -> Self {
@@ -238,8 +314,13 @@ impl PptColumn {
 
     pub fn hpo_term(name: &str, term_id: &TermId) -> Self {
         let empty_col: Vec<String> = vec![];
-        Self::new(ColumnType::HpoTermColumn, name, &term_id.to_string(), &empty_col)
-    } 
+        Self::new(
+            ColumnType::HpoTermColumn,
+            name,
+            &term_id.to_string(),
+            &empty_col,
+        )
+    }
 
     /// Method to be called from PptTemplate::from_string_matrix
     /// generates an HPO column from data taken from an Excel template file
@@ -255,17 +336,31 @@ impl PptColumn {
 
     pub fn get(&self, idx: usize) -> Result<String> {
         match idx {
-            0 => { return Ok(self.header_duplet.row1()); },
-            1 => { return Ok(self.header_duplet.row2()); },
+            0 => {
+                return Ok(self.header_duplet.row1());
+            }
+            1 => {
+                return Ok(self.header_duplet.row2());
+            }
             i if i <= self.column_data.len() + 2 => {
-                let col_idx = i-2;
+                let col_idx = i - 2;
                 match self.column_data.get(col_idx) {
-                    Some(data) =>  { return Ok(data.clone()); },
-                    None => { return Err(Error::TemplateError {msg: format!("Could not get column data at column index {}", col_idx)}); }
+                    Some(data) => {
+                        return Ok(data.clone());
+                    }
+                    None => {
+                        return Err(Error::TemplateError {
+                            msg: format!("Could not get column data at column index {}", col_idx),
+                        });
+                    }
                 }
-            },
+            }
             _ => {
-                let msg = format!("Attempted to access column at index {} but column has only {} entries", idx, self.column_data.iter().len());
+                let msg = format!(
+                    "Attempted to access column at index {} but column has only {} entries",
+                    idx,
+                    self.column_data.iter().len()
+                );
                 return Err(Error::TemplateError { msg });
             }
         }
@@ -290,15 +385,22 @@ impl PptColumn {
         }
         match self.column_type {
             ColumnType::HpoTermColumn => {
-                let mut items = vec!["observed".to_string(), 
-                    "excluded".to_string(), "na".to_string()];
+                let mut items = vec![
+                    "observed".to_string(),
+                    "excluded".to_string(),
+                    "na".to_string(),
+                ];
                 items.extend(addtl);
                 return items;
-            },
+            }
             ColumnType::SexColumn => {
-                return vec!["M".to_string(), "F".to_string(), 
-                    "O".to_string(), "U".to_string()];
-            },
+                return vec![
+                    "M".to_string(),
+                    "F".to_string(),
+                    "O".to_string(),
+                    "U".to_string(),
+                ];
+            }
             ColumnType::DeceasedColumn => {
                 return vec!["yes".to_string(), "no".to_string(), "na".to_string()];
             }
@@ -307,15 +409,12 @@ impl PptColumn {
             }
             _ => {}
         }
-        
-       
 
         vec![]
     }
 
-   
     /// Validate entry according to column specific rules.
-    pub fn add_entry<T: Into<String>>(&mut self, value: T) -> Result<()>{
+    pub fn add_entry<T: Into<String>>(&mut self, value: T) -> Result<()> {
         let val = value.into();
         self.validate(&val)?;
         self.column_data.push(val);
@@ -335,14 +434,19 @@ impl PptColumn {
     }
 
     /// Some columns, such as HGNC or disease id, must always have the same content in any given template
-    /// 
+    ///
     /// This function checks whether all data cells have the same value. If not, it returns an error
     pub fn get_unique(&self) -> Result<String> {
         let unique_values: HashSet<&String> = self.column_data.iter().collect();
         match unique_values.len() {
             1 => Ok(unique_values.iter().next().unwrap().to_string()),
             _ => {
-                let joined = unique_values.iter().cloned().cloned().collect::<Vec<_>>().join(", ");
+                let joined = unique_values
+                    .iter()
+                    .cloned()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 Err(Error::TemplateError {
                     msg: format!("More than one entry: {joined}"),
                 })
@@ -361,10 +465,10 @@ impl PptColumn {
     }
 
     /// Add a new line to the column
-    /// 
+    ///
     /// This function is used to create a new row by calling this function on
     /// all columns in a template.
-    pub fn add_blank_field(&mut self)  {
+    pub fn add_blank_field(&mut self) {
         self.column_data.push(String::default());
     }
 
@@ -387,9 +491,7 @@ impl PptColumn {
         col
     }
 
-    pub fn get_string(&self, idx: usize) 
-        -> Result<String> 
-    {
+    pub fn get_string(&self, idx: usize) -> Result<String> {
         if idx == 0 {
             return Ok(self.header_duplet.row1());
         } else if idx == 1 {
@@ -398,13 +500,11 @@ impl PptColumn {
             let i = idx - 2;
             match self.column_data.get(i) {
                 Some(item) => Ok(item.clone()),
-                None => Err(Error::row_index_error(idx, self.column_data.len()))
+                None => Err(Error::row_index_error(idx, self.column_data.len())),
             }
         }
     }
-
 }
-
 
 impl core::fmt::Display for PptColumn {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
@@ -439,7 +539,9 @@ mod tests {
     });
 
     static HPO_COLUMN: Lazy<PptColumn> = Lazy::new(|| {
-        let entries: Vec<&str> = vec!["excluded", "observed", "excluded", "observed","excluded", "observed"];
+        let entries: Vec<&str> = vec![
+            "excluded", "observed", "excluded", "observed", "excluded", "observed",
+        ];
         let tid = TermId::from_str("HP:0001166").unwrap();
         let mut hpo_col = PptColumn::hpo_term("Arachnodactyly", &tid);
         for e in entries {
@@ -452,12 +554,11 @@ mod tests {
         let entries: Vec<&str> = vec!["OMIM:121050", "OMIM:121050", "OMIM:121050", "OMIM:121050"];
         let tid = TermId::from_str("HP:0001166").unwrap();
         let mut disease_col = PptColumn::disease_id(&vec![]);
-        for e  in entries {
+        for e in entries {
             disease_col.add_entry(e);
         }
         disease_col
     });
-
 
     use super::*;
 
@@ -503,7 +604,6 @@ mod tests {
 
         Ok(())
     }
-
 }
 
 // endregion: --- Tests

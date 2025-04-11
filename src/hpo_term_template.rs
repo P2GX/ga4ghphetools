@@ -1,8 +1,5 @@
-use crate::onset::Onset;
 use crate::error::{self, Error, Result};
-
-
-
+use crate::onset::Onset;
 
 #[derive(Clone, Debug)]
 pub enum HpoTermStatus {
@@ -12,7 +9,7 @@ pub enum HpoTermStatus {
     Mild,
     Moderate,
     Severe,
-    Onset(Onset)
+    Onset(Onset),
 }
 
 pub struct HpoTemplate {
@@ -26,28 +23,22 @@ impl HpoTemplate {
         HpoTemplate {
             hpo_id: id.to_string(),
             label: label.to_string(),
-            status: status.clone()
+            status: status.clone(),
         }
     }
-
-    
 }
-
-
-
-
 
 pub struct HpoTemplateFactory {
     hpo_id: String,
-    label: String
+    label: String,
 }
 
 impl HpoTemplateFactory {
     /// take ownership of the string in the HeaderDuplet
-    pub fn new(header1:&str, header2:&str) -> Self {
+    pub fn new(header1: &str, header2: &str) -> Self {
         HpoTemplateFactory {
             hpo_id: header1.to_string(),
-            label: header2.to_string()
+            label: header2.to_string(),
         }
     }
 
@@ -55,7 +46,7 @@ impl HpoTemplateFactory {
         Ok(HpoTemplate {
             hpo_id: self.hpo_id.clone(),
             label: self.label.clone(),
-            status: status.clone()
+            status: status.clone(),
         })
     }
 
@@ -67,10 +58,10 @@ impl HpoTemplateFactory {
             "Mild" => self.with_status(HpoTermStatus::Mild),
             "Moderate" => self.with_status(HpoTermStatus::Moderate),
             "Severe" => self.with_status(HpoTermStatus::Severe),
-             other => {
+            other => {
                 let ons = Onset::new(other);
                 self.with_status(HpoTermStatus::Onset(ons))
-             }
+            }
         }
     }
 }

@@ -1,12 +1,16 @@
 //! # HpoTermArranger
 //!
 //! Use a DFS to arrange a list of HPO terms for curation into an easily grokable order.
-//! 
+//!
 //! Objects of this class are created to perform a DSF to find a good way of arranging HPO term columns
-//! We do not need to take ownership of the ontology, therefore indicate explicit lifetime 
+//! We do not need to take ownership of the ontology, therefore indicate explicit lifetime
 use std::{collections::HashSet, str::FromStr};
 
-use ontolius::{common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{HierarchyQueries, HierarchyWalks}, TermId};
+use ontolius::{
+    common::hpo::PHENOTYPIC_ABNORMALITY,
+    ontology::{HierarchyQueries, HierarchyWalks},
+    TermId,
+};
 
 /// Arranges HPO terms into a meaningful order for curation using DFS.
 pub struct HpoTermArranger<'a, O> {
@@ -15,15 +19,17 @@ pub struct HpoTermArranger<'a, O> {
     errors: Vec<String>,
 }
 
-
-impl<'a, O> HpoTermArranger<'a, O> where O: HierarchyQueries + HierarchyWalks {
-    /// Create a new HpoTermArranger 
-    /// 
+impl<'a, O> HpoTermArranger<'a, O>
+where
+    O: HierarchyQueries + HierarchyWalks,
+{
+    /// Create a new HpoTermArranger
+    ///
     /// We use a specified life time so we can borrow a reference to the ontology.
-    /// 
+    ///
     /// # Arguments
-    /// 
-    /// * `ontology` - reference to an Ontolius HPO ontology. 
+    ///
+    /// * `ontology` - reference to an Ontolius HPO ontology.
     pub fn new(ontology: &'a O) -> Self {
         Self {
             hpo: ontology,
@@ -35,15 +41,26 @@ impl<'a, O> HpoTermArranger<'a, O> where O: HierarchyQueries + HierarchyWalks {
     /// Perform a depth-first search to arrange the terms for curation into an order that
     /// tends to keep related terms together
     /// We only store the terms we are interested in in ordered_tids.
-    fn dfs(&mut self, start_tid: &TermId, visited: &mut HashSet<TermId>, ordered_tids: &mut Vec<TermId>) {
+    fn dfs(
+        &mut self,
+        start_tid: &TermId,
+        visited: &mut HashSet<TermId>,
+        ordered_tids: &mut Vec<TermId>,
+    ) {
         if visited.contains(&start_tid) {
             return;
         }
-       
+
         visited.insert(start_tid.clone());
-        
-        if ! self.hpo.is_equal_or_descendant_of(start_tid, &PHENOTYPIC_ABNORMALITY) {
-            self.errors.push(format!("TermId {} does not belong to phenotypic abnormality subhierarchy", start_tid));
+
+        if !self
+            .hpo
+            .is_equal_or_descendant_of(start_tid, &PHENOTYPIC_ABNORMALITY)
+        {
+            self.errors.push(format!(
+                "TermId {} does not belong to phenotypic abnormality subhierarchy",
+                start_tid
+            ));
             return;
         }
 
@@ -57,15 +74,15 @@ impl<'a, O> HpoTermArranger<'a, O> where O: HierarchyQueries + HierarchyWalks {
     }
 
     /// Arrange the terms chossen for the pyphetools curation template using Depth-First Search (DFS)
-    /// 
+    ///
     /// Perform separate DFS for Neoplasm to arrange all neoplasm terms together
-    /// 
+    ///
     /// * Arguments
-    /// 
+    ///
     /// `hpo_terms_for_curation` - TermIds of the Terms chosen to initialize the template, generally terms we expect to curate
-    /// 
+    ///
     /// * Returns:
-    /// 
+    ///
     /// A Vector of TermIds in the order that they should be displayed in the template
     pub fn arrange_terms(&mut self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
         self.hpo_curation_term_id_set.clear();
@@ -84,15 +101,17 @@ impl<'a, O> HpoTermArranger<'a, O> where O: HierarchyQueries + HierarchyWalks {
         result.extend(neoplasm_terms);
         result
     }
-
 }
 
-   
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
 
-    use ontolius::{io::OntologyLoaderBuilder, ontology::{csr::MinimalCsrOntology, OntologyTerms}, term::MinimalTerm};
+    use ontolius::{
+        io::OntologyLoaderBuilder,
+        ontology::{csr::MinimalCsrOntology, OntologyTerms},
+        term::MinimalTerm,
+    };
 
     use super::*;
 
@@ -100,26 +119,39 @@ mod tests {
     #[ignore]
     fn test_term_rerrange() {
         let liver_leiomyoma = "HP:4000154".parse().unwrap();
-        let renal_cortical_hyperechogenicity  = TermId::from_str("HP:0033132").unwrap();
+        let renal_cortical_hyperechogenicity = TermId::from_str("HP:0033132").unwrap();
         let gait_ataxia = TermId::from_str("HP:0002066").unwrap();
         let vsd = TermId::from_str("HP:0001629").unwrap();
         let dysarthria = TermId::from_str("HP:0001260").unwrap();
         let subvalvular_as = TermId::from_str("HP:0001682").unwrap();
-        let absent_epiphysis  = TermId::from_str("HP:0009321").unwrap();
+        let absent_epiphysis = TermId::from_str("HP:0009321").unwrap();
         let gdd = TermId::from_str("HP:0001263").unwrap();
-        let hepatic_hemangioma  = TermId::from_str("HP:0031207").unwrap();
-        let p_wave_inversion  = TermId::from_str("HP:0031600").unwrap();
+        let hepatic_hemangioma = TermId::from_str("HP:0031207").unwrap();
+        let p_wave_inversion = TermId::from_str("HP:0031600").unwrap();
         let renal_cell_carcinoma = TermId::from_str("HP:0005584").unwrap();
-        let renal_corticomedullary_cysts  = TermId::from_str("HP:0000108").unwrap();
+        let renal_corticomedullary_cysts = TermId::from_str("HP:0000108").unwrap();
         let portal_vein_hypoplasia = TermId::from_str("HP:0034548").unwrap();
         let myocardial_sarcomeric_disarray = TermId::from_str("HP:0031333").unwrap();
-        let fractured_thumb_phalanx  = TermId::from_str("HP:0041239").unwrap();
-        let term_list = vec![liver_leiomyoma, absent_epiphysis, gait_ataxia, myocardial_sarcomeric_disarray, renal_cell_carcinoma, vsd, dysarthria, renal_cortical_hyperechogenicity, subvalvular_as, fractured_thumb_phalanx,
-            hepatic_hemangioma, gdd, p_wave_inversion,renal_corticomedullary_cysts, portal_vein_hypoplasia];
+        let fractured_thumb_phalanx = TermId::from_str("HP:0041239").unwrap();
+        let term_list = vec![
+            liver_leiomyoma,
+            absent_epiphysis,
+            gait_ataxia,
+            myocardial_sarcomeric_disarray,
+            renal_cell_carcinoma,
+            vsd,
+            dysarthria,
+            renal_cortical_hyperechogenicity,
+            subvalvular_as,
+            fractured_thumb_phalanx,
+            hepatic_hemangioma,
+            gdd,
+            p_wave_inversion,
+            renal_corticomedullary_cysts,
+            portal_vein_hypoplasia,
+        ];
         let start = Instant::now();
-        let loader = OntologyLoaderBuilder::new()
-            .obographs_parser()
-            .build();
+        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
         let hp_json = "/Users/robin/data/hpo/hp.json";
         let hpo: MinimalCsrOntology = loader.load_from_path(hp_json).expect("could not unwrap");
         let duration = start.elapsed();
@@ -132,10 +164,9 @@ mod tests {
         for t in ordered_terms {
             let result = hpo.term_by_id(&t);
             match result {
-                Some(term) => println!("{} ({})",term.name(), t),
-                None => eprint!("Could not retrieve term for {}.", t)
-            } 
+                Some(term) => println!("{} ({})", term.name(), t),
+                None => eprint!("Could not retrieve term for {}.", t),
+            }
         }
-       
     }
-} 
+}

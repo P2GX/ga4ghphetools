@@ -1,20 +1,26 @@
 //! PhetoolsQC
-//! 
-//! 
+//!
+//!
 use std::fmt::format;
 use std::sync::Arc;
 
-use ontolius::ontology::csr::FullCsrOntology;
 use crate::error::{self, Error, Result};
 use crate::pptcolumn::header_duplet::HeaderDuplet;
+use ontolius::ontology::csr::FullCsrOntology;
 pub struct PheToolsQc {
     mendelian_headers: Arc<[HeaderDuplet]>,
 }
 
 impl Error {
     fn mismatched_header(idx: usize, expected: &HeaderDuplet, observed: &HeaderDuplet) -> Self {
-        let msg = format!("Expected header '{}'/{}' at column {} but got '{}'/{}'",
-            expected.row1(), expected.row2(), idx, observed.row1(), observed.row2());
+        let msg = format!(
+            "Expected header '{}'/{}' at column {} but got '{}'/{}'",
+            expected.row1(),
+            expected.row2(),
+            idx,
+            observed.row1(),
+            observed.row2()
+        );
         Error::TemplateError { msg }
     }
 }
@@ -56,7 +62,11 @@ impl PheToolsQc {
     pub fn is_valid_mendelian_header(&self, hdup_list: &[HeaderDuplet]) -> Result<bool> {
         for i in 0..self.mendelian_headers.len() {
             if self.mendelian_headers[i] != hdup_list[i] {
-                return Err(Error::mismatched_header(i, &self.mendelian_headers[i], &hdup_list[i]));
+                return Err(Error::mismatched_header(
+                    i,
+                    &self.mendelian_headers[i],
+                    &hdup_list[i],
+                ));
             }
         }
         Ok(true)

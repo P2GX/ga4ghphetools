@@ -1,12 +1,9 @@
 //! Transcript
-//! 
+//!
 //! Crate to represent a transcript identifier
 
-use crate::rphetools_traits::TableCell;
 use crate::error::{self, Error, Result};
-
-
-
+use crate::rphetools_traits::TableCell;
 
 /// We use this function to check that transcripts end with a version
 fn ends_with_period_and_number(s: &str) -> bool {
@@ -15,7 +12,6 @@ fn ends_with_period_and_number(s: &str) -> bool {
     }
     false
 }
-
 
 pub struct Transcript {
     value: String,
@@ -32,15 +28,16 @@ impl Transcript {
         if val.starts_with("ENST") || val.starts_with("NM_") {
             let valid_version = ends_with_period_and_number(val);
             if valid_version {
-                return Ok(Transcript{value: val.to_string()});
+                return Ok(Transcript {
+                    value: val.to_string(),
+                });
             } else {
-                return Err(Error::lacks_transcript_version( val));
+                return Err(Error::lacks_transcript_version(val));
             }
-        } 
-        Err(Error::unrecognized_transcript_prefix( val))
+        }
+        Err(Error::unrecognized_transcript_prefix(val))
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -52,15 +49,13 @@ mod test {
             ("NM_006139.4", "NM_006139.4"),
             ("NM_006139", "Transcript 'NM_006139' is missing a version"),
             ("NM006139.4", "Unrecognized transcript prefix 'NM006139.4'"),
-            ("ENST00000316623.10", "ENST00000316623.10")
+            ("ENST00000316623.10", "ENST00000316623.10"),
         ];
         for test in tests {
             match Transcript::new(test.0) {
                 Ok(id) => assert_eq!(test.1, id.value()),
-                Err(err) => assert_eq!(test.1, err.to_string())
+                Err(err) => assert_eq!(test.1, err.to_string()),
             };
         }
     }
-
-
 }
