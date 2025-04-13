@@ -8,6 +8,7 @@ enum AlleleType {
     SmallHgvs,
     ChromosomalDeletion,
     ChromosomalInsertion,
+    ChromosomalDuplication,
     ChromosomalInversion,
     ChromosomalTranslocation,
     NotAvailable,
@@ -116,6 +117,10 @@ impl Allele {
                         allele: structural_var.to_string(),
                         allele_type: AlleleType::ChromosomalDeletion,
                     }),
+                    "DUP" => Ok(Allele {
+                        allele: structural_var.to_string(),
+                        allele_type: AlleleType::ChromosomalDuplication,
+                    }),
                     "INS" => Ok(Allele {
                         allele: structural_var.to_string(),
                         allele_type: AlleleType::ChromosomalInsertion,
@@ -124,7 +129,7 @@ impl Allele {
                         allele: structural_var.to_string(),
                         allele_type: AlleleType::ChromosomalInversion,
                     }),
-                    "TRANS" => Ok(Allele {
+                    "TRANSL" => Ok(Allele {
                         allele: structural_var.to_string(),
                         allele_type: AlleleType::ChromosomalTranslocation,
                     }),
@@ -204,5 +209,19 @@ mod test {
         let allele = allele.unwrap();
         assert_eq!("na", allele.value());
         assert_eq!(AlleleType::NotAvailable, allele.allele_type);
+    }
+
+    #[test]
+    fn test_chrom_allele_type() {
+        let tests = vec![
+            ("DEL: 22q11", AlleleType::ChromosomalDeletion),
+            ("DUP: 7q11.23 duplication", AlleleType::ChromosomalDuplication),
+            ("INV: inv(18)", AlleleType::ChromosomalInversion)];
+        for test in tests {
+            let allele = Allele::new(test.0);
+            assert!(allele.is_ok());
+            let allele = allele.unwrap();
+            assert_eq!(test.1, allele.allele_type );
+        }
     }
 }

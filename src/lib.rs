@@ -32,6 +32,8 @@ mod simple_label;
 mod simple_term;
 mod template_creator;
 mod transcript;
+pub mod variant;
+
 
 use crate::error::Error;
 use crate::template::template_row_adder::TemplateRowAdder;
@@ -479,6 +481,11 @@ mod tests {
             Err(e) => {
                 println!("{}", e)
             }
+        }
+        println!("setting value");
+        match pyphetools.set_value(9, 31, "observed") {
+            Ok(_) => println!("Able to set value"),
+            Err(e) => println!("error: {}", e)
         }
         Ok(())
     }

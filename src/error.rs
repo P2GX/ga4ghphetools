@@ -70,6 +70,9 @@ pub enum Error {
     MalformedDiseaseLabel {
         label: String,
     },
+    VcfError {
+        msg: String,
+    },
     EditError {
         msg: String,
     },
@@ -130,13 +133,10 @@ pub enum Error {
     },
     SeparatorError {
         msg: String,
-    }, // arrange according to module
-       // -- pptcolumn
-
-       /* -- Externals
-       #[from]
-       #[derive(serde::Serialize)]
-       Io(std::io::Error), */
+    }, 
+    VariantCacheError {
+        msg: String
+    }
 }
 
 impl Error {
@@ -307,6 +307,8 @@ impl core::fmt::Display for Error {
             | Error::TemplateError { msg }
             | Error::SexFieldError { msg }
             | Error::SeparatorError { msg }
+            | Error::VcfError { msg }
+            | Error::VariantCacheError{ msg}
             | Error::AgeParseError { msg } => write!(fmt, "{msg}"),
             _ => write!(fmt, "{self:?}"),
         }
