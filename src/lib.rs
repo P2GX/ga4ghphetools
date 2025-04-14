@@ -23,6 +23,7 @@ use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use template::ppt_template::PptTemplate;
 use pptcolumn::ppt_column::ColumnType;
 use rphetools_traits::PyphetoolsTemplateCreator;
+use std::collections::HashMap;
 use std::fmt::{self};
 use std::sync::Arc;
 use std::{fmt::format, str::FromStr, vec};
@@ -397,6 +398,22 @@ impl PheTools {
             }
         }
     }
+
+    pub fn get_template_summary(&self) -> Result<HashMap<String, String>, String> {
+        match &self.template {
+            Some(template) => {
+                let summary = template.get_summary();
+                if summary.is_empty() {
+                    return Err(format!("Empty tempalte"));
+                } else {
+                    return Ok(summary);
+                }
+            },
+            None => Err(format!("Phetools template not initialized"))
+        }
+    }
+
+
 }
 
 impl core::fmt::Display for PheTools {
