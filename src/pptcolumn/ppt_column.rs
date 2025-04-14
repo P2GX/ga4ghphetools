@@ -6,7 +6,7 @@ use std::{
 use super::header_duplet::HeaderDuplet;
 use crate::{
     error::{self, Error, Result},
-    individual_template::TemplateError,
+    template::individual_template::TemplateError,
 };
 use once_cell::sync::Lazy;
 use ontolius::TermId;

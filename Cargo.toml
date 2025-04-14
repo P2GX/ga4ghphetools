@@ -4,7 +4,7 @@ version = "0.1.33"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
-license = "BSD 3"
+license = "BSD-3-Clause"
 readme = "README.md"
 
 [lib]
@@ -47,4 +47,4 @@ unsafe_code = "forbid"
 unused = "allow" # for initial development only!
 
 [dev-dependencies]
-once_cell = "1.19"
+once_cell = "1.21.3"

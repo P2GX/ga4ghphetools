@@ -1,5 +1,7 @@
 pub mod age;
+pub mod allele;
 pub mod deceased;
-mod header_duplet;
-mod pptcolumn;
-pub mod pptheaders;
+pub mod disease_gene_bundle;
+pub mod header_duplet;
+pub mod ppt_column;
+pub mod transcript;

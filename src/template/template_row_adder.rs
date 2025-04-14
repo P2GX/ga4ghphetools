@@ -1,6 +1,6 @@
 use crate::{
     error::{self, Error, Result},
-    ppt_template::PptTemplate,
+    template::ppt_template::PptTemplate,
 };
 
 pub(crate) trait TemplateRowAdder {

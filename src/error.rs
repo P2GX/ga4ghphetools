@@ -38,7 +38,7 @@ use core::fmt;
 use derive_more::{Display, From};
 use serde::Serialize;
 
-use crate::individual_template::TemplateError;
+use crate::template::individual_template::TemplateError;
 
 // can be used for test modules pub type Error = Box<dyn std::err::Err>;
 

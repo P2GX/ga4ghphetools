@@ -4,45 +4,23 @@
 //! The library does not expose custom datatypes, and errors are translated
 //! into strings to simplify the use of rphetools in applications
 
-mod allele;
-mod curie;
-mod disease_gene_bundle;
+
 mod error;
-mod excel;
-mod hpo_term_template;
-mod individual_template;
-mod onset;
-mod simple_hpo;
-mod hpo {
-    pub mod hpo_term_arranger;
-}
-mod phetools_qc;
-mod pptcolumn {
-    pub mod age;
-    pub mod deceased;
-    pub mod header_duplet;
-    pub mod ppt_column;
-}
-mod template {
-    pub mod template_row_adder;
-}
-mod ppt_template;
+mod hpo;
+mod pptcolumn;
+mod template;
 mod rphetools_traits;
-mod simple_label;
-mod simple_term;
-mod template_creator;
-mod transcript;
 pub mod variant;
 
 
 use crate::error::Error;
 use crate::template::template_row_adder::TemplateRowAdder;
-use disease_gene_bundle::DiseaseGeneBundle;
+use pptcolumn::disease_gene_bundle::DiseaseGeneBundle;
 use hpo::hpo_term_arranger::HpoTermArranger;
-use individual_template::IndividualTemplateFactory;
+use template::individual_template::IndividualTemplateFactory;
 use ontolius::ontology::MetadataAware;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
-use ppt_template::PptTemplate;
+use template::ppt_template::PptTemplate;
 use pptcolumn::ppt_column::ColumnType;
 use rphetools_traits::PyphetoolsTemplateCreator;
 use std::fmt::{self};
@@ -125,7 +103,7 @@ impl PheTools {
         );
         match dgb_result {
             Ok(dgb) => {
-                match template_creator::create_pyphetools_template(dgb, hpo_term_ids, &self.hpo) {
+                match template::template_creator::create_pyphetools_template(dgb, hpo_term_ids, &self.hpo) {
                     Ok(template) => {
                         self.set_template(template);
                         Ok(())
@@ -201,7 +179,7 @@ impl PheTools {
         &mut self,
         pyphetools_template_path: &str,
     ) -> Result<(), Vec<String>> {
-        let result = excel::read_excel_to_dataframe(pyphetools_template_path);
+        let result = template::excel::read_excel_to_dataframe(pyphetools_template_path);
         match result {
             Ok(ppt_template) => {
                 let ppt_res = PptTemplate::from_string_matrix(ppt_template, &self.hpo);
@@ -387,7 +365,7 @@ impl PheTools {
 
     pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
         let mut err_list = Vec::new();
-        let row_result = excel::read_excel_to_dataframe(pyphetools_template_path);
+        let row_result = template::excel::read_excel_to_dataframe(pyphetools_template_path);
         match row_result {
             Ok(list_of_rows) => {
                 let result = IndividualTemplateFactory::new(&self.hpo, list_of_rows.as_ref());

@@ -1,7 +1,7 @@
 // src/variant/hgvs_variant.rs
 use crate::variant::acmg::AcmgPathogenicityClassification;
 use crate::variant::variant_trait::Variant;
-use crate::{error::Error, transcript, variant::vcf_var::{self, VcfVar}};
+use crate::{error::Error, pptcolumn::transcript, variant::vcf_var::{self, VcfVar}};
 use ontolius::term::simple::SimpleMinimalTerm;
 use rand::{self, distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
