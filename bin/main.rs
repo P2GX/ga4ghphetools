@@ -53,4 +53,6 @@ fn main() {
             }
         }
     }
+    let hmap = pyphetools.get_hpo_data();
+    println!("{:?}", hmap);
 }

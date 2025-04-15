@@ -18,7 +18,7 @@ use crate::template::template_row_adder::TemplateRowAdder;
 use pptcolumn::disease_gene_bundle::DiseaseGeneBundle;
 use hpo::hpo_term_arranger::HpoTermArranger;
 use template::individual_template::IndividualTemplateFactory;
-use ontolius::ontology::MetadataAware;
+use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use template::ppt_template::PptTemplate;
 use pptcolumn::ppt_column::ColumnType;
@@ -411,6 +411,16 @@ impl PheTools {
             },
             None => Err(format!("Phetools template not initialized"))
         }
+    }
+
+    pub fn get_hpo_data(&self) -> HashMap<String, String> {
+       let hpo_clone = Arc::clone(&self.hpo);
+        let mut hpo_map: HashMap<String, String> = HashMap::new();
+        let hpo_version = "ontolius update".to_ascii_lowercase(); //hpo_clone.version();
+        hpo_map.insert("version".to_string(), hpo_version);
+        let n_terms = hpo_clone.len();
+        hpo_map.insert("n_terms".to_string(), format!("{n_terms}"));
+        hpo_map      
     }
 
 
