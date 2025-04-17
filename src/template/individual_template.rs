@@ -10,6 +10,7 @@ use std::time::Instant;
 use ontolius::ontology::csr::FullCsrOntology;
 
 use crate::pptcolumn::allele::Allele;
+use crate::pptcolumn::header_duplet::HeaderDuplet;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::hpo::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
@@ -43,25 +44,7 @@ impl Error {
     }
 }
 
-struct HeaderDuplet {
-    h1: String,
-    h2: String,
-}
 
-impl HeaderDuplet {
-    pub fn new(header1: &str, header2: &str) -> Self {
-        HeaderDuplet {
-            h1: header1.to_string(),
-            h2: header2.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for HeaderDuplet {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "HeaderDuplet(h1: {}, h2: {})", self.h1, self.h2)
-    }
-}
 
 /// These fields are always required by our template
 const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
@@ -395,21 +378,21 @@ impl IndividualTemplateFactory {
         let mut index_to_hpo_factory: HashMap<usize, HpoTemplateFactory> = HashMap::new();
         for i in (NUMBER_OF_CONSTANT_HEADER_FIELDS + 1)..header_duplets.len() {
             let valid_label =
-                simple_hpo.is_valid_term_label(&header_duplets[i].h2, &header_duplets[i].h1);
+                simple_hpo.is_valid_term_label(&header_duplets[i].row2(), &header_duplets[i].row1());
             if valid_label.is_err() {
                 return Err(Error::term_error(format!(
                     "Invalid HPO label: {}",
                     valid_label.err().unwrap()
                 )));
             }
-            let valid_tid = simple_hpo.is_valid_term_id(&header_duplets[i].h2);
+            let valid_tid = simple_hpo.is_valid_term_id(&header_duplets[i].row2());
             if valid_tid.is_err() {
                 return Err(Error::term_error(format!(
                     "Invalid term id: {}",
                     valid_tid.err().unwrap()
                 )));
             }
-            let hpo_fac = HpoTemplateFactory::new(&header_duplets[i].h1, &header_duplets[i].h2);
+            let hpo_fac = HpoTemplateFactory::new(&header_duplets[i].row1(), &header_duplets[i].row2());
             index_to_hpo_factory.insert(i, hpo_fac);
         }
         Ok(IndividualTemplateFactory {
@@ -509,16 +492,16 @@ fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<()> {
 
     let mut errors: Vec<String> = vec![];
     for (i, duplet) in header_duplets.into_iter().enumerate() {
-        if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.h1 != EXPECTED_H1_FIELDS[i] {
+        if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.row1() != EXPECTED_H1_FIELDS[i] {
             errors.push(format!(
                 "Malformed header: expected {}, got {}",
-                EXPECTED_H1_FIELDS[i], duplet.h1
+                EXPECTED_H1_FIELDS[i], duplet.row1()
             ))
         }
-        if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.h2 != EXPECTED_H2_FIELDS[i] {
+        if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.row2() != EXPECTED_H2_FIELDS[i] {
             errors.push(format!(
                 "Malformed header (row 2): expected {}, got {}",
-                EXPECTED_H2_FIELDS[i], duplet.h1
+                EXPECTED_H2_FIELDS[i], duplet.row1()
             ))
         }
         if i > NUMBER_OF_CONSTANT_HEADER_FIELDS {
@@ -530,6 +513,8 @@ fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<()> {
 
 #[cfg(test)]
 mod test {
+    use crate::pptcolumn::header_duplet::HeaderDuplet;
+
     use super::*;
 
     #[test]
@@ -560,7 +545,7 @@ mod test {
         let hd = HeaderDuplet::new("Arachnodactly", "HP:0001166");
         let expected_header1 = String::from("Arachnodactly");
         let expected_header2 = String::from("HP:0001166");
-        assert_eq!(expected_header1, hd.h1);
-        assert_eq!(expected_header2, hd.h2);
+        assert_eq!(expected_header1, hd.row1());
+        assert_eq!(expected_header2, hd.row2());
     }
 }
