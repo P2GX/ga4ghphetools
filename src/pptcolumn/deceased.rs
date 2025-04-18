@@ -11,7 +11,7 @@ pub enum Deceased {
     No,
     NotAvailable,
 }
-
+#[derive(Debug)]
 pub struct DeceasedTableCell {
     deceased: Deceased,
 }

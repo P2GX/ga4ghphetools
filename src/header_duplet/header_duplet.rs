@@ -2,11 +2,97 @@
 //!
 //! The pyphetools template has two header rows
 //! We refer to the two rows of one column as a header duplet.
+//! We have created a collection of enumerations that know what the header is an implement QC routines for the corresponding data
+//! in the columns "beneath" the header duplets.
 
 use crate::error::{self, Error, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::fmt;
+use std::{collections::HashSet, fmt};
+
+use crate::header_duplet::pmid_duplet::PmidDuplet;
+
+
+pub trait HeaderDupletItem {
+    fn row1(&self) -> String;
+    fn row2(&self) -> String;
+    fn qc_cell(&self, cell_contents: &str) -> Result<()>;
+    fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized;
+
+    /// A valid label does not begin with or end with a white space
+    /// Valid labels also may not contain /,\, (,  ), or perdiod (".").
+    fn check_white_space(value: &str) -> Result<()> {
+        if value.chars().last().map_or(false, |c| c.is_whitespace()) {
+            return Err(Error::trailing_ws(value));
+        } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
+            return Err(Error::leading_ws(value));
+        } else if value.contains("  ") {
+            return Err(Error::consecutive_ws(value));
+        } else {
+            Ok(())
+        }
+    }
+
+    fn check_empty(value: &str) -> Result<()> {
+        if value.is_empty() {
+            Err(Error::HeaderError{msg: format!("Value must not be empty")})
+        } else {
+            Ok(())
+        }
+    }
+
+    fn check_tab(value: &str) -> Result<()> {
+        if value.contains('\t') {
+            Err(Error::HeaderError{msg: format!("Value must not contain a tab character")})
+        } else {
+            Ok(())
+        }
+    }
+
+
+/// A valid curie must have a non-empty prefix and a non-empty numeric suffic
+/// white-space is not allowed.
+fn check_valid_curie(s: &str) -> Result<bool> {
+    if s.is_empty() {
+        return Err(Error::CurieError {
+            msg: "Empty CURIE".to_string(),
+        });
+    } else if let Some(pos) = s.find(':') {
+        if s.chars().any(|c| c.is_whitespace()) {
+            return Err(Error::CurieError {
+                msg: format!("Contains stray whitespace: '{}'", s),
+            });
+        } else if s.matches(':').count() != 1 {
+            return Err(Error::CurieError {
+                msg: format!("Invalid CURIE with more than one colon: '{}", s),
+            });
+        } else if pos == 0 {
+            return Err(Error::CurieError {
+                msg: format!("Invalid CURIE with no prefix: '{}'", s),
+            });
+        } else if pos == s.len() - 1 {
+            return Err(Error::CurieError {
+                msg: format!("Invalid CURIE with no suffix: '{}'", s),
+            });
+        } else if let Some((_prefix, suffix)) = s.split_once(':') {
+            if !suffix.chars().all(char::is_numeric) {
+                return Err(Error::CurieError {
+                    msg: format!("Invalid CURIE with non-digit characters in suffix: '{}'", s),
+                });
+            }
+        }
+    } else {
+        return Err(Error::CurieError {
+            msg: format!("Invalid CURIE with no colon: '{}'", s),
+        });
+    }
+    Ok(true)
+}
+}
+
+pub enum HeaderDuplet {
+    PmidDuplet(PmidDuplet),
+}
 
 /// The HeaderDuplet represents the first two rows of the pyphetools template.
 ///
@@ -15,20 +101,20 @@ use std::fmt;
 /// shown in the second field. The purpose of this struct is simply to record the strings in
 /// both rows so that we can do some Q/C prior to starting to create the DataFrame object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct HeaderDuplet {
+pub struct HeaderDupletOld {
     /// field in the first row
     h1: String,
     /// field in the second row
     h2: String,
 }
 
-impl HeaderDuplet {
+impl HeaderDupletOld {
     pub fn new<S, T>(header1: S, header2: T) -> Self
     where
         S: Into<String>,
         T: Into<String>,
     {
-        HeaderDuplet {
+        HeaderDupletOld {
             h1: header1.into(),
             h2: header2.into(),
         }
@@ -42,7 +128,7 @@ impl HeaderDuplet {
         self.h2.clone()
     }
 
-    pub fn extract_from_string_matrix(matrix: &Vec<Vec<String>>) -> Result<Vec<HeaderDuplet>> {
+    pub fn extract_from_string_matrix(matrix: &Vec<Vec<String>>) -> Result<Vec<HeaderDupletOld>> {
         if matrix.len() < 2 {
             return Err(Error::TemplateError {
                 msg: format!(
@@ -52,16 +138,16 @@ impl HeaderDuplet {
             });
         }
         let row_len = matrix[0].len();
-        let mut header_duplet_list: Vec<HeaderDuplet> = Vec::new();
+        let mut header_duplet_list: Vec<HeaderDupletOld> = Vec::new();
         for i in 0..row_len {
-            let hdup = HeaderDuplet::new(matrix[0][i].clone(), matrix[1][i].clone());
+            let hdup = HeaderDupletOld::new(matrix[0][i].clone(), matrix[1][i].clone());
             header_duplet_list.push(hdup);
         }
         Ok(header_duplet_list)
     }
 }
 
-impl fmt::Display for HeaderDuplet {
+impl fmt::Display for HeaderDupletOld {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "HeaderDuplet(h1: {}, h2: {})", self.h1, self.h2)
     }
@@ -70,28 +156,28 @@ impl fmt::Display for HeaderDuplet {
 const NUMBER_OF_CONSTANT_HEADER_FIELDS_MENDELIAN: usize = 17;
 
 lazy_static! {
-    static ref PMID_HEADER: HeaderDuplet = HeaderDuplet::new("PMID", "CURIE");
-    static ref TITLE_HEADER: HeaderDuplet = HeaderDuplet::new("title", "str");
-    static ref INDIVIDUAL_ID_HEADER: HeaderDuplet = HeaderDuplet::new("individual_id", "str");
-    static ref COMMENT_HEADER: HeaderDuplet = HeaderDuplet::new("comment", "optional");
-    static ref DISEASE_ID_HEADER: HeaderDuplet = HeaderDuplet::new("disease_id", "CURIE");
-    static ref DISEASE_LABEL_HEADER: HeaderDuplet = HeaderDuplet::new("disease_label", "str");
-    static ref HGNC_ID_HEADER: HeaderDuplet = HeaderDuplet::new("HGNC_id", "CURIE");
-    static ref GENE_SYMBOL_HEADER: HeaderDuplet = HeaderDuplet::new("gene_symbol", "str");
-    static ref TRANSCRIPT_HEADER: HeaderDuplet = HeaderDuplet::new("transcript", "str");
-    static ref ALLELE_1_HEADER: HeaderDuplet = HeaderDuplet::new("allele_1", "str");
-    static ref ALLELE_2_HEADER: HeaderDuplet = HeaderDuplet::new("allele_2", "str");
-    static ref VARIANT_COMMENT_HEADER: HeaderDuplet =
-        HeaderDuplet::new("variant.comment", "optional");
-    static ref AGE_OF_ONSET_HEADER: HeaderDuplet = HeaderDuplet::new("age_of_onset", "age");
-    static ref AGE_AT_LAST_ECOUNTER_HEADER: HeaderDuplet =
-        HeaderDuplet::new("age_at_last_encounter", "age");
-    static ref DECEASED_HEADER: HeaderDuplet = HeaderDuplet::new("deceased", "yes/no/na");
-    static ref SEX_HEADER: HeaderDuplet = HeaderDuplet::new("sex", "M:F:O:U");
-    static ref HPO_SEPARATOR_HEADER: HeaderDuplet = HeaderDuplet::new("HPO", "na");
+    static ref PMID_HEADER: HeaderDupletOld = HeaderDupletOld::new("PMID", "CURIE");
+    static ref TITLE_HEADER: HeaderDupletOld = HeaderDupletOld::new("title", "str");
+    static ref INDIVIDUAL_ID_HEADER: HeaderDupletOld = HeaderDupletOld::new("individual_id", "str");
+    static ref COMMENT_HEADER: HeaderDupletOld = HeaderDupletOld::new("comment", "optional");
+    static ref DISEASE_ID_HEADER: HeaderDupletOld = HeaderDupletOld::new("disease_id", "CURIE");
+    static ref DISEASE_LABEL_HEADER: HeaderDupletOld = HeaderDupletOld::new("disease_label", "str");
+    static ref HGNC_ID_HEADER: HeaderDupletOld = HeaderDupletOld::new("HGNC_id", "CURIE");
+    static ref GENE_SYMBOL_HEADER: HeaderDupletOld = HeaderDupletOld::new("gene_symbol", "str");
+    static ref TRANSCRIPT_HEADER: HeaderDupletOld = HeaderDupletOld::new("transcript", "str");
+    static ref ALLELE_1_HEADER: HeaderDupletOld = HeaderDupletOld::new("allele_1", "str");
+    static ref ALLELE_2_HEADER: HeaderDupletOld = HeaderDupletOld::new("allele_2", "str");
+    static ref VARIANT_COMMENT_HEADER: HeaderDupletOld =
+        HeaderDupletOld::new("variant.comment", "optional");
+    static ref AGE_OF_ONSET_HEADER: HeaderDupletOld = HeaderDupletOld::new("age_of_onset", "age");
+    static ref AGE_AT_LAST_ECOUNTER_HEADER: HeaderDupletOld =
+        HeaderDupletOld::new("age_at_last_encounter", "age");
+    static ref DECEASED_HEADER: HeaderDupletOld = HeaderDupletOld::new("deceased", "yes/no/na");
+    static ref SEX_HEADER: HeaderDupletOld = HeaderDupletOld::new("sex", "M:F:O:U");
+    static ref HPO_SEPARATOR_HEADER: HeaderDupletOld = HeaderDupletOld::new("HPO", "na");
 }
 
-fn expected_mendelian_fields() -> Vec<&'static HeaderDuplet> {
+fn expected_mendelian_fields() -> Vec<&'static HeaderDupletOld> {
     vec![
         &PMID_HEADER,
         &TITLE_HEADER,
@@ -158,7 +244,7 @@ const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
 
 /// perform quality control of the two header rows of a pyphetools template file
 pub fn qc_list_of_header_items(
-    header_duplets: &Vec<HeaderDuplet>,
+    header_duplets: &Vec<HeaderDupletOld>,
 ) -> core::result::Result<(), Vec<String>> {
     // check each of the items in turn
 
@@ -215,9 +301,9 @@ mod tests {
 
     #[test]
     fn test_ctor() -> Result<()> {
-        let hdup_a = HeaderDuplet::new("Title", "str");
-        let hdup_b = HeaderDuplet::new("Title", "str");
-        let hdup_c = HeaderDuplet::new("HGNC", "CURIE");
+        let hdup_a = HeaderDupletOld::new("Title", "str");
+        let hdup_b = HeaderDupletOld::new("Title", "str");
+        let hdup_c = HeaderDupletOld::new("HGNC", "CURIE");
         assert_eq!(hdup_a, hdup_b);
         assert_ne!(hdup_a, hdup_c);
 

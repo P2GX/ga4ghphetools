@@ -79,17 +79,15 @@ pub enum Error {
     TermIdError {
         msg: String,
     },
+    HpoError {
+        msg: String
+    },
     HpIdNotFound {
         id: String,
     },
     ObsoleteTermId {
         id: String,
         replacement: String,
-    },
-    WrongLabel {
-        id: String,
-        actual: String,
-        expected: String,
     },
     EmptyField {
         field_name: String,
@@ -106,7 +104,7 @@ pub enum Error {
     HgncError {
         msg: String,
     },
-    HgvsError {
+    AlleleError {
         msg: String,
     },
     HeaderError {
@@ -169,6 +167,15 @@ impl Error {
     {
         Self::WhiteSpaceError {
             msg: format!("Trailing whitespace in '{}'", value.into()),
+        }
+    }
+
+    pub fn consecutive_ws<T>(value: T) -> Self
+    where
+        T: Into<String>,
+    {
+        Self::WhiteSpaceError {
+            msg: format!("Consecutive whitespace in '{}'", value.into()),
         }
     }
 
@@ -265,51 +272,50 @@ impl core::fmt::Display for Error {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
         match self {
             Error::LabelTooShort { label, actual, min } => {
-                write!(
-                    fmt,
-                    "Label '{}' is too short ({} < required {})",
-                    label, actual, min
-                )
-            }
+                write!(fmt, "Label '{}' is too short ({} < required {})",label, actual, min )
+            },
             Error::HpIdNotFound { id } => {
                 write!(fmt, "Not able to find HPO TermId: {id}")
-            }
+            },
             Error::ObsoleteTermId { id, replacement } => {
-                write!(
-                    fmt,
-                    "Obsolete HPO TermId: {id}; replace with {replacement}."
-                )
-            }
+                write!(fmt, "Obsolete HPO TermId: {id}; replace with {replacement}.")
+            },
             Error::MalformedLabel { label } => {
                 write!(fmt, "Malformed label: '{label}'")
-            }
+            },
             Error::MalformedDiseaseLabel { label } => {
                 write!(fmt, "Malformed disease label: '{label}'")
-            }
+            },
             Error::ForbiddenLabelChar { c, label } => {
                 write!(fmt, "Forbidden character '{c}' found in label '{label}'")
-            }
+            },
             Error::EmptyLabel => {
                 write!(fmt, "Empty label")
-            }
+            },
             Error::EmptyField { field_name } => {
                 write!(fmt, "{field_name} field is empty")
-            }
-            Error::TermIdError { msg }
-            | Error::WhiteSpaceError { msg }
-            | Error::HgvsError { msg }
-            | Error::PmidError { msg }
+            },
+           
+
+            Error::AgeParseError { msg }
             | Error::CurieError { msg }
-            | Error::EditError { msg }
-            | Error::DiseaseIdError { msg }
-            | Error::TranscriptError { msg }
             | Error::DeceasedError { msg }
-            | Error::TemplateError { msg }
+            | Error::DiseaseIdError { msg }
+            | Error::EditError { msg }
+            | Error::HeaderError { msg }
+            | Error::HgncError { msg }
+            | Error::HpoError { msg }
+            | Error::AlleleError { msg }
+            | Error::PmidError { msg }
             | Error::SexFieldError { msg }
             | Error::SeparatorError { msg }
+            | Error::TemplateError { msg }
+            | Error::TermError { msg }
+            | Error::TermIdError { msg }
+            | Error::TranscriptError { msg }
             | Error::VcfError { msg }
             | Error::VariantCacheError{ msg}
-            | Error::AgeParseError { msg } => write!(fmt, "{msg}"),
+            | Error::WhiteSpaceError { msg } => write!(fmt, "{msg}"),
             _ => write!(fmt, "{self:?}"),
         }
     }

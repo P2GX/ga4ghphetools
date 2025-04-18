@@ -4,7 +4,7 @@ use crate::error::{self, Error, Result};
 
 /// A valid curie must have a non-empty prefix and a non-empty numeric suffic
 /// white-space is not allowed.
-fn check_valid_curie(s: &str) -> Result<bool> {
+pub fn check_valid_curie(s: &str) -> Result<bool> {
     if s.is_empty() {
         return Err(Error::CurieError {
             msg: "Empty CURIE".to_string(),

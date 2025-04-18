@@ -13,6 +13,13 @@ pub trait HPO {
     fn is_valid_term_label(&self, tid: &str, label: &str) -> Result<bool>;
 }
 
+impl Error {
+    fn wrong_label_error(id: &str, actual: &str, expected: &str) -> Self {
+        let msg = format!("HPO Term {id} with malformed label '{actual}' instead of {expected}");
+        Error::TermError { msg }
+    }
+}
+
 /// The purpose of this struct is to extract all terms from the Human Phenotype Ontology (HPO) JSON file
 ///
 /// The rest of the application does not perform ontology analysis, instead, we demand that
@@ -20,6 +27,7 @@ pub trait HPO {
 /// used then we output an error message that allows the user to find the current identifier.
 /// Likewise if the identifier is correct but the label is incorrect, we output the correct
 /// label to help the user to correct the error in the template input file.
+#[derive(Debug)]
 pub struct SimpleHPOMapper {
     obsolete_d: HashMap<String, String>,
     tid_to_label_d: HashMap<String, String>,
@@ -56,11 +64,7 @@ impl HPO for SimpleHPOMapper {
             if expected == label {
                 return Ok(true);
             } else {
-                Err(Error::WrongLabel {
-                    id: tid.to_string(),
-                    actual: label.to_string(),
-                    expected: expected.to_string(),
-                })
+                Err(Error::wrong_label_error(tid, label, expected))
             }
         } else {
             Err(Error::HpIdNotFound {

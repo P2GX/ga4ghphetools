@@ -20,7 +20,7 @@ pub trait AgeTrait {
     fn age_string(&self) -> String;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GestationalAge {
     weeks: u32,
     days: u32,
@@ -50,7 +50,7 @@ impl GestationalAge {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Iso8601Age {
     years: u32,
     months: u32,
@@ -116,7 +116,7 @@ impl AgeTrait for HpoTermAge {
 
 /// It is valid to put "na" in the Age column. We represent this is NaAge
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NaAge;
 
 impl AgeTrait for NaAge {
@@ -139,7 +139,7 @@ pub trait AgeToolTrait {
     fn parse(&self, cell_value: &str) -> Result<Age>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Age {
     Gestational(GestationalAge),
     HpoTerm(HpoTermAge),

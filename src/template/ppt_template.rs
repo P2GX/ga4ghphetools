@@ -14,12 +14,10 @@ use ontolius::{
 use crate::error::{self, Error, Result};
 use crate::{
     pptcolumn::disease_gene_bundle::DiseaseGeneBundle,
+    header_duplet::header_duplet::HeaderDupletOld,
     hpo::hpo_term_arranger::HpoTermArranger,
     template::phetools_qc::PheToolsQc,
-    pptcolumn::{
-        header_duplet::HeaderDuplet,
-        ppt_column::{ColumnType, PptColumn},
-    },
+    pptcolumn::ppt_column::{ColumnType, PptColumn},
 };
 
 #[derive(PartialEq)]
@@ -207,7 +205,7 @@ impl PptTemplate {
             error_list.push(Error::unequal_row_lengths());
             return Err(error_list);
         }
-        let hdup_list = match HeaderDuplet::extract_from_string_matrix(&matrix) {
+        let hdup_list = match HeaderDupletOld::extract_from_string_matrix(&matrix) {
             Ok(val) => val,
             Err(e) => {
                 error_list.push(e);

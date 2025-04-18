@@ -12,6 +12,7 @@ pub enum HpoTermStatus {
     Onset(Onset),
 }
 
+#[derive(Debug)]
 pub struct HpoTemplate {
     hpo_id: String,
     label: String,
@@ -28,6 +29,7 @@ impl HpoTemplate {
     }
 }
 
+#[derive(Debug)]
 pub struct HpoTemplateFactory {
     hpo_id: String,
     label: String,

@@ -16,6 +16,7 @@ enum AlleleType {
     NotAvailable,
 }
 
+#[derive(Debug)]
 pub struct Allele {
     allele: String,
     allele_type: AlleleType,
@@ -32,7 +33,7 @@ impl Error {
     where
         T: Into<String>,
     {
-        Error::HgvsError { msg: val.into() }
+        Error::AlleleError { msg: val.into() }
     }
 }
 

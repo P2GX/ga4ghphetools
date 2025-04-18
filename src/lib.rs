@@ -6,6 +6,7 @@
 
 
 mod error;
+mod header_duplet;
 mod hpo;
 mod pptcolumn;
 mod template;
@@ -17,7 +18,7 @@ use crate::error::Error;
 use crate::template::template_row_adder::TemplateRowAdder;
 use pptcolumn::disease_gene_bundle::DiseaseGeneBundle;
 use hpo::hpo_term_arranger::HpoTermArranger;
-use template::individual_template::IndividualTemplateFactory;
+use template::itemplate_factory::IndividualTemplateFactory;
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use template::ppt_template::PptTemplate;

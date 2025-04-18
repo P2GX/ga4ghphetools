@@ -37,6 +37,8 @@ fn check_forbidden_chars(value: &str) -> Result<()> {
     }
 }
 
+#[derive(Debug)]
+
 pub struct SimpleLabel {
     label: String,
 }

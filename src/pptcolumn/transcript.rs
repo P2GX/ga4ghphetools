@@ -13,6 +13,7 @@ fn ends_with_period_and_number(s: &str) -> bool {
     false
 }
 
+#[derive(Debug)]
 pub struct Transcript {
     value: String,
 }

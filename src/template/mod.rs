@@ -1,6 +1,8 @@
 pub mod curie;
 pub mod excel;
+pub mod header_duplet_row;
 pub mod individual_template;
+pub mod itemplate_factory;
 pub mod phetools_qc;
 pub mod ppt_template;
 pub mod simple_label;

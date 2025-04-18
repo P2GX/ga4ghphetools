@@ -3,7 +3,7 @@ use std::{
     fmt::{self, format},
 };
 
-use super::header_duplet::HeaderDuplet;
+use crate::header_duplet::header_duplet::HeaderDupletOld;
 use crate::{
     error::{self, Error, Result},
     template::individual_template::TemplateError,
@@ -209,13 +209,13 @@ impl PptCellValidator for PptColumn {
 
 pub struct PptColumn {
     column_type: ColumnType,
-    header_duplet: HeaderDuplet,
+    header_duplet: HeaderDupletOld,
     column_data: Vec<String>,
 }
 
 impl PptColumn {
     pub fn new(column_type: ColumnType, header1: &str, header2: &str, column: &[String]) -> Self {
-        let hd = HeaderDuplet::new(header1, header2);
+        let hd = HeaderDupletOld::new(header1, header2);
         // the first two columns are the header and do make contain column data
         // note that we have checked that the vector is at least three
         let coldata: Vec<String> = match column.len() {
@@ -324,13 +324,13 @@ impl PptColumn {
 
     /// Method to be called from PptTemplate::from_string_matrix
     /// generates an HPO column from data taken from an Excel template file
-    pub fn hpo_term_from_column(header_dup: &HeaderDuplet, col: &Vec<String>) -> Self {
+    pub fn hpo_term_from_column(header_dup: &HeaderDupletOld, col: &Vec<String>) -> Self {
         let name = header_dup.row1();
         let hpid = header_dup.row2();
         Self::new(ColumnType::HpoTermColumn, &name, &hpid, col)
     }
 
-    pub fn get_header_duplet(&self) -> HeaderDuplet {
+    pub fn get_header_duplet(&self) -> HeaderDupletOld {
         self.header_duplet.clone()
     }
 
