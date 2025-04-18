@@ -12,6 +12,8 @@ use std::{collections::HashSet, fmt};
 
 use crate::header_duplet::pmid_duplet::PmidDuplet;
 
+use super::{age_last_encounter::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, hpo_separator_duplet::HpoSeparatorDuplet, hpo_term_duplet::HpoTermDuplet, individual_id_duplet::IndividualIdDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
+
 
 pub trait HeaderDupletItem {
     fn row1(&self) -> String;
@@ -90,9 +92,30 @@ fn check_valid_curie(s: &str) -> Result<bool> {
 }
 }
 
+
+#[derive(Debug)]
 pub enum HeaderDuplet {
     PmidDuplet(PmidDuplet),
+    TitleDuplet(TitleDuplet),
+    IndividualIdDuplet(IndividualIdDuplet),
+    CommentDuplet(CommentDuplet),
+    DiseaseIdDuplet(DiseaseIdDuplet),
+    DiseaseLabelDuplet(DiseaseLabelDuplet),
+    HgncDuplet(HgncDuplet),
+    GeneSymbolDuplet(GeneSymbolDuplet),
+    TranscriptDuplet(TranscriptDuplet),
+    Allele1Duplet(Allele1Duplet),
+    Allele2Duplet(Allele2Duplet),
+    VariantCommentDuplet(VariantCommentDuplet),
+    AgeOnsetDuplet(AgeOfOnsetDuplet),
+    AgeLastEncounterDuplet(AgeLastEncounterDuplet),
+    DeceasedDuplet(DeceasedDuplet),
+    SexDuplet(SexDuplet),
+    HpoSeparatorDuplet(HpoSeparatorDuplet),
+    HpoTermDuplet(HpoTermDuplet)
 }
+
+
 
 /// The HeaderDuplet represents the first two rows of the pyphetools template.
 ///

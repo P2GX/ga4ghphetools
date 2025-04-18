@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{self};
+use std::sync::Arc;
 use std::time::Instant;
 
 use ontolius::ontology::csr::FullCsrOntology;
@@ -21,6 +22,8 @@ use crate::hpo::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::template::simple_label::SimpleLabel;
 use crate::pptcolumn::transcript::Transcript;
 
+use super::header_duplet_row::{HeaderDupletRow, MendelianHDRow};
+
 
 impl Error {
     fn unrecognized_value(val: &str, field_name: &str) -> Self {
@@ -32,46 +35,6 @@ impl Error {
 }
 
 
-/// These fields are always required by our template
-const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
-static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
-    "PMID",
-    "title",
-    "individual_id",
-    "comment",
-    "disease_id",
-    "disease_label",
-    "HGNC_id",
-    "gene_symbol",
-    "transcript",
-    "allele_1",
-    "allele_2",
-    "variant.comment",
-    "age_of_onset",
-    "age_at_last_encounter",
-    "deceased",
-    "sex",
-    "HPO",
-];
-const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
-    "CURIE",
-    "str",
-    "str",
-    "optional",
-    "CURIE",
-    "str",
-    "CURIE",
-    "str",
-    "str",
-    "str",
-    "str",
-    "optional",
-    "age",
-    "age",
-    "yes/no/na",
-    "M:F:O:U",
-    "na",
-];
 
 #[derive(Debug)]
 pub enum TableCellDataType {
@@ -172,7 +135,34 @@ impl TableCell for SexTableCell {
     }
 }
 
+
+
+
+pub trait PheToolsIndividualTemplate {
+    fn qc(&self) -> Result<()>;
+}
+
 #[derive(Debug)]
+pub struct IndividualTemplate2<T> where T: HeaderDupletRow {
+    header: Arc<T>,
+    values: Vec<String>
+}
+
+impl<T>  IndividualTemplate2<T> 
+    where T: HeaderDupletRow 
+{
+    pub fn new(header: Arc<T>, values: &Vec<String>) -> Self {
+        Self {
+            header, values: values.clone()
+        }
+    }
+/* 
+    pub fn individual_id(&self) -> String {
+        let idx = self.get_idx("individual_id");
+        self.individual_id.value()
+    }*/
+}
+
 
 pub struct IndividualTemplate {
     title: TitleCell,
