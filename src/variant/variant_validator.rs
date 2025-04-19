@@ -7,7 +7,7 @@ use anyhow::{Result, bail};
 use polars::series::implementations;
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{error::Error, pptcolumn::transcript, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
+use crate::{error::Error, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 

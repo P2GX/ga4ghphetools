@@ -10,16 +10,11 @@ use std::time::Instant;
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::pptcolumn::allele::Allele;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
-use crate::pptcolumn::age::{Age, AgeTool, AgeToolTrait};
-use crate::pptcolumn::deceased::DeceasedTableCell;
 use crate::rphetools_traits::TableCell;
 use crate::hpo::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::template::simple_label::SimpleLabel;
-use crate::pptcolumn::transcript::Transcript;
-
 use super::header_duplet_row::{self, HeaderDupletRow};
 
 
