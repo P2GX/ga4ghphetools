@@ -3,10 +3,12 @@
 //! 
 
 
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 
-#[derive(Debug)]
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TitleDuplet {}
 
 
@@ -22,11 +24,15 @@ impl HeaderDupletItem for TitleDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> crate::error::Result<()> {
-        Self::check_white_space(cell_contents)?;
-        Self::check_empty(cell_contents)?;
+        header_duplet::check_white_space(cell_contents)?;
+        header_duplet::check_empty(cell_contents)?;
         Ok(())
     }
     
+    
+    
+}
+impl HeaderDupletItemFactory for TitleDuplet {
     fn from_table(row1: &str, row2: &str) -> crate::error::Result<Self> where Self: Sized {
         let duplet = Self{};
         if duplet.row1() != row1 {
@@ -37,8 +43,18 @@ impl HeaderDupletItem for TitleDuplet {
             return Ok(duplet);
         }
     }
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::TitleDuplet(self)
+    }
 }
 
+
+
+impl TitleDuplet {
+    pub fn new() -> Self {
+        TitleDuplet{}
+    }
+}
 
 #[cfg(test)]
 mod test {

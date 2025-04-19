@@ -4,11 +4,13 @@
 //! 
 
 use crate::template::curie;
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
 
-#[derive(Debug, Default)]
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct VariantCommentDuplet {}
 
 impl HeaderDupletItem for VariantCommentDuplet {
@@ -21,10 +23,15 @@ impl HeaderDupletItem for VariantCommentDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
-        Self::check_tab(cell_contents)?;
+        header_duplet::check_tab(cell_contents)?;
         Ok(())
     }
 
+    
+    
+}
+
+impl HeaderDupletItemFactory for VariantCommentDuplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
         let duplet = Self::default();
         if duplet.row1() != row1 {
@@ -35,8 +42,17 @@ impl HeaderDupletItem for VariantCommentDuplet {
             return Ok(duplet);
         }
     }
+    
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::VariantCommentDuplet(self)
+    }
 }
 
+impl VariantCommentDuplet {
+    pub fn new() -> Self {
+        VariantCommentDuplet{}
+    }
+}
 
 #[cfg(test)]
 mod test {

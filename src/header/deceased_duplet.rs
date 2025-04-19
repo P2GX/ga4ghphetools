@@ -7,11 +7,13 @@ use std::collections::HashSet;
 use lazy_static::lazy_static;
 
 use crate::template::curie;
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
-use crate::header_duplet::age_util;
+use crate::header::age_util;
 
-#[derive(Debug, Default)]
+use super::header_duplet::{HeaderDuplet, HeaderDupletItemFactory};
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DeceasedDuplet {}
 
 
@@ -41,6 +43,10 @@ impl HeaderDupletItem for DeceasedDuplet {
         }
     }
 
+   
+}
+
+impl HeaderDupletItemFactory for DeceasedDuplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
         let duplet = Self::default();
         if duplet.row1() != row1 {
@@ -51,10 +57,18 @@ impl HeaderDupletItem for DeceasedDuplet {
             return Ok(duplet);
         }
     }
+
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::DeceasedDuplet(self)
+    }
 }
 
 
-
+impl DeceasedDuplet {
+    pub fn new() -> Self {
+        Self{}
+    }
+}
 
 #[cfg(test)]
 mod test {

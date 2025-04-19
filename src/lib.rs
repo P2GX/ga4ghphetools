@@ -3,10 +3,16 @@
 //! Users interact with the library via the PheTools structure.
 //! The library does not expose custom datatypes, and errors are translated
 //! into strings to simplify the use of rphetools in applications
+//! 
+//! ## Features
+//! 
+//! - Quality assessment of phenopackets template files
+//! - Generation of GA4GH Phenopackets
+//! - API for curation tools
 
 
 mod error;
-mod header_duplet;
+mod header;
 mod hpo;
 mod pptcolumn;
 mod template;
@@ -22,7 +28,6 @@ use template::itemplate_factory::IndividualTemplateFactory;
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use template::ppt_template::PptTemplate;
-use pptcolumn::ppt_column::ColumnType;
 use rphetools_traits::PyphetoolsTemplateCreator;
 use std::collections::HashMap;
 use std::fmt::{self};
@@ -96,29 +101,19 @@ impl PheTools {
         transcript_id: &str,
         hpo_term_ids: Vec<TermId>,
     ) -> Result<(), String> {
-        let dgb_result = DiseaseGeneBundle::new_from_str(
+        let dgb = DiseaseGeneBundle::new_from_str(
             disease_id,
             disease_name,
             hgnc_id,
             gene_symbol,
             transcript_id,
-        );
-        match dgb_result {
-            Ok(dgb) => {
-                match template::template_creator::create_pyphetools_template(dgb, hpo_term_ids, &self.hpo) {
-                    Ok(template) => {
-                        self.set_template(template);
-                        Ok(())
-                    }
-                    Err(e) => {
-                        return Err(e.to_string()); // convert to String error for external use
-                    }
-                }
-            }
-            Err(e) => {
-                return Err(e.to_string()); // convert to String error for external use
-            }
-        }
+        ).map_err(|e| e.to_string())?;
+        let template = template::template_creator::create_pyphetools_template(
+            dgb, 
+            hpo_term_ids, 
+            &self.hpo
+        ).map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     /// Arranges the given HPO terms into a specific order for curation.
@@ -220,18 +215,8 @@ impl PheTools {
     pub fn is_hpo_col(&self, col: usize) -> bool {
         match &self.template {
             Some(tplt) => {
-                if col >= tplt.column_count() {
-                    return false;
-                }
-                match tplt.col_type_at(col) {
-                    Ok(ctype) => {
-                        return ctype == ColumnType::HpoTermColumn;
-                    }
-                    Err(_) => {
-                        return false;
-                    }
-                }
-            }
+                tplt.is_hpo_column(col)
+            },
             None => false,
         }
     }
@@ -242,7 +227,7 @@ impl PheTools {
                 if col >= tplt.column_count() {
                     return Error::column_index_error(col, tplt.column_count()).to_string();
                 }
-                match tplt.col_type_at(col) {
+                match tplt.get_column_name(col) {
                     Ok(ctype) => {
                         return format!("{:?}", ctype);
                     }

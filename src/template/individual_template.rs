@@ -11,7 +11,6 @@ use std::time::Instant;
 use ontolius::ontology::csr::FullCsrOntology;
 
 use crate::pptcolumn::allele::Allele;
-use crate::header_duplet::header_duplet::HeaderDupletOld;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::hpo::hpo_term_template::{HpoTemplate, HpoTemplateFactory};

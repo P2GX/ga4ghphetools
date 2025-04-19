@@ -3,11 +3,13 @@
 //! 
 
 use crate::template::curie;
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 
+use super::header_duplet::{HeaderDuplet, HeaderDupletItemFactory};
 
-#[derive(Debug, Default)]
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct PmidDuplet {}
 
 
@@ -31,6 +33,10 @@ impl HeaderDupletItem for PmidDuplet {
         Ok(())
     }
     
+   
+}
+
+impl HeaderDupletItemFactory for PmidDuplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
         let pmid_d = Self::default();
         if pmid_d.row1() != row1 {
@@ -41,9 +47,18 @@ impl HeaderDupletItem for PmidDuplet {
         }
         return Ok(pmid_d);
     }
+
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::PmidDuplet(self)
+    }
+  
 }
 
-
+impl PmidDuplet {
+    pub fn new() -> Self {
+        PmidDuplet{}
+    }
+}
 
 #[cfg(test)]
 mod test {

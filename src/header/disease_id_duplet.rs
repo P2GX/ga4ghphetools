@@ -3,10 +3,12 @@
 //! 
 
 
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 
-#[derive(Debug, Default)]
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DiseaseIdDuplet {}
 
 
@@ -20,7 +22,7 @@ impl HeaderDupletItem for DiseaseIdDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
-        Self::check_valid_curie(cell_contents)?;
+        header_duplet::check_valid_curie(cell_contents)?;
         if !(cell_contents.starts_with("OMIM") || cell_contents.starts_with("MONDO")) {
             return Err(Error::DiseaseIdError {
                 msg: format!("Disease id has invalid prefix: '{}'", cell_contents),
@@ -30,6 +32,10 @@ impl HeaderDupletItem for DiseaseIdDuplet {
         Ok(())
     }
 
+   
+}
+
+impl HeaderDupletItemFactory for DiseaseIdDuplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
         let duplet = Self::default();
         if duplet.row1() != row1 {
@@ -38,12 +44,19 @@ impl HeaderDupletItem for DiseaseIdDuplet {
         if duplet.row2() != row2 {
             return Err(Error::HeaderError { msg: format!("Malformed disease_id Header: Expected '{}' but got '{}'", duplet.row2(), row2) });
         }
-        return Ok(duplet);
-        
+        return Ok(duplet); 
+    }
+
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::DiseaseIdDuplet(self)
     }
 }
 
-
+impl DiseaseIdDuplet {
+    pub fn new() -> Self {
+        Self{}
+    }
+}
 
 
 #[cfg(test)]

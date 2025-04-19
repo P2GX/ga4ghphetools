@@ -1,48 +1,18 @@
 //! Error
 //!
-//! Functionality for error handling
-//! Production code uses strict error handling
-//! Test code can override Error and Result as follows
-//! ```ignore
-//! #[cfg(test)]
-//! mod tests {
-//!     type Error = Box<dyn std::error::Error>;
-//!     type Result<T> = core::result::Result<T,Error>;
-//!     use super::*;
-//!
-//!     #[test]
-//!     fn test_x() -> Result<()> {
-//!         // -- Setup and fixtures
-//!         // -- Exec
-//!         // -- Check
-//!     }
-//!
-//! }
-//! let x = some_function();
-//! println!("{}", x);
-//! ```
-//! In contrast, production code has errors like this
-//! ```ignore
-//! #[derive(Debug, From)]
-//! pub enum Error {
-//!   IndexOutOfBounds { actual: usize, max: usize},
-//!
-//!   #[from]
-//!   SerdeJson(serde_json::Error)
-//! }
-//! ```
+//! Functionality for error handling. The Error enum offers specific Error types and convenience
+//! functions for creating Error instances. API-facing funtions transform these errors into Strings.
 //!
 
 use core::fmt;
-
 use derive_more::{Display, From};
 use serde::Serialize;
 
 use crate::template::individual_template::TemplateError;
 
-// can be used for test modules pub type Error = Box<dyn std::err::Err>;
 
 pub type Result<T> = core::result::Result<T, Error>;
+
 
 #[derive(Debug, From, Serialize)]
 pub enum Error {

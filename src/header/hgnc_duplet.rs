@@ -4,11 +4,13 @@
 //! 
 
 use crate::template::curie;
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
 
-#[derive(Debug, Default)]
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct HgncDuplet {}
 
 impl HeaderDupletItem for HgncDuplet {
@@ -21,7 +23,7 @@ impl HeaderDupletItem for HgncDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
-        Self::check_valid_curie(cell_contents)?;
+        header_duplet::check_valid_curie(cell_contents)?;
         if ! cell_contents.starts_with("HGNC")  {
             return Err(Error::HgncError { msg: format!("HGNC id has invalid prefix: '{}'", cell_contents),
             });
@@ -29,6 +31,10 @@ impl HeaderDupletItem for HgncDuplet {
         Ok(())
     }
 
+   
+}
+
+impl HeaderDupletItemFactory for HgncDuplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
         let duplet = Self::default();
         if duplet.row1() != row1 {
@@ -39,9 +45,17 @@ impl HeaderDupletItem for HgncDuplet {
         }
         return Ok(duplet);
     }
+
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::HgncDuplet(self)
+    }
 }
 
-
+impl HgncDuplet {
+    pub fn new() -> Self {
+        Self{}
+    }
+}
 
 
 #[cfg(test)]

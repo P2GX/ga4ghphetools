@@ -16,8 +16,9 @@ use std::time::Instant;
 
 use ontolius::ontology::csr::FullCsrOntology;
 
+use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem, HeaderDupletItemFactory};
+use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::pptcolumn::allele::Allele;
-use crate::header_duplet::header_duplet::HeaderDupletOld;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::hpo::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
@@ -79,13 +80,24 @@ impl IndividualTemplateFactory {
                 n1, n2
             )));
         }
-        let mut header_duplets: Vec<HeaderDupletOld> = vec![];
+        let mut header_duplets: Vec<HeaderDuplet> = vec![];
         for i in 0..(n1 - 1) {
-            header_duplets.push(HeaderDupletOld::new(
-                &first_row_headers[i],
-                &second_row_headers[i],
-            ));
-            //println!("{} ", header_duplets[i]); // Print each column name (header)
+            match HeaderDuplet::get_duplet( &first_row_headers[i]) {
+                Some(duplet) => {
+                    if duplet.row2() != second_row_headers[i] {
+                        return Err(Error::TemplateError { 
+                            msg: format!("Malformed second template row ({}) for {}",&second_row_headers[i], duplet.row1()) 
+                        });
+                    } else {
+                        header_duplets.push(duplet);
+                    }
+                },
+                None => {
+                    // must be ab HPO column
+                    let hdup = HpoTermDuplet::new(&first_row_headers[i], &second_row_headers[i]);
+                    header_duplets.push(hdup.into_enum());
+                }
+            }
         }
         /*
         if let Err(res) = qc_list_of_header_items(&header_duplets) {
@@ -243,8 +255,7 @@ fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use crate::header_duplet::header_duplet::HeaderDupletOld;
-    use crate::error::Error;
+    use crate::{error::Error, header::{header_duplet::HeaderDupletItem, hpo_term_duplet::HpoTermDuplet}};
     use lazy_static::lazy_static;
     use ontolius::{io::OntologyLoaderBuilder, ontology::csr::MinimalCsrOntology};
     use polars::io::SerReader;
@@ -348,7 +359,7 @@ mod test {
 
     #[rstest]
     fn test_header_duplet_ctor() {
-        let hd = HeaderDupletOld::new("Arachnodactly", "HP:0001166");
+        let hd = HpoTermDuplet::new("Arachnodactly", "HP:0001166");
         let expected_header1 = String::from("Arachnodactly");
         let expected_header2 = String::from("HP:0001166");
         assert_eq!(expected_header1, hd.row1());

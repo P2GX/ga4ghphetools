@@ -7,12 +7,14 @@ use std::collections::HashSet;
 use lazy_static::lazy_static;
 
 use crate::template::curie;
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
-use crate::header_duplet::age_util;
+use crate::header::age_util;
+
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
 
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct HpoTermDuplet {
     hpo_label: String,
     hpo_id: String,
@@ -60,19 +62,25 @@ impl HeaderDupletItem for HpoTermDuplet {
         Err(Error::malformed_hpo_entry(cell_contents))
     }
 
+    
+}
+
+impl HeaderDupletItemFactory for HpoTermDuplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
-        Self::check_empty(row1)?;
-        Self::check_white_space(row1)?;
-        Self::check_valid_curie(row2)?;
+        header_duplet::check_empty(row1)?;
+        header_duplet::check_white_space(row1)?;
+        header_duplet::check_valid_curie(row2)?;
         if ! row2.starts_with("HP:") {
             return Err(Error::malformed_hpo_entry(row2));
         }
         let duplet = Self::new(row1, row2);
         return Ok(duplet);
     }
+
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::HpoTermDuplet(self)
+    }
 }
-
-
 
 
 #[cfg(test)]

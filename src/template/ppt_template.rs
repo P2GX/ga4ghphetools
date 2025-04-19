@@ -1,4 +1,4 @@
-//! Pyphetools Template
+//! PptTemplate
 //!
 //! The struct that contains all data needed to create or edit a cohort of phenopackets
 //! in "pyphetools" format, and to export GA4GH Phenopackets.
@@ -11,15 +11,15 @@ use ontolius::{
     Identified, TermId,
 };
 
-use crate::error::{self, Error, Result};
+use crate::{error::{self, Error, Result}, header::header_duplet::{HeaderDuplet, HeaderDupletItem}};
 use crate::{
     pptcolumn::disease_gene_bundle::DiseaseGeneBundle,
-    header_duplet::header_duplet::HeaderDupletOld,
     hpo::hpo_term_arranger::HpoTermArranger,
     template::phetools_qc::PheToolsQc,
-    pptcolumn::ppt_column::{ColumnType, PptColumn},
+    pptcolumn::ppt_column::PptColumn,
 };
 
+/// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
 #[derive(PartialEq)]
 pub enum TemplateType {
     Mendelian,
@@ -155,7 +155,7 @@ impl PptTemplate {
         }
     }
 
-    /// A function to export a Vec<Vec<String>> matrix from the data
+    /// A function to export a ``Vec<Vec<String>>`` matrix from the data
     ///
     /// # Returns
     ///     
@@ -205,7 +205,7 @@ impl PptTemplate {
             error_list.push(Error::unequal_row_lengths());
             return Err(error_list);
         }
-        let hdup_list = match HeaderDupletOld::extract_from_string_matrix(&matrix) {
+        let hdup_list = match HeaderDuplet::extract_from_string_matrix(&matrix) {
             Ok(val) => val,
             Err(e) => {
                 error_list.push(e);
@@ -359,9 +359,17 @@ impl PptTemplate {
         return self.template_type == TemplateType::Mendelian;
     }
 
-    pub fn col_type_at(&self, i: usize) -> Result<ColumnType> {
+    pub fn is_hpo_column(&self, i: usize) -> bool {
         match &self.columns.get(i) {
-            Some(column) => Ok(column.column_type()),
+            Some(col) => col.is_hpo_column(),
+            None => false
+        }
+    }
+
+    /// Get the name of the i'th column
+    pub fn get_column_name(&self, i: usize) -> Result<String> {
+        match &self.columns.get(i) {
+            Some(column) => Ok(column.get_header_duplet().row1()),
             None => Err(Error::TemplateError {
                 msg: format!("Could not get column at {i}"),
             }),

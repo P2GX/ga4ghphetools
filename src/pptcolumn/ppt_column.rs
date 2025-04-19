@@ -1,15 +1,18 @@
 use std::{
     collections::HashSet,
-    fmt::{self, format},
+    fmt::{self, format}, sync::Arc,
 };
 
-use crate::header_duplet::header_duplet::HeaderDupletOld;
+
 use crate::{
-    error::{self, Error, Result},
-    template::individual_template::TemplateError,
+    error::{self, Error, Result}, header::{age_last_encounter::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, header_duplet::{HeaderDupletItem, HeaderDupletItemFactory}, hgnc_duplet::HgncDuplet, hpo_separator_duplet::HpoSeparatorDuplet, hpo_term_duplet::HpoTermDuplet, individual_id_duplet::IndividualIdDuplet, pmid_duplet::PmidDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet}, template::individual_template::TemplateError
 };
+
+use crate::header::header_duplet::HeaderDuplet;
+
 use once_cell::sync::Lazy;
 use ontolius::TermId;
+use phenopackets_dev::schema::v1::core::individual;
 use polars::error::ErrString;
 use regex::Regex;
 
@@ -22,73 +25,12 @@ static DECEASED_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(yes|no|na)").unw
 static SEX_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(M|F|O|U)").unwrap());
 static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"na").unwrap());
 
-/// These fields are always required by our template
-const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
-static EXPECTED_H1_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
-    "PMID",
-    "title",
-    "individual_id",
-    "comment",
-    "disease_id",
-    "disease_label",
-    "HGNC_id",
-    "gene_symbol",
-    "transcript",
-    "allele_1",
-    "allele_2",
-    "variant.comment",
-    "age_of_onset",
-    "age_at_last_encounter",
-    "deceased",
-    "sex",
-    "HPO",
-];
-const EXPECTED_H2_FIELDS: [&str; NUMBER_OF_CONSTANT_HEADER_FIELDS] = [
-    "CURIE",
-    "str",
-    "str",
-    "optional",
-    "CURIE",
-    "str",
-    "CURIE",
-    "str",
-    "str",
-    "str",
-    "str",
-    "optional",
-    "age",
-    "age",
-    "yes/no/na",
-    "M:F:O:U",
-    "na",
-];
+
 
 trait PptCellValidator {
     fn validate(&self, value: &str) -> Result<()>;
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum ColumnType {
-    PmidColumn,
-    TitleColumn,
-    IndividualIdColumn,
-    IndividualCommentColumn,
-    DiseaseIdColumn,
-    DiseaseLabelColumn,
-    HgncIdColumn,
-    GeneSymbolColumn,
-    TranscriptColumn,
-    AlleleOneColumn,
-    AlleleTwoColumn,
-    VariantCommentColumn,
-    AgeOfOnsetColumn,
-    AgeAtLastExaminationColumn,
-    DeceasedColumn,
-    SexColumn,
-    SeparatorColumn,
-    HpoTermColumn,
-    NtrRequestColumn,
-}
 
 impl Error {
     pub fn pmid_error(val: &str) -> Self {
@@ -118,104 +60,21 @@ impl Error {
 
 impl PptCellValidator for PptColumn {
     fn validate(&self, value: &str) -> Result<()> {
-        match &self.column_type {
-            ColumnType::PmidColumn => {
-                if !PMID_REGEX.is_match(value) {
-                    return Err(Error::pmid_error(value));
-                }
-            }
-            ColumnType::TitleColumn => {
-                if !NO_LEADING_TRAILING_WS.is_match(value) {
-                    return Err(Error::ws_error(value, "title"));
-                }
-            }
-            ColumnType::IndividualIdColumn => {
-                if !NO_LEADING_TRAILING_WS.is_match(value) {
-                    return Err(Error::ws_error(value, "individual_id"));
-                }
-            }
-            ColumnType::IndividualCommentColumn => {
-                return Ok(());
-            }
-            ColumnType::DiseaseIdColumn => {
-                if !DISEASE_ID_REGEX.is_match(value) {
-                    return Err(Error::disease_id_error(value));
-                }
-            }
-            ColumnType::DiseaseLabelColumn => {
-                if !NO_LEADING_TRAILING_WS.is_match(value) {
-                    return Err(Error::ws_error(value, "disease_label"));
-                }
-            }
-            ColumnType::HgncIdColumn => {
-                if !HGNC_ID_REGEX.is_match(value) {
-                    return Err(Error::HgncError {
-                        msg: format!("Malformed HGNC id: '{value}'"),
-                    });
-                }
-            }
-            ColumnType::GeneSymbolColumn => {
-                if !NO_LEADING_TRAILING_WS.is_match(value) {
-                    return Err(Error::ws_error(value, "gene_symbol"));
-                }
-            }
-            ColumnType::TranscriptColumn => {
-                if !TRANSCRIPT_REGEX.is_match(value) {
-                    return Err(Error::TranscriptError {
-                        msg: format!("Malformed transcript: '{value}'"),
-                    });
-                }
-            }
-            ColumnType::AlleleOneColumn => {
-                if !NO_LEADING_TRAILING_WS.is_match(value) {
-                    return Err(Error::ws_error(value, "allele_1"));
-                }
-            }
-            ColumnType::AlleleTwoColumn => {
-                if !NO_LEADING_TRAILING_WS.is_match(value) {
-                    return Err(Error::ws_error(value, "allele_2"));
-                }
-            }
-            ColumnType::AgeOfOnsetColumn => {
-                return Ok(());
-            }
-            ColumnType::AgeAtLastExaminationColumn => {
-                return Ok(()); // TODO BETTER FUNCTION
-            }
-            ColumnType::DeceasedColumn => {
-                if !DECEASED_REGEX.is_match(value) {
-                    return Err(Error::DeceasedError {
-                        msg: format!("Malformed deceased entry: '{value}'"),
-                    });
-                }
-            }
-            ColumnType::SexColumn => {
-                if !SEX_REGEX.is_match(value) {
-                    return Err(Error::sex_field_error(value));
-                }
-            }
-            ColumnType::SeparatorColumn => {
-                if !SEPARATOR_REGEX.is_match(value) {
-                    return Err(Error::separator(value));
-                }
-            }
-            _ => {
-                return Ok(());
-            }
-        }
-        Ok(())
+        let hd = self.get_header_duplet();
+        hd.qc_cell(value)
     }
 }
 
+/// A structure that contains all of the information of a column in our template
 pub struct PptColumn {
-    column_type: ColumnType,
-    header_duplet: HeaderDupletOld,
+    header_duplet: HeaderDuplet,
     column_data: Vec<String>,
 }
 
 impl PptColumn {
-    pub fn new(column_type: ColumnType, header1: &str, header2: &str, column: &[String]) -> Self {
-        let hd = HeaderDupletOld::new(header1, header2);
+    pub fn new(
+        header_dup: HeaderDuplet,
+        column: &[String]) -> Self {
         // the first two columns are the header and do make contain column data
         // note that we have checked that the vector is at least three
         let coldata: Vec<String> = match column.len() {
@@ -223,114 +82,115 @@ impl PptColumn {
             _ => column.iter().cloned().collect(),
         };
         PptColumn {
-            column_type: column_type,
-            header_duplet: hd,
+            header_duplet: header_dup,
             column_data: coldata,
         }
     }
 
     pub fn pmid(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::PmidColumn, "PMID", "CURIE", col)
+        let pmid = PmidDuplet::new();
+        Self::new(pmid.into_enum(), col)
     }
 
     pub fn title(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::TitleColumn, "title", "str", col)
+        let title = TitleDuplet::new();
+        Self::new(title.into_enum(), col)
     }
 
     pub fn individual_id(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::IndividualIdColumn, "individual_id", "str", col)
+        let individual = IndividualIdDuplet::new();
+        Self::new(individual.into_enum(), col)
     }
 
     pub fn individual_comment(col: &Vec<String>) -> Self {
-        Self::new(
-            ColumnType::IndividualCommentColumn,
-            "comment",
-            "optional",
-            col,
-        )
+        let comment = CommentDuplet::new();
+        Self::new(comment.into_enum(), col)
     }
 
     pub fn disease_id(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::DiseaseIdColumn, "disease_id", "CURIE", col)
+        let disease_id = DiseaseIdDuplet::new();
+        Self::new(disease_id.into_enum(), col)
     }
 
     pub fn disease_label(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::DiseaseLabelColumn, "disease_label", "str", col)
+        let disease_label = DiseaseLabelDuplet::new();
+        Self::new(disease_label.into_enum(), col)
     }
 
     pub fn hgnc(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::HgncIdColumn, "HGNC_id", "CURIE", col)
+        let hgnc = HgncDuplet::new();
+        Self::new(hgnc.into_enum(), col)
     }
 
     pub fn gene_symbol(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::GeneSymbolColumn, "gene_symbol", "str", col)
+        let gene = GeneSymbolDuplet::new();
+        Self::new(gene.into_enum(), col)
     }
 
     pub fn transcript(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::TranscriptColumn, "transcript", "str", col)
+        let transcript = TranscriptDuplet::new();
+        Self::new(transcript.into_enum(), col)
     }
 
     pub fn allele_1(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::AlleleOneColumn, "allele_1", "str", col)
+        let a1 = Allele1Duplet::new();
+        Self::new(a1.into_enum(), col)
     }
 
     pub fn allele_2(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::AlleleTwoColumn, "allele_2", "str", col)
+        let a2 = Allele2Duplet::new();
+        Self::new(a2.into_enum(), col)
     }
 
     pub fn variant_comment(col: &Vec<String>) -> Self {
-        Self::new(
-            ColumnType::VariantCommentColumn,
-            "variant.comment",
-            "optional",
-            col,
-        )
+        let vcomment = VariantCommentDuplet::new();
+        Self::new(vcomment.into_enum(), col)
     }
 
     pub fn age_of_onset(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::AgeOfOnsetColumn, "age_of_onset", "age", col)
+        let age_of_onset = AgeOfOnsetDuplet::new();
+        Self::new(age_of_onset.into_enum(), col)
     }
 
     pub fn age_at_last_encounter(col: &Vec<String>) -> Self {
-        Self::new(
-            ColumnType::AgeAtLastExaminationColumn,
-            "age_at_last_encounter",
-            "age",
-            col,
-        )
+        let age_of_encounter = AgeLastEncounterDuplet::new();
+        Self::new(age_of_encounter.into_enum(), col)
     }
 
     pub fn deceased(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::DeceasedColumn, "deceased", "yes/no/na", col)
+        let deceased = DeceasedDuplet::new();
+        Self::new(deceased.into_enum(), col)
     }
 
     pub fn sex(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::SexColumn, "sex", "M:F:O:U", col)
+        let sx = SexDuplet::new();
+        Self::new(sx.into_enum(), col)
     }
 
     pub fn separator(col: &Vec<String>) -> Self {
-        Self::new(ColumnType::SeparatorColumn, "HPO", "na", col)
+        let sep = HpoSeparatorDuplet::new();
+        Self::new(sep.into_enum(), col)
     }
 
     pub fn hpo_term(name: &str, term_id: &TermId) -> Self {
         let empty_col: Vec<String> = vec![];
-        Self::new(
-            ColumnType::HpoTermColumn,
-            name,
-            &term_id.to_string(),
-            &empty_col,
-        )
+        let hpo_dup = HpoTermDuplet::new(name, term_id.to_string());
+        Self::new(hpo_dup.into_enum(), &empty_col)
+    }
+
+    pub fn is_hpo_column(&self) -> bool {
+        matches!(self.header_duplet, HeaderDuplet::HpoTermDuplet(_)) 
     }
 
     /// Method to be called from PptTemplate::from_string_matrix
     /// generates an HPO column from data taken from an Excel template file
-    pub fn hpo_term_from_column(header_dup: &HeaderDupletOld, col: &Vec<String>) -> Self {
+    pub fn hpo_term_from_column(header_dup: &HeaderDuplet, col: &Vec<String>) -> Self {
         let name = header_dup.row1();
         let hpid = header_dup.row2();
-        Self::new(ColumnType::HpoTermColumn, &name, &hpid, col)
+        Self::new(header_dup.clone(), col)
     }
 
-    pub fn get_header_duplet(&self) -> HeaderDupletOld {
+    pub fn get_header_duplet(&self) -> HeaderDuplet {
         self.header_duplet.clone()
     }
 
@@ -366,12 +226,9 @@ impl PptColumn {
         }
     }
 
-    pub fn column_type(&self) -> ColumnType {
-        self.column_type.clone()
-    }
-
+    
     pub fn get_options_for_header(&self, row: usize, col: usize) -> Vec<String> {
-        if self.column_type == ColumnType::HpoTermColumn {
+        if self.is_hpo_column() {
             return vec!["edit".to_string()];
         } else {
             return vec![];
@@ -383,17 +240,17 @@ impl PptColumn {
             // special treatment for the first two rows, which make up the header
             return self.get_options_for_header(row, col);
         }
-        match self.column_type {
-            ColumnType::HpoTermColumn => {
-                let mut items = vec![
-                    "observed".to_string(),
-                    "excluded".to_string(),
-                    "na".to_string(),
-                ];
-                items.extend(addtl);
-                return items;
-            }
-            ColumnType::SexColumn => {
+        if self.is_hpo_column() {
+            let mut items = vec![
+                "observed".to_string(),
+                "excluded".to_string(),
+                "na".to_string(),
+            ];
+            items.extend(addtl);
+            return items;
+        }
+        match self.header_duplet.row1().as_str() {
+          "sex" => {
                 return vec![
                     "M".to_string(),
                     "F".to_string(),
@@ -401,16 +258,13 @@ impl PptColumn {
                     "U".to_string(),
                 ];
             }
-            ColumnType::DeceasedColumn => {
+            "deceased" => {
                 return vec!["yes".to_string(), "no".to_string(), "na".to_string()];
             }
             _ => {
-                return vec!["edit".to_string()];
+                return  vec![];
             }
-            _ => {}
         }
-
-        vec![]
     }
 
     /// Validate entry according to column specific rules.
@@ -508,7 +362,7 @@ impl PptColumn {
 
 impl core::fmt::Display for PptColumn {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "Column Type: {:?}", self.column_type)?;
+        writeln!(fmt, "Column Type: {:?}", self.header_duplet.row1())?;
         writeln!(fmt, "Header: {}", self.header_duplet)?;
         writeln!(fmt, "Data:")?;
         for (i, value) in self.column_data.iter().enumerate() {

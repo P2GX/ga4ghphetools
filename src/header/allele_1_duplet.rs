@@ -6,11 +6,13 @@
 use std::cell;
 
 use crate::template::curie;
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
-use crate::header_duplet::allele_util;
+use crate::header::allele_util;
 
-#[derive(Debug, Default)]
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Allele1Duplet {}
 
 impl HeaderDupletItem for Allele1Duplet {
@@ -23,8 +25,8 @@ impl HeaderDupletItem for Allele1Duplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
-        Self::check_empty(cell_contents)?;
-        Self::check_white_space(cell_contents)?;
+        header_duplet::check_empty(cell_contents)?;
+        header_duplet::check_white_space(cell_contents)?;
         if cell_contents.starts_with("c.") {
             if allele_util::check_valid_hgvs(cell_contents) {
                 return Ok(());
@@ -37,6 +39,10 @@ impl HeaderDupletItem for Allele1Duplet {
         Err(Error::AlleleError { msg: format!("Malformed allele '{}'", cell_contents) })
     }
 
+   
+}
+
+impl HeaderDupletItemFactory for Allele1Duplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
         let duplet = Self::default();
         if duplet.row1() != row1 {
@@ -47,9 +53,17 @@ impl HeaderDupletItem for Allele1Duplet {
         }
         return Ok(duplet);
     }
+
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::Allele1Duplet(self)
+    }
 }
 
-
+impl Allele1Duplet {
+    pub fn new() -> Self {
+        Self{}
+    }
+}
 
 #[cfg(test)]
 mod test {

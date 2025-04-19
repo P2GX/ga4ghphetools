@@ -6,11 +6,13 @@
 use std::cell;
 
 use crate::template::curie;
-use crate::header_duplet::header_duplet::HeaderDupletItem;
+use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
 
-#[derive(Debug, Default)]
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TranscriptDuplet {}
 
 impl HeaderDupletItem for TranscriptDuplet {
@@ -23,7 +25,7 @@ impl HeaderDupletItem for TranscriptDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
-        Self::check_empty(cell_contents)?;
+        header_duplet::check_empty(cell_contents)?;
         if ! cell_contents.starts_with("ENST") && ! cell_contents.starts_with("NM_") {
             return Err(Error::unrecognized_transcript_prefix(cell_contents));
         }  
@@ -42,6 +44,11 @@ impl HeaderDupletItem for TranscriptDuplet {
         Ok(())
     }
 
+    
+    
+}
+
+impl HeaderDupletItemFactory for TranscriptDuplet {
     fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
         let duplet = Self::default();
         if duplet.row1() != row1 {
@@ -52,9 +59,17 @@ impl HeaderDupletItem for TranscriptDuplet {
         }
         return Ok(duplet);
     }
+
+    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
+        HeaderDuplet::TranscriptDuplet(self)
+    }
 }
 
-
+impl TranscriptDuplet {
+    pub fn new() -> Self {
+        TranscriptDuplet{}
+    }
+}
 
 
 #[cfg(test)]

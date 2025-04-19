@@ -1,4 +1,4 @@
-# rustphen
+# PheTools
 Rust implementation of GA4GH Phenopacket Schema Tooling
 
 
