@@ -13,7 +13,6 @@ use ontolius::ontology::csr::FullCsrOntology;
 use crate::pptcolumn::allele::Allele;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
-use crate::hpo::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
 use crate::pptcolumn::age::{Age, AgeTool, AgeToolTrait};
 use crate::pptcolumn::deceased::DeceasedTableCell;
 use crate::rphetools_traits::TableCell;
@@ -178,7 +177,6 @@ pub struct IndividualTemplate {
     age_at_last_encounter: Option<Age>,
     deceased: DeceasedTableCell,
     sex: SexTableCell,
-    hpo_column_list: Vec<HpoTemplate>,
 }
 
 impl IndividualTemplate {
@@ -197,7 +195,6 @@ impl IndividualTemplate {
         age_last_encounter: Option<Age>,
         deceased: DeceasedTableCell,
         sex: SexTableCell,
-        hpo_columns: Vec<HpoTemplate>,
     ) -> Self {
         IndividualTemplate {
             title: title,
@@ -214,7 +211,7 @@ impl IndividualTemplate {
             age_at_last_encounter: age_last_encounter,
             deceased: deceased,
             sex: sex,
-            hpo_column_list: hpo_columns,
+            
         }
     }
     pub fn individual_id(&self) -> String {
@@ -274,10 +271,6 @@ impl IndividualTemplate {
 
     pub fn sex(&self) -> &SexTableCell {
         &self.sex
-    }
-
-    pub fn hpo_terms(&self) -> &Vec<HpoTemplate> {
-        &self.hpo_column_list
     }
 }
 

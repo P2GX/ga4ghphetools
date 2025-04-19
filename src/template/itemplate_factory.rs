@@ -21,7 +21,6 @@ use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::pptcolumn::allele::Allele;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
-use crate::hpo::hpo_term_template::{HpoTemplate, HpoTemplateFactory};
 use crate::pptcolumn::age::{Age, AgeTool, AgeToolTrait};
 use crate::pptcolumn::deceased::DeceasedTableCell;
 use crate::rphetools_traits::TableCell;
@@ -39,7 +38,7 @@ const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
 pub struct IndividualTemplateFactory {
     hpo: SimpleHPOMapper,
     expected_n_fields: usize,
-    index_to_hpo_factory_d: HashMap<usize, HpoTemplateFactory>,
+    header_duplets: Vec<HeaderDuplet>,
     content_rows: Vec<Vec<String>>,
 }
 
@@ -124,7 +123,6 @@ impl IndividualTemplateFactory {
         let simple_hpo = hpo.unwrap();
         let duration = start.elapsed(); //
         println!("Parsed HPO in: {:.3} seconds", duration.as_secs_f64());
-        let mut index_to_hpo_factory: HashMap<usize, HpoTemplateFactory> = HashMap::new();
         for i in (NUMBER_OF_CONSTANT_HEADER_FIELDS + 1)..header_duplets.len() {
             let valid_label =
                 simple_hpo.is_valid_term_label(&header_duplets[i].row2(), &header_duplets[i].row1());
@@ -141,13 +139,11 @@ impl IndividualTemplateFactory {
                     valid_tid.err().unwrap()
                 )));
             }
-            let hpo_fac = HpoTemplateFactory::new(&header_duplets[i].row1(), &header_duplets[i].row2());
-            index_to_hpo_factory.insert(i, hpo_fac);
         }
         Ok(IndividualTemplateFactory {
             hpo: simple_hpo,
             expected_n_fields: n1,
-            index_to_hpo_factory_d: index_to_hpo_factory,
+            header_duplets: header_duplets,
             content_rows: list_of_rows.iter().skip(2).cloned().collect(),
         })
     }
@@ -181,22 +177,9 @@ impl IndividualTemplateFactory {
         let sex = SexTableCell::new::<&str>(&row[15])?;
         // when we get here, we have parsed all of the constant columns. We can begin to parse the HPO
         // columns. The template contains a variable number of such columns
-        let mut hpo_column_list: Vec<HpoTemplate> = vec![];
+       
 
-        // Iterate over key-value pairs
-        for (idx, hpo_template_factory) in &self.index_to_hpo_factory_d {
-            let cell_contents = row.get(*idx);
-            match cell_contents {
-                Some(val) => {
-                    let hpo_tplt = hpo_template_factory.from_cell_value(val)?;
-                    hpo_column_list.push(hpo_tplt);
-                }
-                None => {
-                    println!("Probably this means there was nothing in the cell -- check this later todo");
-                }
-            }
-        }
-
+       
         // If we get here, then we know we can safely unwrap the following items
         // TODO -- FIGURE OUT WHETHER WE NEED SOME ETC.
         return Ok(IndividualTemplate::new(
@@ -214,8 +197,17 @@ impl IndividualTemplateFactory {
             Some(encounter),
             deceased,
             sex,
-            hpo_column_list,
         ));
+    }
+
+
+    pub fn get_errors(&self) -> Vec<Error> {
+        let error_list: Vec<Error> = Vec::new();
+        let n_rows = self.content_rows.len();
+        
+
+
+        vec![]
     }
 
     /// Return all phenopacket templates or a list of errors if there was one or more problems
@@ -321,7 +313,6 @@ mod test {
 
 
     #[rstest]
-    #[rstest]
     #[case(0, "PMI")]
     #[case(1, "title ")]
     #[case(1, " title ")]
@@ -344,7 +335,6 @@ mod test {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
         let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
-        assert!(true);
         assert!(&factory.is_err());
         assert!(matches!(&factory, Err(Error::TemplateError { .. })));
         let err = factory.unwrap_err();
@@ -353,7 +343,16 @@ mod test {
         assert_eq!(expected, err_msg);
     }
 
-   
+    // test malformed entries
+    // we change entries in the third row (which is the first and only data row)
+    // and introduce typical potential errors
+    #[rstest]
+    #[case(0, "PMID29482508")]
+    fn test_malformed_entry(mut original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology, #[case] idx: usize, #[case] entry: &str) {
+        original_matrix[2][idx] = entry.to_string();
+        let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
+        //assert!(&factory.is_err());
+    }
 
 
 }
