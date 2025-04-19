@@ -81,28 +81,36 @@ impl IndividualTemplateFactory {
             )));
         }
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
+        let mut in_hpo_term_section = false;
         for i in 0..(n1 - 1) {
             match HeaderDuplet::get_duplet( &first_row_headers[i]) {
                 Some(duplet) => {
                     if duplet.row2() != second_row_headers[i] {
                         return Err(Error::TemplateError { 
-                            msg: format!("Malformed second template row ({}) for {}",&second_row_headers[i], duplet.row1()) 
+                            msg: format!("Malformed second template row ({}) for {}: expected {}",
+                                    &second_row_headers[i], duplet.row1(), duplet.row2()) 
                         });
                     } else {
+                        println!("{}", &duplet);
+                        if duplet.is_separator() {
+                            in_hpo_term_section = true;
+                        }
                         header_duplets.push(duplet);
                     }
                 },
                 None => {
+                    if in_hpo_term_section {
                     // must be ab HPO column
-                    let hdup = HpoTermDuplet::new(&first_row_headers[i], &second_row_headers[i]);
-                    header_duplets.push(hdup.into_enum());
+                        let hdup = HpoTermDuplet::new(&first_row_headers[i], &second_row_headers[i]);
+                        header_duplets.push(hdup.into_enum());
+                    } else {
+                        // Could not find HeaderDuplet in constant section-- the title must be erroneous
+                        return Err(Error::TemplateError { msg: format!("Malformed title: '{}'", &first_row_headers[i]) });
+                    }
                 }
             }
         }
-        /*
-        if let Err(res) = qc_list_of_header_items(&header_duplets) {
-            return Err(res);
-        } */
+        
         // if we get here, then we know that the constant parts of the template have the correct
         // format. The additional columns are either valid HPO template columns or are NTR columns
         // new term request columns, for which we only output a warning
@@ -228,30 +236,7 @@ impl IndividualTemplateFactory {
     }
 }
 
-/* 
-fn qc_list_of_header_items(header_duplets: &Vec<HeaderDuplet>) -> Result<()> {
-    // check each of the items in turn
 
-    let mut errors: Vec<String> = vec![];
-    for (i, duplet) in header_duplets.into_iter().enumerate() {
-        if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.row1() != EXPECTED_H1_FIELDS[i] {
-            errors.push(format!(
-                "Malformed header: expected {}, got {}",
-                EXPECTED_H1_FIELDS[i], duplet.row1()
-            ))
-        }
-        if i < NUMBER_OF_CONSTANT_HEADER_FIELDS && duplet.row2() != EXPECTED_H2_FIELDS[i] {
-            errors.push(format!(
-                "Malformed header (row 2): expected {}, got {}",
-                EXPECTED_H2_FIELDS[i], duplet.row1()
-            ))
-        }
-        if i > NUMBER_OF_CONSTANT_HEADER_FIELDS {
-            break;
-        }
-    }
-    Ok(())
-}*/
 
 #[cfg(test)]
 mod test {
@@ -314,56 +299,11 @@ mod test {
         rows
     }
 
-
-
-    #[rstest]
-    #[case(2, 2, 4)]
-    #[case(1, 5, 6)]
-    fn test_addition(#[case] a: i32, #[case] b: i32, #[case] expected: i32) {
-        assert_eq!(a + b, expected);
-    }
-
-
     /// Make sure that our test matrix is valid before we start changing fields to check if we pick up errors
     #[rstest]
     fn test_factory_valid_input(original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology) {
         let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
         assert!(factory.is_ok());
-    }
-
-
-
-
-    #[test]
-    fn test_title_ctor() {
-        let tests = vec![
-            ("We are missing something", "We are missing something"),
-            (
-                "We are missing something ",
-                "Trailing whitespace in 'We are missing something '",
-            ),
-            (
-                " We are missing something",
-                "Leading whitespace in ' We are missing something'",
-            ),
-            ("", "Title field is empty"),
-        ];
-        for test in tests {
-            let title = TitleCell::new(test.0);
-            match title {
-                Ok(title) => assert_eq!(test.1, title.value()),
-                Err(err) => assert_eq!(test.1, err.to_string()),
-            }
-        }
-    }
-
-    #[rstest]
-    fn test_header_duplet_ctor() {
-        let hd = HpoTermDuplet::new("Arachnodactly", "HP:0001166");
-        let expected_header1 = String::from("Arachnodactly");
-        let expected_header2 = String::from("HP:0001166");
-        assert_eq!(expected_header1, hd.row1());
-        assert_eq!(expected_header2, hd.row2());
     }
 
     #[rstest]
@@ -379,19 +319,37 @@ mod test {
         assert_eq!(expected, err_msg);
     }
 
+
     #[rstest]
     #[rstest]
     #[case(0, "PMI")]
-    #[ignore = "refacoringq"]
+    #[case(1, "title ")]
+    #[case(1, " title ")]
+    #[case(1, "titl")]
+    #[case(2, "individual")]
+    #[case(3, "disease_i")]
+    #[case(4, "diseaselabel")]
+    #[case(5, "hgnc")]
+    #[case(6, "symbol")]
+    #[case(7, "tx")]
+    #[case(8, "allel1")]
+    #[case(9, "allele2")]
+    #[case(10, "vcomment")]
+    #[case(11, "age")]
+    #[case(12, "age_last_counter")]
+    #[case(13, "deceasd")]
+    #[case(14, "sexcolumn")]
+    #[case(15, "")]
     fn test_malformed_title_row(mut original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology, #[case] idx: usize, #[case] label: &str) {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
         let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
+        assert!(true);
         assert!(&factory.is_err());
-        assert!(matches!(&factory, Err(Error::TermError { .. })));
+        assert!(matches!(&factory, Err(Error::TemplateError { .. })));
         let err = factory.unwrap_err();
         let err_msg = err.to_string();
-        let expected = "Invalid HPO label: HPO Term HP:0010034 with malformed label 'Hallux  valgus' instead of Short 1st metacarpal";
+        let expected = format!("Malformed title: '{}'", label);
         assert_eq!(expected, err_msg);
     }
 

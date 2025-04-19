@@ -151,6 +151,11 @@ impl HeaderDuplet {
     pub fn get_duplet(title: &str) -> Option<Self> {
         TITLE_MAP.get(title).cloned()
     }
+
+    /// returns true if this is the HPO (separator) column, which would mean all subsequent columns are HpoTermDuplets
+    pub fn is_separator(&self) -> bool {
+        matches!(self, HeaderDuplet::HpoSeparatorDuplet(_)) 
+    }
 }
 
 
@@ -251,19 +256,6 @@ pub fn check_valid_curie(s: &str) -> Result<bool> {
 }
 
 
-
-
-/// perform quality control of the two header rows of a pyphetools template file
-pub fn qc_list_of_header_items(
-    header_duplets: &Vec<HeaderDuplet>,
-) -> core::result::Result<(), Vec<String>> {
-    // check each of the items in turn
-    let mut errors: Vec<String> = vec![];
-    if errors.len() > 0 {
-        return Err(errors);
-    }
-    Ok(())
-}
 
 // region:    --- Tests
 

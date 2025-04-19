@@ -17,7 +17,7 @@ mod hpo;
 mod pptcolumn;
 mod template;
 mod rphetools_traits;
-pub mod variant;
+mod variant;
 
 
 use crate::error::Error;
@@ -257,7 +257,7 @@ impl PheTools {
                         .map_err(|e| e.to_string())?;
                     Ok(())
                 } else {
-                    return Err(format!("Non mendelian not implemenet"));
+                    return Err(format!("Non mendelian not implemented"));
                 }
             }
             None => Err(format!("Attempt to add row to null template!")),
