@@ -1,19 +1,59 @@
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem, HeaderDupletItemFactory};
 use crate::header::hpo_separator_duplet::HpoSeparatorDuplet;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
-use crate::header::variant_comment_duplet;
+use crate::header::{individual_id_duplet, variant_comment_duplet};
 use crate::header::{age_last_encounter::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, individual_id_duplet::IndividualIdDuplet, pmid_duplet::PmidDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
 use crate::error::{self, Error, Result};
 
-use super::header_index::{HeaderIndexer, MendelianHeaderIndexer};
+use super::header_index::HeaderIndexer;
 
+macro_rules! impl_duplet_getters {
+    ($( $variant:ident => $method:ident : $ty:ty ),*) => {
+        impl HeaderDuplet {
+            $(
+            pub fn $method(&self) -> std::result::Result<&$ty, crate::error::Error> {
+                match self {
+                    HeaderDuplet::$variant(inner) => Ok(inner),
+                    _ => Err(crate::error::Error::TemplateError {
+                        msg: format!("Expected {}", stringify!($variant)),
+                    }),
+                }
+            }
+            )*
+        }
+    };
+}
 
-pub trait HeaderDupletRow {
-    type Output: HeaderDupletRow;
-    type Indexer: HeaderIndexer;
-    fn qc_header(&self) -> Result<()>;
-    fn extract_from_string_matrix(matrix: &Vec<Vec<String>>) -> Result<MendelianHDRow>;
-    fn get_idx(&self, column_name: &str) -> Option<usize>;
+impl_duplet_getters!(
+    PmidDuplet => as_pmid_duplet: PmidDuplet,
+    TitleDuplet => as_title_duplet: TitleDuplet,
+    IndividualIdDuplet => as_individual_id_duplet: IndividualIdDuplet,
+    CommentDuplet => as_comment_duplet: CommentDuplet,
+    DiseaseIdDuplet => as_disease_id: DiseaseIdDuplet,
+    DiseaseLabelDuplet => as_disease_label: DiseaseLabelDuplet,
+    HgncDuplet => as_hgnc_duplet: HgncDuplet,
+    GeneSymbolDuplet => as_gene_symbol_duplet: GeneSymbolDuplet,
+    TranscriptDuplet => as_transcript_duplet: TranscriptDuplet,
+    Allele1Duplet => as_allele_1_duplet: Allele1Duplet,
+    Allele2Duplet => as_allele_2_duplet: Allele2Duplet,
+    VariantCommentDuplet => as_variant_comment_duplet: VariantCommentDuplet,
+    AgeOfOnsetDuplet => as_age_of_onset_duplet: AgeOfOnsetDuplet,
+    AgeLastEncounterDuplet => as_age_last_encounter_duplet: AgeLastEncounterDuplet,
+    DeceasedDuplet => as_deceased_duplet: DeceasedDuplet,
+    SexDuplet => as_sex_duplet: SexDuplet,
+    HpoSeparatorDuplet => as_separator_duplet: HpoSeparatorDuplet,
+    HpoTermDuplet => as_hpo_term_duplet: HpoTermDuplet
+);
+
+impl Error {
+    fn could_not_extract_duplet(item: &str, i: usize) -> Self {
+        Error::TemplateError { msg: format!("Could not extract {item} at index {i}") }
+    }
+
+    fn could_not_extract_hpo_duplet(i: usize) -> Self {
+        Error::TemplateError { msg: format!("Could not extract HPO Term Column at index {i}") }
+    }
+    
 }
 
 trait HeaderDupletComponent {
@@ -118,7 +158,8 @@ pub struct DemographicDuplets {
 }
 
 impl DemographicDuplets {
-    pub fn new(age_of_onset: AgeOfOnsetDuplet,
+    pub fn new(
+        age_of_onset: AgeOfOnsetDuplet,
         age_at_last_encounter: AgeLastEncounterDuplet,
         deceased: DeceasedDuplet,
         sex: SexDuplet,) -> Self {
@@ -143,63 +184,162 @@ impl HeaderDupletComponent for DemographicDuplets {
 
 
 #[derive(Debug)]
-pub struct MendelianHDRow {
+pub struct HeaderDupletRow {
+    /// Four columns that specify the PMID, title, and individual_id with optional comment
     individual_duplets: IndividualDuplets,
+    /// Columns that specific the disease, gene, and variants
     disease_gene_duplets: DiseaseGeneDuplets,
+    /// Columns to specify age, sex, vital status
     demographic_duplets: DemographicDuplets,
+    /// A Column to specify the constant data columns from the variable HPO Term columns
     separator: HpoSeparatorDuplet,
+    /// Variable number of columns with the HPO annotations.
     hpo_duplets: Vec<HpoTermDuplet>,
-    indexer: MendelianHeaderIndexer
+    indexer: HeaderIndexer,
 }
 
-impl MendelianHDRow {
-    pub fn new( individual_duplets: IndividualDuplets,
+impl HeaderDupletRow {
+    pub fn mendelian(
+        individual_duplets: IndividualDuplets,
         disease_gene_duplets: DiseaseGeneDuplets,
         demographic_duplets: DemographicDuplets,
         separator: HpoSeparatorDuplet,
-        hpo_duplets: Vec<HpoTermDuplet>,) -> Self {
+        hpo_duplets: Vec<HpoTermDuplet>
+    ) -> Self {
             Self {
-                individual_duplets, disease_gene_duplets, demographic_duplets, separator, hpo_duplets,
-                indexer: MendelianHeaderIndexer{}
+                individual_duplets, 
+                disease_gene_duplets, 
+                demographic_duplets, 
+                separator, 
+                hpo_duplets,
+                indexer: HeaderIndexer::mendelian(),
             }
     }
 }
 
-impl HeaderDupletRow for MendelianHDRow {
-    type Output = Self;
-    type Indexer = MendelianHeaderIndexer;
+impl HeaderDupletRow  {
     fn qc_header(&self) -> Result<()> {
         todo!()
     }
 
-    fn get_idx(&self, column_name: &str) -> Option<usize> {
+    pub fn get_idx(&self, column_name: &str) -> Option<usize> {
         self.indexer.get_idx(column_name)
     }
 
-    fn extract_from_string_matrix(matrix: &Vec<Vec<String>>) -> Result<MendelianHDRow> {
-        if matrix.len() < 2 {
-            return Err(Error::TemplateError {
-                msg: format!(
-                    "Insuffient rows ({}) to construct header duplets",
-                    matrix.len()
-                ),
-            });
-        }
-        let row_len = matrix[0].len();
-        let mut i = 0 as usize;
-        let individual_duplets = IndividualDuplets::from_vector_slice(&matrix, i)?;
-        let i = i + individual_duplets.size();
-        let dg_duplets = DiseaseGeneDuplets::from_vector_slice(&matrix, i)?;
-        let i = i + dg_duplets.size();
-        let demographic_dup = DemographicDuplets::from_vector_slice(&matrix, i)?;
-        let i = i + dg_duplets.size();
-        let separator_dup = HpoSeparatorDuplet::from_table(&matrix[0][i], &matrix[1][i])?;
-        let i = i + 1;
-        let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::new();
-        for j in i..row_len {
-            let hpo_d = HpoTermDuplet::from_table(&matrix[0][j], &matrix[1][j])?;
-            hpo_duplets.push(hpo_d);
-        }
-        Ok(MendelianHDRow::new(individual_duplets, dg_duplets, demographic_dup, separator_dup, hpo_duplets))
+
+    fn check_individual_duplets(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<IndividualDuplets> {
+        let pmid_dup = header_duplets
+            .get(i)
+            .ok_or_else(|| Error::could_not_extract_duplet("PMID", i))?
+            .as_pmid_duplet()?;
+        let title_dup = header_duplets
+            .get(i+1)
+            .ok_or_else(|| Error::could_not_extract_duplet("title", i+1))?
+            .as_title_duplet()?;
+        let individual_id_dupl = header_duplets
+            .get(i+2)
+            .ok_or_else(|| Error::could_not_extract_duplet("individual_id", i+2))?
+            .as_individual_id_duplet()?;
+        let comment_dup =  header_duplets
+            .get(i+3)
+            .ok_or_else(|| Error::could_not_extract_duplet("comment", i+3))?
+            .as_comment_duplet()?;
+        Ok(IndividualDuplets::new(pmid_dup.clone(), title_dup.clone(), individual_id_dupl.clone(), comment_dup.clone()))
     }
+
+    pub  fn check_disease_gene_duplets(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<DiseaseGeneDuplets> {
+        let disease_id = header_duplets
+            .get(i)
+            .ok_or_else(|| Error::could_not_extract_duplet("disease_id", i))?
+            .as_disease_id()?;
+        let disease_label = header_duplets
+            .get(i+1)
+            .ok_or_else(|| Error::could_not_extract_duplet("disease_label", i+1))?
+            .as_disease_label()?;
+        let hgnc_id =  header_duplets
+            .get(i+2)
+            .ok_or_else(|| Error::could_not_extract_duplet("hgnc_id", i+2))?
+            .as_hgnc_duplet()?;
+        let gene_symbol = header_duplets
+            .get(i+3)
+            .ok_or_else(|| Error::could_not_extract_duplet("gene_symbol", i+3))?
+            .as_gene_symbol_duplet()?;
+        let transcript= header_duplets
+            .get(i+4)
+            .ok_or_else(|| Error::could_not_extract_duplet("transcript", i+4))?
+            .as_transcript_duplet()?;
+        let allele_1 = header_duplets
+            .get(i+5)
+            .ok_or_else(|| Error::could_not_extract_duplet("allele_1", i+5))?
+            .as_allele_1_duplet()?;
+        let allele_2 = header_duplets
+            .get(i+6)
+            .ok_or_else(|| Error::could_not_extract_duplet("allele_2", i+6))?
+            .as_allele_2_duplet()?;
+        let variant_comment =  header_duplets
+            .get(i+7)
+            .ok_or_else(|| Error::could_not_extract_duplet("variant.comment", i+7))?
+            .as_variant_comment_duplet()?;
+        Ok(DiseaseGeneDuplets::new(disease_id.clone(), disease_label.clone(), hgnc_id.clone(), gene_symbol.clone(), transcript.clone(), allele_1.clone(), allele_2.clone(), variant_comment.clone()))
+    }
+
+    fn check_demographic_dups(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<DemographicDuplets> {
+        let age_of_onset = header_duplets
+            .get(i)
+            .ok_or_else(|| Error::could_not_extract_duplet("age_of_onset", i))?
+            .as_age_of_onset_duplet()?;
+        let age_at_last_encounter = header_duplets
+            .get(i+1)
+            .ok_or_else(|| Error::could_not_extract_duplet("age_at_last_encounter", i+1))?
+            .as_age_last_encounter_duplet()?;
+        let deceased =  header_duplets
+            .get(i+2)
+            .ok_or_else(|| Error::could_not_extract_duplet("deceased", i+2))?
+            .as_deceased_duplet()?;
+        let sex =  header_duplets
+            .get(i+3)
+            .ok_or_else(|| Error::could_not_extract_duplet("sex", i+3))?
+            .as_sex_duplet()?;
+        Ok(DemographicDuplets::new(age_of_onset.clone(), age_at_last_encounter.clone(), deceased.clone(), sex.clone()))
+    }
+
+    fn check_hpo_separator(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<HpoSeparatorDuplet> {
+        let separator = header_duplets
+            .get(i)
+            .ok_or_else(|| Error::could_not_extract_duplet("HPO", i))?
+            .as_separator_duplet()?;
+        Ok(separator.clone())
+    }
+
+    fn check_hpo_term(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<HpoTermDuplet> {
+        let hpo_term_dup = header_duplets
+            .get(i)
+            .ok_or_else(|| Error::could_not_extract_hpo_duplet(i))?
+            .as_hpo_term_duplet()?;
+        Ok(hpo_term_dup.clone())
+    }
+
+    /// TODO. Currently, this function just does Mendelian, we need to generalize to blended
+    pub fn from_duplets(header_duplets: &Vec<HeaderDuplet>) -> Result<Self> {
+        let mut i: usize = 0;
+        let individual_dups = Self::check_individual_duplets(header_duplets, i)?;
+        i = i + individual_dups.size();
+        let dgb_dups = Self::check_disease_gene_duplets(header_duplets, i)?;
+        i = i + dgb_dups.size();
+        let demographic = Self::check_demographic_dups(header_duplets, i)?;
+        i = i + demographic.size();
+        let separator = Self::check_hpo_separator(header_duplets, i)?;
+        i = i+1;
+        /// The rest of the duplets are HpoTermDuplets
+        let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::new();
+        for j in i..header_duplets.len() {
+            match Self::check_hpo_term(header_duplets, j) {
+                Ok(duplet) => hpo_duplets.push(duplet),
+                Err(e) => { return Err(e); }
+            }
+        }
+        Ok(HeaderDupletRow::mendelian(individual_dups, dgb_dups, demographic, separator, hpo_duplets))
+    }
+
+    
 }

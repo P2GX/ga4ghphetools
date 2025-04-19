@@ -28,7 +28,8 @@ use crate::hpo::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::template::simple_label::SimpleLabel;
 use crate::pptcolumn::transcript::Transcript;
 
-use super::individual_template::{IndividualTemplate, SexTableCell, TitleCell};
+use super::header_duplet_row::HeaderDupletRow;
+use super::individual_template::IndividualTemplate;
 
 
 ///TODO CHANGE
@@ -38,13 +39,12 @@ const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
 pub struct IndividualTemplateFactory {
     hpo: SimpleHPOMapper,
     expected_n_fields: usize,
-    header_duplets: Vec<HeaderDuplet>,
+    header_duplet_row: HeaderDupletRow,
     content_rows: Vec<Vec<String>>,
 }
 
 impl Error {
     
-
     fn template_error(val: &str) -> Self {
         Error::TemplateError {
             msg: val.to_string(),
@@ -109,6 +109,7 @@ impl IndividualTemplateFactory {
                 }
             }
         }
+        let header_duplet_row = HeaderDupletRow::from_duplets(&header_duplets)?;
         
         // if we get here, then we know that the constant parts of the template have the correct
         // format. The additional columns are either valid HPO template columns or are NTR columns
@@ -143,7 +144,7 @@ impl IndividualTemplateFactory {
         Ok(IndividualTemplateFactory {
             hpo: simple_hpo,
             expected_n_fields: n1,
-            header_duplets: header_duplets,
+            header_duplet_row: header_duplet_row,
             content_rows: list_of_rows.iter().skip(2).cloned().collect(),
         })
     }
@@ -159,7 +160,7 @@ impl IndividualTemplateFactory {
     ///
     /// A result containing the corresponding IndividualTemplate object or an Err with Vector of strings representing the problems
     pub fn individual_template_row(&self, row: Vec<String>) -> Result<IndividualTemplate> {
-        let pmid = Curie::new_pmid(&row[0])?;
+        /*let pmid = Curie::new_pmid(&row[0])?;
         let title = TitleCell::new(&row[1])?;
         let individual_id = SimpleLabel::individual_id(&row[2])?;
         let disease_id = Curie::new_disease_id(&row[4])?;
@@ -178,26 +179,11 @@ impl IndividualTemplateFactory {
         // when we get here, we have parsed all of the constant columns. We can begin to parse the HPO
         // columns. The template contains a variable number of such columns
        
-
+        */
        
         // If we get here, then we know we can safely unwrap the following items
         // TODO -- FIGURE OUT WHETHER WE NEED SOME ETC.
-        return Ok(IndividualTemplate::new(
-            title,
-            pmid,
-            individual_id,
-            disease_id,
-            disease_label,
-            hgnc_id,
-            gene_sym,
-            tx_id,
-            a1,
-            Some(a2),
-            Some(onset),
-            Some(encounter),
-            deceased,
-            sex,
-        ));
+        return Err(Error::TemplateError { msg: format!("TODO") });
     }
 
 
@@ -351,6 +337,9 @@ mod test {
     fn test_malformed_entry(mut original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology, #[case] idx: usize, #[case] entry: &str) {
         original_matrix[2][idx] = entry.to_string();
         let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
+        assert!(factory.is_ok());
+        let factory = factory.unwrap();
+        let templates = factory.get_templates();
         //assert!(&factory.is_err());
     }
 

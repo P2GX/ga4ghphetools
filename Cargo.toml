@@ -1,6 +1,6 @@
 [package]
 name = "rphetools"
-version = "0.1.41"
+version = "0.1.42"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -17,7 +17,7 @@ path = "bin/main.rs"
 required-features = ["cli"]
 
 [features]
-default = []   # Library does not enable CLI by default
+default = []   # Do not enable CLI by default
 cli = ["dep:clap"]  # Enable clap only when the CLI feature is enabled
 
 [dependencies]

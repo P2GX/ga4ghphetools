@@ -4,9 +4,14 @@ use std::collections::{HashMap, HashSet};
 
 use lazy_static::lazy_static;
 
-pub trait HeaderIndexer {
-    fn get_idx(&self, column_name: &str) -> Option<usize>;
+
+#[derive(Clone, Debug)]
+enum IndexerType {
+    Mendelian,
+    Blended,
 }
+
+
 
 lazy_static! {
     pub static ref MENDELIAN_INDICES: HashMap<String, usize> =  {
@@ -33,15 +38,29 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct MendelianHeaderIndexer;
+pub struct HeaderIndexer {
+    title_to_index_map: HashMap<String, usize>,
+    indexer_type: IndexerType,
+}
 
-impl HeaderIndexer for MendelianHeaderIndexer {
-    fn get_idx(&self, column_name: &str) -> Option<usize> {
-        if MENDELIAN_INDICES.contains_key(column_name) {
-            MENDELIAN_INDICES.get(column_name).copied()
+impl HeaderIndexer {
+
+
+    pub fn mendelian() -> Self {
+        Self {
+            title_to_index_map: MENDELIAN_INDICES.clone(),
+            indexer_type: IndexerType::Mendelian,
+        }
+    }
+
+    pub fn get_idx(&self, column_name: &str) -> Option<usize> {
+        if self.title_to_index_map.contains_key(column_name) {
+            self.title_to_index_map.get(column_name).copied()
         } else {
             None
         }
     }
 }
+
+
 

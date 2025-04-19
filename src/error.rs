@@ -8,7 +8,6 @@ use core::fmt;
 use derive_more::{Display, From};
 use serde::Serialize;
 
-use crate::template::individual_template::TemplateError;
 
 
 pub type Result<T> = core::result::Result<T, Error>;
