@@ -28,6 +28,13 @@ impl HeaderDupletItem for DiseaseIdDuplet {
                 msg: format!("Disease id has invalid prefix: '{}'", cell_contents),
             });
         }
+        if cell_contents.starts_with("OMIM:") {
+            if cell_contents.len() != 11 {
+                return Err(Error::DiseaseIdError {
+                    msg: format!("OMIM identifiers must have 6 digits: '{}'", cell_contents),
+                });
+            }
+        }
 
         Ok(())
     }
@@ -76,6 +83,7 @@ mod test {
     #[case(":154700","Invalid CURIE with no prefix: ':154700'")]
     #[case("OMM:154700", "Disease id has invalid prefix: 'OMM:154700'")]
     #[case("MOND:0007947", "Disease id has invalid prefix: 'MOND:0007947'")]
+    #[case("OMIM:54700", "OMIM identifiers must have 6 digits: 'OMIM:54700'")]
     #[case("","Empty CURIE")]
     fn test_invalid_disease_id(#[case] item:&str, #[case] response:&str) {
         let duplet = DiseaseIdDuplet::default();

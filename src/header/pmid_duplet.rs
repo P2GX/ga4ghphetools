@@ -22,7 +22,7 @@ impl HeaderDupletItem for PmidDuplet {
         "CURIE".to_string()
     }
 
-    fn qc_cell(&self, cell_contents: &str) -> crate::error::Result<()> {
+    fn qc_cell(&self, cell_contents: &str) -> Result<()> {
         let _ = curie::check_valid_curie(cell_contents)?;
         if !cell_contents.starts_with("PMID") {
             return Err(Error::CurieError {

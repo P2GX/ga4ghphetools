@@ -37,7 +37,7 @@ lazy_static! {
     };
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HeaderIndexer {
     title_to_index_map: HashMap<String, usize>,
     indexer_type: IndexerType,

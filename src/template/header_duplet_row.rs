@@ -24,6 +24,19 @@ macro_rules! impl_duplet_getters {
     };
 }
 
+/// Number of columns in the Individual section
+const NUMBER_OF_INDIVIDUAL_FIELDS: usize = 4;
+/// Number of columns in the Disease/Gene/Variant bundle section
+const NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS: usize = 8;
+/// Number of columns in the Demographic section
+const NUMBER_OF_DEMOGRAPHIC_FIELDS: usize = 4;
+/// Separator field (HPO/na)
+const NUMBER_OF_SEPARATOR_FIELDS: usize = 1;
+
+/// Total number of constant fields (columns) in the Mendelian template
+const NUMBER_OF_CONSTANT_HEADER_FIELDS_MENDELIAN: usize = 
+    NUMBER_OF_INDIVIDUAL_FIELDS + NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS + NUMBER_OF_DEMOGRAPHIC_FIELDS + NUMBER_OF_SEPARATOR_FIELDS;
+
 impl_duplet_getters!(
     PmidDuplet => as_pmid_duplet: PmidDuplet,
     TitleDuplet => as_title_duplet: TitleDuplet,
@@ -53,15 +66,23 @@ impl Error {
     fn could_not_extract_hpo_duplet(i: usize) -> Self {
         Error::TemplateError { msg: format!("Could not extract HPO Term Column at index {i}") }
     }
+
+    fn template_index_error(actual: usize, maxi: usize, template_name: &str) -> Self {
+        Error::TemplateError { msg: format!("Attempt to access item at index {actual} but {template_name} has {maxi} items.") }
+    }
     
 }
 
 trait HeaderDupletComponent {
     fn size(&self) -> usize;
+    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()>;
+}
+
+trait HeaderDupletComponentFactory {
     fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized;
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct IndividualDuplets {
     pmid: PmidDuplet,
     title: TitleDuplet,
@@ -80,9 +101,21 @@ impl IndividualDuplets {
 
 impl HeaderDupletComponent for IndividualDuplets {
     fn size(&self) -> usize {
-        4
+        NUMBER_OF_INDIVIDUAL_FIELDS
     }
+    
+    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
+        match i {
+            0 => self.pmid.qc_cell(cell_contents),
+            1 => self.title.qc_cell(cell_contents),
+            2 => self.individual_id.qc_cell(cell_contents),
+            3 => self.comment.qc_cell(cell_contents),
+            _ => Err(Error::template_index_error(i, self.size(), "IndividualDuplets"))
+        }
+    }
+}
 
+impl HeaderDupletComponentFactory for IndividualDuplets {
     fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized{
         let mut i = start;
         let pmid_dup = PmidDuplet::from_table(&matrix[0][i], &matrix[1][i])?;
@@ -94,7 +127,7 @@ impl HeaderDupletComponent for IndividualDuplets {
 }
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DiseaseGeneDuplets {
     disease_id: DiseaseIdDuplet,
     disease_label: DiseaseLabelDuplet,
@@ -132,9 +165,25 @@ impl DiseaseGeneDuplets {
 
 impl HeaderDupletComponent for DiseaseGeneDuplets {
     fn size(&self) -> usize {
-        8
+        NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS
     }
 
+    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
+        match i {
+            0 => self.disease_id.qc_cell(cell_contents),
+            1 => self.disease_label.qc_cell(cell_contents),
+            2 => self.hgnc_id.qc_cell(cell_contents),
+            3 => self.gene_symbol.qc_cell(cell_contents),
+            4 => self.transcript.qc_cell(cell_contents),
+            5 => self.allele_1.qc_cell(cell_contents),
+            6 => self.allele_2.qc_cell(cell_contents),
+            7 => self.variant_comment.qc_cell(cell_contents),
+            _ => Err(Error::template_index_error(i, self.size(), "DiseaseGeneDuplets"))
+        }
+    }
+}
+
+impl HeaderDupletComponentFactory for DiseaseGeneDuplets {
     fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized{
         let mut i = start;
         let disease_id_dup = DiseaseIdDuplet::from_table(&matrix[0][i], &matrix[1][i])?;
@@ -149,7 +198,7 @@ impl HeaderDupletComponent for DiseaseGeneDuplets {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DemographicDuplets {
     age_of_onset: AgeOfOnsetDuplet,
     age_at_last_encounter: AgeLastEncounterDuplet,
@@ -169,9 +218,22 @@ impl DemographicDuplets {
 
 impl HeaderDupletComponent for DemographicDuplets {
     fn size(&self) -> usize {
-        4
+        NUMBER_OF_DEMOGRAPHIC_FIELDS
     }
     
+    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
+        match i {
+            0 => self.age_of_onset.qc_cell(cell_contents),
+            1 => self.age_at_last_encounter.qc_cell(cell_contents),
+            2 => self.deceased.qc_cell(cell_contents),
+            3 => self.sex.qc_cell(cell_contents),
+            _ => Err(Error::template_index_error(i, self.size(), "DemographicDuplets"))
+        }
+    }
+
+}
+
+impl HeaderDupletComponentFactory for DemographicDuplets {
     fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized {
         let mut i = start;
         let onset_dup = AgeOfOnsetDuplet::from_table(&matrix[0][i], &matrix[1][i])?;
@@ -183,7 +245,7 @@ impl HeaderDupletComponent for DemographicDuplets {
 }
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HeaderDupletRow {
     /// Four columns that specify the PMID, title, and individual_id with optional comment
     individual_duplets: IndividualDuplets,
@@ -319,6 +381,10 @@ impl HeaderDupletRow  {
         Ok(hpo_term_dup.clone())
     }
 
+    pub fn n_mendelian_contant_fields() -> usize {
+        NUMBER_OF_CONSTANT_HEADER_FIELDS_MENDELIAN
+    }
+
     /// TODO. Currently, this function just does Mendelian, we need to generalize to blended
     pub fn from_duplets(header_duplets: &Vec<HeaderDuplet>) -> Result<Self> {
         let mut i: usize = 0;
@@ -341,5 +407,67 @@ impl HeaderDupletRow  {
         Ok(HeaderDupletRow::mendelian(individual_dups, dgb_dups, demographic, separator, hpo_duplets))
     }
 
-    
+    pub fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
+        let mut j = i;
+        if j < self.individual_duplets.size() {
+            self.individual_duplets.qc_check(j, cell_contents)?;
+            return Ok(());
+        }
+        j = j - self.individual_duplets.size();
+        if j < self.disease_gene_duplets.size() {
+            self.disease_gene_duplets.qc_check(j, cell_contents)?;
+            return Ok(());
+        }
+        j = j - self.disease_gene_duplets.size();
+        if j < self.demographic_duplets.size() {
+            self.demographic_duplets.qc_check(j, cell_contents)?;
+            return Ok(());
+        }
+        j = j - self.demographic_duplets.size();
+        if j == 0 {
+            self.separator.qc_cell(cell_contents)?;
+            return Ok(());
+        }
+        j = j+1;
+        match self.hpo_duplets.get(j) {
+            Some(hpo_dup) => {
+                return hpo_dup.qc_cell(cell_contents);
+            },
+            None => return  {
+                Err(Error::TemplateError { msg:format!("Unable to retrieve HPO duplet at i={}, j={}", i, j) })
+            }
+        }
+    }
+
+    /*
+      /// Four columns that specify the PMID, title, and individual_id with optional comment
+    individual_duplets: IndividualDuplets,
+    /// Columns that specific the disease, gene, and variants
+    disease_gene_duplets: DiseaseGeneDuplets,
+    /// Columns to specify age, sex, vital status
+    demographic_duplets: DemographicDuplets,
+    /// A Column to specify the constant data columns from the variable HPO Term columns
+    separator: HpoSeparatorDuplet,
+    /// Variable number of columns with the HPO annotations.
+    hpo_duplets: Vec<HpoTermDuplet>,
+    indexer: HeaderIndexer,
+     */
+
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{error::Error, header::{header_duplet::HeaderDupletItem, hpo_term_duplet::HpoTermDuplet}};
+    use ontolius::{io::OntologyLoaderBuilder, ontology::csr::MinimalCsrOntology};
+    use rstest::{fixture, rstest};
+
+    #[rstest]
+    fn test_n_fields() {
+        /// We expect a total of 17 fields before the HPO Term fields start
+        assert_eq!(17, HeaderDupletRow::n_mendelian_contant_fields())
+    }
+
+
 }

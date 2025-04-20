@@ -1,7 +1,7 @@
-//! This module contains utilities for the initial input and quality control of the table cells
+//! PpktExporter -- One row together with Header information, all that is needed to export a GA4GH phenopacket
 //!
 //! Each table cell is modelled as having the ability to return a datatype and the contents as a String
-//! We garantee that if these objects are created, then we are ready to create phenopackets.
+//! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
 use std::collections::HashMap;
 use std::fmt::{self};
@@ -36,19 +36,22 @@ impl Error {
 }
 
 
-pub struct IndividualTemplate<'a> {
-    header_duplet_row: &'a HeaderDupletRow,
-    content: &'a Vec<String>,
+pub struct PpktExporter {
+    header_duplet_row: Arc<HeaderDupletRow>,
+    content: Vec<String>,
+    hpo: Arc<FullCsrOntology>,
 }
 
-impl<'a> IndividualTemplate<'a> {
+impl PpktExporter {
     pub fn new(
-        header_duplet_row: &'a HeaderDupletRow,
-        content: &'a Vec<String>,
+        header_duplet_row: Arc<HeaderDupletRow>,
+        content: Vec<String>,
+        hpo: Arc<FullCsrOntology>,
     ) -> Self {
         Self {
             header_duplet_row,
             content: content,
+            hpo
         }
     }
 
@@ -118,6 +121,26 @@ impl<'a> IndividualTemplate<'a> {
 
     pub fn sex(&self) -> Result<String> {
         self.get_item("sex")
+    }
+
+    /// Return the first error or OK
+    pub fn qc_check(&self) -> Result<()> {
+        let ncols = self.content.len();
+        for i in 0..ncols {
+            let cell_contents = self.content[i].as_str();
+            self.header_duplet_row.qc_check(i, cell_contents)?;
+        }
+
+        Ok(())
+    }
+
+    /// Get a (potentially empty) list of Errors for this template
+    pub fn get_errors(&self) -> Vec<Error> {
+        self.content
+            .iter()
+            .enumerate()
+            .filter_map(|(i, cell)| self.header_duplet_row.qc_check(i, cell).err())
+            .collect()
     }
 }
 

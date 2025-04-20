@@ -229,6 +229,13 @@ impl Error {
         let msg = format!("Attempt to delete row {row} in columns with {max_row} rows");
         Error::EditError { msg }
     }
+
+
+    pub fn wrong_hpo_label_error(id: &str, actual: &str, expected: &str) -> Self {
+        let msg = format!("HPO Term {id} with malformed label '{actual}' instead of '{expected}'");
+        Error::TermError { msg }
+    }
+
 }
 
 impl From<&str> for Error {

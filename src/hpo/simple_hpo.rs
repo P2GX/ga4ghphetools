@@ -1,3 +1,5 @@
+//! TODO - obsolete this class, we can do everything with ontolius directly now
+
 use crate::error::{self, Error, Result};
 use ontolius::io::OntologyLoaderBuilder;
 use ontolius::ontology::csr::{FullCsrOntology, MinimalCsrOntology};
@@ -13,12 +15,6 @@ pub trait HPO {
     fn is_valid_term_label(&self, tid: &str, label: &str) -> Result<bool>;
 }
 
-impl Error {
-    fn wrong_label_error(id: &str, actual: &str, expected: &str) -> Self {
-        let msg = format!("HPO Term {id} with malformed label '{actual}' instead of {expected}");
-        Error::TermError { msg }
-    }
-}
 
 /// The purpose of this struct is to extract all terms from the Human Phenotype Ontology (HPO) JSON file
 ///
@@ -64,7 +60,7 @@ impl HPO for SimpleHPOMapper {
             if expected == label {
                 return Ok(true);
             } else {
-                Err(Error::wrong_label_error(tid, label, expected))
+                Err(Error::wrong_hpo_label_error(tid, label, expected))
             }
         } else {
             Err(Error::HpIdNotFound {

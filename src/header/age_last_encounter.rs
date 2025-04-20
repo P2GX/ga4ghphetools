@@ -26,7 +26,7 @@ impl HeaderDupletItem for AgeLastEncounterDuplet {
         if age_util::is_valid_age_string(cell_contents) {
             Ok(())
         } else {
-            Err(Error::AgeParseError { msg: format!("Malformed age_of_onset '{}'", cell_contents) })
+            Err(Error::AgeParseError { msg: format!("Malformed age_at_last_encounter '{}'", cell_contents) })
         }
     }
 

@@ -146,6 +146,10 @@ impl PheTools {
     }
 
     /// Get a table of values as Strings for display/export
+    /// 
+    /// # Returns
+    ///
+    /// A `Vec<Vec<String>>` containing all of the data in the template as Strings
     pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>, String> {
         match &self.template {
             Some(template) => {
@@ -158,6 +162,10 @@ impl PheTools {
         }
     }
 
+    /// Get a focused table of values as Strings for display/export
+    /// The table contains the PMID, title, individual_id, and one HPO column (only)
+    /// 
+    /// # Returns `Vec<Vec<String>>` containing data for the four columns mentioned above as Strings
     pub fn get_hpo_col_with_context(&mut self, col: usize) -> Result<Vec<Vec<String>>, String> {
         match &mut self.template {
             Some(template) => {
@@ -212,6 +220,7 @@ impl PheTools {
         }
     }
 
+    /// Return true if this column contains data about an HPO term
     pub fn is_hpo_col(&self, col: usize) -> bool {
         match &self.template {
             Some(tplt) => {
@@ -355,7 +364,8 @@ impl PheTools {
         let row_result = template::excel::read_excel_to_dataframe(pyphetools_template_path);
         match row_result {
             Ok(list_of_rows) => {
-                let result = IndividualTemplateFactory::new(&self.hpo, list_of_rows.as_ref());
+                let hpo_arc = self.hpo.clone();
+                let result = IndividualTemplateFactory::new(hpo_arc, list_of_rows.as_ref());
                 match result {
                     Ok(template_factory) => {
                         let result = template_factory.get_templates();

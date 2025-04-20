@@ -1,20 +1,22 @@
 
+//! IndividualTemplateFactory - create templates for GA4GH Phenopacket generation.
+//! 
 //! This struct sets up code to generate the IndividualtemplateRow objects that we will
-/// use to generate phenopacket code. Each IndivudalTemplateRow object is an intermediate
-/// object in which we have performed sufficient quality control to know that we are able
-/// to create a valid phenopacket. The IndividualTemplateFactory sets up code that leverages
-/// the data in the first two rows of the template to generate an IndivudalTemplateRow from
-/// each of the subsequent rows of the Excel file. We treat the constant columns with constructors (new functions)
-/// that perform Q/C. The HPO columns require somewhat more functionality and use HpoTemplateFactory,
-/// one for each column.
-/// 
-/// 
-/// 
+//! use to generate phenopackets. Each IndivudalTemplateRow object is an intermediate
+//! object in which we have performed sufficient quality control to know that we are able
+//! to create a valid phenopacket. The IndividualTemplateFactory sets up code that leverages
+//! the data in the first two rows of the template to generate an IndivudalTemplateRow from
+//! each of the subsequent rows of template matrix (e.g., such as we receive from a front-end GUI)
+ 
 use std::collections::HashMap;
 use std::fmt::{self};
+use std::sync::Arc;
 use std::time::Instant;
 
 use ontolius::ontology::csr::FullCsrOntology;
+use ontolius::ontology::OntologyTerms;
+use ontolius::term::MinimalTerm;
+use ontolius::TermId;
 
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem, HeaderDupletItemFactory};
 use crate::header::hpo_term_duplet::HpoTermDuplet;
@@ -24,18 +26,16 @@ use crate::rphetools_traits::TableCell;
 use crate::hpo::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::template::simple_label::SimpleLabel;
 use super::header_duplet_row::HeaderDupletRow;
-use super::individual_template::IndividualTemplate;
+use super::ppkt_exporter::PpktExporter;
 
 
-///TODO CHANGE
-const NUMBER_OF_CONSTANT_HEADER_FIELDS: usize = 17;
 
-#[derive(Debug)]
+
+
 pub struct IndividualTemplateFactory {
-    hpo: SimpleHPOMapper,
-    expected_n_fields: usize,
-    header_duplet_row: HeaderDupletRow,
+    header_duplet_row: Arc<HeaderDupletRow>,
     content_rows: Vec<Vec<String>>,
+    hpo: Arc<FullCsrOntology>,
 }
 
 impl Error {
@@ -56,7 +56,15 @@ impl Error {
 }
 
 impl IndividualTemplateFactory {
-    pub fn new(hpo: &FullCsrOntology, list_of_rows: &Vec<Vec<String>>) -> Result<Self> {
+    /// Create a GA4GH Phenopacket factory from a matrix of strings representing a Phetools template
+    /// 
+    /// The list of rows contains the entire template. The first two rows represent the Header Duplet, and
+    /// the remaining rows each represent all of the data needed to create a phenopacket
+    /// The new function performs Q/C on the first two header rows and only checks that the remaining rows
+    /// have the same length as the header. In principle other functions will have Q/C all data entries by
+    /// the time we get to this function, which is designed to prepare the export of JSON files with 
+    /// GA4GH Phenopackets
+    pub fn new(hpo: Arc<FullCsrOntology>, list_of_rows: &Vec<Vec<String>>) -> Result<Self> {
         if list_of_rows.len() < 3 {
             return Err(Error::header_error(format!(
                 "Templates must have at least one data line, but overall length was only {}",
@@ -65,18 +73,19 @@ impl IndividualTemplateFactory {
         }
         let first_row_headers = &list_of_rows[0];
         let second_row_headers = &list_of_rows[1];
-        let n1 = first_row_headers.len();
-        let n2 = second_row_headers.len();
+        let n_columns = first_row_headers.len();
+        let n_cols_row2 = second_row_headers.len();
 
-        if n1 != n2 {
+        if n_columns != n_cols_row2 {
             return Err(Error::header_error(format!(
                 "Malformed headers: first line has {} fields, second line has {}",
-                n1, n2
+                n_columns, n_cols_row2
             )));
         }
+        let separator_index = Self::get_separator_index(first_row_headers, second_row_headers)?;
         let mut header_duplets: Vec<HeaderDuplet> = vec![];
-        let mut in_hpo_term_section = false;
-        for i in 0..(n1 - 1) {
+
+        for i in 0..=separator_index {
             match HeaderDuplet::get_duplet( &first_row_headers[i]) {
                 Some(duplet) => {
                     if duplet.row2() != second_row_headers[i] {
@@ -85,63 +94,58 @@ impl IndividualTemplateFactory {
                                     &second_row_headers[i], duplet.row1(), duplet.row2()) 
                         });
                     } else {
-                        println!("{}", &duplet);
-                        if duplet.is_separator() {
-                            in_hpo_term_section = true;
-                        }
                         header_duplets.push(duplet);
                     }
                 },
                 None => {
-                    if in_hpo_term_section {
-                    // must be ab HPO column
-                        let hdup = HpoTermDuplet::new(&first_row_headers[i], &second_row_headers[i]);
-                        header_duplets.push(hdup.into_enum());
-                    } else {
                         // Could not find HeaderDuplet in constant section-- the title must be erroneous
                         return Err(Error::TemplateError { msg: format!("Malformed title: '{}'", &first_row_headers[i]) });
-                    }
                 }
             }
         }
+        /// everything after this must be an HPO term
+        for i in separator_index+1..n_columns {
+            let hpo_label = &first_row_headers[i];
+            let hpo_id = &second_row_headers[i];
+            let term_id: TermId = hpo_id.parse().unwrap();
+            match hpo.term_by_id(&term_id) {
+                Some(term) => {
+                    if term.name() == hpo_label {
+                        let hpo_duplet = HpoTermDuplet::new(hpo_label, hpo_id);
+                        header_duplets.push(hpo_duplet.into_enum());
+                    } else {
+                        /// TODO better error messages
+                        /// cargo test --package rphetools --lib -- template::itemplate_factory::test::test_malformed_hpo_label --exact --show-output 
+                        return Err(Error::wrong_hpo_label_error(hpo_id, &hpo_label, term.name()));
+                    }
+                },
+                None => {
+                    return Err(Error::TemplateError { msg: format!("Could not find term for HPO id {} (expected: {})", hpo_id, hpo_label) });
+                }
+            }
+        }
+        /// If we get here, then we have successfully ingested all Header duplets.
         let header_duplet_row = HeaderDupletRow::from_duplets(&header_duplets)?;
-        
-        // if we get here, then we know that the constant parts of the template have the correct
-        // format. The additional columns are either valid HPO template columns or are NTR columns
-        // new term request columns, for which we only output a warning
-        // Because of the structure of the template, we know that the index of
-        // the HPO columns begins. We require that there is at least one such column.
-        let start = Instant::now();
-        let hpo = SimpleHPOMapper::new(hpo);
-        if hpo.is_err() {
-            return Err(hpo.err().unwrap());
-        }
-        let simple_hpo = hpo.unwrap();
-        let duration = start.elapsed(); //
-        println!("Parsed HPO in: {:.3} seconds", duration.as_secs_f64());
-        for i in (NUMBER_OF_CONSTANT_HEADER_FIELDS + 1)..header_duplets.len() {
-            let valid_label =
-                simple_hpo.is_valid_term_label(&header_duplets[i].row2(), &header_duplets[i].row1());
-            if valid_label.is_err() {
-                return Err(Error::term_error(format!(
-                    "Invalid HPO label: {}",
-                    valid_label.err().unwrap()
-                )));
-            }
-            let valid_tid = simple_hpo.is_valid_term_id(&header_duplets[i].row2());
-            if valid_tid.is_err() {
-                return Err(Error::term_error(format!(
-                    "Invalid term id: {}",
-                    valid_tid.err().unwrap()
-                )));
-            }
-        }
         Ok(IndividualTemplateFactory {
-            hpo: simple_hpo,
-            expected_n_fields: n1,
-            header_duplet_row: header_duplet_row,
+            header_duplet_row: Arc::new(header_duplet_row),
             content_rows: list_of_rows.iter().skip(2).cloned().collect(),
+            hpo
         })
+    }
+
+    /// function intended to be used by new to find the location of the HPO/na separator column
+    /// We have already checked that the two first rows have equal length
+    fn get_separator_index(
+        first_row_headers: &Vec<String>, 
+        second_row_headers: &Vec<String>
+    ) -> Result<usize> {
+        let n_cols = first_row_headers.len();
+        for i in 0..n_cols {
+            if first_row_headers[i] == "HPO" && second_row_headers[i] == "na" {
+                return Ok(i);
+            }
+        }
+        return Err(Error::TemplateError { msg: format!("Could not find HPO separator column in matrix with {} columns", n_cols) });
     }
 
     /// This function transforms one line of the input Excel file into an IndividualTemplate object
@@ -154,45 +158,18 @@ impl IndividualTemplateFactory {
     /// # Returns
     ///
     /// A result containing the corresponding IndividualTemplate object or an Err with Vector of strings representing the problems
-    pub fn individual_template_row(&self, row: Vec<String>) -> Result<IndividualTemplate> {
-        /*let pmid = Curie::new_pmid(&row[0])?;
-        let title = TitleCell::new(&row[1])?;
-        let individual_id = SimpleLabel::individual_id(&row[2])?;
-        let disease_id = Curie::new_disease_id(&row[4])?;
-        let disease_label = SimpleLabel::disease_label(&row[5])?;
-        let hgnc_id = Curie::new_hgnc_id(&row[6])?;
-        let gene_sym = SimpleLabel::gene_symbol(&row[7])?;
-        let tx_id = Transcript::new(&row[8])?;
-        let a1 = Allele::new(&row[9])?;
-        let a2 = Allele::new(&row[10])?;
-        // field 11 is variant comment - skip it here!
-        let age_parser = AgeTool::new();
-        let onset = age_parser.parse(&row[12])?;
-        let encounter = age_parser.parse(&row[13])?;
-        let deceased = DeceasedTableCell::new::<&str>(&row[14])?;
-        let sex = SexTableCell::new::<&str>(&row[15])?;
-        // when we get here, we have parsed all of the constant columns. We can begin to parse the HPO
-        // columns. The template contains a variable number of such columns
-       
-        */
-       
-        // If we get here, then we know we can safely unwrap the following items
-        // TODO -- FIGURE OUT WHETHER WE NEED SOME ETC.
-        return Err(Error::TemplateError { msg: format!("TODO") });
+    pub fn individual_template_row(&self, row: Vec<String>) -> Result<PpktExporter> {
+        let hdrow_arc = self.header_duplet_row.clone(); // reference counted clone
+        let hpo_arc = Arc::clone(&self.hpo);
+        let exporter = PpktExporter::new(hdrow_arc, row.clone(), hpo_arc);
+        Ok(exporter)
     }
 
 
-    pub fn get_errors(&self) -> Vec<Error> {
-        let error_list: Vec<Error> = Vec::new();
-        let n_rows = self.content_rows.len();
-        
-
-
-        vec![]
-    }
+   
 
     /// Return all phenopacket templates or a list of errors if there was one or more problems
-    pub fn get_templates(&self) -> Result<Vec<IndividualTemplate>> {
+    pub fn get_templates(&self) -> Result<Vec<PpktExporter>> {
         let mut templates = Vec::new();
         for row in &self.content_rows {
             let itemplate = self.individual_template_row(row.to_vec());
@@ -223,13 +200,15 @@ mod test {
     use flate2::bufread::GzDecoder;
 
     #[fixture]
-    fn hpo() -> FullCsrOntology {
+    fn hpo() -> Arc<FullCsrOntology> {
         let path = "resources/hp.v2025-03-03.json.gz";
         let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
         let loader = OntologyLoaderBuilder::new().obographs_parser().build();
-
-        loader.load_from_read(reader).unwrap()
+        let hpo = loader.load_from_read(reader).unwrap();
+        Arc::new(hpo)
     }
+
+
 
     #[fixture]
     fn row1() -> Vec<String> 
@@ -274,21 +253,33 @@ mod test {
 
     /// Make sure that our test matrix is valid before we start changing fields to check if we pick up errors
     #[rstest]
-    fn test_factory_valid_input(original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology) {
-        let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
+    fn test_factory_valid_input(original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
+        let factory = IndividualTemplateFactory::new(hpo, &original_matrix); 
         assert!(factory.is_ok());
     }
 
+    /// There are seventeen fields in the constant section, 
+    /// therefore the index of the separator is 16 (the last field)
     #[rstest]
-    fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology) {
+    fn test_index_of_separator_column(original_matrix: Vec<Vec<String>>) {
+        let first_row_headers = &original_matrix[0];
+        let second_row_headers = &original_matrix[1];
+        let result = IndividualTemplateFactory::get_separator_index(first_row_headers, second_row_headers);
+        assert!(result.is_ok());
+        let i = result.unwrap();
+        assert_eq!(16, i);
+    }
+
+    #[rstest]
+    fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
         // "Hallux valgus" has extra white space
         original_matrix[0][19] = "Hallux  valgus".to_string(); 
-        let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
+        let factory = IndividualTemplateFactory::new(hpo, &original_matrix); 
         assert!(&factory.is_err());
         assert!(matches!(&factory, Err(Error::TermError { .. })));
-        let err = factory.unwrap_err();
+        let err = factory.err().unwrap();
         let err_msg = err.to_string();
-        let expected = "Invalid HPO label: HPO Term HP:0010034 with malformed label 'Hallux  valgus' instead of Short 1st metacarpal";
+        let expected = "HPO Term HP:0010034 with malformed label 'Hallux  valgus' instead of 'Short 1st metacarpal'";
         assert_eq!(expected, err_msg);
     }
 
@@ -312,13 +303,13 @@ mod test {
     #[case(13, "deceasd")]
     #[case(14, "sexcolumn")]
     #[case(15, "")]
-    fn test_malformed_title_row(mut original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology, #[case] idx: usize, #[case] label: &str) {
+    fn test_malformed_title_row(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>, #[case] idx: usize, #[case] label: &str) {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
-        let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
+        let factory = IndividualTemplateFactory::new(hpo, &original_matrix); 
         assert!(&factory.is_err());
         assert!(matches!(&factory, Err(Error::TemplateError { .. })));
-        let err = factory.unwrap_err();
+        let err = factory.err().unwrap();
         let err_msg = err.to_string();
         let expected = format!("Malformed title: '{}'", label);
         assert_eq!(expected, err_msg);
@@ -328,14 +319,50 @@ mod test {
     // we change entries in the third row (which is the first and only data row)
     // and introduce typical potential errors
     #[rstest]
-    #[case(0, "PMID29482508")]
-    fn test_malformed_entry(mut original_matrix: Vec<Vec<String>>, hpo: FullCsrOntology, #[case] idx: usize, #[case] entry: &str) {
-        original_matrix[2][idx] = entry.to_string();
-        let factory = IndividualTemplateFactory::new(&hpo, &original_matrix); 
+    #[case(0, "PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
+    #[case(0, "PMID: 29482508", "Contains stray whitespace: 'PMID: 29482508'")]
+    #[case(1, "", "Value must not be empty")]
+    #[case(1, "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report ", 
+        "Trailing whitespace in 'Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report '")]
+    #[case(2, "individual(1)", "Forbidden character '(' found in label 'individual(1)'")]
+    #[case(2, " individual A", "Leading whitespace in ' individual A'")]
+    #[case(4, "MIM:135100", "Disease id has invalid prefix: 'MIM:135100'")]
+    #[case(4, "OMIM: 135100", "Contains stray whitespace: 'OMIM: 135100'")]
+    #[case(4, "OMIM:13510", "OMIM identifiers must have 6 digits: 'OMIM:13510'")]
+    #[case(5, "Fibrodysplasia ossificans progressiva ", "Trailing whitespace in 'Fibrodysplasia ossificans progressiva '")]
+    #[case(6, "HGNC:171 ", "Contains stray whitespace: 'HGNC:171 '")]
+    #[case(6, "HGNC171", "Invalid CURIE with no colon: 'HGNC171'")]
+    #[case(6, "HGNG:171", "HGNC id has invalid prefix: 'HGNG:171'")]
+    #[case(7, "ACVR1 ", "Trailing whitespace in 'ACVR1 '")]
+    #[case(8, "NM_001111067", "Transcript 'NM_001111067' is missing a version")]
+    #[case(9, "617G>A", "Malformed allele '617G>A'")]
+    #[case(10, "", "Value must not be empty")]
+    #[case(12, "P2", "Malformed age_of_onset 'P2'")]
+    #[case(13, "Adultonset", "Malformed age_at_last_encounter 'Adultonset'")]
+    #[case(14, "?", "Malformed deceased entry: '?'")]
+    #[case(14, "alive", "Malformed deceased entry: 'alive'")]
+    #[case(15, "male", "Malformed entry in sex field: 'male'")]
+    #[case(15, "f", "Malformed entry in sex field: 'f'")]
+    #[case(18, "Observed", "Malformed HPO entry: 'Observed'")]
+    #[case(18, "yes", "Malformed HPO entry: 'yes'")]
+    #[case(18, "exc.", "Malformed HPO entry: 'exc.'")]
+      fn test_malformed_entry(
+        mut original_matrix: Vec<Vec<String>>, 
+        hpo: Arc<FullCsrOntology>, 
+        #[case] idx: usize, 
+        #[case] entry: &str,
+        #[case] error_msg: &str) {
+           original_matrix[2][idx] = entry.to_string();
+        let factory = IndividualTemplateFactory::new(hpo, &original_matrix); 
         assert!(factory.is_ok());
         let factory = factory.unwrap();
-        let templates = factory.get_templates();
-        //assert!(&factory.is_err());
+        let templates = factory.get_templates().unwrap();
+        assert_eq!(1, templates.len());
+        let itemplate = &templates[0];
+        let result = itemplate.qc_check();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(error_msg, err.to_string());
     }
 
 
