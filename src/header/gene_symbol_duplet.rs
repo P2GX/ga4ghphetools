@@ -33,7 +33,9 @@ impl HeaderDupletItem for GeneSymbolDuplet {
         Ok(())
     }
 
-    
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "trim".to_string()]
+    }
 }
 
 impl HeaderDupletItemFactory for  GeneSymbolDuplet {

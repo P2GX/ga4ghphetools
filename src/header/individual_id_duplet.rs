@@ -40,6 +40,10 @@ impl HeaderDupletItem for IndividualIdDuplet {
         Ok(())
     }
     
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "trim".to_string()]
+    }
+    
    
 }
 

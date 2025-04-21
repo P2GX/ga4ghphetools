@@ -26,7 +26,9 @@ impl HeaderDupletItem for CommentDuplet {
         Ok(())
     }
 
-    
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "clear".to_string()]
+    }
 }
 
 impl HeaderDupletItemFactory for CommentDuplet {

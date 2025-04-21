@@ -44,6 +44,9 @@ impl HeaderDupletItem for DeceasedDuplet {
         }
     }
 
+    fn get_options(&self) -> Vec<String> {
+        ALLOWED_DECEASED_ITEMS.clone().into_iter().collect()
+    }
    
 }
 

@@ -44,7 +44,9 @@ impl HeaderDupletItem for TranscriptDuplet {
         Ok(())
     }
 
-    
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "remove whitespace".to_string()]
+    }
     
 }
 

@@ -35,7 +35,9 @@ impl HeaderDupletItem for HpoSeparatorDuplet {
         }
     }
 
-    
+    fn get_options(&self) -> Vec<String> {
+        vec!["na".to_string()]
+    }
 }
 
 impl HeaderDupletItemFactory for HpoSeparatorDuplet {

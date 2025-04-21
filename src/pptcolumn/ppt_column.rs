@@ -231,7 +231,7 @@ impl PptColumn {
         if self.is_hpo_column() {
             return vec!["edit".to_string()];
         } else {
-            return vec![];
+            return vec!["not editable".to_string()];
         }
     }
 
@@ -240,31 +240,10 @@ impl PptColumn {
             // special treatment for the first two rows, which make up the header
             return self.get_options_for_header(row, col);
         }
-        if self.is_hpo_column() {
-            let mut items = vec![
-                "observed".to_string(),
-                "excluded".to_string(),
-                "na".to_string(),
-            ];
-            items.extend(addtl);
-            return items;
-        }
-        match self.header_duplet.row1().as_str() {
-          "sex" => {
-                return vec![
-                    "M".to_string(),
-                    "F".to_string(),
-                    "O".to_string(),
-                    "U".to_string(),
-                ];
-            }
-            "deceased" => {
-                return vec!["yes".to_string(), "no".to_string(), "na".to_string()];
-            }
-            _ => {
-                return  vec![];
-            }
-        }
+        let hdup = self.header_duplet.as_trait();
+        let mut items = hdup.get_options();
+        items.extend(addtl);
+        items
     }
 
     /// Validate entry according to column specific rules.

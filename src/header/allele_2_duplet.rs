@@ -41,7 +41,10 @@ impl HeaderDupletItem for Allele2Duplet {
         }
         Ok(())
     }
-
+    
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "remove whitespace".to_string(), "na".to_string()]
+    }
    
 }
 

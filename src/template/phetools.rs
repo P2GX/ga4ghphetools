@@ -312,7 +312,9 @@ impl PheTools {
         }
     }
 
-    pub fn get_options(
+    /// Get a vector of options that apply for the selected table cell 
+    /// (row 0 is header 1, row 1 is header 2, row 2.. are the phenopacket rows)
+    pub fn get_edit_options_for_table_cell(
         &self,
         row: usize,
         col: usize,

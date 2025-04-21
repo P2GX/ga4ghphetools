@@ -44,6 +44,10 @@ impl HeaderDupletItem for SexDuplet {
             false => Err(Error::SexFieldError { msg: format!("Malformed entry in sex field: '{}'", cell_contents) })
         }
     }
+    
+    fn get_options(&self) -> Vec<String> {
+        ALLOWED_SEX_DUPLET_ITEMS.clone().into_iter().collect()
+    }
 
     
 }

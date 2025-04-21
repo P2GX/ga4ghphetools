@@ -23,6 +23,8 @@ pub trait HeaderDupletItem {
     fn row2(&self) -> String;
     /// check the validity of a cell
     fn qc_cell(&self, cell_contents: &str) -> Result<()>;
+    /// get options for editing this cell
+    fn get_options(&self) -> Vec<String>;
 }
 
 
@@ -173,6 +175,11 @@ impl HeaderDupletItem for HeaderDuplet {
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
         let inner = self.as_trait();
         inner.qc_cell(cell_contents)
+    }
+
+    fn get_options(&self) -> Vec<String> {
+        let inner = self.as_trait();
+        inner.get_options()
     }
 }
 

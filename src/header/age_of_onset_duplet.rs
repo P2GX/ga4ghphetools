@@ -31,7 +31,10 @@ impl HeaderDupletItem for AgeOfOnsetDuplet {
             Err(Error::AgeParseError { msg: format!("Malformed age_of_onset '{}'", cell_contents) })
         }
     }
-
+    
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "remove whitespace".to_string(), "na".to_string()]
+    }
    
 }
 

@@ -29,8 +29,9 @@ impl HeaderDupletItem for TitleDuplet {
         Ok(())
     }
     
-    
-    
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "trim".to_string()]
+    }
 }
 impl HeaderDupletItemFactory for TitleDuplet {
     fn from_table(row1: &str, row2: &str) -> crate::error::Result<Self> where Self: Sized {

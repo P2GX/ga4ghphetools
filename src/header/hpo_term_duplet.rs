@@ -72,7 +72,10 @@ impl HeaderDupletItem for HpoTermDuplet {
         Err(Error::malformed_hpo_entry(&self.row1(), &self.row2(), cell_contents))
     }
 
-    
+    fn get_options(&self) -> Vec<String> {
+        vec!["observed".to_string(), "excluded".to_string(), "na".to_string(), "edit".to_string()]
+    }
+
 }
 
 impl HeaderDupletItemFactory for HpoTermDuplet {

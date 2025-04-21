@@ -7,6 +7,7 @@ use rphetools::PheTools;
 use rstest::rstest;
 use common::hpo;
 use common::matrix;
+use zip::result;
 
 /// Make sure that our test matrix is valid before we start changing fields to check if we pick up errors
 #[rstest]
@@ -176,4 +177,88 @@ fn check_setting_valid_value(
     assert!(res.is_ok());
     let result = phetools.set_value(i, j, value);
     assert!(result.is_ok());
+}
+
+
+
+
+
+/// The headers (rows 0/1) cannot be edited unless it is an HPO column (17 or later)
+#[rstest]
+#[case(0,0,vec!["not editable".to_string()])]
+#[case(1,0,vec!["not editable".to_string()])]
+#[case(0,1,vec!["not editable".to_string()])]
+#[case(1,1,vec!["not editable".to_string()])]
+#[case(0,3,vec!["not editable".to_string()])]
+#[case(1,3,vec!["not editable".to_string()])]
+#[case(0,10,vec!["not editable".to_string()])]
+#[case(1,10,vec!["not editable".to_string()])]
+fn test_get_options_header(
+    matrix: Vec<Vec<String>>, 
+    hpo: Arc<FullCsrOntology>,
+    #[case] i: usize, 
+    #[case] j: usize, 
+    #[case] expected_options: Vec<String>) 
+{
+        let mut phetools = PheTools::new(hpo);
+        let res = phetools.load_matrix(matrix);
+        assert!(res.is_ok());
+        let empty_addtl = vec![];
+        let result = phetools.get_edit_options_for_table_cell(i, j, empty_addtl);
+        assert!(result.is_ok());
+        let options = result.unwrap();
+        assert_eq!(expected_options.len(), options.len());
+        assert_eq!(expected_options, options);
+}
+
+
+#[rstest]
+#[case(2,1,vec!["edit".to_string(), "trim".to_string()])]
+fn test_get_options_single(
+    matrix: Vec<Vec<String>>, 
+    hpo: Arc<FullCsrOntology>,
+    #[case] i: usize, 
+    #[case] j: usize, 
+    #[case] expected_options: Vec<String>) {
+        let mut phetools = PheTools::new(hpo);
+        let res = phetools.load_matrix(matrix);
+        assert!(res.is_ok());
+        let addtl = vec!["additional".to_string()];
+        let result = phetools.get_edit_options_for_table_cell(i, j, addtl);
+        assert!(result.is_ok());
+        let options = result.unwrap();
+        let mut expected = expected_options.clone();
+        expected.push("additional".to_string());
+        if expected != options {
+            println!("Expected: {:?}", expected_options);
+            println!("Got:      {:?}", options);
+        }
+        assert_eq!(expected.len(), options.len());
+        assert_eq!(expected, options);
+}
+
+
+#[rstest]
+#[case(2,0,vec!["edit".to_string(), "remove whitespace".to_string()])] // PMID
+#[case(2,1,vec!["edit".to_string(),  "trim".to_string()])] // title
+#[case(2,2,vec!["edit".to_string(),  "trim".to_string()])] // individual
+#[case(2,3,vec!["edit".to_string(),  "clear".to_string()])] // comment
+#[case(2,4,vec!["edit".to_string(),  "remove whitespace".to_string()])] // disease id
+fn test_get_options_non_header(
+    matrix: Vec<Vec<String>>, 
+    hpo: Arc<FullCsrOntology>,
+    #[case] i: usize, 
+    #[case] j: usize, 
+    #[case] expected_options: Vec<String>) {
+        let mut phetools = PheTools::new(hpo);
+        let res = phetools.load_matrix(matrix);
+        assert!(res.is_ok());
+        let addtl = vec!["additional".to_string()];
+        let result =  phetools.get_edit_options_for_table_cell(i, j, addtl);
+        assert!(result.is_ok());
+        let options = result.unwrap();
+        let mut expected = expected_options;
+        expected.push("additional".to_string());
+        assert_eq!(expected.len(), options.len());
+        assert_eq!(expected, options);
 }

@@ -27,7 +27,9 @@ impl HeaderDupletItem for VariantCommentDuplet {
         Ok(())
     }
 
-    
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "trim".to_string()]
+    }
     
 }
 

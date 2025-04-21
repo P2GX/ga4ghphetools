@@ -39,6 +39,9 @@ impl HeaderDupletItem for Allele1Duplet {
         Err(Error::AlleleError { msg: format!("Malformed allele '{}'", cell_contents) })
     }
 
+    fn get_options(&self) -> Vec<String> {
+        vec!["edit".to_string(), "remove whitespace".to_string()]
+    }
    
 }
 
