@@ -23,7 +23,7 @@ use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use crate::template::itemplate_factory::IndividualTemplateFactory;
-use crate::template::ppt_template::PptTemplate;
+use crate::template::pt_template::PheToolsTemplate;
 use crate::template::template_row_adder::MendelianRowAdder;
 use crate::template::{excel, template_creator};
 use crate::rphetools_traits::PyphetoolsTemplateCreator;
@@ -37,7 +37,7 @@ pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
     /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
-    template: Option<PptTemplate>,
+    template: Option<PheToolsTemplate>,
 }
 
 impl PheTools {
@@ -183,13 +183,13 @@ impl PheTools {
         matrix: Vec<Vec<String>>
     ) -> Result<(), String> 
     {
-        match PptTemplate::from_string_matrix(matrix, &self.hpo) {
+        match PheToolsTemplate::from_string_matrix(matrix, &self.hpo) {
             Ok(ppt) => {
                 self.template = Some(ppt);
                 Ok(())
             },
             Err(e) => {
-                        eprint!("Could not create ppttemplate");
+                        eprint!("Could not create pt_template");
                         let err_string = e.iter().map(|e| e.to_string()).collect();
                         return Err(err_string);
                     }
@@ -329,6 +329,23 @@ impl PheTools {
                 return Err(format!("template not initialized"));
             }
         }
+    }
+
+    pub fn execute_operation(
+        &mut self,
+        row: usize,
+        col: usize,
+        operation: &str) -> Result<(), String>
+    {
+        match &mut self.template {
+            Some(template) =>  {
+                template.execute_operation(row, col, operation).map_err(|e| e.to_string())?;
+                return Ok(());
+            },
+            None => {
+                return Err(format!("template not initialized"));
+            }
+        } 
     }
 
     pub fn delete_row(&mut self, row: usize) -> Result<(), String> {

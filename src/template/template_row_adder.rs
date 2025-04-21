@@ -1,6 +1,6 @@
 use crate::{
     error::{self, Error, Result},
-    template::ppt_template::PptTemplate,
+    template::pt_template::PheToolsTemplate,
 };
 
 pub(crate) trait TemplateRowAdder {
@@ -9,7 +9,7 @@ pub(crate) trait TemplateRowAdder {
         pmid: &str,
         title: &str,
         individual_id: &str,
-        ppt_template: &mut PptTemplate,
+        ppt_template: &mut PheToolsTemplate,
     ) -> Result<()>;
 }
 
@@ -21,7 +21,7 @@ impl TemplateRowAdder for MendelianRowAdder {
         pmid: &str,
         title:  &str,
         individual_id:  &str,
-        ppt_template: &mut PptTemplate,
+        ppt_template: &mut PheToolsTemplate,
     ) -> Result<()> {
         /// Add an empty string to all fields (columns) of the template
         /// except for the few where we know the values

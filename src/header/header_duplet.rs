@@ -25,6 +25,13 @@ pub trait HeaderDupletItem {
     fn qc_cell(&self, cell_contents: &str) -> Result<()>;
     /// get options for editing this cell
     fn get_options(&self) -> Vec<String>;
+    /// Set value is only possible for HpoTermDuplets, so we have a default implementation that throws an error
+    /// and override this only in HpoTermDuplets
+    fn set_value(&mut self, idx: usize, value: &str) -> Result<()> {
+        Err(Error::HeaderError {
+            msg: format!("set_value not implemented for this type"),
+        })
+    }
 }
 
 
@@ -124,6 +131,15 @@ impl HeaderDuplet {
         }
     }
 
+    pub fn as_trait_mut(&mut self) -> Result<&mut dyn HeaderDupletItem> {
+        match self {
+            HeaderDuplet::HpoTermDuplet(inner) => Ok(inner),
+            _ => Err(Error::HeaderError {
+                msg: "Only HpoTermDuplet can be mutated".to_string(),
+            }),
+        }
+    }
+
 
     pub fn extract_from_string_matrix(matrix: &Vec<Vec<String>>) -> Result<Vec<HeaderDuplet>> {
         if matrix.len() < 2 {
@@ -181,6 +197,7 @@ impl HeaderDupletItem for HeaderDuplet {
         let inner = self.as_trait();
         inner.get_options()
     }
+
 }
 
 impl fmt::Display for HeaderDuplet {
@@ -200,6 +217,16 @@ pub fn check_white_space(value: &str) -> Result<()> {
         return Err(Error::leading_ws(value));
     } else if value.contains("  ") {
         return Err(Error::consecutive_ws(value));
+    } else {
+        Ok(())
+    }
+}
+
+pub fn check_leading_trailing_whitespace(value: &str) -> Result<()> {
+    if value.chars().last().map_or(false, |c| c.is_whitespace()) {
+        return Err(Error::trailing_ws(value));
+    } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
+        return Err(Error::leading_ws(value));
     } else {
         Ok(())
     }

@@ -45,6 +45,8 @@ impl HpoTermDuplet {
     pub fn new(label: impl Into<String>, identifier: impl Into<String>) -> Self {
         Self { hpo_label: label.into(), hpo_id: identifier.into() }
     }
+
+    
 }
 
 impl HeaderDupletItem for HpoTermDuplet {
@@ -74,6 +76,28 @@ impl HeaderDupletItem for HpoTermDuplet {
 
     fn get_options(&self) -> Vec<String> {
         vec!["observed".to_string(), "excluded".to_string(), "na".to_string(), "edit".to_string()]
+    }
+
+    /// Change the value of one of the two header items for an HPO column
+    /// The first row has the label and the second row has the HPO id. We allow this to be edited.
+    /// We assume that the caller is provide the correct value and do not check here that it is a valid term id/label
+    /// This Q/C occurs in multiple other places of the application.
+    fn set_value(&mut self, idx: usize, value: &str) -> Result<()> {
+        if idx == 0 {
+            header_duplet::check_empty(value)?;
+            header_duplet::check_leading_trailing_whitespace(value)?;
+            self.hpo_label = value.to_string();
+        } else if idx == 1 {
+            header_duplet::check_empty(value)?;
+            header_duplet::check_valid_curie(value)?;
+            if ! value.starts_with("HP:") && value.len() == 10 {
+                return Err(Error::malformed_hpo_term_id(value));
+            }
+            self.hpo_id = value.to_string();
+        } else {
+            return Err(Error::HeaderError { msg: format!("invalid index for HPO header: {idx}") });
+        }
+        Ok(())
     }
 
 }

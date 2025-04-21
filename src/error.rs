@@ -95,6 +95,9 @@ pub enum Error {
     DeceasedError {
         msg: String,
     },
+    OperationError {
+        msg: String,
+    },
     SexFieldError {
         msg: String,
     },
@@ -236,6 +239,11 @@ impl Error {
         Error::TermError { msg }
     }
 
+    pub fn unrecognized_operation(op: &str) -> Self {
+        let msg = format!("Unrecognized operation: '{}'", op);
+        Error::OperationError { msg }
+    }
+
 }
 
 impl From<&str> for Error {
@@ -282,6 +290,7 @@ impl core::fmt::Display for Error {
             | Error::HgncError { msg }
             | Error::HpoError { msg }
             | Error::AlleleError { msg }
+            | Error::OperationError {msg}
             | Error::PmidError { msg }
             | Error::SexFieldError { msg }
             | Error::SeparatorError { msg }

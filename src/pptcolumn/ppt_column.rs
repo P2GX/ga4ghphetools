@@ -305,12 +305,48 @@ impl PptColumn {
         self.column_data.push(String::default());
     }
 
-    pub fn set_value(&mut self, idx: usize, val: &str) -> Result<()> {
+     /// Sets the value of a one of the two header fields
+    pub fn set_header_value(&mut self, idx: usize, val: &str) -> Result<()> {
+        if idx > 1 {
+            return Err(Error::HeaderError { msg: format!("Only index 0 or 1 valid to set HPO header") })
+        }
+        if self.is_hpo_column() {
+            let mut hpo_term_column = self.header_duplet.as_trait_mut()?;
+            hpo_term_column.set_value(idx, val)?;
+            return Ok(());
+        }
+        return Err(Error::HeaderError { msg: format!("Only index 0 or 1 valid to set HPO header") })
+    }
+
+    /// Sets the value of a phenopacket, whereby the idx is the idx with respect to the phenoapckets
+    /// that is, the first two rows (header duplet) are ignored, idx=0 is the first phenopacket row)
+    pub fn set_phenopacket_value(&mut self, idx: usize, val: &str) -> Result<()> {
         if idx >= self.phenopacket_count() {
             return Err(Error::row_index_error(idx, self.phenopacket_count()));
         }
         self.header_duplet.qc_cell(val)?;
         self.column_data[idx] = val.to_string();
+        Ok(())
+    }
+
+    /// Remove leading and trailing whitespace, if any, from the value in row idx
+    pub fn trim_value(&mut self, idx: usize) -> Result<()> {
+        if idx >= self.phenopacket_count() {
+            return Err(Error::row_index_error(idx, self.phenopacket_count()));
+        }
+        self.column_data[idx] = self.column_data[idx].trim().to_string();
+        Ok(())
+    }
+
+    /// Remove whitespace at any position from the value in row idx
+    pub fn remove_whitespace(&mut self, idx: usize) -> Result<()> {
+        if idx >= self.phenopacket_count() {
+            return Err(Error::row_index_error(idx, self.phenopacket_count()));
+        }
+        self.column_data[idx] = self.column_data[idx]
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
         Ok(())
     }
 

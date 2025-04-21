@@ -276,3 +276,51 @@ fn test_get_options_non_header(
         assert_eq!(expected.len(), options.len());
         assert_eq!(expected, options);
 }
+
+
+#[rstest]
+fn test_trim_operation(mut matrix: Vec<Vec<String>>, 
+    hpo: Arc<FullCsrOntology>,) {
+      
+        assert_eq!("Infantile onset", &matrix[2][12]);
+        matrix[2][12] = "Infantile onset ".to_string();
+        assert_eq!("Infantile onset ", &matrix[2][12]);
+        let mut phetools = PheTools::new(hpo);
+        let res = phetools.load_matrix(matrix);
+        assert!(res.is_ok());
+        let res = phetools.execute_operation(2, 12, "trim");
+        assert!(res.is_ok());
+        let trimmed_matrix = phetools.get_string_matrix().unwrap();
+        assert_eq!("Infantile onset", &trimmed_matrix[2][12]);
+}
+
+
+#[rstest]
+#[case(2,12, "na", "Infantile onset", "na")] // age_of_onset
+#[case(2,13, "na", "P16Y", "na")]// age_at_last_encounter
+#[case(2,14, "yes", "", "yes")]// deceased
+#[case(2,15, "female", "M", "F")] // sex
+#[case(2,15, "other", "M", "O")] // sex
+#[case(2,15, "unknown", "M", "U")] // sex
+#[case(2,17, "na", "observed", "na")] // HP:0001508
+#[case(2,17, "excluded", "observed", "excluded")] // HP:0001508
+fn test_execute_operation(
+    matrix: Vec<Vec<String>>, 
+    hpo: Arc<FullCsrOntology>,
+    #[case] i: usize, 
+    #[case] j: usize, 
+    #[case] operation: &str,
+    #[case] original_value: &str,
+    #[case] expected_result: &str) {
+        // check the original value is as exected -- this is set in common/mod.rs
+        assert_eq!(original_value, matrix[i][j]);
+        let original_matrx = matrix.clone();
+        let mut phetools = PheTools::new(hpo);
+        let res = phetools.load_matrix(matrix);
+        assert!(res.is_ok());
+        let res = phetools.execute_operation(i, j, operation);
+        assert!(res.is_ok());
+        let modified_matrix = phetools.get_string_matrix().unwrap();
+        let data_row = i + 2; // note that the method uses the data index, which is two more (because of the header)
+        assert_eq!(expected_result, modified_matrix[i][j]);
+    }

@@ -19,6 +19,8 @@ use crate::{
     pptcolumn::ppt_column::PptColumn,
 };
 
+use super::operations::Operation;
+
 /// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
 #[derive(PartialEq)]
 pub enum TemplateType {
@@ -27,7 +29,7 @@ pub enum TemplateType {
 }
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
-pub struct PptTemplate {
+pub struct PheToolsTemplate {
     disease_gene_bundle: DiseaseGeneBundle,
     columns: Vec<PptColumn>,
     template_type: TemplateType,
@@ -56,7 +58,7 @@ impl Error {
     }
 }
 
-impl PptTemplate {
+impl PheToolsTemplate {
     /// Create the initial pyphetools template (Table) with empty values so the curator can start to make
     /// a template with cases for a specific cohort
     /// Todo: Figure out the desired function signature.
@@ -167,11 +169,8 @@ impl PptTemplate {
         println!("ppt_template n-columns= {}", self.column_count());
         for idx in 0..nrows {
             let mut row: Vec<String> = Vec::new();
-            let mut i = 0 as usize;
-
             for col in &self.columns {
                 //println!("Column {} row {}\n{}",i, idx,  col);
-                i += 1;
                 match col.get(idx) {
                     Ok(data) => row.push(data),
                     Err(e) => {
@@ -530,7 +529,7 @@ impl PptTemplate {
         }
     }
 
-    pub fn set_value(&mut self, row: usize, col: usize, value: &str) -> Result<()> {
+    fn check_validity_of_indices(&self, row: usize, col: usize) -> Result<()> {
         if row >= self.columns[0].phenopacket_count() {
             return Err(Error::row_index_error(
                 row,
@@ -540,10 +539,49 @@ impl PptTemplate {
         if col >= self.columns.len() {
             return Err(Error::column_index_error(col, self.columns.len()));
         }
-        let mut col = &mut self.columns[col];
-        col.set_value(row, value)?;
+        return Ok(())
+    }
+
+    /// Set the value of a specific cell of the matrix
+    /// 
+    /// Arguments:
+    /// - `row`: usize - index of the row (including the first two, header rows, that is, the first phenopacket is at index 2)
+    pub fn set_value(&mut self, row: usize, col: usize, value: &str) -> Result<()> {
+        self.check_validity_of_indices(row, col)?;
+        let mut ppt_col = &mut self.columns[col];
+        if row < 2 {
+            ppt_col.set_header_value(row, value);
+        } else {
+            let idx = row - 2; // index of the phenopacket
+            ppt_col.set_phenopacket_value(idx, value)?;
+        }
         Ok(())
     }
+
+    pub fn trim_value(&mut self, row: usize, col: usize) -> Result<()> {
+        self.check_validity_of_indices(row, col)?;
+        if row < 2 {
+            return Err(Error::HeaderError{msg: format!("Cannot trim header item")});
+        } else {
+            let mut ppt_col = &mut self.columns[col];
+            let idx = row - 2; // index of the phenopacket
+            ppt_col.trim_value(idx)?;
+        }
+        Ok(())
+    }
+
+    pub fn remove_whitespace(&mut self, row: usize, col: usize) -> Result<()> {
+        self.check_validity_of_indices(row, col)?;
+        let mut ppt_col = &mut self.columns[col];
+        if row < 2 {
+            return Err(Error::HeaderError{msg: format!("Cannot remove whitespace from header item")});
+        } else {
+            let idx = row - 2; // index of the phenopacket
+            ppt_col.remove_whitespace(idx)?;
+        }
+        Ok(())
+    }
+
 
     pub fn get_options(&self, row: usize, col: usize, addtl: Vec<String>) -> Result<Vec<String>> {
         if col >= self.columns.len() {
@@ -561,6 +599,38 @@ impl PptTemplate {
             }
         }
         Ok(vec![])
+    }
+
+    fn total_rows(&self) -> usize {
+        2 + self.phenopacket_count()
+    }
+
+    pub fn execute_operation(
+        &mut self,
+        row: usize,
+        col: usize,
+        operation: &str) -> Result<()>
+    {
+        if col >= self.columns.len() {
+            return Err(Error::column_index_error(col, self.columns.len()));
+        }
+        if row >= self.total_rows() {
+            return Err(Error::row_index_error(row, self.total_rows()));
+        }
+        if let Some(operation) = Operation::from_keyword(operation) {
+            match operation {
+                Operation::Edit => { return Err(Error::OperationError { msg: format!("Edit operations should be be passed through this function") });},
+                Operation::Clear => { self.set_value(row, col, ""); },
+                Operation::Trim => { self.trim_value(row, col); },
+                Operation::RemoveWhitespace => { self.remove_whitespace(row, col); },
+                _ => { self.set_value(row, col, operation.as_str()); },
+            }
+            Ok(())
+        } else {
+            Err(Error::unrecognized_operation(operation))
+        }
+
+       
     }
 
     pub fn get_summary(&self) -> HashMap<String, String> {
