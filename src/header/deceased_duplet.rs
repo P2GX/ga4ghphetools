@@ -45,7 +45,7 @@ impl HeaderDupletItem for DeceasedDuplet {
     }
 
     fn get_options(&self) -> Vec<String> {
-        ALLOWED_DECEASED_ITEMS.clone().into_iter().collect()
+        vec!["yes".to_string(), "no".to_string(), "na".to_string()]
     }
    
 }

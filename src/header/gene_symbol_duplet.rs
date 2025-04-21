@@ -34,7 +34,7 @@ impl HeaderDupletItem for GeneSymbolDuplet {
     }
 
     fn get_options(&self) -> Vec<String> {
-        vec!["edit".to_string(), "trim".to_string()]
+        vec!["edit".to_string(), "remove whitespace".to_string()]
     }
 }
 

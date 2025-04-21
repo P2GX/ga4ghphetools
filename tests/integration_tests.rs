@@ -238,12 +238,26 @@ fn test_get_options_single(
 }
 
 
+/// Test the get_options method, which returns operations that can be performed via right-click on a GUI
 #[rstest]
 #[case(2,0,vec!["edit".to_string(), "remove whitespace".to_string()])] // PMID
-#[case(2,1,vec!["edit".to_string(),  "trim".to_string()])] // title
-#[case(2,2,vec!["edit".to_string(),  "trim".to_string()])] // individual
-#[case(2,3,vec!["edit".to_string(),  "clear".to_string()])] // comment
-#[case(2,4,vec!["edit".to_string(),  "remove whitespace".to_string()])] // disease id
+#[case(2,1,vec!["edit".to_string(), "trim".to_string()])] // title
+#[case(2,2,vec!["edit".to_string(), "trim".to_string()])] // individual
+#[case(2,3,vec!["edit".to_string(), "trim".to_string(), "clear".to_string()])] // comment
+#[case(2,4,vec!["edit".to_string(), "remove whitespace".to_string()])] // disease id
+#[case(2,5,vec!["edit".to_string(), "trim".to_string()])] // disease label
+#[case(2,6,vec!["edit".to_string(), "remove whitespace".to_string()])] // HNGC_id
+#[case(2,7,vec!["edit".to_string(), "remove whitespace".to_string()])] // gene symbol
+#[case(2,8,vec!["edit".to_string(), "remove whitespace".to_string()])] // transcript
+#[case(2,9,vec!["edit".to_string(), "remove whitespace".to_string()])] // allele 1
+#[case(2,10,vec!["edit".to_string(), "remove whitespace".to_string(), "na".to_string()])] // allele 2
+#[case(2,11,vec!["edit".to_string(), "trim".to_string(), "clear".to_string()])] // variant.comment
+#[case(2,12,vec!["edit".to_string(), "trim".to_string(), "na".to_string()])] // age of onset
+#[case(2,13,vec!["edit".to_string(), "trim".to_string(), "na".to_string()])] // age at last encounter
+#[case(2,14,vec!["yes".to_string(), "no".to_string(), "na".to_string()])] // deceased
+#[case(2,15,vec!["M".to_string(), "F".to_string(), "O".to_string(), "U".to_string()])] // sex
+#[case(2,16,vec!["na".to_string()])] // HPO (separator)
+#[case(2,17, vec!["observed".to_string(), "excluded".to_string(), "na".to_string(), "edit".to_string()])]
 fn test_get_options_non_header(
     matrix: Vec<Vec<String>>, 
     hpo: Arc<FullCsrOntology>,

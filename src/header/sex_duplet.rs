@@ -46,7 +46,7 @@ impl HeaderDupletItem for SexDuplet {
     }
     
     fn get_options(&self) -> Vec<String> {
-        ALLOWED_SEX_DUPLET_ITEMS.clone().into_iter().collect()
+        vec!["M".to_string(), "F".to_string(), "O".to_string(),"U".to_string()]
     }
 
     
