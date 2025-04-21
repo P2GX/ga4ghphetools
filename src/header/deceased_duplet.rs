@@ -11,7 +11,7 @@ use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 use crate::header::age_util;
 
-use super::header_duplet::{HeaderDuplet, HeaderDupletItemFactory};
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DeceasedDuplet {}
@@ -37,6 +37,7 @@ impl HeaderDupletItem for DeceasedDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
+        header_duplet::check_empty_for_field(cell_contents, "deceased")?;
         match ALLOWED_DECEASED_ITEMS.contains(cell_contents) {
             true => Ok(()),
             false => Err(Error::DeceasedError{msg: format!("Malformed deceased entry: '{}'", cell_contents)})
@@ -80,6 +81,7 @@ mod test {
 
     #[rstest]
     #[case("?", "Malformed deceased entry: '?'")]
+    #[case("", "deceased must not be empty")]
     #[case("yes ", "Malformed deceased entry: 'yes '")]
     #[case("n/a", "Malformed deceased entry: 'n/a'")]
     fn test_invalid_deceased_field(#[case] item:&str, #[case] response:&str) {

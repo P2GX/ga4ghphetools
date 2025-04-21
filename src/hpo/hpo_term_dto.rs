@@ -10,10 +10,15 @@ use crate::template::excel::read_excel_to_dataframe;
 
 #[derive(Debug, Clone)]
 pub struct HpoTermDto {
+    /// String representation of an HPO identifier, e.g., HP:0025234
     term_id: String,
+    /// Corresponding HPO label, e.g., Parasomnia
     term_label: String,
+    /// Optional String representing age of onset, e.g., P2Y3M, Congenital onset, G34w2d
     age_of_onset: Option<String>,
+    /// True only if the terms was explicitly excluded
     excluded: bool,
+    /// True if the corresponding entry was empty or "na"
     ascertained: bool
 }
 

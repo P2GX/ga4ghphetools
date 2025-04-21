@@ -343,9 +343,9 @@ mod test {
     #[case(14, "alive", "Malformed deceased entry: 'alive'")]
     #[case(15, "male", "Malformed entry in sex field: 'male'")]
     #[case(15, "f", "Malformed entry in sex field: 'f'")]
-    #[case(18, "Observed", "Malformed HPO entry: 'Observed'")]
-    #[case(18, "yes", "Malformed HPO entry: 'yes'")]
-    #[case(18, "exc.", "Malformed HPO entry: 'exc.'")]
+    #[case(18, "Observed", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'Observed'")]
+    #[case(18, "yes", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'yes'")]
+    #[case(18, "exc.", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'exc.'")]
       fn test_malformed_entry(
         mut original_matrix: Vec<Vec<String>>, 
         hpo: Arc<FullCsrOntology>, 

@@ -3,7 +3,7 @@
 //! Each type of HeaderDuplet defines a column type that specifies the values in the first two lines and provides
 //! quality control functions for data in the column.
 //! 
-//! See the [`header_duplet`](mod@crate::header_duplet) module for the trait that each HeaderDuplet implements.
+//! See the [`header_duplet`](mod@crate::header::header_duplet) module for the trait that each HeaderDuplet implements.
 
 pub mod age_of_onset_duplet;
 pub mod age_last_encounter;

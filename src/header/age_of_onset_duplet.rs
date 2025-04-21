@@ -8,7 +8,7 @@ use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 use crate::header::age_util;
 
-use super::header_duplet::{HeaderDuplet, HeaderDupletItemFactory};
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct AgeOfOnsetDuplet {}
@@ -23,6 +23,8 @@ impl HeaderDupletItem for AgeOfOnsetDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
+        header_duplet::check_white_space_for_field(cell_contents, "age_of_onset")?;
+        header_duplet::check_empty_for_field(cell_contents, "age_of_onset")?;
         if age_util::is_valid_age_string(cell_contents) {
             Ok(())
         } else {

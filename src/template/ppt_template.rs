@@ -530,7 +530,7 @@ impl PptTemplate {
         }
     }
 
-    pub fn set_value(&mut self, row: usize, col: usize, value: impl Into<String>) -> Result<()> {
+    pub fn set_value(&mut self, row: usize, col: usize, value: &str) -> Result<()> {
         if row >= self.columns[0].phenopacket_count() {
             return Err(Error::row_index_error(
                 row,

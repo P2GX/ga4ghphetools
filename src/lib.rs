@@ -1,4 +1,4 @@
-//! PheTools
+//! # PheTools
 //!
 //! Users interact with the library via the PheTools structure.
 //! The library does not expose custom datatypes, and errors are translated
@@ -14,12 +14,10 @@
 mod error;
 mod header;
 mod hpo;
-
 mod pptcolumn;
-mod template;
 mod rphetools_traits;
+mod template;
 mod variant;
-
 
 pub use hpo::HpoTermDto;
 pub use template::phetools::PheTools;

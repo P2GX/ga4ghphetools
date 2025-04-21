@@ -326,11 +326,12 @@ impl PptColumn {
         self.column_data.push(String::default());
     }
 
-    pub fn set_value(&mut self, idx: usize, val: impl Into<String>) -> Result<()> {
+    pub fn set_value(&mut self, idx: usize, val: &str) -> Result<()> {
         if idx >= self.phenopacket_count() {
             return Err(Error::row_index_error(idx, self.phenopacket_count()));
         }
-        self.column_data[idx] = val.into();
+        self.header_duplet.qc_cell(val)?;
+        self.column_data[idx] = val.to_string();
         Ok(())
     }
 

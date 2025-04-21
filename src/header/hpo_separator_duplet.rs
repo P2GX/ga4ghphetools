@@ -27,7 +27,7 @@ impl HeaderDupletItem for HpoSeparatorDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
-        header_duplet::check_empty(cell_contents)?;
+        header_duplet::check_empty_for_field(cell_contents, "HPO (separator)")?;
         if cell_contents == "na" {
             Ok(())
         } else {
@@ -71,7 +71,7 @@ mod test {
 
 
     #[rstest]
-    #[case("", "Value must not be empty")]
+    #[case("", "HPO (separator) must not be empty")]
     #[case("na ", "Malformed HPO (separator) entry: 'na '")]
     #[case("n/a", "Malformed HPO (separator) entry: 'n/a'")]
     #[case("observed", "Malformed HPO (separator) entry: 'observed'")]

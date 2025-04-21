@@ -36,6 +36,7 @@ use std::{fmt::format, str::FromStr, vec};
 pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
+    /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
     template: Option<PptTemplate>,
 }
 
@@ -67,9 +68,6 @@ impl PheTools {
         }
     }
 
-    fn set_template(&mut self, template: PptTemplate) {
-        self.template = Some(template)
-    }
 
     /// Creates a template to be used for curating phenopackets
     ///
@@ -179,31 +177,42 @@ impl PheTools {
         }
     }
 
-    pub fn load_excel_template(
-        &mut self,
-        pyphetools_template_path: &str,
-    ) -> Result<(), Vec<String>> {
-        let result = excel::read_excel_to_dataframe(pyphetools_template_path);
-        match result {
-            Ok(ppt_template) => {
-                let ppt_res = PptTemplate::from_string_matrix(ppt_template, &self.hpo);
-                match ppt_res {
-                    Ok(ppt) => {
-                        self.template = Some(ppt);
-                    }
-                    Err(e) => {
+    /// Load a two dimensional String matrix representing the entire PheTools template
+    pub fn load_matrix(
+        &mut self, 
+        matrix: Vec<Vec<String>>
+    ) -> Result<(), String> 
+    {
+        match PptTemplate::from_string_matrix(matrix, &self.hpo) {
+            Ok(ppt) => {
+                self.template = Some(ppt);
+                Ok(())
+            },
+            Err(e) => {
                         eprint!("Could not create ppttemplate");
                         let err_string = e.iter().map(|e| e.to_string()).collect();
                         return Err(err_string);
                     }
-                }
-                return Ok(());
             }
-            Err(e) => {
-                let err_string = vec![e.to_string()];
-                return Err(err_string);
-            }
-        }
+    }
+
+    /// Transform an excel file (representing a PheTools template) into a matrix of Strings
+    fn excel_template_to_matrix(
+        phetools_template_path: &str,
+    ) -> Result<Vec<Vec<String>>, String> 
+    {
+        excel::read_excel_to_dataframe(phetools_template_path)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Load an Excel file representing the entire PheTools template
+    pub fn load_excel_template(
+        &mut self,
+        phetools_template_path: &str,
+    ) -> Result<(), String> {
+        let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
+        self.load_matrix(matrix)?;
+        Ok(())
     }
 
     pub fn template_qc(&self) -> Vec<String> {
@@ -253,9 +262,9 @@ impl PheTools {
     /// Adds a new row to the template but fills in only the contstant fields (disease id/label, gene id/symbol, transcript)
     pub fn add_empty_row(
         &mut self,
-        pmid: impl Into<String>,
-        title: impl Into<String>,
-        individual_id: impl Into<String>,
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
     ) -> Result<(), String> {
         match &mut self.template {
             Some(template) => {
@@ -266,7 +275,7 @@ impl PheTools {
                         .map_err(|e| e.to_string())?;
                     Ok(())
                 } else {
-                    return Err(format!("Non mendelian not implemented"));
+                    return Err(format!("Non-Mendelian not implemented"));
                 }
             }
             None => Err(format!("Attempt to add row to null template!")),
@@ -288,7 +297,7 @@ impl PheTools {
         &mut self,
         row: usize,
         col: usize,
-        value: impl Into<String>,
+        value: &str,
     ) -> Result<(), String> {
         match &mut self.template {
             Some(template) => {

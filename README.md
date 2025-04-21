@@ -27,3 +27,7 @@ to run it
 ```bash
 cargo run --features cli --bin rpt
 ```
+## To see private features in documentation
+```bash
+cargo doc --document-private-items --open
+```

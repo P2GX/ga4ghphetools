@@ -32,8 +32,12 @@ lazy_static! {
 }
 
 impl Error {
-    fn malformed_hpo_entry(value: &str) -> Self {
-        Error::HpoError { msg: format!("Malformed HPO entry: '{}'", value) } 
+    fn malformed_hpo_entry(hpo_label: &str, hpo_id: &str, value: &str) -> Self {
+        Error::HpoError { msg: format!("Malformed entry for {} ({}): '{}'", hpo_label, hpo_id, value) } 
+    }
+
+    fn malformed_hpo_term_id( value: &str) -> Self {
+        Error::HpoError { msg: format!("Malformed HPO Term id: '{}'", value) } 
     }
 }
 
@@ -52,14 +56,20 @@ impl HeaderDupletItem for HpoTermDuplet {
         self.hpo_id.clone()
     }
 
+    /// An HPO cell can be empty, or contain observed/expected/na or an age string
+    /// We plan to enforce that HPO cells cannot be empty (they will need to have na for not-available data)
+    /// We also plan to allow some modifiers (e.g., "Mild") in this field, indicating "observed" with modifier
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
+        if cell_contents.is_empty() {
+            return Ok(());
+        }
         if ALLOWED_HPO_ITEMS.contains(cell_contents) {
             return Ok(());
         }
         if age_util::is_valid_age_string(cell_contents) {
             return Ok(());
         }
-        Err(Error::malformed_hpo_entry(cell_contents))
+        Err(Error::malformed_hpo_entry(&self.row1(), &self.row2(), cell_contents))
     }
 
     
@@ -71,7 +81,7 @@ impl HeaderDupletItemFactory for HpoTermDuplet {
         header_duplet::check_white_space(row1)?;
         header_duplet::check_valid_curie(row2)?;
         if ! row2.starts_with("HP:") {
-            return Err(Error::malformed_hpo_entry(row2));
+            return Err(Error::malformed_hpo_term_id(row2));
         }
         let duplet = Self::new(row1, row2);
         return Ok(duplet);
@@ -92,9 +102,9 @@ mod test {
 
 
     #[rstest]
-    #[case("na ", "Malformed HPO entry: 'na '")]
+    #[case("na ", "Malformed entry for Parasomnia (HP:0025234): 'na '")]
     fn test_invalid_hpo_field(#[case] item:&str, #[case] response:&str) {
-        let duplet = HpoTermDuplet::default();
+        let duplet = HpoTermDuplet::new("Parasomnia", "HP:0025234");
         let result = duplet.qc_cell(item);
         assert!(result.is_err());
         assert_eq!(response, result.unwrap_err().to_string());

@@ -198,10 +198,31 @@ pub fn check_white_space(value: &str) -> Result<()> {
     }
 }
 
+pub fn check_white_space_for_field(value: &str, field_name: &str) -> Result<()> {
+    if value.chars().last().map_or(false, |c| c.is_whitespace()) {
+        return Err(Error::WhiteSpaceError{msg: format!("{} must not contain trailing whitespace: '{}'", field_name, value)});
+    } else if value.chars().next().map_or(false, |c| c.is_whitespace()) {
+        return Err(Error::WhiteSpaceError{msg: format!("{} must not contain leading whitespace: '{}'", field_name, value)});
+    } else if value.contains("  ") {
+        return Err(Error::WhiteSpaceError{msg: format!("{} must not contain consecutive whitespaces: '{}'", field_name, value)});
+    } else {
+        Ok(())
+    }
+}
+
 /// Some ColumnTypes do not allow empty cells.
 pub fn check_empty(value: &str) -> Result<()> {
     if value.is_empty() {
         Err(Error::HeaderError{msg: format!("Value must not be empty")})
+    } else {
+        Ok(())
+    }
+}
+
+/// Some ColumnTypes do not allow empty cells.
+pub fn check_empty_for_field(value: &str, field_name: &str) -> Result<()> {
+    if value.is_empty() {
+        Err(Error::HeaderError{msg: format!("{field_name} must not be empty")})
     } else {
         Ok(())
     }

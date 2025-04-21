@@ -6,9 +6,9 @@ use crate::{
 pub(crate) trait TemplateRowAdder {
     fn add_row(
         &self,
-        pmid: impl Into<String>,
-        title: impl Into<String>,
-        individual_id: impl Into<String>,
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
         ppt_template: &mut PptTemplate,
     ) -> Result<()>;
 }
@@ -18,9 +18,9 @@ pub struct MendelianRowAdder {}
 impl TemplateRowAdder for MendelianRowAdder {
     fn add_row(
         &self,
-        pmid: impl Into<String>,
-        title: impl Into<String>,
-        individual_id: impl Into<String>,
+        pmid: &str,
+        title:  &str,
+        individual_id:  &str,
         ppt_template: &mut PptTemplate,
     ) -> Result<()> {
         /// Add an empty string to all fields (columns) of the template
@@ -31,11 +31,11 @@ impl TemplateRowAdder for MendelianRowAdder {
         ppt_template.set_value(row_idx, 1, title)?;
         ppt_template.set_value(row_idx, 2, individual_id)?;
         ppt_template.set_value(row_idx, 3, EMPTY)?; // comment
-        ppt_template.set_value(row_idx, 4, ppt_template.disease())?;
-        ppt_template.set_value(row_idx, 5, ppt_template.disease_id())?;
-        ppt_template.set_value(row_idx, 6, ppt_template.hgnc())?;
-        ppt_template.set_value(row_idx, 7, ppt_template.gene_symbol())?;
-        ppt_template.set_value(row_idx, 8, ppt_template.transcript())?;
+        ppt_template.set_value(row_idx, 4, &ppt_template.disease())?;
+        ppt_template.set_value(row_idx, 5, &ppt_template.disease_id())?;
+        ppt_template.set_value(row_idx, 6, &ppt_template.hgnc())?;
+        ppt_template.set_value(row_idx, 7, &ppt_template.gene_symbol())?;
+        ppt_template.set_value(row_idx, 8, &ppt_template.transcript())?;
         for i in 9..=12 {
             // age onset, age observation, sex, deceased
             ppt_template.set_value(row_idx, i, EMPTY)?;

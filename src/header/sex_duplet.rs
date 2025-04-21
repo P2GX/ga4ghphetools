@@ -11,7 +11,7 @@ use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
 use crate::header::age_util;
 
-use super::header_duplet::{HeaderDuplet, HeaderDupletItemFactory};
+use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SexDuplet {}
@@ -38,6 +38,7 @@ impl HeaderDupletItem for SexDuplet {
     }
 
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
+        header_duplet::check_empty_for_field(cell_contents, "sex")?;
         match ALLOWED_SEX_DUPLET_ITEMS.contains(cell_contents) {
             true => Ok(()),
             false => Err(Error::SexFieldError { msg: format!("Malformed entry in sex field: '{}'", cell_contents) })
@@ -83,6 +84,7 @@ mod test {
     #[rstest]
     #[case("male", "Malformed entry in sex field: 'male'")]
     #[case("f", "Malformed entry in sex field: 'f'")]
+    #[case("", "sex must not be empty")]
     #[case("n/a", "Malformed entry in sex field: 'n/a'")]
     fn test_invalid_deceased_field(#[case] item:&str, #[case] response:&str) {
         let duplet = SexDuplet::default();
