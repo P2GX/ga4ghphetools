@@ -1,14 +1,4 @@
-//! PheTools
-//!
-//! Users interact with the library via the PheTools structure.
-//! The library does not expose custom datatypes, and errors are translated
-//! into strings to simplify the use of rphetools in applications
-//! 
-//! ## Features
-//! 
-//! - Quality assessment of phenopackets template files
-//! - Generation of GA4GH Phenopackets
-//! - API for curation tools
+
 
 
 
@@ -36,7 +26,7 @@ use std::{fmt::format, str::FromStr, vec};
 
 use super::header_index::HeaderIndexer;
 
-
+/// The main struct for interacting with this library
 pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
@@ -73,24 +63,24 @@ impl PheTools {
     }
 
 
-    /// Creates a template to be used for curating phenopackets
+    /// Creates a new template to be used for curating phenopackets, initializing the disease/gene/transcript columns with the data provided.
     ///
     /// A 2D matrix of Strings is provided for curation with the intention that curation software will
     /// fill in the matrix with additional Strings representing the cases to be curated.
     ///
     /// # Arguments
     ///
-    /// * `disease_id` - A string slice representing the disease identifier.
-    /// * `disease_name` - A string slice representing the name of the disease.
-    /// * `hgnc_id` - A string slice representing the HGNC identifier for the gene.
-    /// * `gene_symbol` - A string slice representing the gene symbol.
-    /// * `transcript_id` - A string slice representing the transcript identifier.
+    /// * `disease_id` - the disease identifier.
+    /// * `disease_name` - the name of the disease.
+    /// * `hgnc_id` - the HUGO Gene Nomenclature Committee (HGNC) identifier for the gene.
+    /// * `gene_symbol` - the gene symbol.
+    /// * `transcript_id` - the transcript identifier, e.g., NM_020928.2
     /// * `hpo_term_ids` - A vector of `TermId` objects representing associated HPO terms.
     ///
     /// # Returns
     ///
     /// A `Result` containing:
-    /// - `Ok(())` - empty result signifying success.
+    /// - `Ok(())` - success.
     /// - `Err(String)` - An error if template generation fails.
     ///
     pub fn create_pyphetools_template(
@@ -150,7 +140,10 @@ impl PheTools {
     /// 
     /// # Returns
     ///
-    /// A `Vec<Vec<String>>` containing all of the data in the template as Strings
+    /// - A `Vec<Vec<String>>` containing all of the data in the template as Strings
+    /// # Notes
+    ///
+    /// - The matrix contains two header rows and then one row for each phenopacket in the template
     pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>, String> {
         match &self.template {
             Some(template) => {
@@ -166,7 +159,9 @@ impl PheTools {
     /// Get a focused table of values as Strings for display/export
     /// The table contains the PMID, title, individual_id, and one HPO column (only)
     /// 
-    /// # Returns `Vec<Vec<String>>` containing data for the four columns mentioned above as Strings
+    /// # Returns 
+    /// 
+    /// - `Vec<Vec<String>>` containing data for the four columns mentioned above as Strings
     pub fn get_hpo_col_with_context(&mut self, col: usize) -> Result<Vec<Vec<String>>, String> {
         match &mut self.template {
             Some(template) => {
@@ -219,19 +214,6 @@ impl PheTools {
         Ok(())
     }
 
-    pub fn template_qc(&self) -> Vec<String> {
-        match &self.template {
-            None => {
-                let msg = format!("template not initialized");
-                let errs = vec![msg];
-                return errs;
-            }
-            Some(template) => {
-                vec![]
-            }
-        }
-    }
-
     /// Return true if this column contains data about an HPO term
     pub fn is_hpo_col(&self, col: usize) -> bool {
         match &self.template {
@@ -242,28 +224,46 @@ impl PheTools {
         }
     }
 
-    pub fn col_type_at(&self, col: usize) -> String {
+    /// todo - is this function needed?
+    pub fn col_type_at(&self, col: usize) -> Result<String, String> {
         match &self.template {
             Some(tplt) => {
                 if col >= tplt.column_count() {
-                    return Error::column_index_error(col, tplt.column_count()).to_string();
+                    return Err(Error::column_index_error(col, tplt.column_count()).to_string());
                 }
                 match tplt.get_column_name(col) {
                     Ok(ctype) => {
-                        return format!("{:?}", ctype);
-                    }
+                        return Ok(format!("{:?}", ctype))
+                    },
                     Err(e) => {
-                        return format!("{}", e);
+                        return Err(format!("{}", e));
                     }
                 }
             }
             None => {
-                return format!("col_type_at: template not initialized");
+                return Err(format!("col_type_at: template not initialized"));
             }
         }
     }
 
-    /// Adds a new row to the template but fills in only the contstant fields (disease id/label, gene id/symbol, transcript)
+    /// Adds a new row to the template, filling in only the constant fields.
+    ///
+    /// This method is used to add a new case to the template with minimal information.
+    /// It populates the following non-HPO fields `PMID`, `Title`, and `Individual ID`, and
+    /// also copies the five constant fields of the disease-gene bundle.
+    ///
+    /// All other fields will remain empty or set to `"na"`, depending on the template's logic.
+    ///
+    /// # Arguments
+    ///
+    /// * `pmid` - The PubMed ID associated with the case.
+    /// * `title` - The title of the publication or case.
+    /// * `individual_id` - A unique identifier for the individual.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if the row is successfully added.
+    /// * `Err(String)` if an error occurs during the update.
     pub fn add_empty_row(
         &mut self,
         pmid: &str,
@@ -293,11 +293,11 @@ impl PheTools {
     /// * `pmid` - The PubMed identifier for the new phenopacket row.
     /// * `title` - The title of the article corresponding to the pmid.
     /// * `individual_id` - The identifier of an individual described in the PMID
-    /// * `hpo_items` - List of [`HpoTermDto`](struct@crate::hpo::HpoTermDto) instances describing the observed HPO features
+    /// * `hpo_items` - List of [`HpoTermDto`](struct@crate::dto::hpo_term_dto::HpoTermDto) instances describing the observed HPO features
     ///
     /// # Returns
     ///
-    /// A ``Ok(())`` upon success, otherwise ``Err(String)`.
+    /// - A ``Ok(())`` upon success, otherwise ``Err(String)`.
     ///
     /// # Notes
     ///
@@ -496,6 +496,11 @@ impl PheTools {
         }
     }
 
+     /// Total number of columns
+    ///
+    /// # Returns
+    ///
+    /// total number of columns (HPO and non-HPO)
     pub fn ncols(&self) -> usize {
         match &self.template {
             Some(template) => template.column_count(),
@@ -503,6 +508,19 @@ impl PheTools {
         }
     }
 
+    /// Get a vector of Strings representing all fields in a column
+    ///  # Arguments
+    ///
+    /// * `idx` - column index
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Vec<String>)` - Strings for all values of this column
+    /// - `Err(String)` - An error if template generation fails.
+    /// 
+    /// # Notes
+    /// 
+    /// - Can be used to display an entire column in a GUI
     pub fn get_string_column(&self, idx: usize) -> Result<Vec<String>, String> {
         match &self.template {
             Some(template) => {
@@ -596,6 +614,10 @@ impl PheTools {
         hpo_map      
     }
 
+    /// Checks whether the HPO id and label are correct for an HpoTermDto object
+    ///
+    /// Not sure if we need to keep this function, maybe the QC happens somewhere else, since we are getting 
+    /// the terms from the phetools HPO object anyway
     pub fn get_hpo_term_dto(
         &self,
         tid: impl Into<String>,
