@@ -33,7 +33,6 @@ impl HeaderDupletItem for TranscriptDuplet {
             return Err(Error::lacks_transcript_version(cell_contents));
         } 
         if let Some((before_last, last)) = cell_contents.rsplit_once('.') {
-            println!("{} {}", before_last, last);
             if before_last.is_empty() {
                 return Err(Error::TranscriptError { msg: format!("Maformed transcript: '{}'", cell_contents) });
             }

@@ -192,12 +192,18 @@ impl PheToolsTemplate {
         let mut var_comment = self.get_column("variant.comment", &indexer)?;
         var_comment.add_entry(case_dto.variant_comment);
         collist.push(var_comment);
-        let mut sex = self.get_column("sex", &indexer)?;
-        sex.add_entry(case_dto.sex);
-        collist.push(sex);
+        let mut age_onset = self.get_column("age_of_onset", &indexer)?;
+        age_onset.add_entry(case_dto.age_of_onset);
+        collist.push(age_onset);
+        let mut age_encounter = self.get_column("age_at_last_encounter", &indexer)?;
+        age_encounter.add_entry(case_dto.age_at_last_encounter);
+        collist.push(age_encounter);
         let mut deceased = self.get_column("deceased", &indexer)?;
         deceased.add_entry(case_dto.deceased);
         collist.push(deceased);
+        let mut sex = self.get_column("sex", &indexer)?;
+        sex.add_entry(case_dto.sex);
+        collist.push(sex);
         let mut separator = self.get_column("HPO", &indexer)?;
         separator.add_identical();
         collist.push(separator);
@@ -240,7 +246,6 @@ impl PheToolsTemplate {
     pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>> {
         let mut rows: Vec<Vec<String>> = Vec::new();
         let nrows = self.nrows()?;
-        println!("ppt_template n-columns= {}", self.column_count());
         for idx in 0..nrows {
             let mut row: Vec<String> = Vec::new();
             for col in &self.columns {

@@ -342,7 +342,7 @@ impl PheTools {
     
         let arranged_tids = self.arrange_terms(&all_tids);
     
-        // === STEP 3: Now it's safe to mutably borrow template ===
+        // === STEP 3: Create updated non-HPO columns ===
         let template = self.template.as_mut().unwrap();
     
         let indexer = HeaderIndexer::mendelian();
@@ -373,7 +373,7 @@ impl PheTools {
                     match dto_map.get(tid) {
                         Some(dto) if dto.is_excluded() => column.add_excluded(),
                         Some(dto) if dto.has_onset() => column.add_entry(dto.onset().unwrap()).map_err(|e| e.to_string())?,
-                        Some(dto) if dto.is_not_ascertained() => column.add_na(),
+                        Some(dto) if ! dto.is_ascertained() => column.add_na(),
                         Some(_) => column.add_observed(),
                         None => column.add_na(),
                     }
@@ -602,7 +602,7 @@ impl PheTools {
         label: impl Into<String>,
         entry: impl Into<String>
     )  -> Result<HpoTermDto, String> {
-        let dto = HpoTermDto::from_table_entry(tid, label, entry);
+        let dto = HpoTermDto::new(tid, label, entry);
         let tid: TermId = dto.term_id().parse().map_err(|e: anyhow::Error| e.to_string())?;
         let label = dto.label();
         match self.hpo.term_by_id(&tid) {

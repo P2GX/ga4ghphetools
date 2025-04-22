@@ -16,7 +16,7 @@ pub struct IndividualIdDuplet {}
 
 /// These characters are not allowed in the individual id field
 fn check_forbidden_chars(value: &str) -> Result<()> {
-    let forbidden_chars: HashSet<char> = ['/', '\\', '(', ')', '.'].iter().copied().collect();
+    let forbidden_chars: HashSet<char> = ['/', '\\', '(', ')'].iter().copied().collect();
     match value.chars().find(|&c| forbidden_chars.contains(&c)) {
         Some(fc) => Err(Error::forbidden_character(fc, value)),
         None => Ok(()),
