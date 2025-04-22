@@ -139,3 +139,53 @@ fn add_new_row_test_1(
     // If we get here, we have passed all tests!
     assert!(true);
 }
+
+
+///Check that all entries in a column are the same
+fn check_data_entries_unique(
+    new_matrix: &Vec<Vec<String>>, 
+    colname: &str, 
+    new_entry: &str) -> Result<(), String>
+{
+    let col = get_index_of_column(&new_matrix, colname)?;
+    for i in 2..new_matrix.len() {
+        if new_matrix[i][col] != new_entry {
+            return Err(format!("Expected new_matrix[{}][{}]={}  but got {}",
+                i, col, new_entry, new_matrix[i][col]));  
+        }
+    }
+    Ok(())
+}
+
+
+/// Check that all entries in the constant, disease-gene-bundle block are identical
+/// If so, then the new row contains the same values for
+/// disease_id, disease_label, HGNC_id, gene_symbol, and transcript
+#[rstest]
+fn add_new_row_check_disease_gene_bundle(
+    matrix: Vec<Vec<String>>, 
+    hpo: Arc<FullCsrOntology>,
+    case_5_dto: CaseDto,
+    hpo_dto_list_1: Vec<HpoTermDto>
+) {
+    let mut phetools = PheTools::new(hpo);
+    assert_eq!(6, matrix.len()); // original matrix has headers and four data rows
+    let original_matrix = matrix.clone();
+    let res = phetools.load_matrix(matrix);
+    assert!(res.is_ok());
+    let dto_cloned = case_5_dto.clone(); // needed only for testing
+    let res = phetools.add_row_with_hpo_data(case_5_dto, hpo_dto_list_1);
+    assert!(res.is_ok());
+    // Check that the constant items are what we want
+    let new_matrix = phetools.get_string_matrix().expect("Could not unwrap matrix with added row");
+    assert_eq!(7, new_matrix.len());
+    check_data_entries_unique(&new_matrix, "disease_id", "OMIM:617865").expect("Expected all entries to be 'OMIM:617865'");
+    check_data_entries_unique(&new_matrix, "disease_label", "Neurodevelopmental disorder with movement abnormalities, abnormal gait, and autistic features")
+        .expect("Expected all entries to be 'Neurodevelopmental disorder with movement abnormalities, abnormal gait, and autistic features'");
+    check_data_entries_unique(&new_matrix, "HGNC_id", "HGNC:29316").expect("Expected all entries to be 'HGNC:29316'");
+    check_data_entries_unique(&new_matrix, "gene_symbol", "ZSWIM6").expect("Expected all entries to be 'ZSWIM6'");
+    check_data_entries_unique(&new_matrix, "transcript", "NM_020928.2").expect("Expected all entries to be 'NM_020928.2'");
+    // if we get here, all tests were OK!
+    assert!(true);
+}
+

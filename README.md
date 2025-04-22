@@ -8,7 +8,7 @@ cargo run --bin rpt -- --rpt /.../.../phenopacket-store/notebooks/CD28/input/CD2
 ```
 For faster performance, enter
 ```bash
-cargo run --release --bin rpt -- --pyphetools ./../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json ./../../data/hpo/hp.json 
+cargo run --release --bin rpt -- --template ./../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json ./../../data/hpo/hp.json 
 ```
 
 ## Generating rust code from phenopackets (experiment)

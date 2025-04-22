@@ -11,7 +11,7 @@ use std::sync::Arc;
 struct Cli {
     /// A required input file
     #[arg(short, long)]
-    pyphetools: String,
+    template: String,
 
     #[arg(short, long)]
     json: String,
@@ -25,8 +25,8 @@ use rphetools::PheTools;
 
 fn main() {
     let cli = Cli::parse();
-    if !Path::new(&cli.pyphetools).exists() {
-        println!("Could not find pyphetools template at {}.", &cli.pyphetools);
+    if !Path::new(&cli.template).exists() {
+        println!("Could not find phetools template at {}.", &cli.template);
         return;
     }
     if !Path::new(&cli.json).exists() {
@@ -39,20 +39,17 @@ fn main() {
         .load_from_path(&cli.json)
         .expect("HPO should be loaded");
     let hpo_arc = Arc::new(hpo);
-    let mut pyphetools = PheTools::new(hpo_arc);
-    match pyphetools.load_excel_template(&cli.pyphetools) {
+    let mut phetools = PheTools::new(hpo_arc);
+    match phetools.load_excel_template(&cli.template) {
         Ok(template) => {
-            println!("[INFO] No errors identified for {}", &cli.pyphetools);
-            println!("{}", &pyphetools);
-            println!("{:?}", pyphetools.get_string_matrix());
+            println!("[INFO] No errors identified for {}", &cli.template);
+            println!("{}", &phetools);
+            println!("{:?}", phetools.get_string_matrix());
         }
-        Err(evec) => {
-            println!("[ERROR]");
-            for e in evec {
-                println!("[ERROR] {:?}", e);
-            }
+        Err(e) => {
+            println!("[ERROR] {}", e);
         }
     }
-    let hmap = pyphetools.get_hpo_data();
+    let hmap = phetools.get_hpo_data();
     println!("{:?}", hmap);
 }
