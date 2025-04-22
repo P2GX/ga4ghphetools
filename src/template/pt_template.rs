@@ -11,7 +11,7 @@ use ontolius::{
     Identified, TermId,
 };
 
-use crate::{error::{self, Error, Result}, header::header_duplet::{HeaderDuplet, HeaderDupletItem}};
+use crate::{dto::case_dto::CaseDto, error::{self, Error, Result}, header::header_duplet::{HeaderDuplet, HeaderDupletItem}};
 use crate::{
     pptcolumn::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger,
@@ -19,7 +19,7 @@ use crate::{
     pptcolumn::ppt_column::PptColumn,
 };
 
-use super::operations::Operation;
+use super::{header_index::HeaderIndexer, operations::Operation};
 
 /// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
 #[derive(PartialEq)]
@@ -86,7 +86,7 @@ impl PheToolsTemplate {
                 }
             }
         }
-        let column_result = Self::get_ppt_columns(&smt_list, hpo);
+        let column_result = Self::create_ppt_columns(&smt_list, hpo);
         match column_result {
             // nrows is 2 at this point - we have initialized the two header rows
             Ok(columns) => Ok(Self {
@@ -99,7 +99,7 @@ impl PheToolsTemplate {
         }
     }
 
-    pub fn get_ppt_columns(
+    pub fn create_ppt_columns(
         hpo_terms: &Vec<SimpleMinimalTerm>,
         hpo: &FullCsrOntology,
     ) -> Result<Vec<PptColumn>> {
@@ -147,6 +147,80 @@ impl PheToolsTemplate {
         return Ok(column_list);
     }
 
+    
+    fn get_column(&self, column_name: &str, indexer: &HeaderIndexer) -> Result<PptColumn> {
+        let idx = indexer.get_idx(column_name)?;
+        Ok(self.columns[idx].clone())
+    }
+
+    /// add one new row to the "non-HPO" columns, return a list with all of these rows (or Error)
+    pub fn update_non_hpo_columns(&self, case_dto: CaseDto, indexer: HeaderIndexer) -> Result<Vec<PptColumn>> {
+        let mut collist: Vec<PptColumn> = Vec::new();
+        let mut pmid = self.get_column("PMID", &indexer)?;
+        pmid.add_entry(case_dto.pmid);
+        collist.push(pmid);
+        let mut title =  self.get_column("title", &indexer)?;
+        title.add_entry(case_dto.title);
+        collist.push(title);
+        let mut individual = self.get_column("individual_id", &indexer)?;
+        individual.add_entry(case_dto.individual_id);
+        collist.push(individual);
+        let mut comment = self.get_column("comment", &indexer)?;
+        comment.add_entry(case_dto.comment);
+        collist.push(comment);
+        let mut disease_id = self.get_column("disease_id", &indexer)?;
+        disease_id.add_identical();
+        collist.push(disease_id);
+        let mut disease_label = self.get_column("disease_label", &indexer)?;
+        disease_label.add_identical();
+        collist.push(disease_label);
+        let mut hgnc = self.get_column("HGNC_id", &indexer)?;
+        hgnc.add_identical();
+        collist.push(hgnc);
+        let mut gene = self.get_column("gene_symbol", &indexer)?;
+        gene.add_identical();
+        collist.push(gene);
+        let mut transcript = self.get_column("transcript", &indexer)?;
+        transcript.add_identical();
+        collist.push(transcript);
+        let mut allele1 = self.get_column("allele_1", &indexer)?;
+        allele1.add_entry(case_dto.allele_1);
+        collist.push(allele1);
+        let mut allele2 = self.get_column("allele_2", &indexer)?;
+        allele2.add_entry(case_dto.allele_2);
+        collist.push(allele2);
+        let mut var_comment = self.get_column("variant.comment", &indexer)?;
+        var_comment.add_entry(case_dto.variant_comment);
+        collist.push(var_comment);
+        let mut sex = self.get_column("sex", &indexer)?;
+        sex.add_entry(case_dto.sex);
+        collist.push(sex);
+        let mut deceased = self.get_column("deceased", &indexer)?;
+        deceased.add_entry(case_dto.deceased);
+        collist.push(deceased);
+        let mut separator = self.get_column("HPO", &indexer)?;
+        separator.add_identical();
+        collist.push(separator);
+        Ok(collist)
+    }
+
+    pub fn get_hpo_column_map(&self) -> Result<HashMap<TermId, PptColumn> > {
+        let mut colmap = HashMap::new();
+        for col in self.columns.iter().as_ref() {
+            if col.is_hpo_column() {
+                let tid_str = col.get_header_duplet().row2();
+                match TermId::from_str(&tid_str) {
+                    Ok(tid) => {
+                        colmap.insert(tid, col.clone());
+                    },
+                    Err(e) => { return Err(Error::TermIdError { msg: format!("Malformed tid: {tid_str}") }); }
+                }
+            }
+        }
+
+        Ok(colmap)
+    }
+
     /// get the total number of rows (which is 2 for the header plus the number of phenopacket rows)
     fn nrows(&self) -> Result<usize> {
         match self.columns.get(0) {
@@ -183,6 +257,25 @@ impl PheToolsTemplate {
             rows.push(row);
         }
         Ok(rows)
+    }
+
+    /// Get a list of all HPO identifiers currently in the template
+    pub fn get_hpo_term_ids(&self) -> Result<Vec<TermId>> {
+        let mut hpo_term_ids: Vec<TermId> = Vec::new();
+        for col in &self.columns {
+            if col.is_hpo_column() {
+                let tid_as_string = col.get_header_duplet().row2();
+                match TermId::from_str(&tid_as_string){
+                    Ok(tid) => {
+                        hpo_term_ids.push(tid); 
+                    },
+                    Err(e) => {return Err(Error::TermIdError { msg: format!("Could not construct HPO tid from {}: {}", 
+                        tid_as_string, e.to_string()) })}
+                }
+
+            }
+        }
+        Ok(hpo_term_ids)
     }
 
     /// Generate a PptTemplate from a String matrix (e.g., from an Excel file)
@@ -339,19 +432,23 @@ impl PheToolsTemplate {
         }
     }
 
+
+    pub fn update_columns(&mut self, column_list: Vec<PptColumn>) {
+        self.columns = column_list;
+    }
+
     /// Validate the current template
     ///
     ///  * Returns
     ///
     /// - a vector of errors (can be empty)
     ///
-    pub fn validate(&self) -> Vec<Error> {
-        // for now, validate Mendelian only TODO extend for Melded
-        let mut error_list: Vec<Error> = Vec::new();
-        if let Err(e) = self.qc_headers() {
-            error_list.push(e);
+    pub fn qc_check(&self) -> Result<()> {
+        for col in &self.columns {
+            col.qc_check()?;
         }
-        error_list
+
+        Ok(())
     }
 
     pub fn is_mendelian(&self) -> bool {
@@ -486,6 +583,10 @@ impl PheToolsTemplate {
 
     pub fn column_count(&self) -> usize {
         self.columns.len()
+    }
+
+    pub fn add_pmid(&mut self, value: impl Into<String>) {
+        // TODO get the PMID column
     }
 
     /// Intended to be used as part of the process to add a new

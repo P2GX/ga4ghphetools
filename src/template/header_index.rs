@@ -1,9 +1,9 @@
 //! A convenience module to get the index of specific columns
 
 use std::collections::{HashMap, HashSet};
-
 use lazy_static::lazy_static;
 
+use crate::error::{self, Error, Result};
 
 #[derive(Clone, Debug)]
 enum IndexerType {
@@ -53,11 +53,10 @@ impl HeaderIndexer {
         }
     }
 
-    pub fn get_idx(&self, column_name: &str) -> Option<usize> {
-        if self.title_to_index_map.contains_key(column_name) {
-            self.title_to_index_map.get(column_name).copied()
-        } else {
-            None
+    pub fn get_idx(&self, column_name: &str) -> Result<usize> {
+        match self.title_to_index_map.get(column_name).copied() {
+            Some(i) => Ok(i),
+            None => Err(Error::HeaderError { msg: format!("Could not find index for '{}'", column_name) })
         }
     }
 }

@@ -284,7 +284,7 @@ impl HeaderDupletRow  {
         todo!()
     }
 
-    pub fn get_idx(&self, column_name: &str) -> Option<usize> {
+    pub fn get_idx(&self, column_name: &str) -> Result<usize> {
         self.indexer.get_idx(column_name)
     }
 

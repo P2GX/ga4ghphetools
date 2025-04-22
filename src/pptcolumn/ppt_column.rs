@@ -66,6 +66,7 @@ impl PptCellValidator for PptColumn {
 }
 
 /// A structure that contains all of the information of a column in our template
+#[derive(Clone)]
 pub struct PptColumn {
     header_duplet: HeaderDuplet,
     column_data: Vec<String>,
@@ -85,6 +86,17 @@ impl PptColumn {
             header_duplet: header_dup,
             column_data: coldata,
         }
+    }
+
+    pub fn new_column_with_na(
+        tid: String, 
+        label: String, 
+        n_existing_phenopackets: usize
+    ) -> Result<Self>
+    {
+        let header_dup = HpoTermDuplet::new(label, tid);
+        let column = vec!["na".to_string(); n_existing_phenopackets];
+        Ok(Self::new(HeaderDuplet::HpoTermDuplet(header_dup), &column))
     }
 
     pub fn pmid(col: &Vec<String>) -> Self {
@@ -254,6 +266,26 @@ impl PptColumn {
         Ok(())
     }
 
+    pub fn add_excluded(&mut self) {
+        self.column_data.push("excluded".to_string());
+    }
+
+    pub fn add_observed(&mut self) {
+        self.column_data.push("observed".to_string());
+    }
+
+    pub fn add_na(&mut self) {
+        self.column_data.push("na".to_string());
+    }
+
+    /// This function adds the same entry as in all other rows, if this is unique (e.g. for disease_id)
+    /// If the column has more than one string, it throws an error
+    pub fn add_identical(&mut self) -> Result<()>{
+        let item = self.get_unique()?;
+        self.column_data.push(item);
+        Ok(())
+    }
+
     pub fn phenopacket_count(&self) -> usize {
         self.column_data.len()
     }
@@ -287,14 +319,22 @@ impl PptColumn {
         }
     }
 
-    pub fn validate_data(&self) -> Vec<Error> {
-        let mut error_list = Vec::new();
+    /// Performs quality control (Q/C) validation on each entry in the column.
+    ///
+    /// Iterates over all values in `self.column_data` and applies the `validate` method to each one.
+    /// Returns early with an error if any value fails validation. 
+    /// 
+    /// # Returns
+    /// - `Ok(())` if all values pass validation.
+    /// - `Err` containing the first encountered error if any value fails.
+    ///
+    /// # Errors
+    /// This function will return an error if `validate` returns an error for any item.
+    pub fn qc_check(&self) -> Result<()> {
         for val in &self.column_data {
-            if let Err(e) = self.validate(&val) {
-                error_list.push(e);
-            }
+            self.validate(val)?;
         }
-        error_list
+       Ok(())
     }
 
     /// Add a new line to the column

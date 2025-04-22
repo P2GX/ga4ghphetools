@@ -58,7 +58,6 @@ impl PpktExporter {
     fn get_item(&self, title: &str) -> Result<String> {
         self.header_duplet_row
         .get_idx(title)
-        .ok_or_else(|| Error::malformed_title(title))
         .and_then(|i| {
             self.content
                 .get(i)

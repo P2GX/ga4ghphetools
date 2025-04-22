@@ -14,23 +14,27 @@
 
 
 use crate::error::Error;
+use crate::pptcolumn::ppt_column::PptColumn;
 use crate::template::template_row_adder::TemplateRowAdder;
 use crate::pptcolumn::disease_gene_bundle::DiseaseGeneBundle;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
-use crate::HpoTermDto;
+use crate::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
 
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use serde_json::to_string;
 use crate::template::itemplate_factory::IndividualTemplateFactory;
 use crate::template::pt_template::PheToolsTemplate;
 use crate::template::template_row_adder::MendelianRowAdder;
 use crate::template::{excel, template_creator};
 use crate::rphetools_traits::PyphetoolsTemplateCreator;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{self};
 use std::sync::Arc;
 use std::{fmt::format, str::FromStr, vec};
+
+use super::header_index::HeaderIndexer;
 
 
 pub struct PheTools {
@@ -282,17 +286,124 @@ impl PheTools {
         }
     }
 
+    /// Arranges the given HPO terms into a specific order for curation.
+    ///
+    /// # Arguments
+    ///
+    /// * `pmid` - The PubMed identifier for the new phenopacket row.
+    /// * `title` - The title of the article corresponding to the pmid.
+    /// * `individual_id` - The identifier of an individual described in the PMID
+    /// * `hpo_items` - List of [`HpoTermDto`](struct@crate::hpo::HpoTermDto) instances describing the observed HPO features
+    ///
+    /// # Returns
+    ///
+    /// A ``Ok(())`` upon success, otherwise ``Err(String)`.
+    ///
+    /// # Notes
+    ///
+    /// - Client code should retrieve HpoTermDto objects using the function [`Self::get_hpo_term_dto`]. This function will
+    /// additionally rearrange the order of the HPO columns to keep them in "ideal" (DFS) order. Cells for HPO terms (columns) not included
+    /// in the list of items but present in the columns of the previous matrix will be set to "na"
     pub fn add_row_with_hpo_data(
         &mut self,
-        pmid: impl Into<String>,
-        title: impl Into<String>,
-        individual_id: impl Into<String>,
+        case_dto: CaseDto,
+        hpo_dto_items: Vec<HpoTermDto>
     ) -> Result<(), String> {
-
-
+        if self.template.is_none() {
+            return Err("Template not initialized".to_string());
+        }
+    
+        // === STEP 1: Extract all HPO TIDs from DTO and classify ===
+        let dto_tid_list: Vec<String> = hpo_dto_items.iter().map(|dto| dto.term_id()).collect();
+    
+        let mut new_hpo_tids: Vec<TermId> = Vec::new();
+        let mut dto_map: HashMap<TermId, HpoTermDto> = HashMap::new();
+    
+        for dto in hpo_dto_items {
+            let tid = TermId::from_str(&dto.term_id())
+                .map_err(|_| format!("HPO TermId {} in DTO not found", dto.term_id()))?;
+    
+            dto_map.insert(tid.clone(), dto);
+            new_hpo_tids.push(tid);
+        }
+    
+        // === STEP 2: Arrange TIDs before borrowing template mutably ===
+        let mut all_tids: Vec<TermId> = {
+            let hpo_tids = self.template.as_ref().unwrap()
+                .get_hpo_term_ids()
+                .map_err(|e| e.to_string())?;
+    
+            let mut hpo_set: HashSet<_> = hpo_tids.iter().cloned().collect();
+            for tid in &new_hpo_tids {
+                hpo_set.insert(tid.clone());
+            }
+            hpo_set.into_iter().collect()
+        };
+    
+        let arranged_tids = self.arrange_terms(&all_tids);
+    
+        // === STEP 3: Now it's safe to mutably borrow template ===
+        let template = self.template.as_mut().unwrap();
+    
+        let indexer = HeaderIndexer::mendelian();
+        let mut new_pt_columns = template.update_non_hpo_columns(case_dto, indexer)
+            .map_err(|e| e.to_string())?;
+    
+        let mut hpo_col_map = template.get_hpo_column_map().map_err(|e| e.to_string())?;
+    
+        // === STEP 4: Create new columns for new HPO terms ===
+        let n_existing_phenopackets = template.phenopacket_count();
+        for tid in &new_hpo_tids {
+            if !hpo_col_map.contains_key(tid) {
+                let label = self.hpo.term_by_id(tid)
+                    .ok_or_else(|| format!("Could not find {} in ontology", tid))?
+                    .name().to_string();
+    
+                let new_col = PptColumn::new_column_with_na(tid.to_string(), label, n_existing_phenopackets)
+                    .map_err(|e| e.to_string())?;
+    
+                hpo_col_map.insert(tid.clone(), new_col);
+            }
+        }
+    
+        // === STEP 5: Populate row from DTO map ===
+        for tid in &arranged_tids {
+            match hpo_col_map.get_mut(tid) {
+                Some(column) => {
+                    match dto_map.get(tid) {
+                        Some(dto) if dto.is_excluded() => column.add_excluded(),
+                        Some(dto) if dto.has_onset() => column.add_entry(dto.onset().unwrap()).map_err(|e| e.to_string())?,
+                        Some(dto) if dto.is_not_ascertained() => column.add_na(),
+                        Some(_) => column.add_observed(),
+                        None => column.add_na(),
+                    }
+                    new_pt_columns.push(column.clone());
+                },
+                None => return Err(format!("Could not retrieve column for {}", tid)),
+            }
+        }
+    
+        // === STEP 6: Finalize ===
+        template.update_columns(new_pt_columns);
+        template.qc_check().map_err(|e| e.to_string())?;
+    
         Ok(())
     }
 
+    /// Edit (set) the value at a particular table cell.
+    ///
+    /// # Arguments
+    ///
+    /// * `row` - row index
+    /// * `col` - column index
+    /// * `value` - value to set the corresponding table cell to
+    ///
+    /// # Returns
+    ///
+    /// ``Ok(())`` if successful, otherwise ``Err(String)``
+    /// # Notes
+    /// 
+    /// The row index includes the first two (header rows), so that the index of the first phenopacket row is 2
     pub fn set_value(
         &mut self,
         row: usize,
@@ -314,6 +425,18 @@ impl PheTools {
 
     /// Get a vector of options that apply for the selected table cell 
     /// (row 0 is header 1, row 1 is header 2, row 2.. are the phenopacket rows)
+    ///  # Arguments
+    ///
+    /// * `row` - row index
+    /// * `col` - column index
+    /// * `addtl` - List of additional options to show
+    ///
+    /// # Returns
+    ///
+    /// ``Vec<String>`` if successful (list of options), otherwise ``Err(String)``
+    /// # Notes
+    /// 
+    /// This function is intended to be used to create the items needed for an option menu upon right click.
     pub fn get_edit_options_for_table_cell(
         &self,
         row: usize,
@@ -331,6 +454,21 @@ impl PheTools {
         }
     }
 
+    /// Get a vector of options that apply for the selected table cell 
+    /// (row 0 is header 1, row 1 is header 2, row 2.. are the phenopacket rows)
+    ///  # Arguments
+    ///
+    /// * `row` - row index
+    /// * `col` - column index
+    /// * `operation` - Operation to be performed on the table cell, e.g., "na" (set value to na). See 
+    ///
+    /// # Returns
+    ///
+    /// ``Vec<String>`` if successful (list of options), otherwise ``Err(String)``
+    /// # Notes
+    /// 
+    /// This function is intended to be used to create the items needed for an option menu upon right click.
+    /// See the (private) `template::operations` module for a list of implemented operations.
     pub fn execute_operation(
         &mut self,
         row: usize,

@@ -19,6 +19,6 @@ mod rphetools_traits;
 mod template;
 mod variant;
 
-pub use hpo::HpoTermDto;
+pub mod dto;
 pub use template::phetools::PheTools;
 
