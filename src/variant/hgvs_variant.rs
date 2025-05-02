@@ -1,12 +1,12 @@
 // src/variant/hgvs_variant.rs
-use crate::variant::acmg::AcmgPathogenicityClassification;
-use crate::variant::variant_trait::Variant;
-use crate::{error::Error, variant::vcf_var::{self, VcfVar}};
+
 use ontolius::term::simple::SimpleMinimalTerm;
 use rand::{self, distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
-
+use crate::variant::acmg::AcmgPathogenicityClassification;
+use crate::variant::variant_trait::Variant;
+use crate::{error::Error, variant::vcf_var::{self, VcfVar}};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HgvsVariant {
@@ -64,6 +64,57 @@ impl HgvsVariant {
             variant_id,
         }
     }
+
+    pub fn assembly(&self) -> &str {
+        self.assembly.as_ref()
+    }
+
+    pub fn chr(&self) -> &str {
+        self.chr.as_ref()
+    }
+
+    pub fn position(&self) -> u32 {
+        self.position
+    }
+
+    pub fn ref_allele(&self) -> &str {
+        self.ref_allele.as_ref()
+    }
+
+    pub fn alt_allele(&self) -> &str {
+        self.alt_allele.as_ref()
+    }
+   
+    pub fn symbol(&self) -> Option<&str> {
+        self.symbol.as_deref()
+    }
+
+    pub fn hgnc_id(&self) -> Option<&str> {
+        self.hgnc_id.as_deref()
+    }
+
+    pub fn hgvs(&self) -> Option<&str> {
+        self.hgvs.as_deref()
+    }
+
+    pub fn transcript(&self) -> Option<&str> {
+        self.transcript.as_deref()
+    }
+
+    pub fn g_hgvs(&self) -> Option<&str> {
+        self.g_hgvs.as_deref()
+    }
+    pub fn genotype(&self) ->  Option<&str> {
+        self.genotype.as_deref()
+    }
+
+    pub fn variant_id(&self) ->  &str {
+        self.variant_id.as_ref()
+    }
+
+
+
+
 }
 
 impl Variant for HgvsVariant {
@@ -78,57 +129,41 @@ impl Variant for HgvsVariant {
     fn set_hemizygous(&mut self) {
         self.genotype = Some("hemizygous".to_string())
     }
-    
-   
-    /* 
-    fn to_variant_interpretation(&self, acmg: Option<AcmgPathogenicityClassification>) -> VariantInterpretation {
-        let mut vcf_record = VcfRecord::new();
-        vcf_record.genome_assembly = self.assembly.clone();
-        vcf_record.chrom = self.chr.clone();
-        vcf_record.pos = self.position;
-        vcf_record.r#ref = self.ref_allele.clone();
-        vcf_record.alt = self.alt_allele.clone();
+}
 
-        let mut vdescriptor = VariationDescriptor::new();
-        vdescriptor.id = self.variant_id.clone();
-        vdescriptor.vcf_record = Some(vcf_record);
-        vdescriptor.molecule_context = MoleculeContext::Genomic as i32;
 
-        if let (Some(id), Some(sym)) = (&self.hgnc_id, &self.symbol) {
-            let gene = GeneDescriptor {
-                value_id: id.clone(),
-                symbol: sym.clone(),
-                ..Default::default()
-            };
-            vdescriptor.gene_context = Some(gene);
-        }
 
-        if let Some(hgvs) = &self.hgvs {
-            vdescriptor.expressions.push(Expression {
-                syntax: "hgvs.c".to_string(),
-                value: hgvs.clone(),
-                ..Default::default()
-            });
-        }
-        if let Some(g_hgvs) = &self.g_hgvs {
-            vdescriptor.expressions.push(Expression {
-                syntax: "hgvs.g".to_string(),
-                value: g_hgvs.clone(),
-                ..Default::default()
-            });
-        }
+#[cfg(test)]
+mod tests {
 
-        if let Some(gt) = &self.genotype {
-            if let Some(term) = Self::get_genotype_term(gt) {
-                vdescriptor.allelic_state = Some(term);
-            }
-        }
+    use crate::{error::Error, variant::variant_validator::VariantValidator};
+    use super::*;
+    use rstest::rstest;
 
-        let mut interpretation = VariantInterpretation::new();
-        interpretation.variation_descriptor = Some(vdescriptor);
-        if let Some(code) = acmg {
-            interpretation.acmg_pathogenicity_classification = code as i32;
-        }
-        interpretation
-    }*/
+    // test NM_000138.5(FBN1):c.8242G>T (p.Glu2748Ter)
+    // We expect to get this back
+    // HgvsVariant { assembly: "hg38", chr: "chr15", position: 48411364, ref_allele: "C", alt_allele: "A", symbol: Some("FBN1"), 
+    // hgnc_id: Some("HGNC:3603"), hgvs: Some("NM_000138.5"), transcript: Some("NM_000138.5:c.8242G>T"), 
+    // g_hgvs: Some("NC_000015.10:g.48411364C>A"), genotype: None, variant_id: "var_JgacXpZdmwKjarf125ud6ILjA" }
+    #[rstest]
+    #[ignore = "testing API"]
+    fn test_hgvs_c_FBN1() {
+        let vvalidator = VariantValidator::new("hg38", "NM_000138.5").unwrap();
+        let result = vvalidator.encode_hgvs("c.8242G>T");
+        assert!(result.is_ok());
+        let hgvs_var = result.unwrap();
+        println!("{:?}", hgvs_var);
+        assert_eq!("hg38", hgvs_var.assembly());
+        assert_eq!("chr15", hgvs_var.chr());
+        assert_eq!(48411364, hgvs_var.position());
+        assert_eq!("C", hgvs_var.ref_allele());
+        assert_eq!("A", hgvs_var.alt_allele());
+        assert_eq!(Some("FBN1"), hgvs_var.symbol());
+        assert_eq!(Some("HGNC:3603"), hgvs_var.hgnc_id());
+        assert_eq!(Some("NM_000138.5:c.8242G>T"), hgvs_var.transcript());
+        assert_eq!(Some("NC_000015.10:g.48411364C>A"), hgvs_var.g_hgvs());
+        assert!(hgvs_var.genotype().is_none()); // the variant validator call does not set the genotype
+    }
+
+
 }

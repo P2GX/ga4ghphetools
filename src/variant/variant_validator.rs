@@ -133,7 +133,6 @@ impl VariantValidator {
 
         let vcf = assembly.get("vcf")
             .ok_or_else(|| anyhow::anyhow!("Could not identify vcf element"))?;
-        println!("VCF {:?}", vcf);
         let chrom: String = vcf.get("chr")
                 .and_then(Value::as_str)
                 .ok_or_else(|| Error::malformed_chr(vcf))?
