@@ -148,8 +148,8 @@ mod tests {
     #[rstest]
     #[ignore = "testing API"]
     fn test_hgvs_c_FBN1() {
-        let vvalidator = VariantValidator::new("hg38", "NM_000138.5").unwrap();
-        let result = vvalidator.encode_hgvs("c.8242G>T");
+        let vvalidator = VariantValidator::new("hg38").unwrap();
+        let result = vvalidator.encode_hgvs("c.8242G>T", "NM_000138.5");
         assert!(result.is_ok());
         let hgvs_var = result.unwrap();
         println!("{:?}", hgvs_var);

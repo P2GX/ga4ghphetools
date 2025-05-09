@@ -77,9 +77,9 @@ where
     ///
     /// Perform separate DFS for Neoplasm to arrange all neoplasm terms together
     ///
-    /// * Arguments
+    /// # Arguments
     ///
-    /// `hpo_terms_for_curation` - TermIds of the Terms chosen to initialize the template, generally terms we expect to curate
+    /// * `hpo_terms_for_curation` - TermIds of the Terms chosen to initialize the template, generally terms we expect to curate
     ///
     /// * Returns:
     ///

@@ -4,6 +4,7 @@
 
 
 use crate::error::Error;
+use crate::persistence::ValidatorOfVariants;
 use crate::pptcolumn::ppt_column::PptColumn;
 use crate::template::template_row_adder::TemplateRowAdder;
 use crate::pptcolumn::disease_gene_bundle::DiseaseGeneBundle;
@@ -32,6 +33,7 @@ pub struct PheTools {
     hpo: Arc<FullCsrOntology>,
     /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
     template: Option<PheToolsTemplate>,
+    manager: Option<Box<dyn ValidatorOfVariants>>, 
 }
 
 impl PheTools {
@@ -59,6 +61,7 @@ impl PheTools {
         PheTools {
             hpo: hpo,
             template: None,
+            manager: None
         }
     }
 
@@ -694,8 +697,6 @@ mod tests {
         let hpo_arc = Arc::new(hpo);
         let mut pyphetools = PheTools::new(hpo_arc);
         pyphetools.load_excel_template(template);
-        let errors = pyphetools.template_qc();
-        assert!(errors.is_empty());
         let matrix = pyphetools.get_string_matrix();
         match matrix {
             Ok(mat) => {

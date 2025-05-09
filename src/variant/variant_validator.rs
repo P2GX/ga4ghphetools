@@ -38,7 +38,6 @@ impl Error {
 
 pub struct VariantValidator {
     genome_assembly: String,
-    transcript: String,
 }
 
 fn get_variant_validator_url(
@@ -57,29 +56,39 @@ fn get_variant_validator_url(
 }
 
 impl VariantValidator {
-    pub fn new(genome_build: &str, transcript: impl Into<String>) -> Result<Self> {
+    pub fn new(genome_build: &str) -> Result<Self> {
         if !ACCEPTABLE_GENOMES.contains(&genome_build) {
             bail!("genome_build \"{}\" not recognized", genome_build);
         }
         Ok(Self {
             genome_assembly: genome_build.to_string(),
-            transcript: transcript.into(),
         })
     }
 
-    pub fn hg38(transcript: impl Into<String>) -> Self {
+    pub fn hg38() -> Self {
         Self {
             genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
-            transcript: transcript.into()
         }
     }
 
+    /// Reach out to the VariantValidator API and create an HgvsVariant object from a transcript and HGVS expression
+    /// 
+    /// # Arguments
+    /// 
+    /// * `hgvs` - a Human Genome Variation Society (HGVS) string such as c.123C>T
+    /// * `transcript`- the transcript with version number for the HGVS expression
+    /// 
+    /// # Returns
+    /// 
+    /// - `Ok(HgvsVariant)` - An object with information about the variant derived from VariantValidator
+    /// - `Err(Error)` - An error if the API call fails (which may happen because of malformed input or network issues).
     pub fn encode_hgvs(
         &self, 
         hgvs: &str, 
+        transcript: &str
     ) -> Result<HgvsVariant> 
     {
-        let url = get_variant_validator_url(&self.genome_assembly, &self.transcript, hgvs);
+        let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
         let response: Value = get(&url)?.json()?;
 
         if let Some(flag) = response.get("flag") {
@@ -184,8 +193,8 @@ mod tests {
     #[test]
     #[ignore = "runs with API"]
     fn test_variant_validator() {
-        let vvalidator = VariantValidator::new("hg38", "NM_000138.5").unwrap();
-        let json = vvalidator.encode_hgvs("c.8230C>T");
+        let vvalidator = VariantValidator::new("hg38").unwrap();
+        let json = vvalidator.encode_hgvs("c.8230C>T", "NM_000138.5");
         assert!(json.is_ok());
         let json = json.unwrap();
         println!("{:?}", json);

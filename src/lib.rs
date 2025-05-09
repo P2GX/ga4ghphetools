@@ -20,5 +20,6 @@ mod template;
 mod variant;
 
 pub mod dto;
+pub mod persistence;
 pub use template::phetools::PheTools;
 

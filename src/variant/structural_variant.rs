@@ -3,8 +3,13 @@ use rand::{distr::Alphanumeric, Rng};
 use serde::{Serialize, Deserialize};
 use std::{collections::HashMap, str::FromStr};
 use lazy_static::lazy_static;
-
+use crate::{error::Error, error::Result};
 const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
+
+pub const DELETION: &str = "DEL";
+pub const TRANSLOCATION: &str = "TRANSL";
+pub const DUPLICATION: &str = "DUP";
+pub const INVSERSION: &str = "INV";
 
 lazy_static! {
     pub static ref CHROMOSOMAL_TRANSLOCATION: SimpleMinimalTerm = SimpleMinimalTerm::new(
@@ -114,5 +119,42 @@ impl StructuralVariant {
         variant_id: Option<String>
     ) -> Self {
         Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), &CHROMOSOMAL_TRANSLOCATION, variant_id)
+    }
+
+
+    pub fn code_as_chromosomal_deletion(
+        allele: &str, 
+        gene_id: &str,
+        gene_symbol: &str
+    ) -> Result<StructuralVariant> {
+        let var = StructuralVariant::chromosomal_deletion(allele, gene_symbol, gene_id, None);
+        Ok(var)
+    }
+
+    pub fn code_as_chromosomal_inversion(
+        allele: &str, 
+        gene_id: &str,
+        gene_symbol: &str
+    ) -> Result<StructuralVariant> {
+        let var = StructuralVariant::chromosomal_inversion(allele, gene_symbol, gene_id, None);
+        Ok(var)
+    }
+
+    pub fn code_as_chromosomal_duplication(
+        allele: &str, 
+        gene_id: &str,
+        gene_symbol: &str
+    ) -> Result<StructuralVariant> {
+        let var = StructuralVariant::chromosomal_duplication(allele, gene_symbol, gene_id, None);
+        Ok(var)
+    }
+
+    pub fn code_as_chromosomal_translocation(
+        allele: &str, 
+        gene_id: &str,
+        gene_symbol: &str
+    ) -> Result<StructuralVariant> {
+        let var = StructuralVariant::chromosomal_translocation(allele, gene_symbol, gene_id, None);
+        Ok(var)
     }
 }
