@@ -26,7 +26,7 @@ use crate::rphetools_traits::TableCell;
 use crate::hpo::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::template::simple_label::SimpleLabel;
 use super::header_duplet_row::HeaderDupletRow;
-use super::ppkt_exporter::PpktExporter;
+use super::ppkt_row::PpktRow;
 
 
 
@@ -83,7 +83,7 @@ impl IndividualTemplateFactory {
             )));
         }
         let separator_index = Self::get_separator_index(first_row_headers, second_row_headers)?;
-        let mut header_duplets: Vec<HeaderDuplet> = vec![];
+        let mut header_duplets: Vec<HeaderDuplet> = Vec::with_capacity(separator_index);;
 
         for i in 0..=separator_index {
             match HeaderDuplet::get_duplet( &first_row_headers[i]) {
@@ -99,7 +99,7 @@ impl IndividualTemplateFactory {
                 },
                 None => {
                         // Could not find HeaderDuplet in constant section-- the title must be erroneous
-                        return Err(Error::TemplateError { msg: format!("Malformed title: '{}'", &first_row_headers[i]) });
+                        return Err(Error::TemplateError { msg: format!("Malformed HeaderDuplet title: '{}'", &first_row_headers[i]) });
                 }
             }
         }
@@ -125,7 +125,8 @@ impl IndividualTemplateFactory {
             }
         }
         /// If we get here, then we have successfully ingested all Header duplets.
-        let header_duplet_row = HeaderDupletRow::from_duplets(&header_duplets)?;
+        let hpo_arc = hpo.clone(); 
+        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(header_duplets, hpo_arc)?;
         Ok(IndividualTemplateFactory {
             header_duplet_row: Arc::new(header_duplet_row),
             content_rows: list_of_rows.iter().skip(2).cloned().collect(),
@@ -158,10 +159,10 @@ impl IndividualTemplateFactory {
     /// # Returns
     ///
     /// A result containing the corresponding IndividualTemplate object or an Err with Vector of strings representing the problems
-    pub fn individual_template_row(&self, row: Vec<String>) -> Result<PpktExporter> {
+    pub fn individual_template_row(&self, row: Vec<String>) -> Result<PpktRow> {
         let hdrow_arc = self.header_duplet_row.clone(); // reference counted clone
         let hpo_arc = Arc::clone(&self.hpo);
-        let exporter = PpktExporter::new(hdrow_arc, row.clone(), hpo_arc);
+        let exporter = PpktRow::new(hdrow_arc, row.clone());
         Ok(exporter)
     }
 
@@ -169,7 +170,7 @@ impl IndividualTemplateFactory {
    
 
     /// Return all phenopacket templates or a list of errors if there was one or more problems
-    pub fn get_templates(&self) -> Result<Vec<PpktExporter>> {
+    pub fn get_templates(&self) -> Result<Vec<PpktRow>> {
         let mut templates = Vec::new();
         for row in &self.content_rows {
             let itemplate = self.individual_template_row(row.to_vec());

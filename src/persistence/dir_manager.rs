@@ -1,7 +1,7 @@
 
 use std::{collections::HashMap, fs::{self, File, OpenOptions}, path::{Path, PathBuf}};
 
-use crate::variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_validator::VariantValidator};
+use crate::{dto::variant_dto::VariantDto, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_validator::VariantValidator}};
 
 use super::ValidatorOfVariants;
 
@@ -85,11 +85,34 @@ impl DirManager {
         let cache = serde_json::from_reader(file).map_err(|e| e.to_string())?;
         Ok(cache)
     }
+
+    pub fn n_hgvs(&self) -> usize {
+        self.hgvs_cache.len()
+    }
+
+    pub fn n_sv(&self) -> usize {
+        self.structural_cache.len()
+    }
+
+    pub fn clear_cache(&mut self) {
+        self.hgvs_cache.clear();
+        self.structural_cache.clear();
+    }
+
+    pub fn get_hgvs_variant(&self, var_str: &str) -> Option<HgvsVariant> {
+        self.hgvs_cache.get(var_str).cloned()
+    }
+
+    pub fn get_sv(&self, var_str: &str) -> Option<StructuralVariant> {
+        self.structural_cache.get(var_str).cloned()
+    }
+
+  
 }
 
 
 impl ValidatorOfVariants for DirManager {
-    fn validate_variant(&mut self, variant: &str, transcript: &str) -> Result<(), String> {
+    fn validate_hgvs(&mut self, variant: &str, transcript: &str) -> Result<(), String> {
         let full_hgvs = format!("{transcript}:{variant}");
         if self.hgvs_cache.contains_key(&full_hgvs) {
             return Ok(());
@@ -137,4 +160,7 @@ impl ValidatorOfVariants for DirManager {
         }
         Ok(())
     }
+
+
+  
 }

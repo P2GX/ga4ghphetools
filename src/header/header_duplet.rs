@@ -13,7 +13,7 @@ use std::{collections::{HashMap, HashSet}, fmt};
 
 use crate::header::pmid_duplet::PmidDuplet;
 
-use super::{age_last_encounter::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, hpo_separator_duplet::HpoSeparatorDuplet, hpo_term_duplet::HpoTermDuplet, individual_id_duplet::IndividualIdDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
+use super::{age_last_encounter_duplet::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, hpo_separator_duplet::HpoSeparatorDuplet, hpo_term_duplet::HpoTermDuplet, individual_id_duplet::IndividualIdDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
 
 /// Each HeaderDuplet (column) implements these methods.
 pub trait HeaderDupletItem {

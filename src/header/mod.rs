@@ -6,7 +6,7 @@
 //! See the [`header_duplet`](mod@crate::header::header_duplet) module for the trait that each HeaderDuplet implements.
 
 pub mod age_of_onset_duplet;
-pub mod age_last_encounter;
+pub mod age_last_encounter_duplet;
 mod age_util;
 pub mod allele_1_duplet;
 pub mod allele_2_duplet;
