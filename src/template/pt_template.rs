@@ -186,6 +186,31 @@ impl PheToolsTemplate {
         self.header.get_hpo_id_list()
     }
 
+    pub fn create_pyphetools_template(
+        dg_bundle: DiseaseGeneBundle,
+        hpo_term_ids: Vec<TermId>,
+        hpo: Arc<FullCsrOntology>,
+    ) -> Result<PheToolsTemplate> {
+        let mut smt_list: Vec<SimpleMinimalTerm> = Vec::new();
+        for hpo_id in &hpo_term_ids {
+            match hpo.term_by_id(hpo_id) {
+                Some(term) => {
+                    let smt =
+                        SimpleMinimalTerm::new(term.identifier().clone(), term.name(), vec![], false);
+                    smt_list.push(smt);
+                }
+                None => {
+                    return Err(Error::HpIdNotFound {
+                        id: hpo_id.to_string(),
+                    });
+                }
+            }
+        }
+    
+        let result = Self::create_pyphetools_template_mendelian(dg_bundle, hpo_term_ids, hpo)?;
+        Ok(result)
+    }
+
     /// Create a PtTemplate from a tabular input file
     pub fn from_mendelian_template(
         matrix: Vec<Vec<String>>,
@@ -304,9 +329,6 @@ impl PheToolsTemplate {
 
 
 
-
-
-
     pub fn phenopacket_count(&self) -> usize {
         self.ppkt_rows.len()
     }
@@ -314,12 +336,6 @@ impl PheToolsTemplate {
     pub fn header_row_count(&self) -> usize {
         2
     }
-
-    
-
-   
-
-
 
     /// Delete a row. We expect this to come from a GUI where the rows include
     /// the headers (two rows) and adjust here. TODO - Consider

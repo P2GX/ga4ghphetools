@@ -1,6 +1,6 @@
 [package]
 name = "rphetools"
-version = "0.1.58"
+version = "0.2.1"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -32,7 +32,7 @@ phenopacket_tools = { git = "https://github.com/P2GX/phenopacket_tools", tag = "
 polars = "0.46.0"
 prost = "0.13.5" 
 prost-types = "0.13.5"
-rand = "0.9.0"
+rand = "0.9.1"
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 zip = "2"

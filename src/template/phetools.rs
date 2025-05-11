@@ -104,10 +104,11 @@ impl PheTools {
             gene_symbol,
             transcript_id,
         ).map_err(|e| e.to_string())?;
-        let template = template_creator::create_pyphetools_template(
+        let hpo_arc = self.hpo.clone();
+        let template = PheToolsTemplate::create_pyphetools_template(
             dgb, 
             hpo_term_ids, 
-            &self.hpo
+            hpo_arc
         ).map_err(|e| e.to_string())?;
         Ok(())
     }
@@ -151,7 +152,7 @@ impl PheTools {
     pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>, String> {
         match &self.template {
             Some(template) => {
-                let matrix = template.get_string_matrix().map_err(|e| e.to_string())?;
+                let matrix = template.get_string_matrix();
                 return Ok(matrix);
             }
             None => {
@@ -186,17 +187,14 @@ impl PheTools {
         matrix: Vec<Vec<String>>
     ) -> Result<(), String> 
     {
-        match PheToolsTemplate::from_string_matrix(matrix, &self.hpo) {
+        let hpo_arc = self.hpo.clone();
+        match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc) {
             Ok(ppt) => {
                 self.template = Some(ppt);
                 Ok(())
             },
-            Err(e) => {
-                        eprint!("Could not create pt_template");
-                        let err_string = e.iter().map(|e| e.to_string()).collect();
-                        return Err(err_string);
-                    }
-            }
+            Err(e) => { return Err(e.to_string()); }
+        }
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
@@ -300,8 +298,11 @@ impl PheTools {
         case_dto: CaseDto,
         hpo_dto_items: Vec<HpoTermDto>
     ) -> Result<(), String> {
-        match &self.template {
-            Some(template) => template.add_row_with_hpo_data(case_dto, hpo_dto_items),
+        match &mut self.template {
+            Some(template) => {
+                template.add_row_with_hpo_data(case_dto, hpo_dto_items).map_err(|e|e.to_string())?;
+                Ok(())
+            }
             None => Err("Template not initialized".to_string())
         }
     }
@@ -425,6 +426,7 @@ impl PheTools {
     }
 
     /// Get a vector of Strings representing all fields in a column
+    /// PROBABLY WE DO NOT NEED THIS FUNCTION-DELETE
     ///  # Arguments
     ///
     /// * `idx` - column index
@@ -440,8 +442,7 @@ impl PheTools {
     pub fn get_string_column(&self, idx: usize) -> Result<Vec<String>, String> {
         match &self.template {
             Some(template) => {
-                let col = template.get_string_column(idx).map_err(|e| e.to_string())?;
-                Ok(col)
+                todo!()
             }
             None => Err(format!("phetools template not initialized")),
         }
