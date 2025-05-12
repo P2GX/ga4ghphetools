@@ -202,6 +202,9 @@ impl HeaderDupletRow {
              if term.name() == label {
                  let hpo_dup = hdup.as_hpo_term_duplet()?;
                  hpo_duplet_vec.push(hpo_dup.clone());
+             } else {
+                return Err(Error::TermError{ msg: format!("HPO Term {} with malformed label '{}' instead of '{}'",
+                    &tid.to_string(), &label, &term.name())});
              }
          }
         Ok(Self {

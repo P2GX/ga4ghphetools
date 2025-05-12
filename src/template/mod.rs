@@ -3,7 +3,6 @@ pub mod excel;
 pub mod header_duplet_row;
 pub mod header_index;
 pub mod ppkt_row;
-pub mod itemplate_factory;
 pub mod operations;
 pub mod phetools;
 pub use phetools::PheTools;

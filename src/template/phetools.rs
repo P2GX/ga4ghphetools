@@ -16,9 +16,8 @@ use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use serde_json::to_string;
-use crate::template::itemplate_factory::IndividualTemplateFactory;
 use crate::template::pt_template::PheToolsTemplate;
-use crate::template::{excel};
+use crate::template::excel;
 use crate::rphetools_traits::PyphetoolsTemplateCreator;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self};
@@ -466,41 +465,6 @@ impl PheTools {
         }
     }
 
-    pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
-        let mut err_list = Vec::new();
-        let row_result = excel::read_excel_to_dataframe(pyphetools_template_path);
-        match row_result {
-            Ok(list_of_rows) => {
-                let hpo_arc = self.hpo.clone();
-                let result = IndividualTemplateFactory::new(hpo_arc, list_of_rows.as_ref());
-                match result {
-                    Ok(template_factory) => {
-                        let result = template_factory.get_templates();
-                        match result {
-                            Ok(template_list) => {
-                                println!(
-                                    "[INFO] We parsed {} templates successfully.",
-                                    template_list.len()
-                                );
-                                vec![]
-                            }
-                            Err(err) => {
-                                eprintln!("[ERROR] {err}");
-                                vec![]
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        err_list.push(e);
-                        return vec![];
-                    }
-                }
-            }
-            Err(e) => {
-                return vec![];
-            }
-        }
-    }
 
     pub fn get_template_summary(&self) -> Result<HashMap<String, String>, String> {
         match &self.template {

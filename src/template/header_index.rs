@@ -90,10 +90,11 @@ impl HeaderIndexer {
     pub fn extract_mendelian_constant_duplets(header_list: &Vec<HeaderDuplet>) -> Result<Vec<HeaderDuplet>> {
         let constant_duplets: Vec<HeaderDuplet> = Vec::with_capacity(MENDELIAN_DUPLETS.len());
         for (idx, key) in MENDELIAN_DUPLETS.iter().enumerate() {
+            println!("observed {} - expected {}", header_list[idx].row1(), key.row1());
             if key.row1() != header_list[idx].row1() {
-                return Err(Error::HeaderError { msg: format!("HeaderDuplet: Expected {} but got {}", &header_list[idx].row1() , &key.row1() ) });
+                return Err(Error::HeaderError { msg: format!("Malformed header: Expected '{}' but got '{}'",  &key.row1(),  &header_list[idx].row1() ) });
             } else if key.row2() != header_list[idx].row2() {
-                return Err(Error::HeaderError { msg: format!("HeaderDuplet: Expected {} but got {}", &header_list[idx].row2() , &key.row2() ) });
+                return Err(Error::HeaderError { msg: format!("Malformed header: Expected '{}' but got '{}'", &key.row2(), &header_list[idx].row2()  ) });
             }
         }
         // if we get here, the template has the correct values for a Mendelian header (which are constant)
