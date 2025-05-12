@@ -648,7 +648,7 @@ mod test {
     #[case(7, "symbol", "gene_symbol")]
     #[case(8, "tx", "transcript")]
     #[case(9, "allel1", "allele_1")]
-    #[case(910, "allele2", "allele_2")]
+    #[case(10, "allele2", "allele_2")]
     #[case(11, "vcomment", "variant.comment")]
     #[case(12, "age", "age_of_onset")]
     #[case(13, "age_last_counter", "age_at_last_encounter")]
