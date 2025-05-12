@@ -14,12 +14,13 @@
 mod error;
 mod header;
 mod hpo;
+mod persistence;
 mod pptcolumn;
 mod rphetools_traits;
 mod template;
 mod variant;
 
 pub mod dto;
-pub mod persistence;
+
 pub use template::phetools::PheTools;
 

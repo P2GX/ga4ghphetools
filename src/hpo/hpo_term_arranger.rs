@@ -4,25 +4,21 @@
 //!
 //! Objects of this class are created to perform a DSF to find a good way of arranging HPO term columns
 //! We do not need to take ownership of the ontology, therefore indicate explicit lifetime
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, str::FromStr, sync::Arc};
+use crate::error::{self, Error, Result};
 
 use ontolius::{
-    common::hpo::PHENOTYPIC_ABNORMALITY,
-    ontology::{HierarchyQueries, HierarchyWalks},
-    TermId,
+    common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::{simple::{SimpleMinimalTerm, SimpleTerm}, Term}, TermId
 };
 
 /// Arranges HPO terms into a meaningful order for curation using DFS.
-pub struct HpoTermArranger<'a, O> {
-    hpo: &'a O,
+pub struct HpoTermArranger {
+    hpo: Arc<FullCsrOntology>,
     hpo_curation_term_id_set: HashSet<TermId>,
     errors: Vec<String>,
 }
 
-impl<'a, O> HpoTermArranger<'a, O>
-where
-    O: HierarchyQueries + HierarchyWalks,
-{
+impl HpoTermArranger {
     /// Create a new HpoTermArranger
     ///
     /// We use a specified life time so we can borrow a reference to the ontology.
@@ -30,7 +26,7 @@ where
     /// # Arguments
     ///
     /// * `ontology` - reference to an Ontolius HPO ontology.
-    pub fn new(ontology: &'a O) -> Self {
+    pub fn new(ontology: Arc<FullCsrOntology>) -> Self {
         Self {
             hpo: ontology,
             hpo_curation_term_id_set: HashSet::new(),
@@ -68,7 +64,8 @@ where
             ordered_tids.push(start_tid.clone()); // Only include terms we want to curate!
         }
 
-        for child in self.hpo.iter_child_ids(start_tid) {
+        let children: Vec<TermId> = self.hpo.iter_child_ids(start_tid).cloned().collect();
+        for child in &children {
             self.dfs(child, visited, ordered_tids);
         }
     }
@@ -84,7 +81,7 @@ where
     /// * Returns:
     ///
     /// A Vector of TermIds in the order that they should be displayed in the template
-    pub fn arrange_terms(&mut self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
+    pub fn arrange_term_ids(&mut self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
         self.hpo_curation_term_id_set.clear();
         for smt in hpo_terms_for_curation {
             self.hpo_curation_term_id_set.insert(smt.clone());
@@ -101,6 +98,25 @@ where
         result.extend(neoplasm_terms);
         result
     }
+
+
+    pub fn arrange_terms(&mut self, hpo_terms_for_curation: &Vec<TermId>) -> Result<Vec<SimpleTerm>> {
+        let arranged_tids = self.arrange_term_ids(hpo_terms_for_curation);
+        let mut arranged_terms: Vec<SimpleTerm> = Vec::new();
+        for tid in arranged_tids {
+            match self.hpo.term_by_id(&tid) {
+                Some(term) => {
+                    arranged_terms.push(term.clone());
+                },
+                None => {
+                    return Err(Error::term_not_found(&tid));
+                }
+            }
+        }
+        Ok(arranged_terms)
+
+    }
+
 }
 
 #[cfg(test)]
@@ -153,16 +169,18 @@ mod tests {
         let start = Instant::now();
         let loader = OntologyLoaderBuilder::new().obographs_parser().build();
         let hp_json = "/Users/robin/data/hpo/hp.json";
-        let hpo: MinimalCsrOntology = loader.load_from_path(hp_json).expect("could not unwrap");
+        let hpo: FullCsrOntology = loader.load_from_path(hp_json).expect("could not unwrap");
         let duration = start.elapsed();
         println!("Loaded HPO: {:?}", duration);
         let start = Instant::now();
-        let mut arranger = HpoTermArranger::new(&hpo);
-        let ordered_terms = arranger.arrange_terms(&term_list);
+        let hpo_arc = Arc::new(hpo);
+        let hpo_arc2 = hpo_arc.clone();
+        let mut arranger = HpoTermArranger::new(hpo_arc);
+        let ordered_terms = arranger.arrange_term_ids(&term_list);
         let duration = start.elapsed();
         println!("Arranged terms: {:?}", duration);
         for t in ordered_terms {
-            let result = hpo.term_by_id(&t);
+            let result = hpo_arc2.term_by_id(&t);
             match result {
                 Some(term) => println!("{} ({})", term.name(), t),
                 None => eprint!("Could not retrieve term for {}.", t),

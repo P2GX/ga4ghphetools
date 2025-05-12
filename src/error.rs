@@ -6,6 +6,7 @@
 
 use core::fmt;
 use derive_more::{Display, From};
+use ontolius::TermId;
 use serde::Serialize;
 
 
@@ -236,6 +237,11 @@ impl Error {
 
     pub fn wrong_hpo_label_error(id: &str, actual: &str, expected: &str) -> Self {
         let msg = format!("HPO Term {id} with malformed label '{actual}' instead of '{expected}'");
+        Error::TermError { msg }
+    }
+
+    pub fn term_not_found(id: &TermId) -> Self {
+        let msg = format!("No HPO Term found for '{}'", &id.to_string());
         Error::TermError { msg }
     }
 

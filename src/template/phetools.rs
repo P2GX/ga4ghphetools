@@ -3,10 +3,11 @@
 
 
 
+use crate::dto::variant_dto::VariantDto;
 use crate::error::Error;
+use crate::persistence::dir_manager::DirManager;
 use crate::persistence::ValidatorOfVariants;
 use crate::pptcolumn::ppt_column::PptColumn;
-use crate::template::template_row_adder::TemplateRowAdder;
 use crate::pptcolumn::disease_gene_bundle::DiseaseGeneBundle;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
 use crate::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
@@ -15,13 +16,12 @@ use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use serde_json::to_string;
-use crate::template::itemplate_factory::IndividualTemplateFactory;
 use crate::template::pt_template::PheToolsTemplate;
-use crate::template::template_row_adder::MendelianRowAdder;
-use crate::template::{excel, template_creator};
+use crate::template::excel;
 use crate::rphetools_traits::PyphetoolsTemplateCreator;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self};
+use std::path::Path;
 use std::sync::Arc;
 use std::{fmt::format, str::FromStr, vec};
 
@@ -33,6 +33,7 @@ pub struct PheTools {
     hpo: Arc<FullCsrOntology>,
     /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
     template: Option<PheToolsTemplate>,
+    /// Manager to validate and cache variants
     manager: Option<Box<dyn ValidatorOfVariants>>, 
 }
 
@@ -102,10 +103,11 @@ impl PheTools {
             gene_symbol,
             transcript_id,
         ).map_err(|e| e.to_string())?;
-        let template = template_creator::create_pyphetools_template(
+        let hpo_arc = self.hpo.clone();
+        let template = PheToolsTemplate::create_pyphetools_template(
             dgb, 
             hpo_term_ids, 
-            &self.hpo
+            hpo_arc
         ).map_err(|e| e.to_string())?;
         Ok(())
     }
@@ -133,9 +135,8 @@ impl PheTools {
     /// - Terms are ordered using depth-first search (DFS) over the HPO hierarchy so that related terms are displayed near each other
     pub fn arrange_terms(&self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
         let hpo_arc = Arc::clone(&self.hpo);
-        let hpo_ref = hpo_arc.as_ref();
-        let mut term_arrager = HpoTermArranger::new(hpo_ref);
-        let arranged_terms = term_arrager.arrange_terms(hpo_terms_for_curation);
+        let mut term_arrager = HpoTermArranger::new(hpo_arc);
+        let arranged_terms = term_arrager.arrange_term_ids(hpo_terms_for_curation);
         arranged_terms
     }
 
@@ -150,7 +151,7 @@ impl PheTools {
     pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>, String> {
         match &self.template {
             Some(template) => {
-                let matrix = template.get_string_matrix().map_err(|e| e.to_string())?;
+                let matrix = template.get_string_matrix();
                 return Ok(matrix);
             }
             None => {
@@ -185,17 +186,14 @@ impl PheTools {
         matrix: Vec<Vec<String>>
     ) -> Result<(), String> 
     {
-        match PheToolsTemplate::from_string_matrix(matrix, &self.hpo) {
+        let hpo_arc = self.hpo.clone();
+        match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc) {
             Ok(ppt) => {
                 self.template = Some(ppt);
                 Ok(())
             },
-            Err(e) => {
-                        eprint!("Could not create pt_template");
-                        let err_string = e.iter().map(|e| e.to_string()).collect();
-                        return Err(err_string);
-                    }
-            }
+            Err(e) => { return Err(e.to_string()); }
+        }
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
@@ -231,8 +229,8 @@ impl PheTools {
     pub fn col_type_at(&self, col: usize) -> Result<String, String> {
         match &self.template {
             Some(tplt) => {
-                if col >= tplt.column_count() {
-                    return Err(Error::column_index_error(col, tplt.column_count()).to_string());
+                if col >= tplt.n_columns() {
+                    return Err(Error::column_index_error(col, tplt.n_columns()).to_string());
                 }
                 match tplt.get_column_name(col) {
                     Ok(ctype) => {
@@ -273,20 +271,7 @@ impl PheTools {
         title: &str,
         individual_id: &str,
     ) -> Result<(), String> {
-        match &mut self.template {
-            Some(template) => {
-                if template.is_mendelian() {
-                    let row_adder = MendelianRowAdder {};
-                    row_adder
-                        .add_row(pmid, title, individual_id, template)
-                        .map_err(|e| e.to_string())?;
-                    Ok(())
-                } else {
-                    return Err(format!("Non-Mendelian not implemented"));
-                }
-            }
-            None => Err(format!("Attempt to add row to null template!")),
-        }
+        todo!()
     }
 
     /// Arranges the given HPO terms into a specific order for curation.
@@ -312,85 +297,13 @@ impl PheTools {
         case_dto: CaseDto,
         hpo_dto_items: Vec<HpoTermDto>
     ) -> Result<(), String> {
-        if self.template.is_none() {
-            return Err("Template not initialized".to_string());
-        }
-    
-        // === STEP 1: Extract all HPO TIDs from DTO and classify ===
-        let dto_tid_list: Vec<String> = hpo_dto_items.iter().map(|dto| dto.term_id()).collect();
-    
-        let mut new_hpo_tids: Vec<TermId> = Vec::new();
-        let mut dto_map: HashMap<TermId, HpoTermDto> = HashMap::new();
-    
-        for dto in hpo_dto_items {
-            let tid = TermId::from_str(&dto.term_id())
-                .map_err(|_| format!("HPO TermId {} in DTO not found", dto.term_id()))?;
-    
-            dto_map.insert(tid.clone(), dto);
-            new_hpo_tids.push(tid);
-        }
-    
-        // === STEP 2: Arrange TIDs before borrowing template mutably ===
-        let mut all_tids: Vec<TermId> = {
-            let hpo_tids = self.template.as_ref().unwrap()
-                .get_hpo_term_ids()
-                .map_err(|e| e.to_string())?;
-    
-            let mut hpo_set: HashSet<_> = hpo_tids.iter().cloned().collect();
-            for tid in &new_hpo_tids {
-                hpo_set.insert(tid.clone());
+        match &mut self.template {
+            Some(template) => {
+                template.add_row_with_hpo_data(case_dto, hpo_dto_items).map_err(|e|e.to_string())?;
+                Ok(())
             }
-            hpo_set.into_iter().collect()
-        };
-    
-        let arranged_tids = self.arrange_terms(&all_tids);
-    
-        // === STEP 3: Create updated non-HPO columns ===
-        let template = self.template.as_mut().unwrap();
-    
-        let indexer = HeaderIndexer::mendelian();
-        let mut new_pt_columns = template.update_non_hpo_columns(case_dto, indexer)
-            .map_err(|e| e.to_string())?;
-    
-        let mut hpo_col_map = template.get_hpo_column_map().map_err(|e| e.to_string())?;
-    
-        // === STEP 4: Create new columns for new HPO terms ===
-        let n_existing_phenopackets = template.phenopacket_count();
-        for tid in &new_hpo_tids {
-            if !hpo_col_map.contains_key(tid) {
-                let label = self.hpo.term_by_id(tid)
-                    .ok_or_else(|| format!("Could not find {} in ontology", tid))?
-                    .name().to_string();
-    
-                let new_col = PptColumn::new_column_with_na(tid.to_string(), label, n_existing_phenopackets)
-                    .map_err(|e| e.to_string())?;
-    
-                hpo_col_map.insert(tid.clone(), new_col);
-            }
+            None => Err("Template not initialized".to_string())
         }
-    
-        // === STEP 5: Populate row from DTO map ===
-        for tid in &arranged_tids {
-            match hpo_col_map.get_mut(tid) {
-                Some(column) => {
-                    match dto_map.get(tid) {
-                        Some(dto) if dto.is_excluded() => column.add_excluded(),
-                        Some(dto) if dto.has_onset() => column.add_entry(dto.onset().unwrap()).map_err(|e| e.to_string())?,
-                        Some(dto) if ! dto.is_ascertained() => column.add_na(),
-                        Some(_) => column.add_observed(),
-                        None => column.add_na(),
-                    }
-                    new_pt_columns.push(column.clone());
-                },
-                None => return Err(format!("Could not retrieve column for {}", tid)),
-            }
-        }
-    
-        // === STEP 6: Finalize ===
-        template.update_columns(new_pt_columns);
-        template.qc_check().map_err(|e| e.to_string())?;
-    
-        Ok(())
     }
 
     /// Edit (set) the value at a particular table cell.
@@ -506,12 +419,13 @@ impl PheTools {
     /// total number of columns (HPO and non-HPO)
     pub fn ncols(&self) -> usize {
         match &self.template {
-            Some(template) => template.column_count(),
+            Some(template) => template.n_columns(),
             None => 0,
         }
     }
 
     /// Get a vector of Strings representing all fields in a column
+    /// PROBABLY WE DO NOT NEED THIS FUNCTION-DELETE
     ///  # Arguments
     ///
     /// * `idx` - column index
@@ -527,8 +441,7 @@ impl PheTools {
     pub fn get_string_column(&self, idx: usize) -> Result<Vec<String>, String> {
         match &self.template {
             Some(template) => {
-                let col = template.get_string_column(idx).map_err(|e| e.to_string())?;
-                Ok(col)
+                todo!()
             }
             None => Err(format!("phetools template not initialized")),
         }
@@ -546,52 +459,12 @@ impl PheTools {
     pub fn get_string_row(&self, idx: usize) -> Result<Vec<String>, String> {
         match &self.template {
             Some(template) => {
-                let mut row: Vec<String> = Vec::new();
-                for col in template.columns_iter() {
-                    let elem = col.get_string(idx).map_err(|e| e.to_string())?;
-                    row.push(elem);
-                }
-                return Ok(row);
+                todo!()
             }
             None => Err(format!("phetools template not initialized")),
         }
     }
 
-    pub fn template_qc_excel_file(&self, pyphetools_template_path: &str) -> Vec<String> {
-        let mut err_list = Vec::new();
-        let row_result = excel::read_excel_to_dataframe(pyphetools_template_path);
-        match row_result {
-            Ok(list_of_rows) => {
-                let hpo_arc = self.hpo.clone();
-                let result = IndividualTemplateFactory::new(hpo_arc, list_of_rows.as_ref());
-                match result {
-                    Ok(template_factory) => {
-                        let result = template_factory.get_templates();
-                        match result {
-                            Ok(template_list) => {
-                                println!(
-                                    "[INFO] We parsed {} templates successfully.",
-                                    template_list.len()
-                                );
-                                vec![]
-                            }
-                            Err(err) => {
-                                eprintln!("[ERROR] {err}");
-                                vec![]
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        err_list.push(e);
-                        return vec![];
-                    }
-                }
-            }
-            Err(e) => {
-                return vec![];
-            }
-        }
-    }
 
     pub fn get_template_summary(&self) -> Result<HashMap<String, String>, String> {
         match &self.template {
@@ -645,16 +518,68 @@ impl PheTools {
     }
 
 
+    pub fn set_cache_location<P: AsRef<Path>>(&mut self, dir_path: P) -> Result<(), String> {
+        match DirManager::new(dir_path) {
+            Ok(manager) => {
+                self.manager = Some(Box::new(manager));
+            },
+            Err(e) => {
+                return Err(format!("Could not create directory manager: '{}", e.to_string()));
+            },
+        }
+        Ok(())
+    }
+
+    
+    /// Validate a variant sent by the front-end using a Data Transfer Object.
+    /// If the variant starts with "c." or "n.", we validate it as HGVS,
+    /// otherwise we validate it as a candidate Structural Variant.
+    /// The method has the side effect of adding successfully validated variants to a file cache.
+    pub fn validate_variant(
+        &mut self,
+        variant_dto: VariantDto
+    ) -> Result<(), String> {
+        match &mut self.manager {
+            Some(manager) => {
+                let dto = variant_dto;
+                if dto.variant_string().starts_with("c.") || dto.variant_string().starts_with("n.") {
+                    let _ = manager.validate_hgvs(dto.variant_string(), dto.transcript())?;
+                } else {
+                    let _ = manager.validate_sv(dto.variant_string(), dto.hgnc_id(), dto.gene_symbol())?;
+                }
+            },
+            None => {
+                return Err(format!("Variant Manager not initialized"));
+            },
+        }
+        Ok(())
+    }
+
+    /// Validate all variants are are in the current template
+    pub fn validate_all_variants(&mut self) -> Result<(), String> {
+       // for x in self.
+        match &self.template {
+            Some(template) => {
+               
+            },
+            None => {
+                return Err(format!(""));
+            },
+        }
+        Ok(())
+    }
+
+
 }
 
 impl core::fmt::Display for PheTools {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
         match &self.template {
             Some(tplt) => {
-                let gene_sym = tplt.gene_symbol();
-                let hgnc = tplt.hgnc();
-                let dis = tplt.disease();
-                let ds_id = tplt.disease_id();
+                let gene_sym = "todo".to_string();
+                let hgnc = "todo".to_string();
+                let dis = "todo".to_string();
+                let ds_id = "todo".to_string();
                 let ppkt_n = tplt.phenopacket_count();
                 let hpo_v = "HPO: to-do update ontolius".to_string(); // TODO
                 write!(

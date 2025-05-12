@@ -1,12 +1,31 @@
+//! HeaderDupletRow: Encapsulate the headers (which we call duplets because each has two fields and which are serialized as the furst two rows of the template)
+//! 
+//! Each HeaderDuplet determines the meaning of the rows beneath it.
+//! We pass a reference (via ARC) of the HeaderDupletRow to each of the rows of the template
+
+
+
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::usize;
+
+use ontolius::ontology::csr::FullCsrOntology;
+use ontolius::ontology::OntologyTerms;
+use ontolius::term::simple::SimpleTerm;
+use ontolius::term::{MinimalTerm, Term};
+use ontolius::{Identified, TermId};
+
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem, HeaderDupletItemFactory};
 use crate::header::hpo_separator_duplet::HpoSeparatorDuplet;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::{individual_id_duplet, variant_comment_duplet};
-use crate::header::{age_last_encounter::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, individual_id_duplet::IndividualIdDuplet, pmid_duplet::PmidDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
+use crate::header::{age_last_encounter_duplet::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, individual_id_duplet::IndividualIdDuplet, pmid_duplet::PmidDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
 use crate::error::{self, Error, Result};
 
 use super::header_index::HeaderIndexer;
 
+/// Create macros to get the specific duplet object from the Enum.
 macro_rules! impl_duplet_getters {
     ($( $variant:ident => $method:ident : $ty:ty ),*) => {
         impl HeaderDuplet {
@@ -33,8 +52,45 @@ const NUMBER_OF_DEMOGRAPHIC_FIELDS: usize = 4;
 /// Separator field (HPO/na)
 const NUMBER_OF_SEPARATOR_FIELDS: usize = 1;
 
+/// The header duplet has the following sections.
+/// Note that Mendelian does not have a DiseaseGeneBundleMelded section
+/// which in essence represents the second gene of a pair
+/// We know that everything not in this list is an HPO Term Column
+#[derive(Clone, Debug)]
+enum SectionType {
+    Individual,
+    DiseaseGeneBundleMendelian,
+    DiseaseGeneBundleMelded,
+    Demographic,
+    Separator,
+}
+
+impl SectionType {
+
+    pub fn n_elements(section_type: SectionType) -> usize {
+        match section_type {
+            SectionType::Individual => 4,
+            SectionType::DiseaseGeneBundleMendelian => 7,
+            SectionType::DiseaseGeneBundleMelded => 7,
+            SectionType::Demographic => 4,
+            SectionType::Separator => 1,
+        }
+    }
+
+    pub fn mendelian() -> Vec<SectionType> {
+        let mut stlist: Vec<SectionType> = Vec::new();
+        stlist.extend(std::iter::repeat(SectionType::Individual.clone()).take(SectionType::n_elements(SectionType::Individual)));
+        stlist.extend(std::iter::repeat(SectionType::DiseaseGeneBundleMendelian.clone()).take(SectionType::n_elements(SectionType::DiseaseGeneBundleMendelian)));
+        stlist.extend(std::iter::repeat(SectionType::Demographic.clone()).take(SectionType::n_elements(SectionType::Demographic)));
+        stlist.push(SectionType::Separator);
+        stlist
+    }
+
+}
+
+
 /// Total number of constant fields (columns) in the Mendelian template
-const NUMBER_OF_CONSTANT_HEADER_FIELDS_MENDELIAN: usize = 
+const N_CONSTANT_FIELDS_MENDELIAN: usize = 
     NUMBER_OF_INDIVIDUAL_FIELDS + NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS + NUMBER_OF_DEMOGRAPHIC_FIELDS + NUMBER_OF_SEPARATOR_FIELDS;
 
 impl_duplet_getters!(
@@ -70,213 +126,146 @@ impl Error {
     fn template_index_error(actual: usize, maxi: usize, template_name: &str) -> Self {
         Error::TemplateError { msg: format!("Attempt to access item at index {actual} but {template_name} has {maxi} items.") }
     }
+
+    fn no_hpo_column(i: usize, j: usize) -> Self {
+        Error::TemplateError { 
+            msg: format!("could not retrieve HPO column at index i={}, j={}", i, j)
+        }
+    }
+
+    fn index_too_large(max_val: usize, n_columns: usize) -> Self {
+        Error::TemplateError { 
+            msg: format!("Attempt to retrieve from index i={} with a HeaderDupletRow of size {}", 
+             max_val, n_columns)
+        }
+    }
+
+    fn indices_empty() -> Self {
+        Error::TemplateError { 
+            msg: format!("Attempt to retrieve from HeaderDupletRow with empty indices")
+        }
+    }
+
+    pub fn invalid_header() -> Self {
+        Self::TemplateError { msg: "Invalid HeaderDuplet header".to_string() }
+    }
     
 }
 
-trait HeaderDupletComponent {
-    fn size(&self) -> usize;
-    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()>;
-}
-
-trait HeaderDupletComponentFactory {
-    fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized;
-}
-
-#[derive(Clone, Debug)]
-pub struct IndividualDuplets {
-    pmid: PmidDuplet,
-    title: TitleDuplet,
-    individual_id: IndividualIdDuplet,
-    comment: CommentDuplet
-}
-
-impl IndividualDuplets {
-    pub fn new( pmid: PmidDuplet,
-        title: TitleDuplet,
-        individual_id: IndividualIdDuplet,
-        comment: CommentDuplet) -> Self {
-            Self { pmid, title, individual_id, comment }
-        }
-}
-
-impl HeaderDupletComponent for IndividualDuplets {
-    fn size(&self) -> usize {
-        NUMBER_OF_INDIVIDUAL_FIELDS
-    }
-    
-    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
-        match i {
-            0 => self.pmid.qc_cell(cell_contents),
-            1 => self.title.qc_cell(cell_contents),
-            2 => self.individual_id.qc_cell(cell_contents),
-            3 => self.comment.qc_cell(cell_contents),
-            _ => Err(Error::template_index_error(i, self.size(), "IndividualDuplets"))
-        }
-    }
-}
-
-impl HeaderDupletComponentFactory for IndividualDuplets {
-    fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized{
-        let mut i = start;
-        let pmid_dup = PmidDuplet::from_table(&matrix[0][i], &matrix[1][i])?;
-        let title_dup = TitleDuplet::from_table(&matrix[0][i+1], &matrix[1][i+1])?;
-        let individual_dup = IndividualIdDuplet::from_table(&matrix[0][i+2], &matrix[1][i+2])?;
-        let comment_dup = CommentDuplet::from_table(&matrix[0][i+3], &matrix[1][i+3])?;
-        Ok(IndividualDuplets::new(pmid_dup, title_dup, individual_dup, comment_dup))
-    }
-}
 
 
-#[derive(Clone, Debug)]
-pub struct DiseaseGeneDuplets {
-    disease_id: DiseaseIdDuplet,
-    disease_label: DiseaseLabelDuplet,
-    hgnc_id: HgncDuplet,
-    gene_symbol: GeneSymbolDuplet,
-    transcript: TranscriptDuplet,
-    allele_1: Allele1Duplet,
-    allele_2: Allele2Duplet,
-    variant_comment: VariantCommentDuplet
-}
 
-impl DiseaseGeneDuplets {
-    pub fn new(
-        disease_id: DiseaseIdDuplet,
-        disease_label: DiseaseLabelDuplet,
-        hgnc_id: HgncDuplet,
-        gene_symbol: GeneSymbolDuplet,
-        transcript: TranscriptDuplet,
-        allele_1: Allele1Duplet,
-        allele_2: Allele2Duplet,
-        variant_comment: VariantCommentDuplet
-    ) -> Self {
-        Self {
-            disease_id,
-            disease_label,
-            hgnc_id,
-            gene_symbol,
-            transcript,
-            allele_1,
-            allele_2,
-            variant_comment
-        }
-    }
-}
 
-impl HeaderDupletComponent for DiseaseGeneDuplets {
-    fn size(&self) -> usize {
-        NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS
-    }
 
-    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
-        match i {
-            0 => self.disease_id.qc_cell(cell_contents),
-            1 => self.disease_label.qc_cell(cell_contents),
-            2 => self.hgnc_id.qc_cell(cell_contents),
-            3 => self.gene_symbol.qc_cell(cell_contents),
-            4 => self.transcript.qc_cell(cell_contents),
-            5 => self.allele_1.qc_cell(cell_contents),
-            6 => self.allele_2.qc_cell(cell_contents),
-            7 => self.variant_comment.qc_cell(cell_contents),
-            _ => Err(Error::template_index_error(i, self.size(), "DiseaseGeneDuplets"))
-        }
-    }
-}
 
-impl HeaderDupletComponentFactory for DiseaseGeneDuplets {
-    fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized{
-        let mut i = start;
-        let disease_id_dup = DiseaseIdDuplet::from_table(&matrix[0][i], &matrix[1][i])?;
-        let disease_label_dup = DiseaseLabelDuplet::from_table(&matrix[0][i+1], &matrix[1][i+1])?;
-        let hgnc_dup = HgncDuplet::from_table(&matrix[0][i+2], &matrix[1][i+2])?;
-        let gene_dup = GeneSymbolDuplet::from_table(&matrix[0][i+3], &matrix[1][i+3])?;
-        let transcript_dup = TranscriptDuplet::from_table(&matrix[0][i+4], &matrix[1][i+4])?;
-        let allele_1_dup = Allele1Duplet::from_table(&matrix[0][i+5], &matrix[1][i+5])?;
-        let allele_2_dup = Allele2Duplet::from_table(&matrix[0][i+6], &matrix[1][i+6])?;
-        let variant_c_dup = VariantCommentDuplet::from_table(&matrix[0][i+7], &matrix[1][i+7])?;
-        Ok(Self::new(disease_id_dup, disease_label_dup, hgnc_dup, gene_dup, transcript_dup, allele_1_dup, allele_2_dup, variant_c_dup))
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct DemographicDuplets {
-    age_of_onset: AgeOfOnsetDuplet,
-    age_at_last_encounter: AgeLastEncounterDuplet,
-    deceased: DeceasedDuplet,
-    sex: SexDuplet,
-}
-
-impl DemographicDuplets {
-    pub fn new(
-        age_of_onset: AgeOfOnsetDuplet,
-        age_at_last_encounter: AgeLastEncounterDuplet,
-        deceased: DeceasedDuplet,
-        sex: SexDuplet,) -> Self {
-            Self { age_of_onset, age_at_last_encounter, deceased, sex }
-        }
-}
-
-impl HeaderDupletComponent for DemographicDuplets {
-    fn size(&self) -> usize {
-        NUMBER_OF_DEMOGRAPHIC_FIELDS
-    }
-    
-    fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
-        match i {
-            0 => self.age_of_onset.qc_cell(cell_contents),
-            1 => self.age_at_last_encounter.qc_cell(cell_contents),
-            2 => self.deceased.qc_cell(cell_contents),
-            3 => self.sex.qc_cell(cell_contents),
-            _ => Err(Error::template_index_error(i, self.size(), "DemographicDuplets"))
-        }
-    }
-
-}
-
-impl HeaderDupletComponentFactory for DemographicDuplets {
-    fn from_vector_slice(matrix: & Vec<Vec<String>>, start: usize) -> Result<Self> where Self: Sized {
-        let mut i = start;
-        let onset_dup = AgeOfOnsetDuplet::from_table(&matrix[0][i], &matrix[1][i])?;
-        let encounter_dup = AgeLastEncounterDuplet::from_table(&matrix[0][i+1], &matrix[1][i+1])?;
-        let deceased_dup = DeceasedDuplet::from_table(&matrix[0][i+2], &matrix[1][i+2])?;
-        let sex_dup = SexDuplet::from_table(&matrix[0][i+3], &matrix[1][i+3])?;
-        Ok(DemographicDuplets::new(onset_dup, encounter_dup, deceased_dup, sex_dup))
-    }
-}
 
 
 #[derive(Clone, Debug)]
 pub struct HeaderDupletRow {
     /// Four columns that specify the PMID, title, and individual_id with optional comment
-    individual_duplets: IndividualDuplets,
+    //individual_duplets: IndividualDuplets,
     /// Columns that specific the disease, gene, and variants
-    disease_gene_duplets: DiseaseGeneDuplets,
+    //disease_gene_duplets: DiseaseGeneDuplets,
     /// Columns to specify age, sex, vital status
-    demographic_duplets: DemographicDuplets,
+    //demographic_duplets: DemographicDuplets,
     /// A Column to specify the constant data columns from the variable HPO Term columns
-    separator: HpoSeparatorDuplet,
-    /// Variable number of columns with the HPO annotations.
+    //separator: HpoSeparatorDuplet,
+   /// Columns to represent the constant fields
+    constant_duplets: Vec<HeaderDuplet>,
+    /// Section types of the HeaderDuplets
+    section_type_list: Vec<SectionType>,
+     /// Variable number of columns with the HPO annotations.
     hpo_duplets: Vec<HpoTermDuplet>,
     indexer: HeaderIndexer,
+
 }
 
 impl HeaderDupletRow {
-    pub fn mendelian(
-        individual_duplets: IndividualDuplets,
-        disease_gene_duplets: DiseaseGeneDuplets,
-        demographic_duplets: DemographicDuplets,
-        separator: HpoSeparatorDuplet,
-        hpo_duplets: Vec<HpoTermDuplet>
-    ) -> Self {
-            Self {
-                individual_duplets, 
-                disease_gene_duplets, 
-                demographic_duplets, 
-                separator, 
-                hpo_duplets,
-                indexer: HeaderIndexer::mendelian(),
-            }
+    /// The first part of the pipeline to go from a matrix of strings to a PptTemplate is to extract HeaderDuplets from the
+    /// first two rows. This method checks their validty and creates a Mendelian HeaderDupletRow with constant and HPO columns
+    pub fn mendelian_from_duplets(
+        header_duplets: Vec<HeaderDuplet>,
+        hpo: Arc<FullCsrOntology>,
+    ) -> Result<Self> {
+        let constant_duplets = HeaderIndexer::extract_mendelian_constant_duplets(&header_duplets)?;
+         /// Now get the HPO columns - if we get here, we could extract the Mendelian headers
+         let mut hpo_duplet_vec = Vec::new();
+         let index = HeaderIndexer::n_constant_mendelian_columns();
+         for hdup in header_duplets.iter().skip(index) {
+             let label = hdup.row1();
+             let tid = TermId::from_str(&hdup.row2())
+                 .map_err(|_| Error::TermIdError { msg: format!("could not find term for {}", hdup.row2()) })?;
+         
+             let term = hpo.term_by_id(&tid)
+                 .ok_or_else(|| Error::TermIdError { msg: format!("could not find term for {}", tid) })?;
+         
+             if term.name() == label {
+                 let hpo_dup = hdup.as_hpo_term_duplet()?;
+                 hpo_duplet_vec.push(hpo_dup.clone());
+             } else {
+                return Err(Error::TermError{ msg: format!("HPO Term {} with malformed label '{}' instead of '{}'",
+                    &tid.to_string(), &label, &term.name())});
+             }
+         }
+        Ok(Self {
+            constant_duplets:constant_duplets,
+            hpo_duplets: hpo_duplet_vec,
+            section_type_list: SectionType::mendelian(),
+            indexer: HeaderIndexer::mendelian(),
+        })
     }
+
+
+    pub fn mendelian(hpo_duplets: Vec<HpoTermDuplet>) -> Self {
+        let mut constant_fields: Vec<HeaderDuplet> = Vec::new();
+        /// Individual
+        constant_fields.push(PmidDuplet::new().into_enum());
+        constant_fields.push(TitleDuplet::new().into_enum());
+        constant_fields.push(IndividualIdDuplet::new().into_enum());
+        constant_fields.push(CommentDuplet::new().into_enum());
+        /// DiseaseGeneBundle
+        constant_fields.push(DiseaseIdDuplet::new().into_enum());
+        constant_fields.push(DiseaseLabelDuplet::new().into_enum());
+        constant_fields.push(HgncDuplet::new().into_enum());
+        constant_fields.push(TranscriptDuplet::new().into_enum());
+        constant_fields.push(Allele1Duplet::new().into_enum());
+        constant_fields.push(Allele2Duplet::new().into_enum());
+        constant_fields.push(VariantCommentDuplet::new().into_enum());
+        /// Demographic
+        constant_fields.push(AgeOfOnsetDuplet::new().into_enum());
+        constant_fields.push(AgeLastEncounterDuplet::new().into_enum());
+        constant_fields.push(DeceasedDuplet::new().into_enum());
+        constant_fields.push(SexDuplet::new().into_enum());
+        /// HPO Separator column
+        constant_fields.push(HpoSeparatorDuplet::new().into_enum());
+        ///
+
+        Self {
+            constant_duplets: constant_fields,
+            section_type_list: SectionType::mendelian(),
+            hpo_duplets: hpo_duplets,
+            indexer: HeaderIndexer::mendelian()
+        }
+    }
+
+    /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
+    /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
+    /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
+    pub fn update(&self, term_list: &Vec<SimpleTerm>) -> Self {
+        let updated_hpo_duplets: Vec<HpoTermDuplet> = term_list
+            .iter()
+            .map(|term| HpoTermDuplet::new(term.name(), &term.identifier().to_string()))
+            .collect();
+        Self { 
+            constant_duplets: self.constant_duplets.clone(), 
+            section_type_list: self.section_type_list.clone(), 
+            hpo_duplets: updated_hpo_duplets, 
+            indexer: self.indexer.clone() 
+        }          
+    }
+
+   
+
 }
 
 impl HeaderDupletRow  {
@@ -289,90 +278,6 @@ impl HeaderDupletRow  {
     }
 
 
-    fn check_individual_duplets(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<IndividualDuplets> {
-        let pmid_dup = header_duplets
-            .get(i)
-            .ok_or_else(|| Error::could_not_extract_duplet("PMID", i))?
-            .as_pmid_duplet()?;
-        let title_dup = header_duplets
-            .get(i+1)
-            .ok_or_else(|| Error::could_not_extract_duplet("title", i+1))?
-            .as_title_duplet()?;
-        let individual_id_dupl = header_duplets
-            .get(i+2)
-            .ok_or_else(|| Error::could_not_extract_duplet("individual_id", i+2))?
-            .as_individual_id_duplet()?;
-        let comment_dup =  header_duplets
-            .get(i+3)
-            .ok_or_else(|| Error::could_not_extract_duplet("comment", i+3))?
-            .as_comment_duplet()?;
-        Ok(IndividualDuplets::new(pmid_dup.clone(), title_dup.clone(), individual_id_dupl.clone(), comment_dup.clone()))
-    }
-
-    pub  fn check_disease_gene_duplets(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<DiseaseGeneDuplets> {
-        let disease_id = header_duplets
-            .get(i)
-            .ok_or_else(|| Error::could_not_extract_duplet("disease_id", i))?
-            .as_disease_id()?;
-        let disease_label = header_duplets
-            .get(i+1)
-            .ok_or_else(|| Error::could_not_extract_duplet("disease_label", i+1))?
-            .as_disease_label()?;
-        let hgnc_id =  header_duplets
-            .get(i+2)
-            .ok_or_else(|| Error::could_not_extract_duplet("hgnc_id", i+2))?
-            .as_hgnc_duplet()?;
-        let gene_symbol = header_duplets
-            .get(i+3)
-            .ok_or_else(|| Error::could_not_extract_duplet("gene_symbol", i+3))?
-            .as_gene_symbol_duplet()?;
-        let transcript= header_duplets
-            .get(i+4)
-            .ok_or_else(|| Error::could_not_extract_duplet("transcript", i+4))?
-            .as_transcript_duplet()?;
-        let allele_1 = header_duplets
-            .get(i+5)
-            .ok_or_else(|| Error::could_not_extract_duplet("allele_1", i+5))?
-            .as_allele_1_duplet()?;
-        let allele_2 = header_duplets
-            .get(i+6)
-            .ok_or_else(|| Error::could_not_extract_duplet("allele_2", i+6))?
-            .as_allele_2_duplet()?;
-        let variant_comment =  header_duplets
-            .get(i+7)
-            .ok_or_else(|| Error::could_not_extract_duplet("variant.comment", i+7))?
-            .as_variant_comment_duplet()?;
-        Ok(DiseaseGeneDuplets::new(disease_id.clone(), disease_label.clone(), hgnc_id.clone(), gene_symbol.clone(), transcript.clone(), allele_1.clone(), allele_2.clone(), variant_comment.clone()))
-    }
-
-    fn check_demographic_dups(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<DemographicDuplets> {
-        let age_of_onset = header_duplets
-            .get(i)
-            .ok_or_else(|| Error::could_not_extract_duplet("age_of_onset", i))?
-            .as_age_of_onset_duplet()?;
-        let age_at_last_encounter = header_duplets
-            .get(i+1)
-            .ok_or_else(|| Error::could_not_extract_duplet("age_at_last_encounter", i+1))?
-            .as_age_last_encounter_duplet()?;
-        let deceased =  header_duplets
-            .get(i+2)
-            .ok_or_else(|| Error::could_not_extract_duplet("deceased", i+2))?
-            .as_deceased_duplet()?;
-        let sex =  header_duplets
-            .get(i+3)
-            .ok_or_else(|| Error::could_not_extract_duplet("sex", i+3))?
-            .as_sex_duplet()?;
-        Ok(DemographicDuplets::new(age_of_onset.clone(), age_at_last_encounter.clone(), deceased.clone(), sex.clone()))
-    }
-
-    fn check_hpo_separator(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<HpoSeparatorDuplet> {
-        let separator = header_duplets
-            .get(i)
-            .ok_or_else(|| Error::could_not_extract_duplet("HPO", i))?
-            .as_separator_duplet()?;
-        Ok(separator.clone())
-    }
-
     fn check_hpo_term(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<HpoTermDuplet> {
         let hpo_term_dup = header_duplets
             .get(i)
@@ -382,76 +287,135 @@ impl HeaderDupletRow  {
     }
 
     pub fn n_mendelian_contant_fields() -> usize {
-        NUMBER_OF_CONSTANT_HEADER_FIELDS_MENDELIAN
+        N_CONSTANT_FIELDS_MENDELIAN
     }
 
-    /// TODO. Currently, this function just does Mendelian, we need to generalize to blended
-    pub fn from_duplets(header_duplets: &Vec<HeaderDuplet>) -> Result<Self> {
-        let mut i: usize = 0;
-        let individual_dups = Self::check_individual_duplets(header_duplets, i)?;
-        i = i + individual_dups.size();
-        let dgb_dups = Self::check_disease_gene_duplets(header_duplets, i)?;
-        i = i + dgb_dups.size();
-        let demographic = Self::check_demographic_dups(header_duplets, i)?;
-        i = i + demographic.size();
-        let separator = Self::check_hpo_separator(header_duplets, i)?;
-        i = i+1;
-        /// The rest of the duplets are HpoTermDuplets
-        let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::new();
-        for j in i..header_duplets.len() {
-            match Self::check_hpo_term(header_duplets, j) {
-                Ok(duplet) => hpo_duplets.push(duplet),
-                Err(e) => { return Err(e); }
-            }
-        }
-        Ok(HeaderDupletRow::mendelian(individual_dups, dgb_dups, demographic, separator, hpo_duplets))
+    pub fn hpo_count(&self) -> usize {
+        self.hpo_duplets.len()
     }
 
     pub fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
-        let mut j = i;
-        if j < self.individual_duplets.size() {
-            self.individual_duplets.qc_check(j, cell_contents)?;
-            return Ok(());
-        }
-        j = j - self.individual_duplets.size();
-        if j < self.disease_gene_duplets.size() {
-            self.disease_gene_duplets.qc_check(j, cell_contents)?;
-            return Ok(());
-        }
-        j = j - self.disease_gene_duplets.size();
-        if j < self.demographic_duplets.size() {
-            self.demographic_duplets.qc_check(j, cell_contents)?;
-            return Ok(());
-        }
-        j = j - self.demographic_duplets.size();
-        if j == 0 {
-            self.separator.qc_cell(cell_contents)?;
-            return Ok(());
-        }
-        j = j+1;
-        match self.hpo_duplets.get(j) {
-            Some(hpo_dup) => {
-                return hpo_dup.qc_cell(cell_contents);
-            },
-            None => return  {
-                Err(Error::TemplateError { msg:format!("Unable to retrieve HPO duplet at i={}, j={}", i, j) })
+        if i < self.constant_duplets.len() {
+            match self.constant_duplets.get(i) {
+                Some(hdup) => {
+                    hdup.qc_cell(cell_contents)?;
+                    Ok(())
+                },
+                None => {
+                    return Err(Error::EmptyLabel)
+                }
+            }
+        } else {
+            let j = i - self.constant_duplets.len();
+            match self.hpo_duplets.get(j) {
+                Some(hdup) => {
+                    hdup.qc_cell(cell_contents)?;
+                    Ok(())
+                },
+                None => {
+                    return Err(Error::EmptyLabel)
+                }
             }
         }
     }
 
-    /*
-      /// Four columns that specify the PMID, title, and individual_id with optional comment
-    individual_duplets: IndividualDuplets,
-    /// Columns that specific the disease, gene, and variants
-    disease_gene_duplets: DiseaseGeneDuplets,
-    /// Columns to specify age, sex, vital status
-    demographic_duplets: DemographicDuplets,
-    /// A Column to specify the constant data columns from the variable HPO Term columns
-    separator: HpoSeparatorDuplet,
-    /// Variable number of columns with the HPO annotations.
-    hpo_duplets: Vec<HpoTermDuplet>,
-    indexer: HeaderIndexer,
-     */
+
+
+    /// return a String matrix (two rows) representing the header
+    pub fn get_string_matrix(&self) -> Vec<Vec<String>> {
+        let mut row1: Vec<String> = Vec::with_capacity(self.n_columns());
+        let mut row2: Vec<String> = Vec::with_capacity(self.n_columns());
+        for hdup in &self.constant_duplets {
+            row1.push(hdup.row1());
+            row2.push(hdup.row2());
+        }
+        for hdup in &self.hpo_duplets {
+            row1.push(hdup.row1());
+            row2.push(hdup.row2());
+        }
+        let rows: Vec<Vec<String>> = vec![row1, row2];
+        rows
+    }
+
+    pub fn n_columns(&self) -> usize {
+        if self.indexer.is_mendelian() {
+            return N_CONSTANT_FIELDS_MENDELIAN + self.hpo_duplets.len();
+        } else {
+            panic!("Need to implement n_columns for melded");
+        }
+    }
+
+    pub fn is_hpo_column(&self, i: usize) -> bool {
+        if self.indexer.is_constant_idx(i) {
+            return false;
+        } else if i >= self.n_columns() {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+      /// Get the name of the i'th column
+      pub fn get_column_name(&self, i: usize) -> Result<String> {
+        if self.is_hpo_column(i) {
+            let j = i - self.indexer.n_constant();
+            match self.hpo_duplets.get(j) {
+                Some(hpo_col) => { Ok(hpo_col.row1())  },
+                None => {  Err(Error::no_hpo_column(i, j))  }
+            }
+        } else {
+            return self.indexer.get_column_name(i);
+        }
+    }
+
+
+    
+    pub fn n_constant(&self) -> usize {
+        self.constant_duplets.len()
+    }
+
+
+    pub fn get_duplet_at_index(&self, i: usize) -> Result<HeaderDuplet> {
+       if i > self.n_columns() {
+            return Err(Error::TemplateError { msg: format!("index out of bounds") })
+       } else if i < self.n_constant() {
+            Ok(self.constant_duplets[i].clone())
+        } else {
+            let j = i - self.n_constant();
+            Ok(self.hpo_duplets[j].clone().into_enum())
+        }
+    }
+
+    pub fn get_selected_columns(&self, indices: &Vec<usize>) -> Result<Vec<Vec<String>>> {
+        if let Some(&max_val) = indices.iter().max() {
+            if max_val > self.n_columns() {
+                return Err(Error::index_too_large(max_val, self.n_columns()));
+            }
+        } else {
+            return Err(Error::indices_empty());
+        }
+        let rows: Vec<Vec<String>> = Vec::new();
+
+
+
+        Ok(rows)
+    }
+
+    /// Get the index of the first HPO term
+    pub fn get_hpo_offset(&self) -> usize {
+        self.constant_duplets.len()
+    }
+
+    pub fn get_hpo_id_list(&self) -> Result<Vec<TermId>> {
+        self.hpo_duplets
+        .iter()
+        .map(|duplet| {
+            TermId::from_str(&duplet.row2())
+                .map_err(|_| Error::termid_parse_error(&duplet.row2()))
+        })
+        .collect()
+    }
+
 
 }
 

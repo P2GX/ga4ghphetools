@@ -2,13 +2,11 @@ pub mod curie;
 pub mod excel;
 pub mod header_duplet_row;
 pub mod header_index;
-pub mod ppkt_exporter;
-pub mod itemplate_factory;
+pub mod ppkt_row;
 pub mod operations;
 pub mod phetools;
 pub use phetools::PheTools;
-pub mod phetools_qc;
 pub mod pt_template;
 pub mod simple_label;
-pub mod template_creator;
-pub mod template_row_adder;
+
+

@@ -147,7 +147,7 @@ mod tests {
     // g_hgvs: Some("NC_000015.10:g.48411364C>A"), genotype: None, variant_id: "var_JgacXpZdmwKjarf125ud6ILjA" }
     #[rstest]
     #[ignore = "testing API"]
-    fn test_hgvs_c_FBN1() {
+    fn test_hgvs_c_fbn1() {
         let vvalidator = VariantValidator::new("hg38").unwrap();
         let result = vvalidator.encode_hgvs("c.8242G>T", "NM_000138.5");
         assert!(result.is_ok());
