@@ -38,6 +38,21 @@ pub fn matrix() -> Vec<Vec<String>> {
     vec![row1, row2, row3, row4, row5, row6]
 }
 
+
+#[fixture]
+pub fn one_case_matrix() -> Vec<Vec<String>> {
+      let row1: Vec<String> = vec![ 
+        "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO", "Failure to thrive", "Seizure"
+    ].into_iter().map(|s| s.to_owned()).collect();
+    let row2: Vec<String> = vec![
+        "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", "str", "str", "str", "str", "optional", "age", "age", "yes/no/na", "M:F:O:U", "na", "HP:0001508",  "HP:0001250" 
+    ].into_iter().map(|s| s.to_owned()).collect();
+    let row3: Vec<String> = vec![
+        "PMID:29198722", "A Recurrent De Novo Nonsense Variant in ZSWIM6 Results in Severe Intellectual Disability without Frontonasal or Limb Malformations", "p.Arg913Ter Affected Individual 1", "", "OMIM:617865", "Neurodevelopmental disorder with movement abnormalities, abnormal gait, and autistic features", "HGNC:29316", "ZSWIM6", "NM_020928.2", "c.2737C>T", "na", "", "Infantile onset", "P16Y", "na", "M", "na", "observed", "observed"
+    ].into_iter().map(|s| s.to_owned()).collect();
+     vec![row1, row2, row3]
+}
+
 #[fixture]
 pub fn case_5_dto() -> CaseDto {
     CaseDto::new(

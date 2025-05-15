@@ -1,4 +1,5 @@
 pub mod curie;
+pub mod disease_gene_bundle;
 pub mod excel;
 pub mod header_duplet_row;
 pub mod header_index;

@@ -7,6 +7,7 @@
 use core::fmt;
 use derive_more::{Display, From};
 use ontolius::TermId;
+use polars::series::implementations;
 use serde::Serialize;
 
 
@@ -204,6 +205,11 @@ impl Error {
         Error::TermIdError {
             msg: format!("Failed to parse TermId: {}", identifier.into()),
         }
+    }
+
+    pub fn invalid_hpo_label(expected: impl Into<String>, observed: impl Into<String>, tid: impl Into<String>) -> Self {
+        Error::HpoError { msg: format!("Expected label '{}' but got '{}' for TermId '{}'",
+                expected.into(), observed.into(), tid.into()) }
     }
 
     pub fn sex_field_error<T>(val: T) -> Self

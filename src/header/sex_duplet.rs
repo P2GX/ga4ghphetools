@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 use lazy_static::lazy_static;
-use phenopackets_dev::schema::v1::core::Sex;
+
 
 use crate::template::curie;
 use crate::header::header_duplet::HeaderDupletItem;

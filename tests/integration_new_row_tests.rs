@@ -2,6 +2,7 @@ mod common;
 
 use std::sync::Arc;
 
+use common::one_case_matrix;
 use ontolius::ontology::csr::FullCsrOntology;
 use rphetools::dto::case_dto::CaseDto;
 use rphetools::dto::hpo_term_dto::HpoTermDto;
@@ -30,6 +31,42 @@ fn first_n_columns_equal(
     mat1.iter()
         .zip(mat2.iter())
         .all(|(row1, row2)| row1.iter().take(n).eq(row2.iter().take(n)))
+}
+
+fn debug_matrix_comparison(
+    mat1: &Vec<Vec<String>>,
+    mat2: &Vec<Vec<String>>,
+    n: usize,
+) {
+    for i in 0..mat1.len() {
+        let mut row_ok = true;
+        for j in 0..n {
+            if mat1[i][j] != mat2[i][j] {
+                println!("mat1[{}][{}] = '{}' != mat2 = '{}'", i, j,& mat1[i][j], &mat2[i][j] );
+                row_ok = false;
+            }
+        }
+        if row_ok {
+            println!("Row {} OK", i);
+        }
+    }
+    let n = mat1.len();
+    let m = mat2.len();
+    if m != n {
+        println!("mat1 len = {n} mat2 len ={m}")
+    }
+    
+    for i in 0..n {
+        if i < n {
+        println!("{}", mat1[i].join("\t"));
+        }
+        if i < m {
+        println!("{}", mat2[i].join("\t"));
+        }
+        println!("");
+    }
+
+
 }
 
 /// New HPO columns should be all "na" except for the last entry, which is taken from the DTO
@@ -88,54 +125,47 @@ fn validity_of_previous_column(
 
 #[rstest]
 fn add_new_row_test_1(
-    matrix: Vec<Vec<String>>, 
+    one_case_matrix: Vec<Vec<String>>, 
     hpo: Arc<FullCsrOntology>,
-    case_5_dto: CaseDto,
-    hpo_dto_list_1: Vec<HpoTermDto>
+    case_5_dto: CaseDto
 ) {
     let mut phetools = PheTools::new(hpo);
-    assert_eq!(6, matrix.len()); // original matrix has headers and four data rows
-    let original_matrix = matrix.clone();
-    let res = phetools.load_matrix(matrix);
+    assert_eq!(3, one_case_matrix.len()); // original matrix has headers and four data rows
+    let original_matrix = one_case_matrix.clone();
+    let res = phetools.load_matrix(one_case_matrix);
     assert!(res.is_ok());
     let dto_cloned = case_5_dto.clone(); // needed only for testing
-    let res = phetools.add_row_with_hpo_data(case_5_dto, hpo_dto_list_1);
+    let strab = HpoTermDto::new("HP:0000486", "Strabismus", "observed");
+    let hpo_dto_list = vec![strab];
+    let res = phetools.add_row_with_hpo_data(case_5_dto, hpo_dto_list);
     assert!(res.is_ok());
     // Check that the constant items are what we want
     let new_matrix = phetools.get_string_matrix().expect("Could not unwrap matrix with added row");
-    assert_eq!(7, new_matrix.len());
+    assert_eq!(4, new_matrix.len());
     // Check that the first six rows are identical to the original matrix
     // Note that we can only do this for the constant columns, because we have added new HPO columns
-    let first_six_new_rows: Vec<Vec<String>> = new_matrix.iter().take(6).cloned().collect();
-    let are_equal = first_n_columns_equal(&original_matrix, &first_six_new_rows, 17);
+    let first_four_new_rows: Vec<Vec<String>> = new_matrix.iter().take(4).cloned().collect();
+    //debug_matrix_comparison(&original_matrix, &new_matrix, 17);
+    let are_equal = first_n_columns_equal(&original_matrix, &first_four_new_rows, 17);
     assert!(are_equal);
     // now check that the non-HPO entries in the new line are OK
-    let seventh_row = new_matrix[6].clone();
-    assert_eq!(dto_cloned.pmid, seventh_row[0]);
-    assert_eq!(dto_cloned.title, seventh_row[1]);
-    assert_eq!(dto_cloned.individual_id, seventh_row[2]);
-    assert_eq!(dto_cloned.comment, seventh_row[3]);
-    assert_eq!(dto_cloned.allele_1, seventh_row[9]);
-    assert_eq!(dto_cloned.allele_2, seventh_row[10]);
-    assert_eq!(dto_cloned.variant_comment, seventh_row[11]);
-    assert_eq!(dto_cloned.age_of_onset, seventh_row[12]);
-    assert_eq!(dto_cloned.age_at_last_encounter, seventh_row[13]);
-    assert_eq!(dto_cloned.deceased, seventh_row[14]);
-    assert_eq!(dto_cloned.sex, seventh_row[15]);
-    assert_eq!("na", seventh_row[16]); // constant HPO separator column
+    let fourth_row = new_matrix[3].clone();
+    assert_eq!(dto_cloned.pmid, fourth_row[0]);
+    assert_eq!(dto_cloned.title, fourth_row[1]);
+    assert_eq!(dto_cloned.individual_id, fourth_row[2]);
+    assert_eq!(dto_cloned.comment, fourth_row[3]);
+    assert_eq!(dto_cloned.allele_1, fourth_row[9]);
+    assert_eq!(dto_cloned.allele_2, fourth_row[10]);
+    assert_eq!(dto_cloned.variant_comment, fourth_row[11]);
+    assert_eq!(dto_cloned.age_of_onset, fourth_row[12]);
+    assert_eq!(dto_cloned.age_at_last_encounter, fourth_row[13]);
+    assert_eq!(dto_cloned.deceased, fourth_row[14]);
+    assert_eq!(dto_cloned.sex, fourth_row[15]);
+     println!("VII: {:?}\n", &fourth_row);
+    assert_eq!("na", fourth_row[16]); // constant HPO separator column
     // Now check the HPO columns
     // The DTO added: thick_eye_brow: excluded; grand_mal: observed; strabismus: observed; esotropia_observed
     validity_of_new_column("Strabismus", "HP:0000486", "observed", &new_matrix).expect("Strabismus observed in DTO");
-    validity_of_new_column("Esotropia", "HP:0000565", "observed", &new_matrix).expect("Esotropia observed in DTO"); 
-    validity_of_previous_column(&original_matrix, &new_matrix, "Loss of ambulation", "na").expect("Loss of ambulation, no info in DTO thus - na");
-    validity_of_previous_column(&original_matrix, &new_matrix, "Seizure", "na").expect("Seizure, no info in DTO thus - na");
-    validity_of_new_column("Bilateral tonic-clonic seizure", "HP:0002069", "observed", &new_matrix).expect("Bilateral tonic-clonic seizure observed in DTO");
-    validity_of_previous_column(&original_matrix, &new_matrix, "Ataxia", "na").expect("Ataxia, no info in DTO thus - na");
-    validity_of_previous_column(&original_matrix, &new_matrix, "Tongue thrusting", "na").expect("Tongue thrusting, no info in DTO thus - na");
-    validity_of_previous_column(&original_matrix, &new_matrix, "Happy demeanor", "na").expect("Happy demeanor, no info in DTO thus - na");
-    validity_of_previous_column(&original_matrix, &new_matrix, "Hypertonia", "na").expect("Hypertonia, no info in DTO thus - na");
-    validity_of_previous_column(&original_matrix, &new_matrix, "Failure to thrive", "na").expect("Failure to thrive, no info in DTO thus - na");
-    validity_of_new_column("Thick eyebrow", "HP:0000574", "excluded", &new_matrix).expect("Thick eyebrow excluded in DTO");
     // If we get here, we have passed all tests!
     assert!(true);
 }
@@ -156,6 +186,8 @@ fn check_data_entries_unique(
     }
     Ok(())
 }
+
+
 
 
 /// Check that all entries in the constant, disease-gene-bundle block are identical

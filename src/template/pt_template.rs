@@ -14,11 +14,10 @@ use ontolius::{
 };
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, template::ppkt_row::PpktRow};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, template::ppkt_row::PpktRow};
 use crate::{
-    pptcolumn::disease_gene_bundle::DiseaseGeneBundle,
-    hpo::hpo_term_arranger::HpoTermArranger,
-    pptcolumn::ppt_column::PptColumn,
+    template::disease_gene_bundle::DiseaseGeneBundle,
+    hpo::hpo_term_arranger::HpoTermArranger
 };
 
 use super::{header_duplet_row::HeaderDupletRow, header_index::HeaderIndexer, operations::Operation};
@@ -35,9 +34,9 @@ pub struct PheToolsTemplate {
     header: Arc<HeaderDupletRow>,
     template_type: TemplateType,
      /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
-     hpo: Arc<FullCsrOntology>,
+    hpo: Arc<FullCsrOntology>,
      /// One row for each individual (phenopacket) in the cohort
-     ppkt_rows: Vec<PpktRow>
+    ppkt_rows: Vec<PpktRow>
 }
 
 const PMID_COL: usize = 0;
@@ -95,74 +94,6 @@ impl PheToolsTemplate {
         
     }
 
-
-
-    /*
-    fn get_column(&self, column_name: &str, indexer: &HeaderIndexer) -> Result<PptColumn> {
-        let idx = indexer.get_idx(column_name)?;
-        Ok(self.columns[idx].clone())
-    } */
-
-    /// add one new row to the "non-HPO" columns, return a list with all of these rows (or Error)
-    /*
-    pub fn update_non_hpo_columns(&self, case_dto: CaseDto, indexer: HeaderIndexer) -> Result<Vec<PptColumn>> {
-        let mut collist: Vec<PptColumn> = Vec::new();
-        let mut pmid = self.get_column("PMID", &indexer)?;
-        pmid.add_entry(case_dto.pmid);
-        collist.push(pmid);
-        let mut title =  self.get_column("title", &indexer)?;
-        title.add_entry(case_dto.title);
-        collist.push(title);
-        let mut individual = self.get_column("individual_id", &indexer)?;
-        individual.add_entry(case_dto.individual_id);
-        collist.push(individual);
-        let mut comment = self.get_column("comment", &indexer)?;
-        comment.add_entry(case_dto.comment);
-        collist.push(comment);
-        let mut disease_id = self.get_column("disease_id", &indexer)?;
-        disease_id.add_identical();
-        collist.push(disease_id);
-        let mut disease_label = self.get_column("disease_label", &indexer)?;
-        disease_label.add_identical();
-        collist.push(disease_label);
-        let mut hgnc = self.get_column("HGNC_id", &indexer)?;
-        hgnc.add_identical();
-        collist.push(hgnc);
-        let mut gene = self.get_column("gene_symbol", &indexer)?;
-        gene.add_identical();
-        collist.push(gene);
-        let mut transcript = self.get_column("transcript", &indexer)?;
-        transcript.add_identical();
-        collist.push(transcript);
-        let mut allele1 = self.get_column("allele_1", &indexer)?;
-        allele1.add_entry(case_dto.allele_1);
-        collist.push(allele1);
-        let mut allele2 = self.get_column("allele_2", &indexer)?;
-        allele2.add_entry(case_dto.allele_2);
-        collist.push(allele2);
-        let mut var_comment = self.get_column("variant.comment", &indexer)?;
-        var_comment.add_entry(case_dto.variant_comment);
-        collist.push(var_comment);
-        let mut age_onset = self.get_column("age_of_onset", &indexer)?;
-        age_onset.add_entry(case_dto.age_of_onset);
-        collist.push(age_onset);
-        let mut age_encounter = self.get_column("age_at_last_encounter", &indexer)?;
-        age_encounter.add_entry(case_dto.age_at_last_encounter);
-        collist.push(age_encounter);
-        let mut deceased = self.get_column("deceased", &indexer)?;
-        deceased.add_entry(case_dto.deceased);
-        collist.push(deceased);
-        let mut sex = self.get_column("sex", &indexer)?;
-        sex.add_entry(case_dto.sex);
-        collist.push(sex);
-        let mut separator = self.get_column("HPO", &indexer)?;
-        separator.add_identical();
-        collist.push(separator);
-        Ok(collist)
-    }
-    */
-
-    
 
    
 
@@ -230,8 +161,10 @@ impl PheToolsTemplate {
                 return Err(e); 
             }
         };
+        let hpo_util = HpoUtil::new(hpo.clone());
+        let _ = hpo_util.check_hpo_duplets(&hdup_list)?;
         let hpo_arc = hpo.clone();
-        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list, hpo_arc)?;
+        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list)?;
         let hdr_arc = Arc::new(header_duplet_row);
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let mut ppt_rows: Vec<PpktRow> = Vec::new();
@@ -316,7 +249,6 @@ impl PheToolsTemplate {
     }
 
     pub fn get_hpo_col_with_context(&mut self, i: usize) -> Result<Vec<Vec<String>>> {
-        let mut focused_cols: Vec<&PptColumn> = Vec::new();
         // the following are the column indices of the columns we will retrieve
         let desired_column_indices: Vec<usize> = vec![0, 1, 2, i];
         let mut rows: Vec<Vec<String>> = Vec::new();
@@ -375,32 +307,14 @@ impl PheToolsTemplate {
         case_dto: CaseDto,
         hpo_dto_items: Vec<HpoTermDto>
     ) -> Result<()> {
-
+        let hpo_util = HpoUtil::new(self.hpo.clone());
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
-        let dto_tid_list: Vec<String> = hpo_dto_items.iter().map(|dto| dto.term_id()).collect();
-    
-        let mut new_hpo_tids: Vec<TermId> = Vec::new();
-        let mut dto_map: HashMap<TermId, HpoTermDto> = HashMap::new();
-    
-        for dto in hpo_dto_items {
-            let tid = TermId::from_str(&dto.term_id())
-                .map_err(|_| format!("HPO TermId {} in DTO not found", dto.term_id()))?;
-    
-            dto_map.insert(tid.clone(), dto);
-            new_hpo_tids.push(tid);
-        }
-    
+        let mut dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
+        let mut term_id_set: HashSet<TermId>  = dto_map.keys().cloned().collect();
+        let existing_term_ids = self.header.get_hpo_id_list()?;
+        term_id_set.extend(existing_term_ids);
         // === STEP 2: Arrange TIDs before borrowing template mutably ===
-        let mut all_tids: Vec<TermId> = {
-            let hpo_tids = self.get_hpo_term_ids()
-                .map_err(|e| e.to_string())?;
-    
-            let mut hpo_set: HashSet<_> = hpo_tids.iter().cloned().collect();
-            for tid in &new_hpo_tids {
-                hpo_set.insert(tid.clone());
-            }
-            hpo_set.into_iter().collect()
-        };
+        let all_tids: Vec<TermId> = term_id_set.into_iter().collect();
         let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
         let arranged_terms = term_arrager.arrange_terms(&all_tids).map_err(|e|e.to_string())?;
          // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
@@ -408,17 +322,25 @@ impl PheToolsTemplate {
         // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
         // the new HeaderDupletRow object to write the values.
         // 3a. Update the HeaderDupletRow object.
-        let update_hdr = self.header.update(&arranged_terms);
+        let update_hdr = self.header.update_old(&arranged_terms);
         let updated_hdr_arc = Arc::new(update_hdr);
         // 3b. Update the existing PpktRow objects
-        let updated_ppkt_rows: Vec<PpktRow> = Vec::new();
+        let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
         for ppkt in &self.ppkt_rows {
             let mut term_id_map: HashMap<TermId, String> = HashMap::new();
                 for term in &arranged_terms {
                     term_id_map.insert(term.identifier().clone(), "na".to_string());
                 }
-                let updated_ppkt = ppkt.update(&mut term_id_map, updated_hdr_arc.clone());
+                let updated_ppkt = ppkt.update(&mut term_id_map, updated_hdr_arc.clone())?;
+                updated_ppkt_rows.push(updated_ppkt);
         }
+        /// Now add the new phenopacket
+        let hpo_cell_values = updated_hdr_arc.get_hpo_row(&hpo_dto_items);
+        let dgb = self.get_mendelian_disease_gene_bundle()?;
+        let new_ppkt = PpktRow::mendelian_from( updated_hdr_arc.clone(), case_dto, dgb, hpo_cell_values)?;
+        updated_ppkt_rows.push(new_ppkt);
+        self.header = updated_hdr_arc;
+        self.ppkt_rows = updated_ppkt_rows;
         Ok(())
     }
 
@@ -443,7 +365,7 @@ impl PheToolsTemplate {
         } else {
             let idx = row - 2; // index of the phenopacket
             match self.ppkt_rows.get_mut(idx) {
-                Some(ppkt) => { ppkt.set_value(col, value); },
+                Some(ppkt) => { ppkt.set_value(col, value)?; },
                 None => { return Err(Error::TemplateError { msg: format!("Could not retrieve Ppkt at row {idx}") }) },
             }
         }
@@ -492,7 +414,15 @@ impl PheToolsTemplate {
     pub fn get_options(&self, row: usize, col: usize, addtl: Vec<String>) -> Result<Vec<String>> {
         self.check_validity_of_indices(row, col)?;
         match self.header.get_duplet_at_index(col) {
-            Ok(hduplet) => return Ok(hduplet.get_options()),
+            Ok(hduplet) => {
+                // We do not allow the contant headers to be edited 
+                if hduplet.is_constant_header() && row < 2 {
+                    return Ok(vec!["not editable".to_string()])
+                }
+                let mut options = hduplet.get_options();
+                options.extend(addtl);
+                Ok(options)
+            },
             Err(_) => { return Err(Error::TemplateError { msg: format!("Could not retrieve header duplet at column {col}") });},
         }
     }
@@ -625,10 +555,10 @@ mod test {
         original_matrix[0][19] = "Hallux  valgus".to_string(); 
         let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
         assert!(&factory.is_err());
-        assert!(matches!(&factory, Err(Error::TermError { .. })));
+        assert!(matches!(&factory, Err(Error::HpoError { .. })));
         let err = factory.err().unwrap();
         let err_msg = err.to_string();
-        let expected = "HPO Term HP:0010034 with malformed label 'Hallux  valgus' instead of 'Short 1st metacarpal'";
+        let expected = "Expected label 'Short 1st metacarpal' but got 'Hallux  valgus' for TermId 'HP:0010034'";
         assert_eq!(expected, err_msg);
     }
 

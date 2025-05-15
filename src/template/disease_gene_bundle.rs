@@ -103,6 +103,11 @@ impl DiseaseGeneBundle {
     pub fn transcript(&self) -> String {
         self.transcript.clone()
     }
+
+    /// String values needed for PpktRow
+    pub fn values(&self) -> Vec<String> {
+        vec![self.disease_id.to_string(), self.disease_name.to_string(), self.hgnc_id.to_string(), self.gene_symbol.to_string(), self.transcript.to_string()]
+    }
 }
 
 #[cfg(test)]
