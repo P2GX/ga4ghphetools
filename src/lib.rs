@@ -15,6 +15,7 @@ mod error;
 mod header;
 mod hpo;
 mod persistence;
+mod ppkt;
 mod rphetools_traits;
 mod template;
 mod variant;

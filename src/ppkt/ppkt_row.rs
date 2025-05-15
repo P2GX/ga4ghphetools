@@ -21,8 +21,8 @@ use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::rphetools_traits::TableCell;
 use crate::template::simple_label::SimpleLabel;
-use super::disease_gene_bundle::DiseaseGeneBundle;
-use super::header_duplet_row::{self, HeaderDupletRow};
+use crate::template::disease_gene_bundle::DiseaseGeneBundle;
+use crate::template::header_duplet_row::{self, HeaderDupletRow};
 
 
 impl Error {
