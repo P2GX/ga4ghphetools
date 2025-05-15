@@ -5,10 +5,10 @@
 
 use crate::dto::variant_dto::VariantDto;
 use crate::error::Error;
+use crate::hpo::hpo_util::HpoUtil;
 use crate::persistence::dir_manager::DirManager;
 use crate::persistence::ValidatorOfVariants;
-use crate::pptcolumn::ppt_column::PptColumn;
-use crate::pptcolumn::disease_gene_bundle::DiseaseGeneBundle;
+use crate::template::disease_gene_bundle::DiseaseGeneBundle;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
 use crate::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
 
@@ -297,6 +297,8 @@ impl PheTools {
         case_dto: CaseDto,
         hpo_dto_items: Vec<HpoTermDto>
     ) -> Result<(), String> {
+        let hpo_util = HpoUtil::new(self.hpo.clone());
+        let _ = hpo_util.check_hpo_dto(&hpo_dto_items);
         match &mut self.template {
             Some(template) => {
                 template.add_row_with_hpo_data(case_dto, hpo_dto_items).map_err(|e|e.to_string())?;
@@ -345,7 +347,7 @@ impl PheTools {
     ///
     /// * `row` - row index
     /// * `col` - column index
-    /// * `addtl` - List of additional options to show
+    /// * `addtl` - List of additional options to show (if present, these are added to the standard options for each column type)
     ///
     /// # Returns
     ///

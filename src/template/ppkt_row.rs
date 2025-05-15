@@ -12,13 +12,16 @@ use std::time::Instant;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::TermId;
+use polars::prelude::default_arrays;
 
+use crate::dto::case_dto::CaseDto;
+use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem};
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::rphetools_traits::TableCell;
-use crate::hpo::simple_hpo::{SimpleHPOMapper, HPO};
 use crate::template::simple_label::SimpleLabel;
+use super::disease_gene_bundle::DiseaseGeneBundle;
 use super::header_duplet_row::{self, HeaderDupletRow};
 
 
@@ -39,7 +42,7 @@ impl Error {
     }
 }
 
-
+#[derive(Clone)]
 pub struct PpktRow {
     header_duplet_row: Arc<HeaderDupletRow>,
     content: Vec<String>,
@@ -136,6 +139,10 @@ impl PpktRow {
         Ok(())
     }
 
+    pub fn n_constant_columns(&self) -> usize {
+        self.header_duplet_row.n_constant()
+    }
+
     /// Get a (potentially empty) list of Errors for this template
     pub fn get_errors(&self) -> Vec<Error> {
         self.content
@@ -158,7 +165,12 @@ impl PpktRow {
    }
  
 
-    pub fn update(&self, tid_map: &mut HashMap<TermId, String>, updated_hdr: Arc<HeaderDupletRow>) -> Result<Self> {
+    /// the tid_map has TermId to label
+    pub fn update(
+        &self, 
+        tid_map: &mut HashMap<TermId, String>, 
+        updated_hdr: Arc<HeaderDupletRow>) 
+    -> Result<Self> {
         // update the tid map with the existing  values
         let previous_hpo_id_list = self.header_duplet_row.get_hpo_id_list()?;
         let offset = self.header_duplet_row.get_hpo_offset();
@@ -176,7 +188,7 @@ impl PpktRow {
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
 
 
-        let updated_content: Result<Vec<String>> = updated_hpo_id_list
+        let updated_hpo: Result<Vec<String>> = updated_hpo_id_list
                 .into_iter()
                 .map(|term_id| {
                     tid_map.get(&term_id)
@@ -186,7 +198,10 @@ impl PpktRow {
                         })
                 })
                 .collect();
-        let updated_content = updated_content?;
+        let updated_hpo = updated_hpo?;
+        let n_const = self.n_constant_columns();
+        let mut updated_content: Vec<String> = self.content.iter().take(n_const).cloned().collect();
+        updated_content.extend(updated_hpo);
         Ok(Self {
             header_duplet_row: updated_hdr,
             content: updated_content,
@@ -239,7 +254,154 @@ impl PpktRow {
         }
         Ok(())
     }
+
+
+    pub fn mendelian_from(
+        header_duplet_row: Arc<HeaderDupletRow>,
+        case: CaseDto, 
+        dgb: DiseaseGeneBundle, 
+        hpo_values: Vec<String>, ) -> Result<Self> 
+    {
+        let mut values: Vec<String> = case.individual_values();
+        values.extend(dgb.values());
+        values.extend(case.variant_values());
+        values.push("na".to_string()); // separator
+        values.extend(hpo_values);
+        Ok(Self {
+            header_duplet_row: header_duplet_row,
+            content: values
+        })
+
+
+    }
    
 }
 
+
+
+#[cfg(test)]
+mod test {
+    use crate::{error::Error, header::{header_duplet::HeaderDupletItem, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::{self, HpoUtil}};
+    use lazy_static::lazy_static;
+    use ontolius::{io::OntologyLoaderBuilder, ontology::{csr::MinimalCsrOntology, OntologyTerms}, term};
+    use polars::io::SerReader;
+    use super::*;
+    use std::{fs::File, io::BufReader, str::FromStr};
+    use rstest::{fixture, rstest};
+    use flate2::bufread::GzDecoder;
+
+    #[fixture]
+    fn hpo() -> Arc<FullCsrOntology> {
+        let path = "resources/hp.v2025-03-03.json.gz";
+        let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
+        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
+        let hpo = loader.load_from_read(reader).unwrap();
+        Arc::new(hpo)
+    }
+
+
+
+    #[fixture]
+    fn row1() -> Vec<String> 
+    {
+        let row: Vec<&str> = vec![
+            "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id",	"gene_symbol", 
+            "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", 
+            "deceased", "sex", "HPO",	"Clinodactyly of the 5th finger", "Hallux valgus",	"Short 1st metacarpal", 
+            "Ectopic ossification in muscle tissue", "Long hallux", "Pain", "Short thumb"
+        ];
+        row.into_iter().map(|s| s.to_owned()).collect()
+    }
+
+    #[fixture]
+    fn row2() -> Vec<String> 
+    {
+        let row: Vec<&str> = vec![
+            "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", "str", "str", "str", "str", "optional", "age", "age", "yes/no/na", "M:F:O:U", "na",
+            "HP:0004209", "HP:0001822", "HP:0010034", "HP:0011987", "HP:0001847", "HP:0012531", "HP:0009778"];
+        row.into_iter().map(|s| s.to_owned()).collect()
+    }
+
+    #[fixture]
+    fn row3() -> Vec<String> {
+        let row: Vec<&str> =  vec![
+            "PMID:29482508", "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report", "current case", "", 
+            "OMIM:135100", "Fibrodysplasia ossificans progressiva", "HGNC:171", "ACVR1", 
+            "NM_001111067.4", "c.617G>A", "na", "NP_001104537.1:p.(Arg206His)", 
+            "P9Y", "P16Y", "no", "M", "na", "na", "P16Y", "na", "P16Y", "P16Y", "P16Y", "na"];
+        row.into_iter().map(|s| s.to_owned()).collect()
+    }
+
+
+    #[fixture]
+    fn original_matrix(row1: Vec<String>, row2: Vec<String>, row3: Vec<String>)  -> Vec<Vec<String>> {
+        let mut rows = Vec::with_capacity(3);
+        rows.push(row1);
+        rows.push(row2);
+        rows.push(row3);
+        rows
+    }
+
+
+    #[fixture]
+    pub fn case_a_dto() -> CaseDto {
+        CaseDto::new(
+            "PMID:123", 
+            "A Recurrent De Novo Nonsense Variant", 
+            "Individual 7", 
+            "",  // comment
+            "c.2737C>T",  // allele_1
+            "na", // allele_2
+            "",  // variant.comment
+            "Infantile onset", // age_at_onset
+            "P32Y", //  age_at_last_encounter
+            "na", // deceased
+            "M" //sex
+        )
+    }
+
+    #[fixture]
+    pub fn hpo_dtos() -> Vec<HpoTermDto> {
+        vec![HpoTermDto::new("HP:0001382", "Joint hypermobility", "observed"),
+        HpoTermDto::new("HP:0000574", "Thick eyebrow", "observed") ]
+    }
+
+    #[rstest]
+    fn test_update_ppkt_row(
+        mut original_matrix: Vec<Vec<String>>, 
+        hpo: Arc<FullCsrOntology>,
+        case_a_dto: CaseDto,
+        hpo_dtos: Vec<HpoTermDto>
+    ) -> Result<()> {
+        let hpo_arc = hpo.clone();
+        let hpo_util = HpoUtil::new(hpo_arc);
+        hpo_util.check_hpo_dto(&hpo_dtos)?;
+        let hdup_list = match HeaderDuplet::extract_from_string_matrix(&original_matrix) {
+            Ok(val) => val,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        let content = &original_matrix[2].clone();
+        
+        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list).unwrap();
+        let hdr_arc = Arc::new(header_duplet_row);
+        let hdr_arc2 = hdr_arc.clone();
+        let ppkt_row = PpktRow::new(hdr_arc, content.to_vec());
+        
+        assert_eq!(ppkt_row.pmid()?, "PMID:29482508");
+        let hpo_util = HpoUtil::new(hpo.clone());
+        let mut simple_terms = hpo_util.simple_terms_from_dto(&hpo_dtos)?;
+        let mut hpo_term_id_to_label_map = hpo_util.term_label_map_from_dto_list(&hpo_dtos)?;
+        assert_eq!(2, simple_terms.len());
+       let updated_hdr = hdr_arc2.update_old(&simple_terms);
+       let updated_arc = Arc::new(updated_hdr);
+        let updated_ppkt = ppkt_row.update(&mut hpo_term_id_to_label_map, updated_arc);
+
+        Ok(())
+    }
+
+
+
+}
 

@@ -174,6 +174,15 @@ impl HeaderDuplet {
     pub fn is_separator(&self) -> bool {
         matches!(self, HeaderDuplet::HpoSeparatorDuplet(_)) 
     }
+
+    pub fn is_hpo_column(&self) -> bool  {
+        matches!(self, HeaderDuplet::HpoTermDuplet(_)) 
+    }
+
+    pub fn is_constant_header(&self) -> bool {
+       ! matches!(self, HeaderDuplet::HpoTermDuplet(_)) 
+    }
+
 }
 
 

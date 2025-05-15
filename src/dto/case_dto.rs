@@ -57,6 +57,62 @@ impl CaseDto {
             sex: sex.into()
         }
     }
+
+    pub fn pmid(&self) -> &str {
+        &self.pmid
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn individual_id(&self) -> &str {
+        &self.individual_id
+    }
+
+    pub fn comment(&self) -> &str {
+        &self.comment
+    }
+
+    pub fn allele_1(&self) -> &str {
+        &self.allele_1
+    }
+
+    pub fn allele_2(&self) -> &str {
+        &self.allele_2
+    }
+
+    pub fn variant_comment(&self) -> &str {
+        &self.variant_comment
+    }
+
+    pub fn age_of_onset(&self) -> &str {
+        &self.age_of_onset
+    }
+
+    pub fn age_at_last_encounter(&self) -> &str {
+        &self.age_at_last_encounter
+    }
+
+    pub fn deceased(&self) -> &str {
+        &self.deceased
+    }
+
+    pub fn sex(&self) -> &str {
+        &self.sex
+    }
+
+    /// return the first four columns needed for a phenopacket row
+    pub fn individual_values(&self) -> Vec<String> {
+        vec![self.pmid.to_string(), self.title.to_string(), self.individual_id.to_string(), self.comment.to_string()]
+    }
+
+     /// return the last seven columns of the constant part needed for a phenopacket row
+    pub fn variant_values(&self) -> Vec<String> {
+        vec![self.allele_1.to_string(), self.allele_2.to_string(), self.variant_comment.to_string(),
+            self.age_of_onset.to_string(), self.age_at_last_encounter.to_string(), self. deceased.to_string(), self.sex.to_string()]
+    }
+    
 }
 
 
