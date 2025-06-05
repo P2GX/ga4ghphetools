@@ -4,6 +4,8 @@ use crate::variant::acmg::AcmgPathogenicityClassification;
 
 use ontolius::{term::{simple::SimpleMinimalTerm, Term}, TermId};
 
+use super::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant};
+
 
 #[derive(Debug, Clone)]
 pub enum Genotype {
@@ -38,7 +40,6 @@ lazy_static! {
         false 
     );
 
-    
     pub static ref HEMIZYGOUS: SimpleMinimalTerm = SimpleMinimalTerm::new(
         TermId::from_str("GENO:0000134").unwrap(),
         "hemizygous".to_string(),
@@ -54,7 +55,7 @@ pub trait Variant {
     fn set_heterozygous(&mut self);
     fn set_homozygous(&mut self);
     fn set_hemizygous(&mut self);
-   
+
 
     fn get_genotype_term(gt: Option<&Genotype>) -> Option<SimpleMinimalTerm> {
         match gt {
@@ -64,4 +65,21 @@ pub trait Variant {
             None => None,
         }
     }
+
+    /*
+    TODO: Is there a better way of doing this? We want the PpktRow to 
+    get a Variant object following validation so we can export it to 
+    Phenopacket. The only alternative I see is the return a
+    Result<GenomicInterpretation> or Result<VariantDescriptor>, but this would
+    add other coupling here.
+    fn get_hgvs(&self) -> Option<HgvsVariant>;
+    fn get_sv(&self) -> Option<StructuralVariant>;
+    fn is_hgvs(&self) -> bool {
+        return self.get_hgvs().is_some();
+    }
+    fn is_sv(&self) -> bool {
+        return self.get_sv().is_some();
+    }
+     */
+
 }

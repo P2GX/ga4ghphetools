@@ -21,8 +21,8 @@ use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::rphetools_traits::TableCell;
 use crate::template::simple_label::SimpleLabel;
-use super::disease_gene_bundle::DiseaseGeneBundle;
-use super::header_duplet_row::{self, HeaderDupletRow};
+use crate::template::disease_gene_bundle::DiseaseGeneBundle;
+use crate::template::header_duplet_row::{self, HeaderDupletRow};
 
 
 impl Error {
@@ -271,8 +271,26 @@ impl PpktRow {
             header_duplet_row: header_duplet_row,
             content: values
         })
+    }
 
-
+    pub fn get_hpo_term_dto_list(&self) -> Result<Vec<HpoTermDto>> {
+        let mut dto_list: Vec<HpoTermDto> = Vec::new();
+        let hpo_duplets = self.header_duplet_row.get_hpo_duplets();
+        let offset = self.header_duplet_row.get_hpo_offset();
+        for j in 0..hpo_duplets.len() {
+            let i = j + offset;
+            if let Some(hpo_duplet ) = hpo_duplets.get(j) {
+                if let Some(entry) = self.content.get(i) {
+                    let dto = HpoTermDto::new(hpo_duplet.row1(), hpo_duplet.row2(), entry);
+                    dto_list.push(dto);  
+                } else {
+                    return Err(Error::TemplateError { msg: format!("Could not extract entry from PpktRow") });
+                }
+            } else {
+                return Err(Error::TemplateError { msg: format!("Could not HpoTermDuplet from PpktRow") });
+            }
+        }
+        Ok(dto_list)
     }
    
 }

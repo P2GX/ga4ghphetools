@@ -41,6 +41,9 @@ pub enum Error {
     MalformedDiseaseLabel {
         label: String,
     },
+    TimeElementError {
+        msg: String
+    },
     VcfError {
         msg: String,
     },
@@ -98,6 +101,9 @@ pub enum Error {
         msg: String,
     },
     OperationError {
+        msg: String,
+    },
+    PpktError {
         msg: String,
     },
     SexFieldError {
@@ -304,11 +310,13 @@ impl core::fmt::Display for Error {
             | Error::AlleleError { msg }
             | Error::OperationError {msg}
             | Error::PmidError { msg }
+            | Error::PpktError { msg }
             | Error::SexFieldError { msg }
             | Error::SeparatorError { msg }
             | Error::TemplateError { msg }
             | Error::TermError { msg }
             | Error::TermIdError { msg }
+            | Error::TimeElementError { msg }
             | Error::TranscriptError { msg }
             | Error::VcfError { msg }
             | Error::VariantCacheError{ msg}
