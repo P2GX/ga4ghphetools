@@ -1,6 +1,6 @@
 [package]
 name = "rphetools"
-version = "0.2.8"
+version = "0.2.11"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -22,13 +22,14 @@ cli = ["dep:clap"]  # Enable clap only when the CLI feature is enabled
 
 [dependencies]
 calamine = "0.25.0" 
+chrono = "0.4.41"
 derive_more = {version = "2.0.1", features = ["from", "display"]}
 home = "0.5.11"
 lazy_static = "1.5.0"
 once_cell = "1.21.3"
 ontolius = "0.5.3"
 phenopackets = "0.2.2-post1"
-phenopacket_tools = { git = "https://github.com/P2GX/phenopacket_tools", tag = "0.1.9" }
+phenopacket_tools = { git = " https://github.com/P2GX/phenopacket_tools.git", tag = "0.2.1" }
 polars = "0.46.0"
 prost = "0.13.5" 
 prost-types = "0.13.5"

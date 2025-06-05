@@ -483,7 +483,7 @@ impl PheTools {
     }
 
     pub fn get_hpo_data(&self) -> HashMap<String, String> {
-       let hpo_clone = Arc::clone(&self.hpo);
+        let hpo_clone = Arc::clone(&self.hpo);
         let mut hpo_map: HashMap<String, String> = HashMap::new();
         let hpo_version = "ontolius update".to_ascii_lowercase(); //hpo_clone.version();
         hpo_map.insert("version".to_string(), hpo_version);

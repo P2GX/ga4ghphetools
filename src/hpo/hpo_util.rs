@@ -64,7 +64,7 @@ impl HpoUtil {
     /// Check the validity of the HPO TermId/label pairs in the DTO objects and return corresponding HpoTermDuplet list
     pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Result<Vec<HpoTermDuplet>> {
         let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::with_capacity(hpo_dto_list.len());
-         for hpo_dto in hpo_dto_list {
+        for hpo_dto in hpo_dto_list {
             let tid = TermId::from_str(&hpo_dto.term_id()).map_err(|e| Error::termid_parse_error(hpo_dto.term_id()))?;
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 if term.name() != hpo_dto.label() {
@@ -74,9 +74,9 @@ impl HpoUtil {
             } else {
                 return Err(Error::TermError { msg: format!("Could not find term for {}", hpo_dto.term_id()) })
             }
-         }
+        }
 
-         Ok(hpo_duplets)
+        Ok(hpo_duplets)
     }
 
     /// Check that the HPO Term Id and label used in the DTO object are correct
