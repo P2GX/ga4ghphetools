@@ -113,7 +113,7 @@ impl PpktRow {
     }
 
     pub fn age_of_onset(&self) -> Result<String> {
-        self.get_item("age_at_onset")
+        self.get_item("age_of_onset")
     }
 
     pub fn age_at_last_encounter(&self) -> Result<String> {
@@ -281,7 +281,7 @@ impl PpktRow {
             let i = j + offset;
             if let Some(hpo_duplet ) = hpo_duplets.get(j) {
                 if let Some(entry) = self.content.get(i) {
-                    let dto = HpoTermDto::new(hpo_duplet.row1(), hpo_duplet.row2(), entry);
+                    let dto = HpoTermDto::new(hpo_duplet.row2(), hpo_duplet.row1(), entry);
                     dto_list.push(dto);  
                 } else {
                     return Err(Error::TemplateError { msg: format!("Could not extract entry from PpktRow") });

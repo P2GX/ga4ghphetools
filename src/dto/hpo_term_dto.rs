@@ -77,7 +77,6 @@ mod test {
     use super::*;
     use ontolius::common::hpo;
     use rstest::rstest;
-   
 
     #[rstest]
     fn test_observed_ctor() {

@@ -15,6 +15,7 @@ use crate::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use phenopackets::schema::v2::Phenopacket;
 use serde_json::to_string;
 use crate::template::pt_template::PheToolsTemplate;
 use crate::template::excel;
@@ -562,13 +563,23 @@ impl PheTools {
        // for x in self.
         match &self.template {
             Some(template) => {
-               
             },
             None => {
                 return Err(format!(""));
             },
         }
         Ok(())
+    }
+
+    pub fn export_phenopackets(&self) -> Vec<Phenopacket> {
+        let ppkt_list: Vec<Phenopacket> = Vec::new();
+        let template = match &self.template {
+            Some(template) => template,
+            None => {
+                return ppkt_list;
+            },
+        };
+        template.export_phenopackets()
     }
 
 
