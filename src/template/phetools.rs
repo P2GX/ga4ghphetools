@@ -7,10 +7,10 @@ use crate::dto::variant_dto::VariantDto;
 use crate::error::Error;
 use crate::hpo::hpo_util::HpoUtil;
 use crate::persistence::dir_manager::DirManager;
-use crate::persistence::ValidatorOfVariants;
 use crate::template::disease_gene_bundle::DiseaseGeneBundle;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
 use crate::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
+use crate::variant::variant_validator::VariantValidator;
 
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
@@ -19,7 +19,7 @@ use phenopackets::schema::v2::Phenopacket;
 use serde_json::to_string;
 use crate::template::pt_template::PheToolsTemplate;
 use crate::template::excel;
-use crate::rphetools_traits::PyphetoolsTemplateCreator;
+use crate::phetools_traits::PyphetoolsTemplateCreator;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self};
 use std::path::Path;
@@ -35,7 +35,8 @@ pub struct PheTools {
     /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
     template: Option<PheToolsTemplate>,
     /// Manager to validate and cache variants
-    manager: Option<Box<dyn ValidatorOfVariants>>, 
+    manager: Option<DirManager>, 
+    variant_validator: VariantValidator,
 }
 
 impl PheTools {
@@ -63,7 +64,8 @@ impl PheTools {
         PheTools {
             hpo: hpo,
             template: None,
-            manager: None
+            manager: None,
+            variant_validator: VariantValidator::hg38(),
         }
     }
 
@@ -474,7 +476,7 @@ impl PheTools {
             Some(template) => {
                 let summary = template.get_summary();
                 if summary.is_empty() {
-                    return Err(format!("Empty tempalte"));
+                    return Err(format!("Empty template"));
                 } else {
                     return Ok(summary);
                 }
@@ -504,7 +506,7 @@ impl PheTools {
         entry: impl Into<String>
     )  -> Result<HpoTermDto, String> {
         let dto = HpoTermDto::new(tid, label, entry);
-        let tid: TermId = dto.term_id().parse().map_err(|e: anyhow::Error| e.to_string())?;
+        let tid: TermId = dto.ontolius_term_id().map_err(|e| e.to_string())?;
         let label = dto.label();
         match self.hpo.term_by_id(&tid) {
             Some(term) => {
@@ -524,7 +526,7 @@ impl PheTools {
     pub fn set_cache_location<P: AsRef<Path>>(&mut self, dir_path: P) -> Result<(), String> {
         match DirManager::new(dir_path) {
             Ok(manager) => {
-                self.manager = Some(Box::new(manager));
+                self.manager = Some(manager);
             },
             Err(e) => {
                 return Err(format!("Could not create directory manager: '{}", e.to_string()));
@@ -546,9 +548,9 @@ impl PheTools {
             Some(manager) => {
                 let dto = variant_dto;
                 if dto.variant_string().starts_with("c.") || dto.variant_string().starts_with("n.") {
-                    let _ = manager.validate_hgvs(dto.variant_string(), dto.transcript())?;
+                    let _ = manager.validate_hgvs(dto.variant_string(), dto.transcript()).map_err(|e|e.to_string())?;
                 } else {
-                    let _ = manager.validate_sv(dto.variant_string(), dto.hgnc_id(), dto.gene_symbol())?;
+                    let _ = manager.validate_sv(dto.variant_string(), dto.hgnc_id(), dto.gene_symbol()).map_err(|e|e.to_string())?;
                 }
             },
             None => {
@@ -571,15 +573,21 @@ impl PheTools {
         Ok(())
     }
 
-    pub fn export_phenopackets(&self) -> Vec<Phenopacket> {
+    pub fn export_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {
         let ppkt_list: Vec<Phenopacket> = Vec::new();
         let template = match &self.template {
             Some(template) => template,
             None => {
-                return ppkt_list;
+                return Err(format!("Phenopacket Template not initialized"));
             },
         };
-        template.export_phenopackets()
+        let variant_manager = match &self.manager {
+            Some(manager) => manager,
+            None => {
+                return Err(format!("Variant Manager Template not initialized"));
+            }
+        };
+        Ok(template.export_phenopackets())
     }
 
 

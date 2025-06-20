@@ -30,19 +30,19 @@ pub struct CaseDto {
 
 impl CaseDto {
     pub fn new(
-         pmid: impl Into<String>,
-         title: impl Into<String>,
-         individual_id: impl Into<String>,
-         comment: impl Into<String>,
-         allele_1: impl Into<String>,
-         allele_2: impl Into<String>,
-         variant_comment: impl Into<String>,
-         age_of_onset: impl Into<String>,
-         age_at_last_encounter: impl Into<String>,
-         deceased: impl Into<String>,
-         sex: impl Into<String>,
+        pmid: impl Into<String>,
+        title: impl Into<String>,
+        individual_id: impl Into<String>,
+        comment: impl Into<String>,
+        allele_1: impl Into<String>,
+        allele_2: impl Into<String>,
+        variant_comment: impl Into<String>,
+        age_of_onset: impl Into<String>,
+        age_at_last_encounter: impl Into<String>,
+        deceased: impl Into<String>,
+        sex: impl Into<String>,
     ) -> Self
-     {
+    {
         Self {
             pmid: pmid.into(),
             title: title.into(),

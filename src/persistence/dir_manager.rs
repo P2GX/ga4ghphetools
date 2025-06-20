@@ -1,9 +1,7 @@
 
-use std::{collections::HashMap, fs::{self, File, OpenOptions}, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs::{self, File, OpenOptions}, path::{Path, PathBuf}, sync::{Arc, Mutex}};
 
 use crate::{dto::variant_dto::VariantDto, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_validator::VariantValidator}};
-
-use super::ValidatorOfVariants;
 
 use crate::variant::structural_variant::DELETION as DEL;
 use crate::variant::structural_variant::DUPLICATION as DUP;
@@ -19,7 +17,7 @@ pub struct DirManager {
     hgvs_cache: VariantCache,
     structural_cache_file_path: PathBuf,
     structural_cache: StructuralCache,
-    variant_validator: VariantValidator
+    variant_validator: Arc<Mutex<VariantValidator>>
 }
 
 
@@ -39,13 +37,14 @@ impl DirManager {
         let struct_cache_path = path_buf.join("structural_cache.txt");
         let structural_cache_obj = Self::load_structural(&struct_cache_path).unwrap_or_else(|_| HashMap::new());
         let vvalidator = VariantValidator::hg38();
+        let my_validator: Arc<Mutex<VariantValidator>> = Arc::new(Mutex::new(vvalidator));
         Ok(Self {
             cache_dir_path: path_buf,
             hgvs_cache_file_path: var_cache_path,
             hgvs_cache: cache_obj,
             structural_cache_file_path: struct_cache_path,
             structural_cache: structural_cache_obj,
-            variant_validator: vvalidator,
+            variant_validator: my_validator,
         })
     }
 
@@ -107,17 +106,17 @@ impl DirManager {
         self.structural_cache.get(var_str).cloned()
     }
 
-  
 }
 
 
-impl ValidatorOfVariants for DirManager {
-    fn validate_hgvs(&mut self, variant: &str, transcript: &str) -> Result<(), String> {
+impl DirManager {
+    pub fn validate_hgvs(&mut self, variant: &str, transcript: &str) -> Result<(), String> {
         let full_hgvs = format!("{transcript}:{variant}");
         if self.hgvs_cache.contains_key(&full_hgvs) {
             return Ok(());
         } else {
-            let var = self.variant_validator.encode_hgvs(variant, transcript)
+            let vvalidator = self.variant_validator.lock().map_err(|e|e.to_string())?;
+            let var = vvalidator.encode_hgvs(variant, transcript)
                 .map_err(|e| e.to_string())?;
             self.hgvs_cache.insert(full_hgvs, var);
             self.save_hgvs()?;
@@ -125,7 +124,7 @@ impl ValidatorOfVariants for DirManager {
         }
     }
 
-    fn validate_sv(&mut self, variant: &str, hgnc_id: &str, gene_symbol: &str) -> Result<(), String> {
+    pub fn validate_sv(&mut self, variant: &str, hgnc_id: &str, gene_symbol: &str) -> Result<(), String> {
         if self.structural_cache.contains_key(variant) {
             return Ok(());
         }

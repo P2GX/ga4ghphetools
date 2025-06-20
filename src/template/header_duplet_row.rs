@@ -416,7 +416,7 @@ impl HeaderDupletRow {
     pub fn get_hpo_row(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Vec<String> {
         let hpo_map: HashMap<String, HpoTermDto> = hpo_dto_list
             .into_iter()
-            .map(|dto| (dto.term_id(), dto.clone()))
+            .map(|dto| (dto.term_id().to_string(), dto.clone()))
             .collect();
       
         let mut values: Vec<String> = Vec::new();

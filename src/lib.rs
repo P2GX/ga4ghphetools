@@ -2,7 +2,7 @@
 //!
 //! Users interact with the library via the PheTools structure.
 //! The library does not expose custom datatypes, and errors are translated
-//! into strings to simplify the use of rphetools in applications
+//! into strings to simplify the use of phetools in applications
 //! 
 //! ## Features
 //! 
@@ -16,7 +16,7 @@ mod header;
 mod hpo;
 mod persistence;
 mod ppkt;
-mod rphetools_traits;
+mod phetools_traits;
 mod template;
 mod variant;
 

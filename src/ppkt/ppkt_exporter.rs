@@ -1,11 +1,11 @@
-
+//! Module to export GA4GH Phenopackets from the information in the template.
 
 use std::process::id;
 
 use phenopacket_tools::builders::time_elements::time_element_from_str;
 use phenopackets::schema::v1::core::KaryotypicSex;
 use phenopackets::schema::v2::core::vital_status::Status;
-use phenopackets::schema::v2::core::{Disease, ExternalReference, Individual, MetaData, PhenotypicFeature, Sex, TimeElement, VitalStatus};
+use phenopackets::schema::v2::core::{Disease, ExternalReference, Individual, Interpretation, MetaData, PhenotypicFeature, Sex, TimeElement, VitalStatus};
 use phenopackets::schema::v2::Phenopacket;
 use prost_types::value;
 use crate::error::{self, Error, Result};
@@ -15,9 +15,9 @@ use phenopacket_tools::builders::builder::Builder;
 
 
 
-const DEFAULT_HGNC_VERSION: &str =  "06/01/23";
-const DEFAULT_OMIM_VERSION: &str =  "06/01/23";
-const DEFAULT_SEQUENCE_ONTOLOGY_VERSION: &str =  "2021-11-22";
+const DEFAULT_HGNC_VERSION: &str =  "06/01/25";
+const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
+const DEFAULT_SEQUENCE_ONTOLOGY_VERSION: &str =  "2024-11-18";
 const DEFAULT_GENO_VERSION: &str =  "2023-10-08";
 
 pub struct PpktExporter {
@@ -26,6 +26,7 @@ pub struct PpktExporter {
     geno_version: String,
     omim_version: String,
     hgnc_version: String,
+    orcid_id: String
 }
 
 impl Error {
@@ -51,13 +52,14 @@ impl Error {
 impl PpktExporter {
 
 
-    pub fn new(hpo_version: &str) -> Self {
+    pub fn new(hpo_version: &str, creator_orcid: &str) -> Self {
         Self::from_versions(
             hpo_version,
             DEFAULT_SEQUENCE_ONTOLOGY_VERSION,
             DEFAULT_GENO_VERSION,
             DEFAULT_OMIM_VERSION,
-            DEFAULT_HGNC_VERSION)
+            DEFAULT_HGNC_VERSION,
+        creator_orcid)
     }
 
     pub fn from_versions(
@@ -65,14 +67,16 @@ impl PpktExporter {
         so_version: &str, 
         geno_version: &str,
         omim_version: &str, 
-        hgnc_version: &str 
+        hgnc_version: &str ,
+        creator_orcid: &str
     ) -> Self {
         Self{ 
             hpo_version: hpo_version.to_string(), 
             so_version: so_version.to_string(), 
             geno_version: geno_version.to_string(),
             omim_version: omim_version.to_string(), 
-            hgnc_version: hgnc_version.to_string() 
+            hgnc_version: hgnc_version.to_string(),
+            orcid_id: creator_orcid.to_string()
         }
     }
 
@@ -202,6 +206,11 @@ impl PpktExporter {
             disease.onset = Some(age);
         };
         Ok(disease)
+    }
+
+    pub fn get_interpretation(&self, ppkt_row: &PpktRow) -> Result<Interpretation> {
+
+        return Err(Error::TemplateError { msg: format!("Gettings interpretation not implemented") });
     }
 
     

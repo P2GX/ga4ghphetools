@@ -19,7 +19,7 @@ use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem};
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
-use crate::rphetools_traits::TableCell;
+use crate::phetools_traits::TableCell;
 use crate::template::simple_label::SimpleLabel;
 use crate::template::disease_gene_bundle::DiseaseGeneBundle;
 use crate::template::header_duplet_row::{self, HeaderDupletRow};

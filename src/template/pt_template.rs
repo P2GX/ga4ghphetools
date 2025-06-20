@@ -478,7 +478,8 @@ impl PheToolsTemplate {
     pub fn export_phenopackets(&self) -> Vec<Phenopacket> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
         let hpo_version = "TEMP";
-        let ppkt_exporter = PpktExporter::new(hpo_version);
+        let creator_orcid = "TEMP_ORCID";
+        let ppkt_exporter = PpktExporter::new(hpo_version, creator_orcid);
         for row in &self.ppkt_rows {
             let ppkt = ppkt_exporter.export_phenopacket(row);
             if ppkt.is_ok() {
