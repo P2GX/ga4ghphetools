@@ -1,11 +1,11 @@
-
+//! Module to export GA4GH Phenopackets from the information in the template.
 
 use std::process::id;
 
 use phenopacket_tools::builders::time_elements::time_element_from_str;
 use phenopackets::schema::v1::core::KaryotypicSex;
 use phenopackets::schema::v2::core::vital_status::Status;
-use phenopackets::schema::v2::core::{Disease, ExternalReference, Individual, MetaData, PhenotypicFeature, Sex, TimeElement, VitalStatus};
+use phenopackets::schema::v2::core::{Disease, ExternalReference, Individual, Interpretation, MetaData, PhenotypicFeature, Sex, TimeElement, VitalStatus};
 use phenopackets::schema::v2::Phenopacket;
 use prost_types::value;
 use crate::error::{self, Error, Result};
@@ -13,8 +13,20 @@ use phenopacket_tools;
 use super::ppkt_row::{self, PpktRow};
 use phenopacket_tools::builders::builder::Builder;
 
-pub struct PpktExporter {
 
+
+const DEFAULT_HGNC_VERSION: &str =  "06/01/25";
+const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
+const DEFAULT_SEQUENCE_ONTOLOGY_VERSION: &str =  "2024-11-18";
+const DEFAULT_GENO_VERSION: &str =  "2023-10-08";
+
+pub struct PpktExporter {
+    hpo_version: String,
+    so_version: String,
+    geno_version: String,
+    omim_version: String,
+    hgnc_version: String,
+    orcid_id: String
 }
 
 impl Error {
@@ -38,6 +50,35 @@ impl Error {
 
 
 impl PpktExporter {
+
+
+    pub fn new(hpo_version: &str, creator_orcid: &str) -> Self {
+        Self::from_versions(
+            hpo_version,
+            DEFAULT_SEQUENCE_ONTOLOGY_VERSION,
+            DEFAULT_GENO_VERSION,
+            DEFAULT_OMIM_VERSION,
+            DEFAULT_HGNC_VERSION,
+        creator_orcid)
+    }
+
+    pub fn from_versions(
+        hpo_version: &str,
+        so_version: &str, 
+        geno_version: &str,
+        omim_version: &str, 
+        hgnc_version: &str ,
+        creator_orcid: &str
+    ) -> Self {
+        Self{ 
+            hpo_version: hpo_version.to_string(), 
+            so_version: so_version.to_string(), 
+            geno_version: geno_version.to_string(),
+            omim_version: omim_version.to_string(), 
+            hgnc_version: hgnc_version.to_string(),
+            orcid_id: creator_orcid.to_string()
+        }
+    }
 
 
     /// Create a GA4GH Individual message
@@ -79,13 +120,37 @@ impl PpktExporter {
 
     }
 
+    pub fn hpo_version(&self) -> &str {
+        &self.hpo_version
+    } 
+
+    pub fn so_version(&self) -> &str {
+        &self.so_version
+    } 
+
+    pub fn geno_version(&self) -> &str {
+        &self.geno_version
+    } 
+
+    pub fn omim_version(&self) -> &str {
+        &self.omim_version
+    } 
+
+    pub fn hgnc_version(&self) -> &str {
+        &self.hgnc_version
+    } 
+
     /// TODO possibly the PpktExporter has state (created, etc, also dynamically get the time string)
     pub fn get_meta_data(&self, ppkt_row: &PpktRow) -> Result<MetaData> {
 
         let created_by = "Earnest B. Biocurator";
         let mut meta_data = Builder::meta_data_now(created_by);
-        let hpo = phenopacket_tools::builders::resources::Resources::hpo_version("v2025-03-03");
-        let geno = phenopacket_tools::builders::resources::Resources::geno_version("2023-10-08");
+        let hpo = phenopacket_tools::builders::resources::Resources::hpo_version(self.hpo_version());
+        let geno = phenopacket_tools::builders::resources::Resources::geno_version(self.geno_version());
+        let so = phenopacket_tools::builders::resources::Resources::geno_version(self.so_version());
+        let omim = phenopacket_tools::builders::resources::Resources::omim_version(self.omim_version());
+        // TODO add HGNC
+        //let hgnc =  phenopacket_tools::builders::resources::Resources::hgnc_version(self.omim_version());
         let pmid = ppkt_row.pmid()?;
         let title = ppkt_row.title()?;
         let ext_res = ExternalReference{ 
@@ -95,6 +160,8 @@ impl PpktExporter {
         };
         meta_data.resources.push(hpo);
         meta_data.resources.push(geno);
+        meta_data.resources.push(so);
+        meta_data.resources.push(omim);
         meta_data.external_references.push(ext_res);
         Ok(meta_data)
     }
@@ -141,6 +208,11 @@ impl PpktExporter {
         Ok(disease)
     }
 
+    pub fn get_interpretation(&self, ppkt_row: &PpktRow) -> Result<Interpretation> {
+
+        return Err(Error::TemplateError { msg: format!("Gettings interpretation not implemented") });
+    }
+
     
 
 
@@ -148,18 +220,19 @@ impl PpktExporter {
         let dto_list = ppkt_row.get_hpo_term_dto_list()?;
         let mut ppkt_feature_list: Vec<PhenotypicFeature> = Vec::with_capacity(dto_list.len());
         for dto in dto_list {
+            println!("{:?}", & dto);
             if dto.is_not_ascertained() {
                 continue;
             }
             let hpo_term = Builder::ontology_class(dto.term_id(), dto.label())
                 .map_err(|e| Error::termid_parse_error(dto.term_id()))?;
-            let pf = PhenotypicFeature{ 
+            let mut pf = PhenotypicFeature{ 
                 description: String::default(), 
                 r#type: Some(hpo_term), 
                 excluded: dto.is_excluded(), 
                 severity: None, 
                 modifiers: vec![], 
-                onset: todo!(),
+                onset: None,
                 resolution: None, 
                 evidence: vec![]
             };
@@ -175,18 +248,18 @@ impl PpktExporter {
     }
 
 
-    pub fn export_phenopacket(&self, ppkt_row: PpktRow) -> Result<Phenopacket> {
+    pub fn export_phenopacket(&self, ppkt_row: &PpktRow) -> Result<Phenopacket> {
         let ppkt = Phenopacket{ 
-            id: self.get_phenopacket_id(&ppkt_row)?, 
-            subject:  Some(self.extract_individual(&ppkt_row)?), 
-            phenotypic_features: self.get_phenopacket_features(&ppkt_row)?, 
+            id: self.get_phenopacket_id(ppkt_row)?, 
+            subject:  Some(self.extract_individual(ppkt_row)?), 
+            phenotypic_features: self.get_phenopacket_features(ppkt_row)?, 
             measurements: vec![], 
             biosamples: vec![], 
-            interpretations: todo!(), 
-            diseases: vec![self.get_disease(&ppkt_row)?], 
+            interpretations: vec![], 
+            diseases: vec![self.get_disease(ppkt_row)?], 
             medical_actions: vec![], 
             files: vec![], 
-            meta_data: Some(self.get_meta_data(&ppkt_row)?) 
+            meta_data: Some(self.get_meta_data(ppkt_row)?) 
         };
     
         Ok(ppkt)

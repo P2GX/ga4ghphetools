@@ -1,4 +1,4 @@
-use crate::rphetools_traits::TableCell;
+use crate::phetools_traits::TableCell;
 
 use crate::error::{self, Error, Result};
 

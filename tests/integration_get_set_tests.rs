@@ -3,7 +3,7 @@ mod common;
 use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
-use rphetools::PheTools;
+use phetools::PheTools;
 use rstest::rstest;
 use common::hpo;
 use common::matrix;

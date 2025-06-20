@@ -12,9 +12,10 @@ use ontolius::{
     term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
     Identified, TermId,
 };
+use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::ppkt_row::PpktRow};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}};
 use crate::{
     template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
@@ -473,6 +474,25 @@ impl PheToolsTemplate {
         summary.insert("n_ppkt".to_string(), format!("{}", ppkt_n));
         summary
     }
+
+    pub fn export_phenopackets(&self) -> Vec<Phenopacket> {
+        let mut ppkt_list: Vec<Phenopacket> = Vec::new();
+        let hpo_version = "TEMP";
+        let creator_orcid = "TEMP_ORCID";
+        let ppkt_exporter = PpktExporter::new(hpo_version, creator_orcid);
+        for row in &self.ppkt_rows {
+            let ppkt = ppkt_exporter.export_phenopacket(row);
+            if ppkt.is_ok() {
+                ppkt_list.push(ppkt.unwrap());
+            } else {
+                eprintln!("TODO ERROR HANDLINGS");
+            }
+        }
+
+        ppkt_list
+    }
+
+
 }
 
 

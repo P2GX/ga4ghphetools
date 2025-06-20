@@ -44,7 +44,7 @@ pub enum Error {
     TimeElementError {
         msg: String
     },
-    VcfError {
+    VariantError {
         msg: String,
     },
     EditError {
@@ -262,6 +262,10 @@ impl Error {
         Error::OperationError { msg }
     }
 
+    pub fn variant_err(msg: &str) -> Self {
+        Error::VariantError { msg: msg.to_string() }
+    }
+
 }
 
 impl From<&str> for Error {
@@ -318,7 +322,7 @@ impl core::fmt::Display for Error {
             | Error::TermIdError { msg }
             | Error::TimeElementError { msg }
             | Error::TranscriptError { msg }
-            | Error::VcfError { msg }
+            | Error::VariantError { msg }
             | Error::VariantCacheError{ msg}
             | Error::WhiteSpaceError { msg } => write!(fmt, "{msg}"),
             _ => write!(fmt, "{self:?}"),

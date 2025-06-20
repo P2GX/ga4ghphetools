@@ -4,6 +4,9 @@
 //! library. The intention is to transfer all information we need to create a GA4GH Phenopacket Schema PhenotypicFeature message.
 
 
+use std::str::FromStr;
+
+use ontolius::TermId;
 use serde::{de, Deserialize, Serialize};
 use crate::template::excel::read_excel_to_dataframe;
 use crate::error::{Error, Result};
@@ -33,8 +36,14 @@ impl HpoTermDto {
     }
 
 
-    pub fn term_id(&self) -> String {
-        self.term_id.clone()
+    pub fn term_id(&self) -> &str {
+        &self.term_id
+    }
+
+    pub fn ontolius_term_id(&self) -> Result<TermId> {
+        let tid: TermId = TermId::from_str(&self.term_id).map_err(|_| 
+            Error::termid_parse_error(format!("Could not create TermId from string '{}'", self.term_id)))?;
+        Ok(tid)
     }
 
     pub fn label(&self) -> String {
@@ -77,7 +86,6 @@ mod test {
     use super::*;
     use ontolius::common::hpo;
     use rstest::rstest;
-   
 
     #[rstest]
     fn test_observed_ctor() {

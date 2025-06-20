@@ -3,11 +3,10 @@
 
 use std::collections::HashMap;
 use std::convert::TryInto;
-use anyhow::{Result, bail};
 use polars::series::implementations;
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{error::Error, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
+use crate::{error::{Error, Result}, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
@@ -18,21 +17,21 @@ const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
 impl Error {
     pub fn malformed_chr(vcf: &Value) -> Self
     {
-        Self::VcfError { msg: format!("Missing or invalid 'chrom' in VCF object: {vcf}"),}
+        Self::VariantError { msg: format!("Missing or invalid 'chrom' in VCF object: {vcf}"),}
     } 
     pub fn malformed_ref(vcf: &Value) -> Self
     {
-        Self::VcfError { msg: format!("Missing or invalid 'REF' in VCF object: {vcf}"),}
+        Self::VariantError { msg: format!("Missing or invalid 'REF' in VCF object: {vcf}"),}
     } 
 
     pub fn malformed_alt(vcf: &Value) -> Self
     {
-        Self::VcfError { msg: format!("Missing or invalid 'ALT' in VCF object: {vcf}"),}
+        Self::VariantError { msg: format!("Missing or invalid 'ALT' in VCF object: {vcf}"),}
     } 
 
     pub fn malformed_pos(vcf: &Value) -> Self
     {
-        Self::VcfError { msg: format!("Missing or invalid 'POS' in VCF object: {vcf}"),}
+        Self::VariantError { msg: format!("Missing or invalid 'POS' in VCF object: {vcf}"),}
     } 
 }
 
@@ -58,7 +57,7 @@ fn get_variant_validator_url(
 impl VariantValidator {
     pub fn new(genome_build: &str) -> Result<Self> {
         if !ACCEPTABLE_GENOMES.contains(&genome_build) {
-            bail!("genome_build \"{}\" not recognized", genome_build);
+            return Err(Error::TemplateError { msg: format!("genome_build \"{}\" not recognized", genome_build)});
         }
         Ok(Self {
             genome_assembly: genome_build.to_string(),
@@ -89,12 +88,15 @@ impl VariantValidator {
     ) -> Result<HgvsVariant> 
     {
         let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
-        let response: Value = get(&url)?.json()?;
+        let response: Value = get(&url)
+            .map_err(|e| Error::VariantError{msg: e.to_string()})?
+            .json()
+            .map_err(|e| e.to_string())?;
 
         if let Some(flag) = response.get("flag") {
             if flag != "gene_variant" {
                 let msg = format!("Expecting to get a gene_variant but got {}", flag);
-                bail!(Error::VcfError{msg});
+                return Err(Error::VariantError{msg});
             }
         }
 
@@ -102,7 +104,7 @@ impl VariantValidator {
             .unwrap()
             .keys()
             .find(|&k| k != "flag" && k != "metadata")
-            .ok_or_else(|| anyhow::anyhow!("Missing variant key"))?;
+            .ok_or_else(|| format!("Missing variant key"))?;
 
         let var = &response[variant_key];
 
@@ -116,10 +118,10 @@ impl VariantValidator {
             .map(|s| s.to_string());
 
         let assemblies = var.get("primary_assembly_loci")
-            .ok_or_else(|| anyhow::anyhow!("Missing primary_assembly_loci"))?;
+            .ok_or_else(|| format!("Missing primary_assembly_loci"))?;
 
         let assembly = assemblies.get(&self.genome_assembly)
-            .ok_or_else(|| anyhow::anyhow!("Could not identify {} in response", self.genome_assembly))?;
+            .ok_or_else(|| format!("Could not identify {} in response", self.genome_assembly))?;
 
         let hgvs_transcript_var = var.get("hgvs_transcript_variant")
             .and_then(|v| v.as_str())
@@ -141,23 +143,23 @@ impl VariantValidator {
             });
 
         let vcf = assembly.get("vcf")
-            .ok_or_else(|| anyhow::anyhow!("Could not identify vcf element"))?;
+            .ok_or_else(|| format!("Could not identify vcf element"))?;
         let chrom: String = vcf.get("chr")
                 .and_then(Value::as_str)
-                .ok_or_else(|| Error::malformed_chr(vcf))?
+                .ok_or_else(|| format!("Malformed chr: {:?}", vcf))? 
                 .to_string();
             let position: u32 = vcf.get("pos")
             .and_then(Value::as_str) // "pos" is stored as a string
-            .ok_or_else(|| Error::VcfError{msg: format!("Malformed pos: {:?}", vcf)})? 
+            .ok_or_else(|| format!("Malformed pos: {:?}", vcf))? 
             .parse() 
-            .map_err(|e| Error::VcfError { msg: format!("{}", e) })?; 
+            .map_err(|e| format!("Error '{}'", e))?; 
         let reference = vcf.get("ref").
             and_then(Value::as_str)
-            .ok_or_else(|| Error::malformed_ref(vcf))?
+            .ok_or_else(|| format!("Malformed REF: '{:?}'", vcf))?
             .to_string();
         let alternate = vcf.get("alt").
             and_then(Value::as_str)
-            .ok_or_else(|| Error::malformed_alt(vcf))?
+            .ok_or_else(|| format!("Malformed ALT: '{:?}'", vcf))?
             .to_string();
         let vcf_var = VcfVar::new(chrom, position, reference, alternate);
         let hgvs_v = HgvsVariant::new(
@@ -172,6 +174,20 @@ impl VariantValidator {
         );
         return Ok(hgvs_v);
     }
+
+    pub fn validate_sv(&mut self, variant: &str, hgnc_id: &str, gene_symbol: &str) -> Result<()> {
+        todo!()
+    }
+
+
+    pub fn validate_hgvs(
+        &self, 
+        hgvs: &str, 
+        transcript: &str
+    ) -> Result<()> {
+        todo!();
+        Ok(())
+    }
 }
 
 
@@ -179,7 +195,6 @@ impl VariantValidator {
 
 #[cfg(test)]
 mod tests {
-  
     use super::*;
 
     #[test]

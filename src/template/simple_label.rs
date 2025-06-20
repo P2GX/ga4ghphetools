@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::error::{self, Error, Result};
-use crate::rphetools_traits::TableCell;
+use crate::phetools_traits::TableCell;
 
 impl Error {
     fn malformed_label(label: &str) -> Self {
