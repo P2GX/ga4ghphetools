@@ -21,7 +21,7 @@ struct Cli {
     verbose: bool,
 }
 
-use phetools::PheTools;
+use ga4ghphetools::PheTools;
 
 fn main() {
     let cli = Cli::parse();

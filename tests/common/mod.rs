@@ -1,5 +1,5 @@
 
-use phetools::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
+use ga4ghphetools::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
 use rstest::fixture;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::{fs::File, io::BufReader, sync::Arc};
