@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use common::one_case_matrix;
 use ontolius::ontology::csr::FullCsrOntology;
-use phetools::dto::case_dto::CaseDto;
-use phetools::dto::hpo_term_dto::HpoTermDto;
-use phetools::PheTools;
+use ga4ghphetools::dto::case_dto::CaseDto;
+use ga4ghphetools::dto::hpo_term_dto::HpoTermDto;
+use ga4ghphetools::PheTools;
 use rstest::rstest;
 use common::hpo;
 use common::matrix;
