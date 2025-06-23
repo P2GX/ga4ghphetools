@@ -15,7 +15,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{RowDto, TemplateDto}}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}};
 use crate::{
     template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
@@ -96,9 +96,6 @@ impl PheToolsTemplate {
     }
 
 
-   
-
-
     /// A function to export a ``Vec<Vec<String>>`` matrix from the data
     ///
     /// # Returns
@@ -111,6 +108,18 @@ impl PheToolsTemplate {
             rows.push(row);
         }
         rows
+    }
+
+    pub fn get_template_dto(&self) -> Result<TemplateDto> {
+        let header_dto = self.header.get_header_dto()?;
+        let mut rows: Vec<RowDto> = Vec::new();
+        for  ppkt in &self.ppkt_rows {
+            let row_dto = ppkt.get_row_dto()?;
+            rows.push(row_dto);
+        }
+        let template = TemplateDto::mendelian(header_dto, rows);
+
+        Ok(template)
     }
 
     /// Get a list of all HPO identifiers currently in the template

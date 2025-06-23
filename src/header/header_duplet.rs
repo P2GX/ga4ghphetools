@@ -6,7 +6,7 @@
 //! both rows so that we can do some Q/C prior to starting to create the DataFrame object.
 
 
-use crate::error::{self, Error, Result};
+use crate::{dto::template_dto::HeaderDupletDto, error::{self, Error, Result}};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{collections::{HashMap, HashSet}, fmt};
@@ -138,6 +138,12 @@ impl HeaderDuplet {
                 msg: "Only HpoTermDuplet can be mutated".to_string(),
             }),
         }
+    }
+
+    pub fn to_dto(&self) -> HeaderDupletDto {
+        let row1 = self.as_trait().row1();
+        let row2 = self.as_trait().row2();
+        HeaderDupletDto { h1: row1, h2: row2 }
     }
 
 

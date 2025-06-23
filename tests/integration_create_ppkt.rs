@@ -25,6 +25,10 @@ fn create_ppkt_1(
     let res = phetools.load_matrix(one_case_matrix);
     assert!(res.is_ok());
     let hpo_version = "2025-05-31";
+    let dto = phetools.get_template_dto();
+    assert!(dto.is_ok());
+    let dto = dto.unwrap();
+    println!("{:?}", dto);
     /*
     TODO - finish test once the variant validator interface is finished
     let ppkt_list = phetools.export_phenopackets().unwrap();

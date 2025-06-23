@@ -16,6 +16,7 @@ use polars::prelude::default_arrays;
 
 use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
+use crate::dto::template_dto::{CellDto, IndividualDto, RowDto};
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem};
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
@@ -44,7 +45,9 @@ impl Error {
 
 #[derive(Clone)]
 pub struct PpktRow {
+    /// Reference to the header, which is the same for all rows in the template
     header_duplet_row: Arc<HeaderDupletRow>,
+    /// Contents of the row, represented as Strings.
     content: Vec<String>,
 }
 
@@ -52,7 +55,6 @@ impl PpktRow {
     pub fn new(
         header_duplet_row: Arc<HeaderDupletRow>,
         content: Vec<String>,
-
     ) -> Self {
         Self {
             header_duplet_row,
@@ -82,6 +84,10 @@ impl PpktRow {
 
     pub fn title(&self) -> Result<String> {
         self.get_item("title")
+    }
+
+    pub fn get_comment(&self) -> Result<String> {
+        self.get_item("comment")
     }
 
     pub fn disease_id(&self) -> Result<String> {
@@ -152,18 +158,40 @@ impl PpktRow {
             .collect()
     }
 
-   pub fn get_string_row(&self) -> Vec<String> {
-        self.content.clone()
-   }
+    pub fn get_string_row(&self) -> Vec<String> {
+            self.content.clone()
+    }
 
-   pub fn get_value_at(&self, i: usize) -> Result<String> {
-        if i >= self.content.len() {
-            Err(Error::TemplateError { msg: format!("Invalid index {i}") })
-        } else {
-            Ok(self.content[i].clone())
+    pub fn get_value_at(&self, i: usize) -> Result<String> {
+            if i >= self.content.len() {
+                Err(Error::TemplateError { msg: format!("Invalid index {i}") })
+            } else {
+                Ok(self.content[i].clone())
+            }
+    }
+
+    /// Return the data transfer object for displaying information about the individual (id, PMID, title, comment) in a GUI
+    pub fn get_individual_dto(&self) -> Result<IndividualDto> {
+        Ok(IndividualDto::new(self.pmid()?, self.title()?, self.individual_id()?, self.get_comment()?))
+    }
+
+    /// Return the data (outside of IndividualDto) as a vector of CellDtos-
+    /// TODO -- we will want to update this as we create more DTOs
+    pub fn get_cell_dtos(&self) -> Result<Vec<CellDto>> {
+        let mut dtos: Vec<CellDto> = Vec::new();
+        for val in self.content.iter().skip(4) {
+            dtos.push(CellDto::new(val));
         }
-   }
- 
+        Ok(dtos)
+    }
+
+     pub fn get_row_dto(&self) -> Result<RowDto> {
+        let individual_dto = self.get_individual_dto()?;
+        let cell_dto_list = self.get_cell_dtos()?;
+
+        Ok(RowDto::new(individual_dto, cell_dto_list))
+    }
+
 
     /// the tid_map has TermId to label
     pub fn update(
@@ -225,7 +253,6 @@ impl PpktRow {
                 return Err(Error::TemplateError { msg: format!("Could not extract from from indices") });
             }
         }
-       
     }
 
     pub fn remove_whitespace(&mut self, col: usize) -> Result<()> {
@@ -412,8 +439,8 @@ mod test {
         let mut simple_terms = hpo_util.simple_terms_from_dto(&hpo_dtos)?;
         let mut hpo_term_id_to_label_map = hpo_util.term_label_map_from_dto_list(&hpo_dtos)?;
         assert_eq!(2, simple_terms.len());
-       let updated_hdr = hdr_arc2.update_old(&simple_terms);
-       let updated_arc = Arc::new(updated_hdr);
+        let updated_hdr = hdr_arc2.update_old(&simple_terms);
+        let updated_arc = Arc::new(updated_hdr);
         let updated_ppkt = ppkt_row.update(&mut hpo_term_id_to_label_map, updated_arc);
 
         Ok(())

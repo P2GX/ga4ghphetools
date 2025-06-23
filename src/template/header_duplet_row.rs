@@ -17,6 +17,7 @@ use ontolius::term::{MinimalTerm, Term};
 use ontolius::{Identified, TermId};
 
 use crate::dto::hpo_term_dto::HpoTermDto;
+use crate::dto::template_dto::{HeaderDto, HeaderDupletDto};
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem, HeaderDupletItemFactory};
 use crate::header::hpo_separator_duplet::HpoSeparatorDuplet;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
@@ -141,7 +142,7 @@ impl Error {
     fn index_too_large(max_val: usize, n_columns: usize) -> Self {
         Error::TemplateError { 
             msg: format!("Attempt to retrieve from index i={} with a HeaderDupletRow of size {}", 
-             max_val, n_columns)
+            max_val, n_columns)
         }
     }
 
@@ -185,12 +186,12 @@ impl HeaderDupletRow {
     ) -> Result<Self> {
         let constant_duplets = HeaderIndexer::extract_mendelian_constant_duplets(&header_duplets)?;
          /// Now get the HPO columns - if we get here, we could extract the Mendelian headers
-         let mut hpo_duplet_vec = Vec::new();
-         let index = HeaderIndexer::n_constant_mendelian_columns();
-         for hdup in header_duplets.iter().skip(index) {
+        let mut hpo_duplet_vec = Vec::new();
+        let index = HeaderIndexer::n_constant_mendelian_columns();
+        for hdup in header_duplets.iter().skip(index) {
             let hpo_dup = hdup.as_hpo_term_duplet()?;
             hpo_duplet_vec.push(hpo_dup.clone()); 
-         }
+        }
         Ok(Self {
             constant_duplets:constant_duplets,
             hpo_duplets: hpo_duplet_vec,
@@ -348,8 +349,8 @@ impl HeaderDupletRow {
         }
     }
 
-      /// Get the name of the i'th column
-      pub fn get_column_name(&self, i: usize) -> Result<String> {
+    /// Get the name of the i'th column
+    pub fn get_column_name(&self, i: usize) -> Result<String> {
         if self.is_hpo_column(i) {
             let j = i - self.indexer.n_constant();
             match self.hpo_duplets.get(j) {
@@ -369,9 +370,9 @@ impl HeaderDupletRow {
 
 
     pub fn get_duplet_at_index(&self, i: usize) -> Result<HeaderDuplet> {
-       if i > self.n_columns() {
+        if i > self.n_columns() {
             return Err(Error::TemplateError { msg: format!("index out of bounds") })
-       } else if i < self.n_constant() {
+        } else if i < self.n_constant() {
             Ok(self.constant_duplets[i].clone())
         } else {
             let j = i - self.n_constant();
@@ -418,7 +419,6 @@ impl HeaderDupletRow {
             .into_iter()
             .map(|dto| (dto.term_id().to_string(), dto.clone()))
             .collect();
-      
         let mut values: Vec<String> = Vec::new();
         for hdup in &self.hpo_duplets {
             let tid = hdup.row2();
@@ -437,6 +437,16 @@ impl HeaderDupletRow {
             }
         }
         values
+    }
+
+    /// TODO THIS WILL NEED REFACTORING
+    pub fn get_header_dto(&self) -> Result<HeaderDto> {
+        let individual_dups: Vec<HeaderDupletDto> = self.constant_duplets[0..4].to_vec().iter().map(|d| d.to_dto()).collect();
+        let mut remaining_duplets: Vec<HeaderDupletDto> = self.constant_duplets[4..].to_vec().iter().map(|d| d.to_dto()).collect();
+        let hpo_dups: Vec<HeaderDupletDto> = self.hpo_duplets.iter().map(|d|d.to_header_dto()).collect();
+        remaining_duplets.extend(hpo_dups);
+        let dto = HeaderDto::mendelian(individual_dups, remaining_duplets);
+        Ok(dto)
     }
 
 

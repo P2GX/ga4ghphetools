@@ -3,6 +3,7 @@
 
 
 
+use crate::dto::template_dto::{RowDto, TemplateDto};
 use crate::dto::variant_dto::VariantDto;
 use crate::error::Error;
 use crate::hpo::hpo_util::HpoUtil;
@@ -162,6 +163,20 @@ impl PheTools {
             }
         }
     }
+
+    /// Return a Data Transfer Object to display the entire phenopacket cohort (template)
+    pub fn get_template_dto(&self) -> Result<TemplateDto, String> {
+        match &self.template {
+            Some(template) => {
+                let dto = template.get_template_dto().map_err(|e| e.to_string())?;
+                Ok(dto)
+            }
+            None => {
+                return Err(format!("Template is not initialized"));
+            }
+        }
+    }
+
 
     /// Get a focused table of values as Strings for display/export
     /// The table contains the PMID, title, individual_id, and one HPO column (only)

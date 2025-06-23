@@ -6,6 +6,7 @@
 use std::collections::HashSet;
 use lazy_static::lazy_static;
 
+use crate::dto::template_dto::{HeaderDto, HeaderDupletDto};
 use crate::template::curie;
 use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
@@ -46,6 +47,9 @@ impl HpoTermDuplet {
         Self { hpo_label: label.into(), hpo_id: identifier.into() }
     }
 
+    pub fn to_header_dto(&self) -> HeaderDupletDto {
+        HeaderDupletDto::new(&self.hpo_label, &self.hpo_id)
+    }
     
 }
 
