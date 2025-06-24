@@ -10,7 +10,7 @@ use phenopackets::schema::v2::Phenopacket;
 use prost_types::value;
 use crate::error::{self, Error, Result};
 use phenopacket_tools;
-use super::ppkt_row::{self, PpktRow};
+use super::ppkt_row::{self, PpktRowOLD};
 use phenopacket_tools::builders::builder::Builder;
 
 
@@ -34,7 +34,7 @@ impl Error {
         Error::AgeParseError { msg: msg.into() }
     }
 
-    pub fn malformed_ppkt_disease(ppkt_row: &PpktRow) -> Self {
+    pub fn malformed_ppkt_disease(ppkt_row: &PpktRowOLD) -> Self {
         let disease_id = match ppkt_row.disease_id() {
             Ok(id) => id,
             Err(_) => "?".to_string()
@@ -82,7 +82,7 @@ impl PpktExporter {
 
 
     /// Create a GA4GH Individual message
-    pub fn extract_individual(&self, ppkt_row: &PpktRow) -> Result<Individual> {
+    pub fn extract_individual(&self, ppkt_row: &PpktRowOLD) -> Result<Individual> {
         let mut idvl = Individual{ 
             id: ppkt_row.individual_id()?, 
             alternate_ids: vec![], 
@@ -141,7 +141,7 @@ impl PpktExporter {
     } 
 
     /// TODO possibly the PpktExporter has state (created, etc, also dynamically get the time string)
-    pub fn get_meta_data(&self, ppkt_row: &PpktRow) -> Result<MetaData> {
+    pub fn get_meta_data(&self, ppkt_row: &PpktRowOLD) -> Result<MetaData> {
 
         let created_by = "Earnest B. Biocurator";
         let mut meta_data = Builder::meta_data_now(created_by);
@@ -169,7 +169,7 @@ impl PpktExporter {
 
     /// Generate the phenopacket identifier from the PMID and the individual identifier
     /// TODO - improve
-    pub fn get_phenopacket_id(&self, ppkt_row: &PpktRow) -> Result<String> {
+    pub fn get_phenopacket_id(&self, ppkt_row: &PpktRowOLD) -> Result<String> {
         let pmid = ppkt_row.pmid()?.replace(":", "_");
         let individual_id = ppkt_row.individual_id()?.replace(" ", "_");
         let ppkt_id = format!("{}_{}", pmid, individual_id);
@@ -186,7 +186,7 @@ impl PpktExporter {
     }
 
     /// TODO extend for multiple diseases
-    pub fn get_disease(&self, ppkt_row: &PpktRow) -> Result<Disease> {
+    pub fn get_disease(&self, ppkt_row: &PpktRowOLD) -> Result<Disease> {
         let dx_id = Builder::ontology_class(ppkt_row.disease_id()?, ppkt_row.disease_label()?)
             .map_err(|e| Error::DiseaseIdError{msg:format!("malformed disease id")})?;
         let mut disease = Disease{ 
@@ -208,7 +208,7 @@ impl PpktExporter {
         Ok(disease)
     }
 
-    pub fn get_interpretation(&self, ppkt_row: &PpktRow) -> Result<Interpretation> {
+    pub fn get_interpretation(&self, ppkt_row: &PpktRowOLD) -> Result<Interpretation> {
 
         return Err(Error::TemplateError { msg: format!("Gettings interpretation not implemented") });
     }
@@ -216,7 +216,7 @@ impl PpktExporter {
     
 
 
-    pub fn get_phenopacket_features(&self, ppkt_row: &PpktRow) -> Result<Vec<PhenotypicFeature>> {
+    pub fn get_phenopacket_features(&self, ppkt_row: &PpktRowOLD) -> Result<Vec<PhenotypicFeature>> {
         let dto_list = ppkt_row.get_hpo_term_dto_list()?;
         let mut ppkt_feature_list: Vec<PhenotypicFeature> = Vec::with_capacity(dto_list.len());
         for dto in dto_list {
@@ -248,7 +248,7 @@ impl PpktExporter {
     }
 
 
-    pub fn export_phenopacket(&self, ppkt_row: &PpktRow) -> Result<Phenopacket> {
+    pub fn export_phenopacket(&self, ppkt_row: &PpktRowOLD) -> Result<Phenopacket> {
         let ppkt = Phenopacket{ 
             id: self.get_phenopacket_id(ppkt_row)?, 
             subject:  Some(self.extract_individual(ppkt_row)?), 

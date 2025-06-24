@@ -16,14 +16,19 @@ use polars::prelude::default_arrays;
 
 use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{CellDto, IndividualDto, RowDto};
+use crate::dto::template_dto::{CellDto, DemographicDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
+use crate::dto::validation_errors::ValidationErrors;
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem};
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::phetools_traits::TableCell;
+use crate::template::demographic_bundle::DemographicBundle;
+use crate::template::disease_bundle::DiseaseBundle;
+use crate::template::gene_variant_bundle::{self, GeneVariantBundle};
+use crate::template::individual_bundle::IndividualBundle;
 use crate::template::simple_label::SimpleLabel;
 use crate::template::disease_gene_bundle::DiseaseGeneBundle;
-use crate::template::header_duplet_row::{self, HeaderDupletRow};
+use crate::template::header_duplet_row::{self, HeaderDupletRow, HeaderDupletRowOLD};
 
 
 impl Error {
@@ -44,16 +49,97 @@ impl Error {
 }
 
 #[derive(Clone)]
-pub struct PpktRow {
+pub struct PpktRowOLD {
     /// Reference to the header, which is the same for all rows in the template
-    header_duplet_row: Arc<HeaderDupletRow>,
+    header_duplet_row: Arc<HeaderDupletRowOLD>,
     /// Contents of the row, represented as Strings.
     content: Vec<String>,
+    
 }
 
+#[derive(Clone, Debug)]
+pub struct PpktRow {
+    header: Arc<HeaderDupletRow>,
+    individual_bundle: IndividualBundle,
+    disease_bundle_list: Vec<DiseaseBundle>,
+    gene_var_bundle_list: Vec<GeneVariantBundle>,
+    demographic_bundle: DemographicBundle,
+    hpo_content: Vec<String>
+}
+
+
+
 impl PpktRow {
+    pub fn from_row(
+        header: Arc<HeaderDupletRow>,
+        content: Vec<String>
+    ) -> std::result::Result<Self, ValidationErrors> {
+        match header.template_type() {
+            crate::template::pt_template::TemplateType::Mendelian => Self::from_mendelian_row(header, content),
+            crate::template::pt_template::TemplateType::Melded => todo!(),
+        }
+    }
+
+    pub fn from_mendelian_row(
+        header: Arc<HeaderDupletRow>,
+        content: Vec<String>
+    ) -> std::result::Result<Self, ValidationErrors> {
+        let ibundle = IndividualBundle::from_row(&content)?;
+        let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
+        let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
+        let demographic_bundle = DemographicBundle::from_row(&content, 12)?;
+        let verrs = ValidationErrors::new();
+        let mut hpo_content: Vec<String> = Vec::new();
+        for item in content.iter().skip(17) {
+            hpo_content.push(item.clone());
+        }
+        Ok(Self { header: header.clone(), 
+            individual_bundle: ibundle, 
+            disease_bundle_list: vec![disease_bundle], 
+            gene_var_bundle_list: vec![gene_variant_bundle],
+            demographic_bundle: demographic_bundle, 
+            hpo_content: hpo_content 
+        })
+    }
+
+    pub fn get_individual_dto(&self) -> IndividualBundleDto {
+        let ibdl = &self.individual_bundle;
+        IndividualBundleDto::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment())
+    }
+
+    pub fn get_disease_dto_list(&self) -> Vec<DiseaseDto> {
+        let mut dto_list: Vec<DiseaseDto> = Vec::new();
+        for disease in &self.disease_bundle_list {
+            dto_list.push(disease.to_dto())
+        }
+        dto_list
+    }
+
+    pub fn get_gene_var_dto_list(&self) -> Vec<GeneVariantBundleDto> {
+        let mut gbdto_list: Vec<GeneVariantBundleDto> = Vec::new();
+        for gvb in &self.gene_var_bundle_list{
+            gbdto_list.push(gvb.to_dto());
+        }
+        gbdto_list
+    }
+
+    pub fn get_demographic_dto(&self) -> DemographicDto {
+        let dg = &self.demographic_bundle;
+        DemographicDto::new(dg.age_of_onset(), dg.age_at_last_encounter(), dg.deceased(), dg.sex())
+    }
+
+    pub fn get_hpo_dto_list(&self) -> Vec<CellDto> {
+        let mut cell_dto_list: Vec<CellDto> = Vec::new();
+        for hpo_val in &self.hpo_content {
+            cell_dto_list.push(CellDto::new(hpo_val));
+        }
+        cell_dto_list
+    }
+}
+
+impl PpktRowOLD {
     pub fn new(
-        header_duplet_row: Arc<HeaderDupletRow>,
+        header_duplet_row: Arc<HeaderDupletRowOLD>,
         content: Vec<String>,
     ) -> Self {
         Self {
@@ -62,6 +148,7 @@ impl PpktRow {
 
         }
     }
+
 
     fn get_item(&self, title: &str) -> Result<String> {
         self.header_duplet_row
@@ -171,8 +258,8 @@ impl PpktRow {
     }
 
     /// Return the data transfer object for displaying information about the individual (id, PMID, title, comment) in a GUI
-    pub fn get_individual_dto(&self) -> Result<IndividualDto> {
-        Ok(IndividualDto::new(self.pmid()?, self.title()?, self.individual_id()?, self.get_comment()?))
+    pub fn get_individual_dto(&self) -> Result<IndividualBundleDto> {
+        Ok(IndividualBundleDto::new(&self.pmid()?, &self.title()?, &self.individual_id()?, &self.get_comment()?))
     }
 
     /// Return the data (outside of IndividualDto) as a vector of CellDtos-
@@ -185,11 +272,12 @@ impl PpktRow {
         Ok(dtos)
     }
 
-     pub fn get_row_dto(&self) -> Result<RowDto> {
+    pub fn get_row_dto(&self) -> Result<RowDto> {
         let individual_dto = self.get_individual_dto()?;
         let cell_dto_list = self.get_cell_dtos()?;
 
-        Ok(RowDto::new(individual_dto, cell_dto_list))
+        //Ok(RowDto::new(individual_dto, cell_dto_list))
+        Err(Error::TemplateError { msg: format!("refactoring error") })
     }
 
 
@@ -197,7 +285,7 @@ impl PpktRow {
     pub fn update(
         &self, 
         tid_map: &mut HashMap<TermId, String>, 
-        updated_hdr: Arc<HeaderDupletRow>) 
+        updated_hdr: Arc<HeaderDupletRowOLD>) 
     -> Result<Self> {
         // update the tid map with the existing  values
         let previous_hpo_id_list = self.header_duplet_row.get_hpo_id_list()?;
@@ -284,7 +372,7 @@ impl PpktRow {
 
 
     pub fn mendelian_from(
-        header_duplet_row: Arc<HeaderDupletRow>,
+        header_duplet_row: Arc<HeaderDupletRowOLD>,
         case: CaseDto, 
         dgb: DiseaseGeneBundle, 
         hpo_values: Vec<String>, ) -> Result<Self> 
@@ -429,10 +517,10 @@ mod test {
         };
         let content = &original_matrix[2].clone();
         
-        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list).unwrap();
+        let header_duplet_row = HeaderDupletRowOLD::mendelian_from_duplets(hdup_list).unwrap();
         let hdr_arc = Arc::new(header_duplet_row);
         let hdr_arc2 = hdr_arc.clone();
-        let ppkt_row = PpktRow::new(hdr_arc, content.to_vec());
+        let ppkt_row = PpktRowOLD::new(hdr_arc, content.to_vec());
         
         assert_eq!(ppkt_row.pmid()?, "PMID:29482508");
         let hpo_util = HpoUtil::new(hpo.clone());

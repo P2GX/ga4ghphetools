@@ -10,6 +10,8 @@ use ontolius::TermId;
 use polars::series::implementations;
 use serde::Serialize;
 
+use crate::dto::validation_errors::ValidationErrors;
+
 
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -19,6 +21,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     #[from]
     Custom(String),
+    ValidationErrors(ValidationErrors),
     WhiteSpaceError {
         msg: String,
     },

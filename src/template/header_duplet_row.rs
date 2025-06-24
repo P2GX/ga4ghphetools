@@ -6,6 +6,7 @@
 
 
 use std::collections::HashMap;
+use std::hash::DefaultHasher;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::usize;
@@ -15,15 +16,24 @@ use ontolius::ontology::OntologyTerms;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::term::{MinimalTerm, Term};
 use ontolius::{Identified, TermId};
+use serde::de;
 
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{HeaderDto, HeaderDupletDto};
+use crate::dto::validation_errors::ValidationErrors;
+use crate::header::demographic_header::DemographicHeader;
+use crate::header::disease_header::DiseaseHeader;
+use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem, HeaderDupletItemFactory};
 use crate::header::hpo_separator_duplet::HpoSeparatorDuplet;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
+use crate::header::individual_header::IndividualHeader;
 use crate::header::{individual_id_duplet, variant_comment_duplet};
 use crate::header::{age_last_encounter_duplet::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, individual_id_duplet::IndividualIdDuplet, pmid_duplet::PmidDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
 use crate::error::{self, Error, Result};
+use crate::template::disease_bundle::DiseaseBundle;
+use crate::template::individual_bundle::IndividualBundle;
+use crate::template::pt_template::TemplateType;
 
 use super::header_index::HeaderIndexer;
 
@@ -57,6 +67,13 @@ const NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS: usize = 8;
 const NUMBER_OF_DEMOGRAPHIC_FIELDS: usize = 4;
 /// Separator field (HPO/na)
 const NUMBER_OF_SEPARATOR_FIELDS: usize = 1;
+
+const INDIVIDUAL_IDX: usize = 0;
+const DISEASE_IDX: usize = 4;
+const GENE_VAR_IDX: usize = 6;
+const DEMOGRAPHIC_IDX: usize = 12;
+const SEPARATOR_IDX: usize = 16;
+const HPO_SECTION_IDX: usize = 17;
 
 /// The header duplet has the following sections.
 /// Note that Mendelian does not have a DiseaseGeneBundleMelded section
@@ -161,13 +178,101 @@ impl Error {
 
 
 
+#[derive(Clone, Debug)]
+pub struct HeaderDupletRow {
+    individual_header: IndividualHeader,
+    disease_header_list: Vec<DiseaseHeader>,
+    gene_variant_header_list: Vec<GeneVariantHeader>,
+    demographic_header: DemographicHeader,
+    hpo_duplets: Vec<HpoTermDuplet>,
+    template_type: TemplateType,
+}
 
+
+impl HeaderDupletRow {
+    pub fn mendelian(matrix: &Vec<Vec<String>>) -> std::result::Result<Self, ValidationErrors> {
+        Self::qc_matrix_dimensions(matrix)?;
+        let verror = ValidationErrors::new();
+        let disease_idx = 4; // start of disease block
+        let gene_var_idx = 6; // start of gene/variant block
+        let demograph_idx = 13; // start of the demographic block
+        /// first Q/C the constant part of the Mendelian header
+        let iheader = IndividualHeader::from_matrix(matrix)?;
+        let dheader = DiseaseHeader::from_matrix(matrix, disease_idx)?;
+        let gheader = GeneVariantHeader::from_matrix(matrix, gene_var_idx)?;
+        let demoheader = DemographicHeader::from_matrix(matrix, demograph_idx)?;
+        
+        /// If we get here, the constant part is OK and we can check the HPO columns
+        let mut hpo_duplet_list: Vec<HpoTermDuplet> = Vec::new();
+        let index = HeaderIndexer::n_constant_mendelian_columns();
+        let N = matrix[0].len(); // if we get here, we know we have enough rows
+        for i in index..N {
+            let hdup = HpoTermDuplet::new(&matrix[i][0], &matrix[i][1]);
+            hpo_duplet_list.push(hdup);
+        }
+        Ok(Self { 
+            individual_header: iheader, 
+            disease_header_list: vec![DiseaseHeader::new()], 
+            gene_variant_header_list: vec![GeneVariantHeader::new()], 
+            demographic_header: demoheader,
+            hpo_duplets: hpo_duplet_list,
+            template_type: TemplateType::Mendelian
+        })
+    }
+    //Err(ValidationErrors::new())
+
+
+
+
+    fn qc_matrix_dimensions(matrix: &Vec<Vec<String>>) -> std::result::Result<(), ValidationErrors> {
+        let n_rows = matrix.len();
+        let mut verr = ValidationErrors::new();
+        if n_rows < 3 {
+            verr.push_str(format!("Empty matrix - must have two header rows and at least one data row but had {}", n_rows));
+        }
+        let n_cols = matrix[0].len();
+        for (i, row) in matrix.iter().enumerate() {
+            let cols = row.len();
+            if cols != n_cols {
+                verr.push_str(format!("First row has {n_cols} columns but row {i} has {cols}"))
+            }
+        }
+        if verr.has_error() {
+            Err(verr)
+        } else {
+            Ok(())
+        }
+    }
+
+       /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
+    /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
+    /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
+    pub fn update(&self, updated_hpo_duplets: &Vec<HpoTermDuplet>) -> std::result::Result<Self, ValidationErrors> {
+         Ok(Self { 
+            individual_header: self.individual_header.clone(), 
+            disease_header_list: self.disease_header_list.clone(), 
+            gene_variant_header_list: self.gene_variant_header_list.clone(), 
+            demographic_header: self.demographic_header.clone(),
+            hpo_duplets: updated_hpo_duplets.clone(),
+            template_type: self.template_type.clone()
+        })
+    }
+
+    pub fn hpo_count(&self) -> usize {
+        self.hpo_duplets.len()
+    }
+
+    pub fn template_type(&self) -> &TemplateType {
+        &self.template_type
+    }
+
+}
 
 
 
 
 #[derive(Clone, Debug)]
-pub struct HeaderDupletRow {
+pub struct HeaderDupletRowOLD {
    /// Columns to represent the constant fields
     constant_duplets: Vec<HeaderDuplet>,
     /// Section types of the HeaderDuplets
@@ -177,7 +282,7 @@ pub struct HeaderDupletRow {
     indexer: HeaderIndexer,
 }
 
-impl HeaderDupletRow {
+impl HeaderDupletRowOLD {
     /// The first part of the pipeline to go from a matrix of strings to a PptTemplate is to extract HeaderDuplets from the
     /// first two rows. This method checks their validty and creates a Mendelian HeaderDupletRow with constant and HPO columns
     /// The validity of the HPO TermId and label in the DTOs should have been checked before we get to this function.
@@ -263,9 +368,7 @@ impl HeaderDupletRow {
         })       
     }
 
-    fn qc_header(&self) -> Result<()> {
-        todo!()
-    }
+   
 
     pub fn get_idx(&self, column_name: &str) -> Result<usize> {
         self.indexer.get_idx(column_name)
@@ -449,6 +552,18 @@ impl HeaderDupletRow {
         Ok(dto)
     }
 
+    /// TODO part of refactoring.
+    /// If an input file is for a Mendelian cohort, then we will parse
+    /// 1. IndividualBundle
+    /// 2. DiseaseBundle
+    /// 3. GeneVariantBundle
+    /// 4. HPO columns
+    /// The first three have precise lengths and formats, return an error with any inconsistency.
+    pub fn extract_from_mendelian_matrix(matrix: &Vec<Vec<String>>) -> Result<Self> {
+
+        Err(Error::TemplateError { msg : format!("ouch")})
+     }
+
 
 }
 
@@ -477,7 +592,7 @@ mod test {
     #[rstest]
     fn test_n_fields() {
         /// We expect a total of 17 fields before the HPO Term fields start
-        assert_eq!(17, HeaderDupletRow::n_mendelian_contant_fields())
+        assert_eq!(17, HeaderDupletRowOLD::n_mendelian_contant_fields())
     }
 
 
@@ -491,7 +606,7 @@ mod test {
                 return Err(e); 
             }
         };
-        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list)?;
+        let header_duplet_row = HeaderDupletRowOLD::mendelian_from_duplets(hdup_list)?;
         let hpo_duplete_list = header_duplet_row.get_hpo_duplets();
         assert_eq!(2, hpo_duplete_list.len());
         // Add one term

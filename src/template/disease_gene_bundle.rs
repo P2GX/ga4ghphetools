@@ -8,6 +8,7 @@ use std::str::FromStr;
 use crate::error::{self, Error, Result};
 use ontolius::TermId;
 
+#[derive(Clone, Debug)]
 pub struct DiseaseGeneBundle {
     /// A CURIE representing a disease identifier (e.g., OMIM:256550)
     disease_id: TermId,

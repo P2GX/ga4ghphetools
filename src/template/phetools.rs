@@ -205,7 +205,7 @@ impl PheTools {
     ) -> Result<(), String> 
     {
         let hpo_arc = self.hpo.clone();
-        match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc) {
+        match PheToolsTemplate::from_mendelian_templateOLD(matrix, hpo_arc) {
             Ok(ppt) => {
                 self.template = Some(ppt);
                 Ok(())

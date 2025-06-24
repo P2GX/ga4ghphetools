@@ -15,16 +15,16 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{RowDto, TemplateDto}}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::{PpktRow, PpktRowOLD}}, template::header_duplet_row::HeaderDupletRow};
 use crate::{
     template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
 };
 
-use super::{header_duplet_row::HeaderDupletRow, header_index::HeaderIndexer, operations::Operation};
+use super::{header_duplet_row::HeaderDupletRowOLD, header_index::HeaderIndexer, operations::Operation};
 
 /// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
-#[derive(Debug,PartialEq)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum TemplateType {
     Mendelian,
     Melded,
@@ -32,12 +32,12 @@ pub enum TemplateType {
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
 pub struct PheToolsTemplate {
-    header: Arc<HeaderDupletRow>,
+    header: Arc<HeaderDupletRowOLD>,
     template_type: TemplateType,
      /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
      /// One row for each individual (phenopacket) in the cohort
-    ppkt_rows: Vec<PpktRow>
+    ppkt_rows: Vec<PpktRowOLD>
 }
 
 const PMID_COL: usize = 0;
@@ -84,7 +84,7 @@ impl PheToolsTemplate {
                 }
             }
         }
-        let header_dup_row = HeaderDupletRow::mendelian(hp_header_duplet_list);
+        let header_dup_row = HeaderDupletRowOLD::mendelian(hp_header_duplet_list);
         let hdr_arc = Arc::new(header_dup_row);
         Ok(Self {
             header: hdr_arc,
@@ -152,8 +152,30 @@ impl PheToolsTemplate {
         Ok(result)
     }
 
+
+
+     pub fn from_mendelian_template(
+        matrix: Vec<Vec<String>>,
+        hpo: Arc<FullCsrOntology>,
+    ) -> std::result::Result<Self, ValidationErrors> {
+        let verrs = ValidationErrors::new();
+        let header = HeaderDupletRow::mendelian(&matrix)?;
+
+        const HEADER_ROWS: usize = 2; // first two rows of template are header
+        let hdr_arc = Arc::new(header);
+        let mut ppt_rows: Vec<PpktRow> = Vec::new();
+        for row in matrix.into_iter().skip(HEADER_ROWS) {
+            let hdr_clone = hdr_arc.clone();
+            let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
+            ppt_rows.push(ppkt_row);
+        }
+
+        Err(verrs)
+
+    }
+
     /// Create a PtTemplate from a tabular input file
-    pub fn from_mendelian_template(
+    pub fn from_mendelian_templateOLD(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<Self, Error> {
@@ -174,13 +196,13 @@ impl PheToolsTemplate {
         let hpo_util = HpoUtil::new(hpo.clone());
         let _ = hpo_util.check_hpo_duplets(&hdup_list)?;
         let hpo_arc = hpo.clone();
-        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list)?;
+        let header_duplet_row = HeaderDupletRowOLD::mendelian_from_duplets(hdup_list)?;
         let hdr_arc = Arc::new(header_duplet_row);
         const HEADER_ROWS: usize = 2; // first two rows of template are header
-        let mut ppt_rows: Vec<PpktRow> = Vec::new();
+        let mut ppt_rows: Vec<PpktRowOLD> = Vec::new();
         for row in matrix.into_iter().skip(HEADER_ROWS) {
             let hdr_clone = hdr_arc.clone();
-            let ppkt_row = PpktRow::new(hdr_clone, row);
+            let ppkt_row = PpktRowOLD::new(hdr_clone, row);
             ppt_rows.push(ppkt_row);
         }
         Ok(Self { 
@@ -335,7 +357,7 @@ impl PheToolsTemplate {
         let update_hdr = self.header.update_old(&arranged_terms);
         let updated_hdr_arc = Arc::new(update_hdr);
         // 3b. Update the existing PpktRow objects
-        let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
+        let mut updated_ppkt_rows: Vec<PpktRowOLD> = Vec::new();
         for ppkt in &self.ppkt_rows {
             let mut term_id_map: HashMap<TermId, String> = HashMap::new();
                 for term in &arranged_terms {
@@ -347,7 +369,7 @@ impl PheToolsTemplate {
         /// Now add the new phenopacket
         let hpo_cell_values = updated_hdr_arc.get_hpo_row(&hpo_dto_items);
         let dgb = self.get_mendelian_disease_gene_bundle()?;
-        let new_ppkt = PpktRow::mendelian_from( updated_hdr_arc.clone(), case_dto, dgb, hpo_cell_values)?;
+        let new_ppkt = PpktRowOLD::mendelian_from( updated_hdr_arc.clone(), case_dto, dgb, hpo_cell_values)?;
         updated_ppkt_rows.push(new_ppkt);
         self.header = updated_hdr_arc;
         self.ppkt_rows = updated_ppkt_rows;
@@ -573,7 +595,7 @@ mod test {
     fn test_factory_valid_input(
         original_matrix: Vec<Vec<String>>, 
         hpo: Arc<FullCsrOntology>) {
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let factory = PheToolsTemplate::from_mendelian_templateOLD(original_matrix, hpo);
         assert!(factory.is_ok());
     }
 
@@ -582,7 +604,7 @@ mod test {
     fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
         // "Hallux valgus" has extra white space
         original_matrix[0][19] = "Hallux  valgus".to_string(); 
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let factory = PheToolsTemplate::from_mendelian_templateOLD(original_matrix, hpo);
         assert!(&factory.is_err());
         assert!(matches!(&factory, Err(Error::HpoError { .. })));
         let err = factory.err().unwrap();
@@ -622,7 +644,7 @@ mod test {
         #[case] expected_label: &str) {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
-        let pt_template = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let pt_template = PheToolsTemplate::from_mendelian_templateOLD(original_matrix, hpo);
         assert!(&pt_template.is_err());
         assert!(matches!(&pt_template, Err(Error::HeaderError { .. })));
         let err = pt_template.err().unwrap();
@@ -670,7 +692,7 @@ mod test {
         #[case] error_msg: &str) 
     {
         original_matrix[2][idx] = entry.to_string();
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let factory = PheToolsTemplate::from_mendelian_templateOLD(original_matrix, hpo);
         assert!(factory.is_ok());
         let factory = factory.unwrap();
        /*  let templates = factory.get_templates().unwrap();

@@ -13,8 +13,10 @@ pub mod allele_2_duplet;
 mod allele_util;
 pub mod comment_duplet;
 pub mod deceased_duplet;
+
 pub mod disease_id_duplet;
 pub mod disease_label_duplet;
+pub mod duplet_item;
 pub mod gene_symbol_duplet;
 pub mod header_duplet;
 pub mod hgnc_duplet;
@@ -26,3 +28,9 @@ pub mod sex_duplet;
 pub mod title_duplet;
 pub mod transcript_duplet;
 pub mod variant_comment_duplet;
+
+/// NEW
+pub mod demographic_header;
+pub mod disease_header;
+pub mod gene_variant_header;
+pub mod individual_header;

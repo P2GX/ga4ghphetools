@@ -172,6 +172,9 @@ impl HeaderDuplet {
         Ok(header_duplet_list)
     }
 
+
+   
+
     pub fn get_duplet(title: &str) -> Option<Self> {
         TITLE_MAP.get(title).cloned()
     }

@@ -1,0 +1,82 @@
+use std::sync::Arc;
+use once_cell::sync::Lazy;
+
+use crate::{dto::{template_dto::GeneVariantBundleDto, validation_errors::ValidationErrors}, header::gene_variant_header::GeneVariantHeader};
+
+
+static SHARED_HEADER: Lazy<Arc<GeneVariantHeader>> = Lazy::new(|| {
+    Arc::new(GeneVariantHeader::new())
+});
+
+#[derive(Clone, Debug)]
+pub struct GeneVariantBundle {
+    header: Arc<GeneVariantHeader>,
+    pub(crate) hgnc_id: String,
+    pub(crate) gene_symbol: String,
+    pub(crate) transcript: String,
+    pub(crate) allele1: String,
+    pub(crate) allele2: String,
+    pub(crate) variant_comment: String,
+}
+
+
+impl GeneVariantBundle {
+    pub fn new(
+        hgnc_id: &str,
+        gene_symbol: &str,
+        transcript: &str,
+        allele1: &str,
+        allele2: &str,
+        variant_comment: &str) 
+    -> Self {
+        Self { 
+            header: SHARED_HEADER.clone(), 
+            hgnc_id: hgnc_id.to_string(), 
+            gene_symbol: gene_symbol.to_string(), 
+            transcript: transcript.to_string(), 
+            allele1: allele1.to_string(), 
+            allele2: allele2.to_string(), 
+            variant_comment: variant_comment.to_string()
+        }
+    }
+
+      // Start index is the index in the template matrix where this block of columns starts
+    pub fn from_row(
+        row: &Vec<String>,
+        start_idx: usize
+    ) -> std::result::Result<Self, ValidationErrors> {
+        let mut i = start_idx;
+        let bundle = Self::new(&row[i], &row[i+1],&row[i+2],&row[i+3],&row[i+4],&row[i+5]);
+        let _ = bundle.do_qc()?;
+        Ok(bundle)
+    }
+
+    pub fn do_qc(&self) -> Result<(), ValidationErrors> {
+        self.header.qc_bundle(self)?;
+        Ok(())
+    }
+
+    pub fn to_dto(&self) -> GeneVariantBundleDto {
+        GeneVariantBundleDto:: new(self.hgnc_id(), self.gene_symbol(), self.transcript(), self.allele1(), self.allele2(), self.variant_comment())
+    }
+
+    pub fn  hgnc_id(&self) -> &str {
+        &self.hgnc_id
+    }
+
+    pub fn  gene_symbol(&self) -> &str{
+        &self.gene_symbol
+    }
+    pub fn transcript(&self) -> &str{
+        &self.transcript
+    }
+    pub fn allele1(&self) -> &str{
+        &self.allele1
+    }
+    pub fn  allele2(&self)  ->&str{
+        &self.allele2
+    }
+    pub fn variant_comment(&self)  ->&str{
+        &self.variant_comment
+    }
+}
