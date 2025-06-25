@@ -10,7 +10,7 @@ use phenopackets::schema::v2::Phenopacket;
 use prost_types::value;
 use crate::error::{self, Error, Result};
 use phenopacket_tools;
-use super::ppkt_row::{self, PpktRowOLD};
+use super::ppkt_row::{self, PpktRow};
 use phenopacket_tools::builders::builder::Builder;
 
 
@@ -34,18 +34,6 @@ impl Error {
         Error::AgeParseError { msg: msg.into() }
     }
 
-    pub fn malformed_ppkt_disease(ppkt_row: &PpktRowOLD) -> Self {
-        let disease_id = match ppkt_row.disease_id() {
-            Ok(id) => id,
-            Err(_) => "?".to_string()
-        };
-        let disease_label = match ppkt_row.disease_label() {
-            Ok(id) => id,
-            Err(_) => "?".to_string()
-        };
-        let msg = format!("Malformed PpktRow disease: {} ({})", disease_label, disease_id);
-        Error::TemplateError { msg }
-    }
 }
 
 
@@ -82,9 +70,11 @@ impl PpktExporter {
 
 
     /// Create a GA4GH Individual message
-    pub fn extract_individual(&self, ppkt_row: &PpktRowOLD) -> Result<Individual> {
+    pub fn extract_individual(&self, ppkt_row: &PpktRow) -> Result<Individual> {
+        let individual_dto = ppkt_row.get_individual_dto();
+        let demographic_dto = ppkt_row.get_demographic_dto();
         let mut idvl = Individual{ 
-            id: ppkt_row.individual_id()?, 
+            id: individual_dto.individual_id, 
             alternate_ids: vec![], 
             date_of_birth: None, 
             time_at_last_encounter: None, 
@@ -93,22 +83,21 @@ impl PpktExporter {
             karyotypic_sex: KaryotypicSex::UnknownKaryotype.into(), 
             gender: None, 
             taxonomy: None };
-        match ppkt_row.sex()?.as_ref() {
+        match demographic_dto.sex.as_ref() {
             "M" => idvl.sex = Sex::Male.into(),
             "F" => idvl.sex = Sex::Female.into(),
             "O" => idvl.sex = Sex::OtherSex.into(),
             "U" => idvl.sex = Sex::UnknownSex.into(),
-            _ => { return Err(Error::TemplateError { msg: format!("Did not recognize sex string '{}'", ppkt_row.sex()?) });
+            _ => { return Err(Error::TemplateError { msg: format!("Did not recognize sex string '{}'", demographic_dto.sex) });
             }
         };
-        let age_last_encounter = ppkt_row.age_at_last_encounter()?;
-        if age_last_encounter != "na" {
-            let age = time_element_from_str(&age_last_encounter)
+        let last_enc = demographic_dto.age_at_last_encounter;
+        if last_enc != "na" {
+            let age = time_element_from_str(&last_enc)
                 .map_err(|e| Error::malformed_time_element(e.to_string()))?;
             idvl.time_at_last_encounter = Some(age);
         }
-        let deceased = ppkt_row.deceased()?;
-        if deceased == "yes" {
+        if demographic_dto.deceased == "yes" {
             idvl.vital_status = Some(VitalStatus{ 
                 status: Status::Deceased.into(), 
                 time_of_death: None, 
@@ -141,7 +130,7 @@ impl PpktExporter {
     } 
 
     /// TODO possibly the PpktExporter has state (created, etc, also dynamically get the time string)
-    pub fn get_meta_data(&self, ppkt_row: &PpktRowOLD) -> Result<MetaData> {
+    pub fn get_meta_data(&self, ppkt_row: &PpktRow) -> Result<MetaData> {
 
         let created_by = "Earnest B. Biocurator";
         let mut meta_data = Builder::meta_data_now(created_by);
@@ -149,14 +138,13 @@ impl PpktExporter {
         let geno = phenopacket_tools::builders::resources::Resources::geno_version(self.geno_version());
         let so = phenopacket_tools::builders::resources::Resources::geno_version(self.so_version());
         let omim = phenopacket_tools::builders::resources::Resources::omim_version(self.omim_version());
+        let indvl_dto = ppkt_row.get_individual_dto();
         // TODO add HGNC
         //let hgnc =  phenopacket_tools::builders::resources::Resources::hgnc_version(self.omim_version());
-        let pmid = ppkt_row.pmid()?;
-        let title = ppkt_row.title()?;
         let ext_res = ExternalReference{ 
-            id: pmid, 
+            id: indvl_dto.pmid, 
             reference: String::default(), 
-            description: title 
+            description: indvl_dto.title 
         };
         meta_data.resources.push(hpo);
         meta_data.resources.push(geno);
@@ -169,9 +157,10 @@ impl PpktExporter {
 
     /// Generate the phenopacket identifier from the PMID and the individual identifier
     /// TODO - improve
-    pub fn get_phenopacket_id(&self, ppkt_row: &PpktRowOLD) -> Result<String> {
-        let pmid = ppkt_row.pmid()?.replace(":", "_");
-        let individual_id = ppkt_row.individual_id()?.replace(" ", "_");
+    pub fn get_phenopacket_id(&self, ppkt_row: &PpktRow) -> Result<String> {
+        let individual_dto = ppkt_row.get_individual_dto();
+        let pmid = individual_dto.pmid.replace(":", "_");
+        let individual_id = individual_dto.individual_id.replace(" ", "_");
         let ppkt_id = format!("{}_{}", pmid, individual_id);
         let ppkt_id = ppkt_id.replace("__", "_");
         /* TODO remove trailing "_" 
@@ -186,8 +175,13 @@ impl PpktExporter {
     }
 
     /// TODO extend for multiple diseases
-    pub fn get_disease(&self, ppkt_row: &PpktRowOLD) -> Result<Disease> {
-        let dx_id = Builder::ontology_class(ppkt_row.disease_id()?, ppkt_row.disease_label()?)
+    pub fn get_disease(&self, ppkt_row: &PpktRow) -> Result<Disease> {
+        let disease_list = ppkt_row.get_disease_dto_list();
+        if disease_list.is_empty() {
+            return Err(Error::TemplateError { msg: format!("todo empty disease") });
+        }
+        let dto = disease_list[0].clone();
+        let dx_id = Builder::ontology_class(dto.disease_id, dto.disease_label)
             .map_err(|e| Error::DiseaseIdError{msg:format!("malformed disease id")})?;
         let mut disease = Disease{ 
             term: Some(dx_id), 
@@ -199,7 +193,8 @@ impl PpktExporter {
             primary_site: None, 
             laterality: None 
         };
-        let onset = ppkt_row.age_of_onset()?;
+        let demo_dto = ppkt_row.get_demographic_dto();
+        let onset = demo_dto.age_of_onset;
         if onset != "na" {
             let age = time_element_from_str(&onset)
                 .map_err(|e| Error::malformed_time_element(e.to_string()))?;
@@ -208,7 +203,7 @@ impl PpktExporter {
         Ok(disease)
     }
 
-    pub fn get_interpretation(&self, ppkt_row: &PpktRowOLD) -> Result<Interpretation> {
+    pub fn get_interpretation(&self, ppkt_row: &PpktRow) -> Result<Interpretation> {
 
         return Err(Error::TemplateError { msg: format!("Gettings interpretation not implemented") });
     }
@@ -216,12 +211,11 @@ impl PpktExporter {
     
 
 
-    pub fn get_phenopacket_features(&self, ppkt_row: &PpktRowOLD) -> Result<Vec<PhenotypicFeature>> {
+    pub fn get_phenopacket_features(&self, ppkt_row: &PpktRow) -> Result<Vec<PhenotypicFeature>> {
         let dto_list = ppkt_row.get_hpo_term_dto_list()?;
         let mut ppkt_feature_list: Vec<PhenotypicFeature> = Vec::with_capacity(dto_list.len());
         for dto in dto_list {
-            println!("{:?}", & dto);
-            if dto.is_not_ascertained() {
+            if ! dto.is_ascertained() {
                 continue;
             }
             let hpo_term = Builder::ontology_class(dto.term_id(), dto.label())
@@ -248,7 +242,7 @@ impl PpktExporter {
     }
 
 
-    pub fn export_phenopacket(&self, ppkt_row: &PpktRowOLD) -> Result<Phenopacket> {
+    pub fn export_phenopacket(&self, ppkt_row: &PpktRow) -> Result<Phenopacket> {
         let ppkt = Phenopacket{ 
             id: self.get_phenopacket_id(ppkt_row)?, 
             subject:  Some(self.extract_individual(ppkt_row)?), 

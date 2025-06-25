@@ -248,7 +248,7 @@ impl HeaderDupletRow {
     /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
     /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
     pub fn update(&self, updated_hpo_duplets: &Vec<HpoTermDuplet>) -> std::result::Result<Self, ValidationErrors> {
-         Ok(Self { 
+        Ok(Self { 
             individual_header: self.individual_header.clone(), 
             disease_header_list: self.disease_header_list.clone(), 
             gene_variant_header_list: self.gene_variant_header_list.clone(), 
@@ -264,6 +264,61 @@ impl HeaderDupletRow {
 
     pub fn template_type(&self) -> &TemplateType {
         &self.template_type
+    }
+
+    pub fn get_hpo_term_dto_list(&self, values: &Vec<String>) 
+    -> std::result::Result<Vec<HpoTermDto>, String> {
+        let mut hpo_dto_list = Vec::new();
+        if self.hpo_count() != values.len() {
+            return Err(format!("Expects {} HPO columns but got {}",
+                self.hpo_count(), values.len()));
+        }
+        for (i, cell_contents) in values.iter().enumerate() {
+            let hpo_label = self.hpo_duplets[i].row1();
+            let hpo_id = self.hpo_duplets[i].row2();
+            let dto = HpoTermDto::new(hpo_id, hpo_label, cell_contents);
+            hpo_dto_list.push(dto);
+        }
+
+        Ok(hpo_dto_list)
+    }
+
+    /// Total number of columns in the template, including separator column
+    pub fn n_columns(&self) -> usize {
+        4 + 2*self.disease_header_list.len() + 6*self.gene_variant_header_list.len() + 4 + self.hpo_duplets.len() +1
+    }
+
+
+    /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
+    /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
+    /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
+    pub fn update_old(&self, term_list: &Vec<SimpleTerm>) -> Self {
+        let updated_hpo_duplets: Vec<HpoTermDuplet> = term_list
+            .iter()
+            .map(|term| HpoTermDuplet::new(term.name(), &term.identifier().to_string()))
+            .collect();
+        Self {
+            individual_header: self.individual_header.clone(),
+            disease_header_list: self.disease_header_list.clone(),
+            gene_variant_header_list: self.gene_variant_header_list.clone(),
+            demographic_header: self.demographic_header.clone(),
+            hpo_duplets: updated_hpo_duplets,
+            template_type: self.template_type,
+        }       
+    }
+    
+    pub fn get_hpo_id_list(&self) -> Result<Vec<TermId>> {
+        self.hpo_duplets
+            .iter()
+            .map(|duplet| {
+                TermId::from_str(&duplet.row2())
+                    .map_err(|_| Error::termid_parse_error(&duplet.row2()))
+            })
+            .collect()
+    }
+
+    pub fn get_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
+        self.hpo_duplets.clone()
     }
 
 }
@@ -340,21 +395,7 @@ impl HeaderDupletRowOLD {
         }
     }
 
-    /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
-    /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
-    /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
-    pub fn update_old(&self, term_list: &Vec<SimpleTerm>) -> Self {
-        let updated_hpo_duplets: Vec<HpoTermDuplet> = term_list
-            .iter()
-            .map(|term| HpoTermDuplet::new(term.name(), &term.identifier().to_string()))
-            .collect();
-        Self { 
-            constant_duplets: self.constant_duplets.clone(), 
-            section_type_list: self.section_type_list.clone(), 
-            hpo_duplets: updated_hpo_duplets, 
-            indexer: self.indexer.clone() 
-        }          
-    }
+  
 
     /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
     /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
@@ -418,7 +459,7 @@ impl HeaderDupletRowOLD {
 
 
 
-    /// return a String matrix (two rows) representing the header
+    /* 
     pub fn get_string_matrix(&self) -> Vec<Vec<String>> {
         let mut row1: Vec<String> = Vec::with_capacity(self.n_columns());
         let mut row2: Vec<String> = Vec::with_capacity(self.n_columns());
@@ -432,16 +473,10 @@ impl HeaderDupletRowOLD {
         }
         let rows: Vec<Vec<String>> = vec![row1, row2];
         rows
-    }
+    }*/
 
-    pub fn n_columns(&self) -> usize {
-        if self.indexer.is_mendelian() {
-            return N_CONSTANT_FIELDS_MENDELIAN + self.hpo_duplets.len();
-        } else {
-            panic!("Need to implement n_columns for melded");
-        }
-    }
-
+    
+    /* 
     pub fn is_hpo_column(&self, i: usize) -> bool {
         if self.indexer.is_constant_idx(i) {
             return false;
@@ -450,11 +485,11 @@ impl HeaderDupletRowOLD {
         } else {
             return true;
         }
-    }
+    }*/
 
     /// Get the name of the i'th column
     pub fn get_column_name(&self, i: usize) -> Result<String> {
-        if self.is_hpo_column(i) {
+        /*if self.is_hpo_column(i) {
             let j = i - self.indexer.n_constant();
             match self.hpo_duplets.get(j) {
                 Some(hpo_col) => { Ok(hpo_col.row1())  },
@@ -462,7 +497,8 @@ impl HeaderDupletRowOLD {
             }
         } else {
             return self.indexer.get_column_name(i);
-        }
+        }*/
+        Ok("todo getcolumnname".to_ascii_lowercase())
     }
 
 
@@ -473,18 +509,19 @@ impl HeaderDupletRowOLD {
 
 
     pub fn get_duplet_at_index(&self, i: usize) -> Result<HeaderDuplet> {
-        if i > self.n_columns() {
+       /* if i > self.n_columns() {
             return Err(Error::TemplateError { msg: format!("index out of bounds") })
         } else if i < self.n_constant() {
             Ok(self.constant_duplets[i].clone())
         } else {
             let j = i - self.n_constant();
             Ok(self.hpo_duplets[j].clone().into_enum())
-        }
+        } */
+        return Err(Error::TemplateError { msg: format!("    pub fn get_duplet_at_index REFCTOR") })
     }
 
     pub fn get_selected_columns(&self, indices: &Vec<usize>) -> Result<Vec<Vec<String>>> {
-        if let Some(&max_val) = indices.iter().max() {
+        /*if let Some(&max_val) = indices.iter().max() {
             if max_val > self.n_columns() {
                 return Err(Error::index_too_large(max_val, self.n_columns()));
             }
@@ -492,10 +529,10 @@ impl HeaderDupletRowOLD {
             return Err(Error::indices_empty());
         }
         let rows: Vec<Vec<String>> = Vec::new();
+        */
 
+        Err(Error::TemplateError { msg: format!("    pub fn get_selected_columns REFCTOR") })
 
-
-        Ok(rows)
     }
 
     /// Get the index of the first HPO term
@@ -503,19 +540,7 @@ impl HeaderDupletRowOLD {
         self.constant_duplets.len()
     }
 
-    pub fn get_hpo_id_list(&self) -> Result<Vec<TermId>> {
-        self.hpo_duplets
-        .iter()
-        .map(|duplet| {
-            TermId::from_str(&duplet.row2())
-                .map_err(|_| Error::termid_parse_error(&duplet.row2()))
-        })
-        .collect()
-    }
-
-    pub fn get_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
-        self.hpo_duplets.clone()
-    }
+   
 
     pub fn get_hpo_row(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Vec<String> {
         let hpo_map: HashMap<String, HpoTermDto> = hpo_dto_list

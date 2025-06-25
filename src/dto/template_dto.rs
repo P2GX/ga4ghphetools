@@ -151,7 +151,7 @@ impl RowDto {
             disease_dto_list: ppkt_row.get_disease_dto_list(), 
             gene_var_dto_list: ppkt_row.get_gene_var_dto_list(), 
             demographic_dto: ppkt_row.get_demographic_dto(), 
-            hpo_data: ppkt_row.get_hpo_dto_list()
+            hpo_data: ppkt_row.get_hpo_value_list()
         }
     }
 }

@@ -48,14 +48,7 @@ impl Error {
     }
 }
 
-#[derive(Clone)]
-pub struct PpktRowOLD {
-    /// Reference to the header, which is the same for all rows in the template
-    header_duplet_row: Arc<HeaderDupletRowOLD>,
-    /// Contents of the row, represented as Strings.
-    content: Vec<String>,
-    
-}
+
 
 #[derive(Clone, Debug)]
 pub struct PpktRow {
@@ -128,28 +121,40 @@ impl PpktRow {
         DemographicDto::new(dg.age_of_onset(), dg.age_at_last_encounter(), dg.deceased(), dg.sex())
     }
 
-    pub fn get_hpo_dto_list(&self) -> Vec<CellDto> {
+    pub fn get_hpo_value_list(&self) -> Vec<CellDto> {
         let mut cell_dto_list: Vec<CellDto> = Vec::new();
         for hpo_val in &self.hpo_content {
             cell_dto_list.push(CellDto::new(hpo_val));
         }
         cell_dto_list
     }
-}
 
-impl PpktRowOLD {
-    pub fn new(
-        header_duplet_row: Arc<HeaderDupletRowOLD>,
-        content: Vec<String>,
-    ) -> Self {
-        Self {
-            header_duplet_row,
-            content: content,
-
-        }
+    pub fn get_hpo_term_dto_list(&self) -> std::result::Result<Vec<HpoTermDto>, String> {
+        self.header.get_hpo_term_dto_list(&self.hpo_content).map_err(|e| e.to_string())
     }
 
 
+    pub fn mendelian_from(
+        header_duplet_row: Arc<HeaderDupletRow>,
+        case: CaseDto, 
+        dgb: DiseaseGeneBundle, 
+        hpo_values: Vec<String>, ) -> Result<Self> 
+    {
+        let mut values: Vec<String> = case.individual_values();
+        values.extend(dgb.values());
+        values.extend(case.variant_values());
+        values.push("na".to_string()); // separator
+        values.extend(hpo_values);
+       /*  Ok(Self {
+            header_duplet_row: header_duplet_row,
+            content: values
+        })*/
+        Err(Error::custom("mendelian_from-refacot"))
+    }
+}
+
+/*
+    
     fn get_item(&self, title: &str) -> Result<String> {
         self.header_duplet_row
         .get_idx(title)
@@ -161,93 +166,7 @@ impl PpktRowOLD {
         })
     }
 
-    pub fn individual_id(&self) -> Result<String> {
-        self.get_item("individual_id")
-    }
-
-    pub fn pmid(&self) -> Result<String> {
-        self.get_item("PMID")
-    }
-
-    pub fn title(&self) -> Result<String> {
-        self.get_item("title")
-    }
-
-    pub fn get_comment(&self) -> Result<String> {
-        self.get_item("comment")
-    }
-
-    pub fn disease_id(&self) -> Result<String> {
-        self.get_item("disease_id")
-    }
-
-    pub fn disease_label(&self) -> Result<String> {
-        self.get_item("disease_label")
-    }
-
-    pub fn hgnc_id(&self) -> Result<String> {
-        self.get_item("hgnc_id")
-    }
-
-    pub fn gene_symbol(&self) -> Result<String> {
-        self.get_item("gene_symbol")
-    }
-
-    pub fn transcript_id(&self) -> Result<String> {
-        self.get_item("transcript_id")
-    }
-
-    pub fn allele_1(&self) -> Result<String> {
-        self.get_item("allele_1")
-    }
-
-    pub fn allele_2(&self) -> Result<String> {
-        self.get_item("allele_2")
-    }
-
-    pub fn age_of_onset(&self) -> Result<String> {
-        self.get_item("age_of_onset")
-    }
-
-    pub fn age_at_last_encounter(&self) -> Result<String> {
-        self.get_item("age_at_last_encounter")
-    }
-
-    pub fn deceased(&self) -> Result<String> {
-        self.get_item("deceased")
-    }
-
-    pub fn sex(&self) -> Result<String> {
-        self.get_item("sex")
-    }
-
-    /// Return the first error or OK
-    pub fn qc_check(&self) -> Result<()> {
-        let ncols = self.content.len();
-        for i in 0..ncols {
-            let cell_contents = self.content[i].as_str();
-            self.header_duplet_row.qc_check(i, cell_contents)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn n_constant_columns(&self) -> usize {
-        self.header_duplet_row.n_constant()
-    }
-
-    /// Get a (potentially empty) list of Errors for this template
-    pub fn get_errors(&self) -> Vec<Error> {
-        self.content
-            .iter()
-            .enumerate()
-            .filter_map(|(i, cell)| self.header_duplet_row.qc_check(i, cell).err())
-            .collect()
-    }
-
-    pub fn get_string_row(&self) -> Vec<String> {
-            self.content.clone()
-    }
+   
 
     pub fn get_value_at(&self, i: usize) -> Result<String> {
             if i >= self.content.len() {
@@ -255,7 +174,7 @@ impl PpktRowOLD {
             } else {
                 Ok(self.content[i].clone())
             }
-    }
+    } 
 
     /// Return the data transfer object for displaying information about the individual (id, PMID, title, comment) in a GUI
     pub fn get_individual_dto(&self) -> Result<IndividualBundleDto> {
@@ -275,13 +194,15 @@ impl PpktRowOLD {
     pub fn get_row_dto(&self) -> Result<RowDto> {
         let individual_dto = self.get_individual_dto()?;
         let cell_dto_list = self.get_cell_dtos()?;
+        
 
         //Ok(RowDto::new(individual_dto, cell_dto_list))
         Err(Error::TemplateError { msg: format!("refactoring error") })
     }
-
+*/
 
     /// the tid_map has TermId to label
+    /*
     pub fn update(
         &self, 
         tid_map: &mut HashMap<TermId, String>, 
@@ -341,8 +262,7 @@ impl PpktRowOLD {
                 return Err(Error::TemplateError { msg: format!("Could not extract from from indices") });
             }
         }
-    }
-
+    } 
     pub fn remove_whitespace(&mut self, col: usize) -> Result<()> {
         if col > self.content.len() {
             return Err(Error::TemplateError { msg: format!("row index error {col}") })
@@ -371,22 +291,8 @@ impl PpktRowOLD {
     }
 
 
-    pub fn mendelian_from(
-        header_duplet_row: Arc<HeaderDupletRowOLD>,
-        case: CaseDto, 
-        dgb: DiseaseGeneBundle, 
-        hpo_values: Vec<String>, ) -> Result<Self> 
-    {
-        let mut values: Vec<String> = case.individual_values();
-        values.extend(dgb.values());
-        values.extend(case.variant_values());
-        values.push("na".to_string()); // separator
-        values.extend(hpo_values);
-        Ok(Self {
-            header_duplet_row: header_duplet_row,
-            content: values
-        })
-    }
+
+    
 
     pub fn get_hpo_term_dto_list(&self) -> Result<Vec<HpoTermDto>> {
         let mut dto_list: Vec<HpoTermDto> = Vec::new();
@@ -409,7 +315,7 @@ impl PpktRowOLD {
     }
    
 }
-
+*/
 
 
 #[cfg(test)]
