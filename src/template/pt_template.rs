@@ -114,16 +114,13 @@ impl PheToolsTemplate {
     } */
 
     pub fn get_template_dto(&self) -> Result<TemplateDto> {
-       /*let header_dto = self.header.get_header_dto()?;
-        let mut rows: Vec<RowDto> = Vec::new();
-        for  ppkt in &self.ppkt_rows {
-            let row_dto = ppkt.get_row_dto()?;
-            rows.push(row_dto);
-        }
-        let template = TemplateDto::mendelian(header_dto, rows);
+        let header_dto = self.header.get_header_dto();
+        let row_dto_list: Vec<RowDto> = self.ppkt_rows
+            .iter()
+            .map(RowDto::from_ppkt_row)
+            .collect();
+        Ok(TemplateDto::mendelian(header_dto, row_dto_list))
 
-        Ok(template)*/
-        Err(Error::TemplateError { msg: format!("get_template_dto - refactor") })
     }
 
     /// Get a list of all HPO identifiers currently in the template

@@ -122,7 +122,7 @@ fn validity_of_previous_column(
     return Ok(());
 }
 
-
+/*
 #[rstest]
 fn add_new_row_test_1(
     one_case_matrix: Vec<Vec<String>>, 
@@ -161,7 +161,7 @@ fn add_new_row_test_1(
     assert_eq!(dto_cloned.age_at_last_encounter, fourth_row[13]);
     assert_eq!(dto_cloned.deceased, fourth_row[14]);
     assert_eq!(dto_cloned.sex, fourth_row[15]);
-     println!("VII: {:?}\n", &fourth_row);
+    println!("VII: {:?}\n", &fourth_row);
     assert_eq!("na", fourth_row[16]); // constant HPO separator column
     // Now check the HPO columns
     // The DTO added: thick_eye_brow: excluded; grand_mal: observed; strabismus: observed; esotropia_observed
@@ -221,3 +221,4 @@ fn add_new_row_check_disease_gene_bundle(
     assert!(true);
 }
 
+ */

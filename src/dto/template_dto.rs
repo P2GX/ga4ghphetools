@@ -147,7 +147,7 @@ pub struct RowDto {
 }
 
 impl RowDto {
-    pub fn from_ppkt_row(ppkt_row: PpktRow) -> Self {
+    pub fn from_ppkt_row(ppkt_row: &PpktRow) -> Self {
         Self { individual_dto: ppkt_row.get_individual_dto(), 
             disease_dto_list: ppkt_row.get_disease_dto_list(), 
             gene_var_dto_list: ppkt_row.get_gene_var_dto_list(), 

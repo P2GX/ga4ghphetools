@@ -3,20 +3,22 @@
 //! 
 //! # Example
 //! 
-//! ``ìgnore
+//! ```ignore
 //! let mut v = ValidationErrors::new();
 //! v.push_result(check_pmid(&ind.pmid));
 //! v.push_result(check_title(&ind.title));
 //! v.into_result()
 //! ```
 //! The final line will either return Ok(()) or the Error
+//!
+
 
 use std::fmt;
 
 use serde::Serialize;
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidationErrors {
     errors: Vec<String>,
@@ -24,8 +26,9 @@ pub struct ValidationErrors {
 
 
 impl ValidationErrors {
+    
     pub fn new() -> Self {
-        Self { errors: vec![] }
+        Self::default()
     }
 
     pub fn push_result(&mut self, res: Result<(), String>) {
@@ -51,7 +54,7 @@ impl ValidationErrors {
     }
 
     pub fn has_error(&self) -> bool {
-        self.errors.len() > 0
+        !self.errors.is_empty()
     }
 
     pub fn errors(&self) -> &Vec<String> {
@@ -86,3 +89,4 @@ impl std::error::Error for ValidationErrors {
         self.source()
     }
 }
+

@@ -149,21 +149,16 @@ impl DupletItem {
         let actual_row1 = matrix.first()
             .and_then(|row| row.get(column))
             .ok_or_else(|| format!("Missing row 0 or column {}", column))?;
-        println!("actual_row1={actual_row1}");
-
         if actual_row1 != &self.row1 {
             return Err(format!(
                 "Row 0, column {}: Expected '{}' but got '{}'",
                 column, self.row1, actual_row1
             ));
         }
-
         let actual_row2 = matrix
             .get(1)
             .and_then(|row| row.get(column))
             .ok_or_else(|| format!("Missing row 1 or column {}", column))?;
-println!("actual_row2={actual_row2}");
-
         if actual_row2 != &self.row2 {
             return Err(format!(
                 "Row 1, column {} expected '{}', found '{}'",
