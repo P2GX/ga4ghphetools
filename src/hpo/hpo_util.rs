@@ -3,7 +3,6 @@
 use crate::dto::hpo_term_dto::{self, HpoTermDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::error::{self, Error, Result};
-use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem};
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use ontolius::io::OntologyLoaderBuilder;
 use ontolius::ontology::csr::{FullCsrOntology, MinimalCsrOntology};

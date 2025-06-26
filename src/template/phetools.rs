@@ -27,7 +27,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::{fmt::format, str::FromStr, vec};
 
-use super::header_index::HeaderIndexer;
 
 /// The main struct for interacting with this library
 pub struct PheTools {

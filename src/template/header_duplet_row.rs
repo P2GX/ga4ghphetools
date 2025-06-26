@@ -6,6 +6,7 @@
 
 
 use std::collections::HashMap;
+use std::fmt::format;
 use std::hash::DefaultHasher;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -25,19 +26,13 @@ use crate::header::demographic_header::DemographicHeader;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::duplet_item::DupletItem;
 use crate::header::gene_variant_header::GeneVariantHeader;
-use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem, HeaderDupletItemFactory};
-use crate::header::hpo_separator_duplet::HpoSeparatorDuplet;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::individual_header::IndividualHeader;
-use crate::header::{individual_id_duplet, variant_comment_duplet};
-use crate::header::{age_last_encounter_duplet::AgeLastEncounterDuplet, age_of_onset_duplet::AgeOfOnsetDuplet, allele_1_duplet::Allele1Duplet, allele_2_duplet::Allele2Duplet, comment_duplet::CommentDuplet, deceased_duplet::DeceasedDuplet, disease_id_duplet::DiseaseIdDuplet, disease_label_duplet::DiseaseLabelDuplet, gene_symbol_duplet::GeneSymbolDuplet, hgnc_duplet::HgncDuplet, individual_id_duplet::IndividualIdDuplet, pmid_duplet::PmidDuplet, sex_duplet::SexDuplet, title_duplet::TitleDuplet, transcript_duplet::TranscriptDuplet, variant_comment_duplet::VariantCommentDuplet};
 use crate::error::{self, Error, Result};
 use crate::hpo::hpo_util::HpoUtil;
 use crate::template::disease_bundle::DiseaseBundle;
 use crate::template::individual_bundle::IndividualBundle;
 use crate::template::pt_template::TemplateType;
-
-use super::header_index::HeaderIndexer;
 
 const NOT_AVAILABLE: &str = "na";
 const EXCLUDED: &str = "excluded";
@@ -129,26 +124,6 @@ impl SectionType {
 const N_CONSTANT_FIELDS_MENDELIAN: usize = 
     NUMBER_OF_INDIVIDUAL_FIELDS + NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS + NUMBER_OF_DEMOGRAPHIC_FIELDS + NUMBER_OF_SEPARATOR_FIELDS;
 
-impl_duplet_getters!(
-    PmidDuplet => as_pmid_duplet: PmidDuplet,
-    TitleDuplet => as_title_duplet: TitleDuplet,
-    IndividualIdDuplet => as_individual_id_duplet: IndividualIdDuplet,
-    CommentDuplet => as_comment_duplet: CommentDuplet,
-    DiseaseIdDuplet => as_disease_id: DiseaseIdDuplet,
-    DiseaseLabelDuplet => as_disease_label: DiseaseLabelDuplet,
-    HgncDuplet => as_hgnc_duplet: HgncDuplet,
-    GeneSymbolDuplet => as_gene_symbol_duplet: GeneSymbolDuplet,
-    TranscriptDuplet => as_transcript_duplet: TranscriptDuplet,
-    Allele1Duplet => as_allele_1_duplet: Allele1Duplet,
-    Allele2Duplet => as_allele_2_duplet: Allele2Duplet,
-    VariantCommentDuplet => as_variant_comment_duplet: VariantCommentDuplet,
-    AgeOfOnsetDuplet => as_age_of_onset_duplet: AgeOfOnsetDuplet,
-    AgeLastEncounterDuplet => as_age_last_encounter_duplet: AgeLastEncounterDuplet,
-    DeceasedDuplet => as_deceased_duplet: DeceasedDuplet,
-    SexDuplet => as_sex_duplet: SexDuplet,
-    HpoSeparatorDuplet => as_separator_duplet: HpoSeparatorDuplet,
-    HpoTermDuplet => as_hpo_term_duplet: HpoTermDuplet
-);
 
 impl Error {
     fn could_not_extract_duplet(item: &str, i: usize) -> Self {
@@ -208,7 +183,7 @@ impl HeaderDupletRow {
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<Self, ValidationErrors> {
         Self::qc_matrix_dimensions(matrix)?;
-        let verror = ValidationErrors::new();
+
 
         /// first Q/C the constant part of the Mendelian header
         let iheader = IndividualHeader::from_matrix(matrix)?;
@@ -218,14 +193,15 @@ impl HeaderDupletRow {
         
         /// If we get here, the constant part is OK and we can check the HPO columns
         let mut hpo_duplet_list: Vec<HpoTermDuplet> = Vec::new();
-        let index = HeaderIndexer::n_constant_mendelian_columns();
         let n = matrix[0].len(); // previously checked in qc_matrix_dimensions
         for i in MENDELIAN_HPO_IDX..n {
             let hdup = HpoTermDuplet::new(&matrix[0][i], &matrix[1][i]);
             hpo_duplet_list.push(hdup);
         }
+        Self::check_separator(matrix)?;
         let hpo_util = HpoUtil::new(hpo.clone());
         let _ = hpo_util.check_hpo_duplets(&hpo_duplet_list)?;
+        
         Ok(Self { 
             individual_header: iheader, 
             disease_header_list: vec![DiseaseHeader::new()], 
@@ -235,9 +211,19 @@ impl HeaderDupletRow {
             template_type: TemplateType::Mendelian
         })
     }
-    //Err(ValidationErrors::new())
 
 
+    fn check_separator(matrix: &Vec<Vec<String>>) -> std::result::Result<(), ValidationErrors> {
+        let mut verror = ValidationErrors::new();
+        let h1 = &matrix[0][16];
+        let h2 = &matrix[1][16];
+        if h1 != "HPO" {
+            verror.push_str(format!("Row 0, column 16: Expected 'HPO' but got '{h1}'"));
+        } else if h2 != "na" {
+            verror.push_str(format!("Row 1, column 16: Expected 'na' but got '{h2}'"));
+        } 
+        verror.ok()
+    }
 
 
     fn qc_matrix_dimensions(matrix: &Vec<Vec<String>>) -> std::result::Result<(), ValidationErrors> {
@@ -374,131 +360,10 @@ impl HeaderDupletRow {
 
 
 
-
-#[derive(Clone, Debug)]
-pub struct HeaderDupletRowOLD {
-   /// Columns to represent the constant fields
-    constant_duplets: Vec<HeaderDuplet>,
-    /// Section types of the HeaderDuplets
-    section_type_list: Vec<SectionType>,
-     /// Variable number of columns with the HPO annotations.
-    hpo_duplets: Vec<HpoTermDuplet>,
-    indexer: HeaderIndexer,
-}
-
-impl HeaderDupletRowOLD {
-    /// The first part of the pipeline to go from a matrix of strings to a PptTemplate is to extract HeaderDuplets from the
-    /// first two rows. This method checks their validty and creates a Mendelian HeaderDupletRow with constant and HPO columns
-    /// The validity of the HPO TermId and label in the DTOs should have been checked before we get to this function.
-    
-
-    /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
-    /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
-    /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
-    pub fn update(&self, updated_hpo_duplets: &Vec<HpoTermDuplet>) -> Result<Self> {
-        Ok(Self { 
-            constant_duplets: self.constant_duplets.clone(), 
-            section_type_list: self.section_type_list.clone(), 
-            hpo_duplets: updated_hpo_duplets.clone(), 
-            indexer: self.indexer.clone() 
-        })       
-    }
-
-   
-
-
-
-
-    fn check_hpo_term(header_duplets: &Vec<HeaderDuplet>, i: usize) -> Result<HpoTermDuplet> {
-        let hpo_term_dup = header_duplets
-            .get(i)
-            .ok_or_else(|| Error::could_not_extract_hpo_duplet(i))?
-            .as_hpo_term_duplet()?;
-        Ok(hpo_term_dup.clone())
-    }
-
-    
-
-    pub fn qc_check(&self, i: usize, cell_contents: &str) -> Result<()> {
-        if i < self.constant_duplets.len() {
-            match self.constant_duplets.get(i) {
-                Some(hdup) => {
-                    hdup.qc_cell(cell_contents)?;
-                    Ok(())
-                },
-                None => {
-                    return Err(Error::EmptyLabel)
-                }
-            }
-        } else {
-            let j = i - self.constant_duplets.len();
-            match self.hpo_duplets.get(j) {
-                Some(hdup) => {
-                    hdup.qc_cell(cell_contents)?;
-                    Ok(())
-                },
-                None => {
-                    return Err(Error::EmptyLabel)
-                }
-            }
-        }
-    }
-
-
-
-
-    /// Get the name of the i'th column
-    pub fn get_column_name(&self, i: usize) -> Result<String> {
-        /*if self.is_hpo_column(i) {
-            let j = i - self.indexer.n_constant();
-            match self.hpo_duplets.get(j) {
-                Some(hpo_col) => { Ok(hpo_col.row1())  },
-                None => {  Err(Error::no_hpo_column(i, j))  }
-            }
-        } else {
-            return self.indexer.get_column_name(i);
-        }*/
-        Ok("todo getcolumnname".to_ascii_lowercase())
-    }
-
-
-
-
-   
-
-    pub fn get_hpo_row(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Vec<String> {
-        let hpo_map: HashMap<String, HpoTermDto> = hpo_dto_list
-            .into_iter()
-            .map(|dto| (dto.term_id().to_string(), dto.clone()))
-            .collect();
-        let mut values: Vec<String> = Vec::new();
-        for hdup in &self.hpo_duplets {
-            let tid = hdup.row2();
-            if let Some(dto) = hpo_map.get(&tid) {
-                if dto.is_not_ascertained() {
-                    values.push(NOT_AVAILABLE.to_string());
-                } else if dto.is_excluded() {
-                    values.push(EXCLUDED.to_string());
-                } else if dto.is_observed() {
-                    values.push(OBSERVED.to_string());
-                } else {
-                    values.push(dto.label());
-                }
-            } else {
-                values.push(NOT_AVAILABLE.to_string());
-            }
-        }
-        values
-    }
-
-
-}
-
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{error::Error, header::{header_duplet::HeaderDupletItem, hpo_term_duplet::HpoTermDuplet}};
+    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}};
     use ontolius::{io::OntologyLoaderBuilder, ontology::csr::MinimalCsrOntology, term::simple::SimpleMinimalTerm};
     use rstest::{fixture, rstest};
 

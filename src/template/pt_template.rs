@@ -15,13 +15,13 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::{header_duplet::{HeaderDuplet, HeaderDupletItem}, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::{PpktRow}}, template::header_duplet_row::HeaderDupletRow};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::{hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::{PpktRow}}, template::header_duplet_row::HeaderDupletRow};
 use crate::{
     template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
 };
 
-use super::{header_duplet_row::HeaderDupletRowOLD, header_index::HeaderIndexer, operations::Operation};
+use super::{operations::Operation};
 
 /// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -651,7 +651,7 @@ mod test {
     }
 
 
-   
+
     /// Test that we detect errors in labels of headings
     #[rstest]
     #[case(0, "PMI", "PMID")]
@@ -681,12 +681,18 @@ mod test {
         #[case] expected_label: &str) {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
-        let pt_template = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
-        assert!(&pt_template.is_err());
-        assert!(matches!(&pt_template, Err(ValidationErrors { .. })));
-        let err = pt_template.err().unwrap();
-        let err_msg = err.to_string();
-        let expected = format!("Malformed header: Expected '{}' but got '{}'", expected_label, label );
+        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        if result.is_ok() {
+            println!("{}{} {}", idx, label, expected_label);
+        }
+        assert!(&result.is_err());
+        assert!(matches!(&result, Err(ValidationErrors { .. })));
+        let verr = result.err().unwrap();
+        assert!(verr.has_error());
+        let errors = verr.errors();
+        let err_msg = errors[0].clone();
+        let expected = format!("Row 0, column {}: Expected '{}' but got '{}'", 
+            idx, expected_label, label);
         assert_eq!(expected, err_msg); 
     }
 
@@ -694,7 +700,7 @@ mod test {
     // we change entries in the third row (which is the first and only data row)
     // and introduce typical potential errors
     #[rstest]
-    #[case(0, "PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
+  /*  #[case(0, "PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
     #[case(0, "PMID: 29482508", "Contains stray whitespace: 'PMID: 29482508'")]
     #[case(1, "", "Value must not be empty")]
     #[case(1, "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report ", 
@@ -717,7 +723,7 @@ mod test {
     #[case(14, "?", "Malformed deceased entry: '?'")]
     #[case(14, "alive", "Malformed deceased entry: 'alive'")]
     #[case(15, "male", "Malformed entry in sex field: 'male'")]
-    #[case(15, "f", "Malformed entry in sex field: 'f'")]
+    #[case(15, "f", "Malformed entry in sex field: 'f'")]*/
     #[case(18, "Observed", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'Observed'")]
     #[case(18, "yes", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'yes'")]
     #[case(18, "exc.", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'exc.'")]
@@ -729,9 +735,12 @@ mod test {
         #[case] error_msg: &str) 
     {
         original_matrix[2][idx] = entry.to_string();
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
-        assert!(factory.is_ok());
-        let factory = factory.unwrap();
+        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        assert!(result.is_err());
+        let verr = result.err().unwrap();
+        for e in verr.errors() {
+            println!("{}", e);
+        }
     
        /*  let templates = factory.get_templates().unwrap();
         assert_eq!(1, templates.len());

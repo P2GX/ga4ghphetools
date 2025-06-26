@@ -18,7 +18,6 @@ use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{CellDto, DemographicDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
-use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem};
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::phetools_traits::TableCell;
@@ -28,7 +27,7 @@ use crate::template::gene_variant_bundle::{self, GeneVariantBundle};
 use crate::template::individual_bundle::IndividualBundle;
 use crate::template::simple_label::SimpleLabel;
 use crate::template::disease_gene_bundle::DiseaseGeneBundle;
-use crate::template::header_duplet_row::{self, HeaderDupletRow, HeaderDupletRowOLD};
+use crate::template::header_duplet_row::{self, HeaderDupletRow};
 
 
 impl Error {
@@ -65,7 +64,7 @@ pub struct PpktRow {
 impl PpktRow {
     pub fn from_row(
         header: Arc<HeaderDupletRow>,
-        content: Vec<String>
+        content: Vec<String>,
     ) -> std::result::Result<Self, ValidationErrors> {
         match header.template_type() {
             crate::template::pt_template::TemplateType::Mendelian => Self::from_mendelian_row(header, content),

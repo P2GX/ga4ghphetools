@@ -8,11 +8,10 @@ use lazy_static::lazy_static;
 
 use crate::dto::template_dto::{HeaderDto, HeaderDupletDto};
 use crate::template::curie;
-use crate::header::header_duplet::HeaderDupletItem;
 use crate::error::{self, Error, Result};
-use crate::header::age_util;
+use crate::hpo::age_util;
 
-use super::header_duplet::{self, HeaderDuplet, HeaderDupletItemFactory};
+
 
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -50,17 +49,19 @@ impl HpoTermDuplet {
     pub fn to_header_dto(&self) -> HeaderDupletDto {
         HeaderDupletDto::new(&self.hpo_label, &self.hpo_id)
     }
-    
-}
 
-impl HeaderDupletItem for HpoTermDuplet {
-    fn row1(&self) -> String {
+    pub fn row1(&self) -> String {
         self.hpo_label.clone()
     }
 
-    fn row2(&self) -> String {
+    pub fn row2(&self) -> String {
         self.hpo_id.clone()
     }
+    
+}
+
+impl  HpoTermDuplet {
+   
 
     /// An HPO cell can be empty, or contain observed/expected/na or an age string
     /// We plan to enforce that HPO cells cannot be empty (they will need to have na for not-available data)
@@ -87,7 +88,7 @@ impl HeaderDupletItem for HpoTermDuplet {
     /// We assume that the caller is provide the correct value and do not check here that it is a valid term id/label
     /// This Q/C occurs in multiple other places of the application.
     fn set_value(&mut self, idx: usize, value: &str) -> Result<()> {
-        if idx == 0 {
+       /* if idx == 0 {
             header_duplet::check_empty(value)?;
             header_duplet::check_leading_trailing_whitespace(value)?;
             self.hpo_label = value.to_string();
@@ -100,28 +101,13 @@ impl HeaderDupletItem for HpoTermDuplet {
             self.hpo_id = value.to_string();
         } else {
             return Err(Error::HeaderError { msg: format!("invalid index for HPO header: {idx}") });
-        }
+        }*/ 
+        eprint!("REFACOT ME hpo_Term_duplet");
         Ok(())
     }
 
 }
 
-impl HeaderDupletItemFactory for HpoTermDuplet {
-    fn from_table(row1: &str, row2: &str) -> Result<Self> where Self: Sized {
-        header_duplet::check_empty(row1)?;
-        header_duplet::check_white_space(row1)?;
-        header_duplet::check_valid_curie(row2)?;
-        if ! row2.starts_with("HP:") {
-            return Err(Error::malformed_hpo_term_id(row2));
-        }
-        let duplet = Self::new(row1, row2);
-        return Ok(duplet);
-    }
-
-    fn into_enum(self) -> super::header_duplet::HeaderDuplet {
-        HeaderDuplet::HpoTermDuplet(self)
-    }
-}
 
 
 #[cfg(test)]

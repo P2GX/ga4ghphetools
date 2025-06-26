@@ -3,14 +3,14 @@
 //! These structures represent the duplet headers of our template
 //!    "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id",	"gene_symbol", 
 //!     "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", 
-//!      "deceased", "sex", "HPO",	"Clinodactyly of the 5th finger", (etc., arbitrarily many HPO columns)
+//!      "deceased", "sex", "HPO", "Clinodactyly of the 5th finger", (etc., arbitrarily many HPO columns)
 
 
 use std::{collections::HashSet, fmt::format};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::{dto::template_dto::HeaderDupletDto, header::age_util};
+use crate::{dto::template_dto::HeaderDupletDto, hpo::age_util};
 
 
 
@@ -113,7 +113,8 @@ pub enum DupletType {
     AGEOFONSET,
     AGEATLASTENCOUNTER,
     DECEASED,
-    SEX
+    SEX,
+    HPOSEPARATOR,
 }
 
 
@@ -130,6 +131,16 @@ impl DupletItem {
         Self { row1: h1.to_string(), row2: h2.to_string(), duplet_type: dtype }
     }
 
+    fn error_str(&self, h1: &str, h2: &str) -> Result<(), String> {
+        if h1 != self.row1 || h2 != self.row2 {
+            let column_name = self.get_column_name();
+            Err(format!("{}: Expected '{}'/'{}' but got '{}'/'{}'",
+                column_name, self.row1, self.row2, h1, h2))
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn check_column_labels(
         &self,
         matrix: &Vec<Vec<String>>,
@@ -142,7 +153,7 @@ impl DupletItem {
 
         if actual_row1 != &self.row1 {
             return Err(format!(
-                "Row 0, column {} expected '{}', found '{}'",
+                "Row 0, column {}: Expected '{}' but got '{}'",
                 column, self.row1, actual_row1
             ));
         }
@@ -359,10 +370,10 @@ impl DupletItem {
         } 
         if let Some((before_last, last)) = cell_contents.rsplit_once('.') {
             if before_last.is_empty() {
-                return Err(format!("Maformed transcript: '{}'", cell_contents));
+                return Err(format!("Malformed transcript: '{}'", cell_contents));
             }
             if ! last.chars().all(|c| c.is_ascii_digit()) {
-                return Err(format!("Maformed transcript version: '{}'", cell_contents));
+                return Err(format!("Malformed transcript version: '{}'", cell_contents));
             }
         }
         Ok(())
@@ -409,6 +420,14 @@ impl DupletItem {
             false => Err(format!("Malformed sex entry: '{}'", cell_contents))
         }
     }
+
+    fn check_separator(&self, cell_contents: &str) -> Result<(), String> {
+        if cell_contents != "na" {
+            return Err(format!("Separator value must be 'na' but was '{}'", cell_contents));
+        } else {
+            return Ok(());
+        }
+    }
     
 
     pub fn qc_data(&self, cell_contents: &str) -> Result<(), String> {
@@ -429,8 +448,32 @@ impl DupletItem {
             DupletType::AGEATLASTENCOUNTER => Self::check_valid_age_string(cell_contents)?,
             DupletType::DECEASED => self.check_deceased(cell_contents)?,
             DupletType::SEX => self.check_sex(cell_contents)?,
+            DupletType::HPOSEPARATOR => self.check_separator(cell_contents)?,
         };
         Ok(())
+    }
+
+
+    fn get_column_name(&self) -> &str {
+        match self.duplet_type {
+            DupletType::PMID => "PMID",
+            DupletType::TITLE => "title",
+            DupletType::INDIVIDUALID => "individual_id",
+            DupletType::COMMENT => "comment",
+            DupletType::DISEASEID => "disease_id",
+            DupletType::DISEASELABEL => "disease_label",
+            DupletType::HGNCID => "HGNC_id",
+            DupletType::GENESYMBOL => "gene_symbol",
+            DupletType::TRANSCRIPT => "transcript",
+            DupletType::ALLELE1 => "allele_1",
+            DupletType::ALLELE2 => "allele_2",
+            DupletType::VARIANTCOMMENT => "variant.comment",
+            DupletType::AGEOFONSET => "age_of_onset",
+            DupletType::AGEATLASTENCOUNTER => "age_at_last_encounter",
+            DupletType::DECEASED => "deceased",
+            DupletType::SEX => "sex",
+            DupletType::HPOSEPARATOR => "HPO",
+        }
     }
 
     pub fn row1(&self) -> &str {
@@ -506,6 +549,9 @@ impl DupletItem {
     pub fn sex() -> Self {
         DupletItem::new("sex", "M:F:O:U", DupletType::SEX)
     }
+
+
+ 
  
 }
 
