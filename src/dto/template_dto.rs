@@ -7,6 +7,7 @@ use crate::header::duplet_item::DupletItem;
 use crate::ppkt::ppkt_row::PpktRow;
 use crate::template::excel::read_excel_to_dataframe;
 use crate::error::{Error, Result};
+use crate::template::header_duplet_row::HeaderDupletRow;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -146,16 +147,19 @@ pub struct RowDto {
 }
 
 impl RowDto {
-    pub fn from_ppkt_row(ppkt_row: PpktRow) -> Self {
+    pub fn from_ppkt_row(ppkt_row: &PpktRow) -> Self {
         Self { individual_dto: ppkt_row.get_individual_dto(), 
             disease_dto_list: ppkt_row.get_disease_dto_list(), 
             gene_var_dto_list: ppkt_row.get_gene_var_dto_list(), 
             demographic_dto: ppkt_row.get_demographic_dto(), 
-            hpo_data: ppkt_row.get_hpo_dto_list()
+            hpo_data: ppkt_row.get_hpo_value_list()
         }
     }
 }
 
+/// The tabular serialization format phetools has the first two rows act as header.
+/// For display, we will combine the two rows into one. For the HPO rows, we
+/// we add a link.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HeaderDupletDto {
@@ -164,8 +168,12 @@ pub struct HeaderDupletDto {
 }
 
 impl HeaderDupletDto {
-    pub fn new(row1: impl Into<String>, row2: impl Into<String>) -> Self {
+    pub fn new(row1: &str, row2: &str) -> Self {
         Self { h1: row1.into(), h2: row2.into() }
+    }
+
+    pub fn from_duplet_item(duplet: &DupletItem) -> Self {
+        Self::new(duplet.row1(), duplet.row2())
     }
 }
 /// convert from DupletItem using into()
@@ -183,15 +191,14 @@ impl From<DupletItem> for HeaderDupletDto {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HeaderDto {
-    pub individual_header: Vec<HeaderDupletDto>,
-    pub data: Vec<HeaderDupletDto>,
+    pub individual_header: HeaderDupletDto,
+    pub disease_headers: Vec<HeaderDupletDto>,
+    pub gene_var_headers: Vec<HeaderDupletDto>,
+    pub demographic_header: HeaderDupletDto,
+    pub hpo_headers: Vec<HeaderDupletDto>,
 }
 
-impl HeaderDto {
-    pub fn mendelian(individual_header: Vec<HeaderDupletDto>,data: Vec<HeaderDupletDto>) -> Self {
-        Self { individual_header, data }
-    }
-}
+
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,8 +1,8 @@
 //! TODO - obsolete this class, we can do everything with ontolius directly now
 
 use crate::dto::hpo_term_dto::{self, HpoTermDto};
+use crate::dto::validation_errors::ValidationErrors;
 use crate::error::{self, Error, Result};
-use crate::header::header_duplet::{HeaderDuplet, HeaderDupletItem};
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use ontolius::io::OntologyLoaderBuilder;
 use ontolius::ontology::csr::{FullCsrOntology, MinimalCsrOntology};
@@ -62,21 +62,31 @@ impl HpoUtil {
     }
 
     /// Check the validity of the HPO TermId/label pairs in the DTO objects and return corresponding HpoTermDuplet list
-    pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Result<Vec<HpoTermDuplet>> {
+    pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {
         let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::with_capacity(hpo_dto_list.len());
+        let mut verr = ValidationErrors::new();
         for hpo_dto in hpo_dto_list {
-            let tid = TermId::from_str(&hpo_dto.term_id()).map_err(|e| Error::termid_parse_error(hpo_dto.term_id()))?;
+            let tid = match TermId::from_str(&hpo_dto.term_id()) {
+                Ok(term_id) => term_id,
+                Err(_) => {
+                    verr.push_str(format!("Could not create TermId from '{}'", hpo_dto.term_id()));
+                    return Err(verr);
+                },
+            };
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 if term.name() != hpo_dto.label() {
-                    return Err(Error::invalid_hpo_label(term.name(), hpo_dto.label(), tid.to_string()));
+                    verr.push_str(format!("Expected label '{}' but got '{}' for TermId '{}'",term.name(), hpo_dto.label(), tid.to_string()));
                 }
                 hpo_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
             } else {
-                return Err(Error::TermError { msg: format!("Could not find term for {}", hpo_dto.term_id()) })
+                verr.push_str(format!("Could not find term for {}", hpo_dto.term_id()));
             }
         }
-
-        Ok(hpo_duplets)
+        if verr.has_error() {
+            Err(verr)
+        } else {
+            Ok(hpo_duplets)
+        }
     }
 
     /// Check that the HPO Term Id and label used in the DTO object are correct
@@ -104,32 +114,31 @@ impl HpoUtil {
         Ok(())
     }
 
-    pub fn check_hpo_duplets(&self, header_dup_list: &Vec<HeaderDuplet>) -> Result<()> {
-        for header_dup in header_dup_list {
+    pub fn check_hpo_duplets(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> std::result::Result<(), ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
+        for header_dup in hpo_dup_list {
             let row2 = header_dup.row2();
-            if ! row2.starts_with("HP:") {
-                continue; // skip the constant parts
-            }
             let row1 = header_dup.row1();
             match TermId::from_str(&row2) {
                 Ok(tid) => {
                     match self.hpo.term_by_id(&tid) {
                         Some(term) => {
                             if term.name() != row1 {
-                                return Err(Error::invalid_hpo_label(term.name(), row1, tid.to_string()));
+                                verrs.push_str(format!("Expected label '{}' but got '{}' for TermId '{}'",
+                                                term.name(), row1, tid.to_string()));
                             }
                         },
                         None => {
-                            return Err(Error::term_not_found(&tid));
+                            verrs.push_str( format!("No HPO Term found for '{}'", &tid));
                         },
                     }
                 },
                 Err(_) => {
-                    return Err(Error::termid_parse_error(&row2));
+                    verrs.push_str(format!("Failed to parse TermId: {}", &row2));
                 },
             }
         }
-        Ok(())
+        verrs.ok()
     }
 
 }

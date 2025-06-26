@@ -1,13 +1,16 @@
 use std::{cell, collections::{HashMap, HashSet}};
-
-use lazy_static::lazy_static;
 use regex::Regex;
+use once_cell::sync::Lazy;
+
+use crate::{dto::template_dto::HeaderDupletDto, hpo::age_util};
 
 
+static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
+    ['/', '\\', '(', ')'].iter().copied().collect()
+});
 
-lazy_static! {
-    pub static ref ALLOWED_AGE_LABELS: HashSet<String> =  {
-        let mut set = HashSet::new();
+static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(||{
+    let mut set = HashSet::new();
         set.insert("Late onset".to_string());
         set.insert("Middle age onset".to_string());
         set.insert("Young adult onset".to_string());
@@ -27,13 +30,34 @@ lazy_static! {
         set.insert("Second trimester onset".to_string());
         set.insert("Third trimester onset".to_string());
         set
-    };
+});
 
-    pub static ref  ISO8601_RE: Regex = Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").unwrap();
-    pub static ref GESTATIONAL_AGE_RE: Regex = Regex::new(r"G\d+w[0-6]d").unwrap();
+static ISO8601_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").unwrap()
+});
 
+static GESTATIONAL_AGE_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"G\d+w[0-6]d").unwrap()
+});
+
+
+static ALLOWABLE_HPO_GENERIC_ENTRIES: Lazy<HashSet<String>> = Lazy::new(||{
+    let mut set = HashSet::new();
+    set.insert("observed".to_string());
+    set.insert("excluded".to_string());
+    set.insert("na".to_string());
+    set
+});
+
+
+
+pub fn check_hpo_table_cell(cell_value: &str) -> Result<(), String> {
+    if ALLOWABLE_HPO_GENERIC_ENTRIES.contains(cell_value) || is_valid_age_string(cell_value) {
+        Ok(())
+    } else {
+        Err(format!("Invalid age string '{cell_value}'"))
+    }
 }
-
 
 
 pub fn is_valid_age_string(cell_value: &str) -> bool {

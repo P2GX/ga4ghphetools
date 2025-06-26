@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.2.18"
+version = "0.2.24"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -21,7 +21,7 @@ default = []   # Do not enable CLI by default
 cli = ["dep:clap"]  # Enable clap only when the CLI feature is enabled
 
 [dependencies]
-calamine = "0.25.0" 
+calamine = "0.28.0" 
 chrono = "0.4.41"
 derive_more = {version = "2.0.1", features = ["from", "display"]}
 home = "0.5.11"
@@ -36,7 +36,7 @@ prost-types = "0.14.1"
 rand = "0.9"
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
-zip = "2"
+zip = "4.2.0"
 
 clap = { version = "4.5.40", features = ["derive"], optional = true }
 reqwest = {version = "0.12.20", features = ["blocking", "json"]}

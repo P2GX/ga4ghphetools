@@ -27,7 +27,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::{fmt::format, str::FromStr, vec};
 
-use super::header_index::HeaderIndexer;
 
 /// The main struct for interacting with this library
 pub struct PheTools {
@@ -155,7 +154,7 @@ impl PheTools {
     pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>, String> {
         match &self.template {
             Some(template) => {
-                let matrix = template.get_string_matrix();
+                let matrix = vec![vec!["todo".to_ascii_lowercase()]];
                 return Ok(matrix);
             }
             None => {
@@ -205,7 +204,7 @@ impl PheTools {
     ) -> Result<(), String> 
     {
         let hpo_arc = self.hpo.clone();
-        match PheToolsTemplate::from_mendelian_templateOLD(matrix, hpo_arc) {
+        match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc) {
             Ok(ppt) => {
                 self.template = Some(ppt);
                 Ok(())
