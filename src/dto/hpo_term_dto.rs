@@ -82,7 +82,7 @@ impl HpoTermDto {
 
 #[cfg(test)]
 mod test {
-    use crate::{error::Error, header::{header_duplet::HeaderDupletItem, hpo_term_duplet::HpoTermDuplet}};
+    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}};
     use super::*;
     use ontolius::common::hpo;
     use rstest::rstest;

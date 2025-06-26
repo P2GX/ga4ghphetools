@@ -143,13 +143,13 @@ impl DupletItem {
 
     pub fn check_column_labels(
         &self,
-        matrix: &Vec<Vec<String>>,
+        matrix: &[Vec<String>],
         column: usize,
     ) -> Result<(), String> {
-        let actual_row1 = matrix
-            .get(0)
+        let actual_row1 = matrix.first()
             .and_then(|row| row.get(column))
             .ok_or_else(|| format!("Missing row 0 or column {}", column))?;
+        println!("actual_row1={actual_row1}");
 
         if actual_row1 != &self.row1 {
             return Err(format!(
@@ -162,6 +162,7 @@ impl DupletItem {
             .get(1)
             .and_then(|row| row.get(column))
             .ok_or_else(|| format!("Missing row 1 or column {}", column))?;
+println!("actual_row2={actual_row2}");
 
         if actual_row2 != &self.row2 {
             return Err(format!(
@@ -169,7 +170,7 @@ impl DupletItem {
                 column, self.row2, actual_row2
             ));
         }
-
+        
         Ok(())
     }
 
@@ -216,7 +217,7 @@ impl DupletItem {
     /// Some ColumnTypes do not allow empty cells.
     pub fn check_empty(cell_contents: &str) -> Result<(), String> {
         if cell_contents.is_empty() {
-            Err(format!("Value must not be empty"))
+            Err("Value must not be empty".to_string())
         } else {
             Ok(())
         }
@@ -249,7 +250,7 @@ impl DupletItem {
                 return Err(format!("Malformed HGVS '{value}'"));
             }
         }
-        return Err(format!("Malformed HGVS '{value}'"));
+        Err(format!("Malformed HGVS '{value}'"))
     }
 
     fn check_tab(cell_contents: &str) -> Result<(), String> {
@@ -275,7 +276,7 @@ impl DupletItem {
     fn check_valid_age_string(cell_value: &str) -> Result<(), String> {
         // empty not allowed
         if cell_value.is_empty() {
-            return Err(format!("Empty age string not allowed (use na)"));
+            return Err("Empty age string not allowed (use na)".to_string());
         }
         // but na is OK
         if cell_value == "na" {
@@ -299,7 +300,7 @@ impl DupletItem {
 
 
     fn check_pmid(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_valid_curie(cell_contents)?;
+        Self::check_valid_curie(cell_contents)?;
         if !cell_contents.starts_with("PMID") {
             return Err(format!("Invalid PubMed prefix: '{}'", cell_contents));
         }
@@ -307,44 +308,42 @@ impl DupletItem {
     }
 
     fn check_title(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_white_space(cell_contents)?;
-        let _ = Self::check_empty(cell_contents)?;
+        Self::check_white_space(cell_contents)?;
+        Self::check_empty(cell_contents)?;
         Ok(())
     }
 
     fn check_individual_id(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_forbidden_chars(cell_contents)?;
-        let _ = Self::check_empty(cell_contents)?;
-        let _ = Self::check_white_space(cell_contents)?;
+        Self::check_forbidden_chars(cell_contents)?;
+        Self::check_empty(cell_contents)?;
+        Self::check_white_space(cell_contents)?;
         Ok(())
     }
 
     fn check_comment(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_forbidden_chars(cell_contents)?;
+        Self::check_forbidden_chars(cell_contents)?;
         Ok(())
     }
 
     fn check_disease_id(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_valid_curie(cell_contents)?;
+        Self::check_valid_curie(cell_contents)?;
         if !(cell_contents.starts_with("OMIM") || cell_contents.starts_with("MONDO")) {
             return Err(format!("Disease id has invalid prefix: '{}'", cell_contents));
         }
-        if cell_contents.starts_with("OMIM:") {
-            if cell_contents.len() != 11 {
-                return Err(format!("OMIM identifiers must have 6 digits: '{}'", cell_contents));
-            }
+        if cell_contents.starts_with("OMIM:") && cell_contents.len() != 11 {
+            return Err(format!("OMIM identifiers must have 6 digits: '{}'", cell_contents));
         }
         Ok(())
     }
 
     fn check_disease_label(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_empty(cell_contents)?;
-        let _ = Self::check_white_space(cell_contents)?;
+        Self::check_empty(cell_contents)?;
+        Self::check_white_space(cell_contents)?;
         Ok(())
     }
 
     fn check_hgnc_id(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_valid_curie(cell_contents)?;
+        Self::check_valid_curie(cell_contents)?;
         if ! cell_contents.starts_with("HGNC")  {
             return Err(format!("HGNC id has invalid prefix: '{}'", cell_contents));
         };
@@ -352,8 +351,8 @@ impl DupletItem {
     }
 
     fn check_gene_symbol(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_empty(cell_contents)?;
-        let _ = Self::check_white_space(cell_contents)?;
+        Self::check_empty(cell_contents)?;
+        Self::check_white_space(cell_contents)?;
         if cell_contents.contains(" ") {
             return Err(format!("Gene symbol must not contain whitespace: '{cell_contents}'"));
         }
@@ -361,7 +360,7 @@ impl DupletItem {
     }
 
     fn check_transcript(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_empty(cell_contents)?;
+        Self::check_empty(cell_contents)?;
         if ! cell_contents.starts_with("ENST") && ! cell_contents.starts_with("NM_") {
             return Err(format!("Unrecognized transcript prefix '{cell_contents}'"));
         }  
@@ -380,8 +379,8 @@ impl DupletItem {
     }
 
     fn check_allele1(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_empty(cell_contents)?;
-        let _ = Self::check_white_space(cell_contents)?;
+        Self::check_empty(cell_contents)?;
+        Self::check_white_space(cell_contents)?;
         if cell_contents.starts_with("c.") {
             Self::check_valid_hgvs(cell_contents)?;
         } else {
@@ -391,8 +390,8 @@ impl DupletItem {
     }
 
     fn check_allele2(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_empty(cell_contents)?;
-        let _ = Self::check_white_space(cell_contents)?;
+        Self::check_empty(cell_contents)?;
+        Self::check_white_space(cell_contents)?;
         if cell_contents == "na" {
             return Ok(());
         } else if cell_contents.starts_with("c.") {
@@ -402,8 +401,9 @@ impl DupletItem {
         }
         Ok(())
     }
+    
     fn check_variant_comment(&self, cell_contents: &str) -> Result<(), String> {
-        let _ = Self::check_tab(cell_contents)?;
+        Self::check_tab(cell_contents)?;
         Ok(())
     }
 
@@ -423,9 +423,9 @@ impl DupletItem {
 
     fn check_separator(&self, cell_contents: &str) -> Result<(), String> {
         if cell_contents != "na" {
-            return Err(format!("Separator value must be 'na' but was '{}'", cell_contents));
+            Err(format!("Separator value must be 'na' but was '{}'", cell_contents))
         } else {
-            return Ok(());
+            Ok(())
         }
     }
     
@@ -566,15 +566,13 @@ mod tests {
 
     #[test]
     fn test_pmid()  {
-        let row1 = vec!["pmid".to_string(), "title".to_string(), "individual_id".to_string()];
+        let row1 = vec!["PMID".to_string(), "title".to_string(), "individual_id".to_string()];
         let row2 = vec!["CURIE".to_string(), "str".to_string(), "str".to_string()];
         let matrix = vec![row1, row2];
 
         let pmid_duplet = DupletItem::pmid();
         let result = pmid_duplet.check_column_labels(&matrix, 0);
         assert!(result.is_ok());
-    
-        
     }
 }
 

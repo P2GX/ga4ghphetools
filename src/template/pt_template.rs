@@ -563,7 +563,7 @@ impl PheToolsTemplate {
 
 #[cfg(test)]
 mod test {
-    use crate::{error::Error, header::{header_duplet::HeaderDupletItem, hpo_term_duplet::HpoTermDuplet}};
+    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}};
     use lazy_static::lazy_static;
     use ontolius::{io::OntologyLoaderBuilder, ontology::csr::MinimalCsrOntology};
     use polars::io::SerReader;

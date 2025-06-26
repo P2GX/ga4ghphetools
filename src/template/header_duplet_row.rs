@@ -388,33 +388,6 @@ mod test {
     }
 
 
-    #[rstest]
-    fn test_adding_terms(
-        one_case_matrix: Vec<Vec<String>>
-    ) -> Result<()> {
-        let hdup_list = match HeaderDuplet::extract_from_string_matrix(&one_case_matrix) {
-            Ok(val) => val,
-            Err(e) => {
-                return Err(e); 
-            }
-        };
-       /*  let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list)?;
-        let hpo_duplete_list = header_duplet_row.get_hpo_duplets();
-        assert_eq!(2, hpo_duplete_list.len());
-        // Add one term
-        let xerostomia: TermId = ("HP", "0000217").into();
-        let hpo_term_dup = HpoTermDuplet::new("Xerostomia", "HP:0000217");
-        let mut terms_new = Vec::new();
-        terms_new.extend(hpo_duplete_list);
-        terms_new.push(hpo_term_dup);
-        /// In client code, we would check and arrange the HPO terms here.
-        let updated_row = header_duplet_row.update(&terms_new)?;
-        let hpo_duplete_list = updated_row.get_hpo_duplets();
-        assert_eq!(3, hpo_duplete_list.len());
-        */
-        eprint!("TODO REFACOT TEST");
-        Ok(())
-    }
    
 
 

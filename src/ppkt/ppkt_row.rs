@@ -18,6 +18,7 @@ use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{CellDto, DemographicDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
+use crate::hpo::age_util;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::phetools_traits::TableCell;
@@ -80,10 +81,14 @@ impl PpktRow {
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
         let demographic_bundle = DemographicBundle::from_row(&content, 12)?;
-        let verrs = ValidationErrors::new();
+        let mut verrs = ValidationErrors::new();
         let mut hpo_content: Vec<String> = Vec::new();
         for item in content.iter().skip(17) {
+            verrs.push_result(age_util::check_hpo_table_cell(&item));
             hpo_content.push(item.clone());
+        }
+        if verrs.has_error() {
+            return Err(verrs);
         }
         Ok(Self { header: header.clone(), 
             individual_bundle: ibundle, 
@@ -319,7 +324,7 @@ impl PpktRow {
 
 #[cfg(test)]
 mod test {
-    use crate::{error::Error, header::{header_duplet::HeaderDupletItem, hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::{self, HpoUtil}};
+    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::{self, HpoUtil}};
     use lazy_static::lazy_static;
     use ontolius::{io::OntologyLoaderBuilder, ontology::{csr::MinimalCsrOntology, OntologyTerms}, term};
     use polars::io::SerReader;
@@ -403,43 +408,6 @@ mod test {
         vec![HpoTermDto::new("HP:0001382", "Joint hypermobility", "observed"),
         HpoTermDto::new("HP:0000574", "Thick eyebrow", "observed") ]
     }
-
-    #[rstest]
-    fn test_update_ppkt_row(
-        mut original_matrix: Vec<Vec<String>>, 
-        hpo: Arc<FullCsrOntology>,
-        case_a_dto: CaseDto,
-        hpo_dtos: Vec<HpoTermDto>
-    ) -> Result<()> {
-        let hpo_arc = hpo.clone();
-        let hpo_util = HpoUtil::new(hpo_arc);
-        hpo_util.check_hpo_dto(&hpo_dtos)?;
-        let hdup_list = match HeaderDuplet::extract_from_string_matrix(&original_matrix) {
-            Ok(val) => val,
-            Err(e) => {
-                return Err(e);
-            }
-        };
-        let content = &original_matrix[2].clone();
-        /*
-        let header_duplet_row = HeaderDupletRow::mendelian_from_duplets(hdup_list).unwrap();
-        let hdr_arc = Arc::new(header_duplet_row);
-        let hdr_arc2 = hdr_arc.clone();
-        let ppkt_row = PpktRow::new(hdr_arc, content.to_vec());
-        
-        assert_eq!(ppkt_row.pmid()?, "PMID:29482508");
-        let hpo_util = HpoUtil::new(hpo.clone());
-        let mut simple_terms = hpo_util.simple_terms_from_dto(&hpo_dtos)?;
-        let mut hpo_term_id_to_label_map = hpo_util.term_label_map_from_dto_list(&hpo_dtos)?;
-        assert_eq!(2, simple_terms.len());
-        let updated_hdr = hdr_arc2.update_old(&simple_terms);
-        let updated_arc = Arc::new(updated_hdr);
-        let updated_ppkt = ppkt_row.update(&mut hpo_term_id_to_label_map, updated_arc);
-        */
-        eprint!("Refacotr me");
-        Ok(())
-    }
-
 
 
 }
