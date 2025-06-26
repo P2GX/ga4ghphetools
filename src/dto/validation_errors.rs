@@ -57,6 +57,14 @@ impl ValidationErrors {
     pub fn errors(&self) -> &Vec<String> {
         &self.errors
     }
+
+    pub fn ok(self) -> Result<(), Self> {
+        if self.has_error() {
+            Err(self)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl std::fmt::Display for ValidationErrors {

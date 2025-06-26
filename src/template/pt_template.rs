@@ -158,12 +158,12 @@ impl PheToolsTemplate {
 
 
 
-     pub fn from_mendelian_template(
+    pub fn from_mendelian_template(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<Self, ValidationErrors> {
         let verrs = ValidationErrors::new();
-        let header = HeaderDupletRow::mendelian(&matrix)?;
+        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone())?;
 
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
@@ -173,8 +173,17 @@ impl PheToolsTemplate {
             let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
             ppt_rows.push(ppkt_row);
         }
+        
+        if verrs.has_error() {
+            return Err(verrs);
+        }
 
-        Err(verrs)
+        Ok(Self { 
+                header: hdr_arc, 
+                template_type: TemplateType::Mendelian,
+                hpo: hpo.clone(),
+                ppkt_rows: ppt_rows
+            })
 
     }
 
@@ -632,8 +641,11 @@ mod test {
         let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
         assert!(&factory.is_err());
         assert!(matches!(&factory, Err(ValidationErrors { .. })));
-        let err = factory.err().unwrap();
-        let err_msg = err.to_string();
+        let validation_errs = factory.err().unwrap();
+        assert!(validation_errs.has_error());
+        let errors = validation_errs.errors();
+        assert_eq!(1, errors.len());
+        let err_msg = &errors[0];
         let expected = "Expected label 'Short 1st metacarpal' but got 'Hallux  valgus' for TermId 'HP:0010034'";
         assert_eq!(expected, err_msg);
     }
@@ -671,7 +683,7 @@ mod test {
         original_matrix[0][idx] = label.to_string(); 
         let pt_template = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
         assert!(&pt_template.is_err());
-        assert!(matches!(&pt_template, Err(Error::HeaderError { .. })));
+        assert!(matches!(&pt_template, Err(ValidationErrors { .. })));
         let err = pt_template.err().unwrap();
         let err_msg = err.to_string();
         let expected = format!("Malformed header: Expected '{}' but got '{}'", expected_label, label );
@@ -720,6 +732,7 @@ mod test {
         let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
         assert!(factory.is_ok());
         let factory = factory.unwrap();
+    
        /*  let templates = factory.get_templates().unwrap();
         assert_eq!(1, templates.len());
         let itemplate = &templates[0];

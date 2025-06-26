@@ -1,8 +1,16 @@
+//! DupletItem
+//! 
+//! These structures represent the duplet headers of our template
+//!    "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id",	"gene_symbol", 
+//!     "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", 
+//!      "deceased", "sex", "HPO",	"Clinodactyly of the 5th finger", (etc., arbitrarily many HPO columns)
+
+
 use std::{collections::HashSet, fmt::format};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::header::age_util;
+use crate::{dto::template_dto::HeaderDupletDto, header::age_util};
 
 
 
@@ -425,9 +433,18 @@ impl DupletItem {
         Ok(())
     }
 
+    pub fn row1(&self) -> &str {
+        &self.row1
+    }
+
+    pub fn row2(&self) -> &str {
+        &self.row2
+    }
+
+
     /// PubMed identifier
     pub fn pmid() -> Self {
-        DupletItem::new("pmid", "CURIE", DupletType::PMID)
+        DupletItem::new("PMID", "CURIE", DupletType::PMID)
     }
 
     pub fn title() -> Self {
@@ -451,7 +468,7 @@ impl DupletItem {
     }
 
     pub fn hgnc_id() -> Self {
-        DupletItem::new("hgnc_id", "CURIE", DupletType::HGNCID)
+        DupletItem::new("HGNC_id", "CURIE", DupletType::HGNCID)
     }
 
     pub fn gene_symbol() -> Self {
@@ -463,15 +480,15 @@ impl DupletItem {
     }
 
     pub fn allele1() -> Self {
-        DupletItem::new("allele1", "str", DupletType::ALLELE1)
+        DupletItem::new("allele_1", "str", DupletType::ALLELE1)
     }
 
     pub fn allele2() -> Self {
-        DupletItem::new("allele2", "str", DupletType::ALLELE2)
+        DupletItem::new("allele_2", "str", DupletType::ALLELE2)
     }
     
     pub fn variant_comment() -> Self {
-        DupletItem::new("variant_comment", "str", DupletType::VARIANTCOMMENT)
+        DupletItem::new("variant.comment", "optional", DupletType::VARIANTCOMMENT)
     }
 
     pub fn age_of_onset() -> Self {
