@@ -4,6 +4,7 @@
 
 
 use crate::dto::template_dto::{RowDto, TemplateDto};
+use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantDto;
 use crate::error::Error;
 use crate::hpo::hpo_util::HpoUtil;
@@ -62,7 +63,7 @@ impl PheTools {
     /// ```
     pub fn new(hpo: Arc<FullCsrOntology>) -> Self {
         PheTools {
-            hpo: hpo,
+            hpo,
             template: None,
             manager: None,
             variant_validator: VariantValidator::hg38(),
@@ -155,10 +156,10 @@ impl PheTools {
         match &self.template {
             Some(template) => {
                 let matrix = vec![vec!["todo".to_ascii_lowercase()]];
-                return Ok(matrix);
+                Ok(matrix)
             }
             None => {
-                return Err(format!("Template is not initialized"));
+                Err("Template is not initialized".to_string())
             }
         }
     }
@@ -171,7 +172,7 @@ impl PheTools {
                 Ok(dto)
             }
             None => {
-                return Err("Template is not initialized".to_string());
+                Err("Template is not initialized".to_string())
             }
         }
     }
@@ -209,7 +210,7 @@ impl PheTools {
                 self.template = Some(ppt);
                 Ok(())
             },
-            Err(e) => { return Err(e.to_string()); }
+            Err(e) => { Err(e.to_string())}
         }
     }
 
@@ -251,15 +252,15 @@ impl PheTools {
                 }
                 match tplt.get_column_name(col) {
                     Ok(ctype) => {
-                        return Ok(format!("{:?}", ctype))
+                        Ok(format!("{:?}", ctype))
                     },
                     Err(e) => {
-                        return Err(format!("{}", e));
+                        Err(format!("{}", e))
                     }
                 }
             }
             None => {
-                return Err(format!("col_type_at: template not initialized"));
+                Err("col_type_at: template not initialized".to_string())
             }
         }
     }
@@ -306,9 +307,10 @@ impl PheTools {
     ///
     /// # Notes
     ///
-    /// - Client code should retrieve HpoTermDto objects using the function [`Self::get_hpo_term_dto`]. This function will
-    /// additionally rearrange the order of the HPO columns to keep them in "ideal" (DFS) order. Cells for HPO terms (columns) not included
-    /// in the list of items but present in the columns of the previous matrix will be set to "na"
+    /// - Client code should retrieve HpoTermDto objects using the function [`Self::get_hpo_term_dto`]. 
+    ///   This function will additionally rearrange the order of the HPO columns to keep them in "ideal" (DFS) order. 
+    ///   Cells for HPO terms (columns) not included
+    ///   in the list of items but present in the columns of the previous matrix will be set to "na"
     pub fn add_row_with_hpo_data(
         &mut self,
         case_dto: CaseDto,
@@ -353,7 +355,7 @@ impl PheTools {
                 return Ok(());
             }
             None => {
-                return Err(format!("template not initialized"));
+                Err("template not initialized".to_string())
             }
         }
     }
@@ -384,7 +386,7 @@ impl PheTools {
                 Err(e) => Err(e.to_string()),
             },
             None => {
-                return Err("template not initialized".to_string());
+                Err("template not initialized".to_string())
             }
         }
     }
@@ -413,10 +415,10 @@ impl PheTools {
         match &mut self.template {
             Some(template) =>  {
                 template.execute_operation(row, col, operation).map_err(|e| e.to_string())?;
-                return Ok(());
+                Ok(())
             },
             None => {
-                return Err("template not initialized".to_string());
+                Err("template not initialized".to_string())
             }
         } 
     }
@@ -427,7 +429,7 @@ impl PheTools {
                 template.delete_row(row);
                 Ok(())
             }
-            None => Err(format!("template not initialized")),
+            None => Err("template not initialized".to_string()),
         }
     }
 
@@ -443,28 +445,6 @@ impl PheTools {
         }
     }
 
-    /// Get a vector of Strings representing all fields in a column
-    /// PROBABLY WE DO NOT NEED THIS FUNCTION-DELETE
-    ///  # Arguments
-    ///
-    /// * `idx` - column index
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(Vec<String>)` - Strings for all values of this column
-    /// - `Err(String)` - An error if template generation fails.
-    /// 
-    /// # Notes
-    /// 
-    /// - Can be used to display an entire column in a GUI
-    pub fn get_string_column(&self, idx: usize) -> Result<Vec<String>, String> {
-        match &self.template {
-            Some(template) => {
-                todo!()
-            }
-            None => Err("phetools template not initialized".to_string()),
-        }
-    }
 
     /// get number of rows including header
     pub fn nrows(&self) -> usize {
@@ -474,16 +454,7 @@ impl PheTools {
         }
     }
 
-    /// idx refers to row including the two headers
-    pub fn get_string_row(&self, idx: usize) -> Result<Vec<String>, String> {
-        match &self.template {
-            Some(template) => {
-                todo!()
-            }
-            None => Err("phetools template not initialized".to_string()),
-        }
-    }
-
+   
 
     pub fn get_template_summary(&self) -> Result<HashMap<String, String>, String> {
         match &self.template {
@@ -562,13 +533,13 @@ impl PheTools {
             Some(manager) => {
                 let dto = variant_dto;
                 if dto.variant_string().starts_with("c.") || dto.variant_string().starts_with("n.") {
-                    let _ = manager.validate_hgvs(dto.variant_string(), dto.transcript()).map_err(|e|e.to_string())?;
+                    manager.validate_hgvs(dto.variant_string(), dto.transcript()).map_err(|e|e.to_string())?;
                 } else {
-                    let _ = manager.validate_sv(dto.variant_string(), dto.hgnc_id(), dto.gene_symbol()).map_err(|e|e.to_string())?;
+                    manager.validate_sv(dto.variant_string(), dto.hgnc_id(), dto.gene_symbol()).map_err(|e|e.to_string())?;
                 }
             },
             None => {
-                return Err(format!("Variant Manager not initialized"));
+                Err("Variant Manager not initialized".to_string())
             },
         }
         Ok(())
@@ -585,6 +556,28 @@ impl PheTools {
             },
         }
         Ok(())
+    }
+
+    /// Check correctness of a TemplateDto that was sent from the front end.
+    /// This operation is performed to see if the edits made in the front end are valid.
+    /// If everything is OK, we can go ahead and save the template using another command.
+    /// TODO, probably combine in the same command, and add a second command to write to disk
+    pub fn validate_template(
+        &self, 
+        cohort_dto: TemplateDto) 
+    -> Result<(), ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
+        match cohort_dto.cohort_type.as_str() {
+            "mendelian" => Ok(()),
+            _ => todo!()
+        };
+        /*
+         pub cohort_type: String,
+    pub hpo_headers: Vec<HeaderDupletDto>,
+    pub rows: Vec<RowDto>
+     */
+
+        verrs.ok()
     }
 
     pub fn export_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {
