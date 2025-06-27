@@ -188,15 +188,6 @@ impl From<DupletItem> for HeaderDupletDto {
 
 
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HeaderDto {
-    pub individual_header: HeaderDupletDto,
-    pub disease_headers: Vec<HeaderDupletDto>,
-    pub gene_var_headers: Vec<HeaderDupletDto>,
-    pub demographic_header: HeaderDupletDto,
-    pub hpo_headers: Vec<HeaderDupletDto>,
-}
 
 
 
@@ -204,13 +195,13 @@ pub struct HeaderDto {
 #[serde(rename_all = "camelCase")]
 pub struct TemplateDto {
     pub cohort_type: String,
-    pub header: HeaderDto,
+    pub hpo_headers: Vec<HeaderDupletDto>,
     pub rows: Vec<RowDto>
 }
 
 impl TemplateDto {
-    pub fn mendelian(header: HeaderDto, rows: Vec<RowDto>) -> Self {
-        Self { cohort_type: "mendelian".to_string(), header, rows }
+    pub fn mendelian(hpo_headers: Vec<HeaderDupletDto>, rows: Vec<RowDto>) -> Self {
+        Self { cohort_type: "mendelian".to_string(), hpo_headers, rows }
     }
     
 }

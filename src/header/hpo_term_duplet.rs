@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 use lazy_static::lazy_static;
 
-use crate::dto::template_dto::{HeaderDto, HeaderDupletDto};
+use crate::dto::template_dto::{HeaderDupletDto};
 use crate::template::curie;
 use crate::error::{self, Error, Result};
 use crate::hpo::age_util;
