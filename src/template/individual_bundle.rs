@@ -15,6 +15,10 @@ pub struct IndividualBundle {
     pub(crate) title: String,
     pub(crate) individual_id: String,
     pub(crate) comment: String,
+    pub(crate) age_of_onset: String,
+    pub(crate) age_at_last_encounter: String,
+    pub(crate) deceased: String,
+    pub(crate) sex: String
 }
 
 impl IndividualBundle {
@@ -22,21 +26,33 @@ impl IndividualBundle {
         pmid: &str, 
         title: &str,
         individual_id: &str,
-        comment: &str) 
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str) 
     -> Self {
         Self { 
             header: SHARED_HEADER.clone(), 
             pmid: pmid.to_string(), 
             title: title.to_string(), 
             individual_id: individual_id.to_string(), 
-            comment: comment.to_string() 
+            comment: comment.to_string(),
+            age_of_onset: age_of_onset.to_string(),
+            age_at_last_encounter: age_at_last_encounter.to_string(),
+            deceased: deceased.to_string(),
+            sex: sex.to_string()
         }
     }
 
+    /// Start idx is the index of the first demographic entry.
+    /// We should consider changing the format to put the demographics right after individual.
     pub fn from_row(
-        row: &Vec<String>
+        row: &Vec<String>,
+        start_idx: usize
     ) -> std::result::Result<Self, ValidationErrors> {
-        let bundle = Self::new(&row[0], &row[1], &row[2], &row[3]);
+        let  i = start_idx;
+        let bundle = Self::new(&row[0], &row[1], &row[2], &row[3], &row[i], &row[i+1], &row[i+2], &row[i+3]);
         let _ = bundle.do_qc()?;
         Ok(bundle)
     }
@@ -61,5 +77,20 @@ impl IndividualBundle {
         &self.comment
     }
 
+    pub fn age_of_onset(&self) -> &str {
+        &self.age_of_onset
+    }
+
+    pub fn age_at_last_encounter(&self) -> &str {
+        &self.age_at_last_encounter
+    }
+
+    pub fn deceased(&self) -> &str {
+        &self.deceased
+    }
+
+    pub fn sex(&self) -> &str {
+        &self.sex
+    }
 
 }

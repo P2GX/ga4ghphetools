@@ -1,5 +1,4 @@
 pub mod curie;
-pub mod demographic_bundle;
 pub mod disease_gene_bundle;
 pub mod disease_bundle;
 pub mod excel;

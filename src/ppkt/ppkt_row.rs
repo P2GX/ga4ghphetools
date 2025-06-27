@@ -16,13 +16,12 @@ use polars::prelude::default_arrays;
 
 use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{CellDto, DemographicDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
+use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::hpo::age_util;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::phetools_traits::TableCell;
-use crate::template::demographic_bundle::DemographicBundle;
 use crate::template::disease_bundle::DiseaseBundle;
 use crate::template::gene_variant_bundle::{self, GeneVariantBundle};
 use crate::template::individual_bundle::IndividualBundle;
@@ -56,7 +55,6 @@ pub struct PpktRow {
     individual_bundle: IndividualBundle,
     disease_bundle_list: Vec<DiseaseBundle>,
     gene_var_bundle_list: Vec<GeneVariantBundle>,
-    demographic_bundle: DemographicBundle,
     hpo_content: Vec<String>
 }
 
@@ -77,10 +75,10 @@ impl PpktRow {
         header: Arc<HeaderDupletRow>,
         content: Vec<String>
     ) -> std::result::Result<Self, ValidationErrors> {
-        let ibundle = IndividualBundle::from_row(&content)?;
+        let DEMOGRAPHIC_IDX:usize = 12;
+        let ibundle = IndividualBundle::from_row(&content, DEMOGRAPHIC_IDX)?;
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
-        let demographic_bundle = DemographicBundle::from_row(&content, 12)?;
         let mut verrs = ValidationErrors::new();
         let mut hpo_content: Vec<String> = Vec::new();
         for item in content.iter().skip(17) {
@@ -94,14 +92,14 @@ impl PpktRow {
             individual_bundle: ibundle, 
             disease_bundle_list: vec![disease_bundle], 
             gene_var_bundle_list: vec![gene_variant_bundle],
-            demographic_bundle: demographic_bundle, 
             hpo_content: hpo_content 
         })
     }
 
     pub fn get_individual_dto(&self) -> IndividualBundleDto {
         let ibdl = &self.individual_bundle;
-        IndividualBundleDto::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment())
+        IndividualBundleDto::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment(),
+            ibdl.age_of_onset(), ibdl.age_at_last_encounter(), ibdl.deceased(), ibdl.sex())
     }
 
     pub fn get_disease_dto_list(&self) -> Vec<DiseaseDto> {
@@ -118,11 +116,6 @@ impl PpktRow {
             gbdto_list.push(gvb.to_dto());
         }
         gbdto_list
-    }
-
-    pub fn get_demographic_dto(&self) -> DemographicDto {
-        let dg = &self.demographic_bundle;
-        DemographicDto::new(dg.age_of_onset(), dg.age_at_last_encounter(), dg.deceased(), dg.sex())
     }
 
     pub fn get_hpo_value_list(&self) -> Vec<CellDto> {

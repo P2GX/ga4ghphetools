@@ -22,7 +22,6 @@ use serde::de;
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{HeaderDupletDto};
 use crate::dto::validation_errors::ValidationErrors;
-use crate::header::demographic_header::DemographicHeader;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::duplet_item::DupletItem;
 use crate::header::gene_variant_header::GeneVariantHeader;
@@ -171,7 +170,6 @@ pub struct HeaderDupletRow {
     individual_header: IndividualHeader,
     disease_header_list: Vec<DiseaseHeader>,
     gene_variant_header_list: Vec<GeneVariantHeader>,
-    demographic_header: DemographicHeader,
     hpo_duplets: Vec<HpoTermDuplet>,
     template_type: TemplateType,
 }
@@ -186,11 +184,9 @@ impl HeaderDupletRow {
 
 
         /// first Q/C the constant part of the Mendelian header
-        let iheader = IndividualHeader::from_matrix(matrix)?;
+        let iheader = IndividualHeader::from_matrix(matrix, MENDELIAN_DEMOGRAPHIC_IDX)?;
         let dheader = DiseaseHeader::from_matrix(matrix, MENDELIAN_DISEASE_IDX)?;
         let gheader = GeneVariantHeader::from_matrix(matrix, MENDELIAN_GENE_VAR_IDX)?;
-        let demoheader = DemographicHeader::from_matrix(matrix, MENDELIAN_DEMOGRAPHIC_IDX)?;
-        
         /// If we get here, the constant part is OK and we can check the HPO columns
         let mut hpo_duplet_list: Vec<HpoTermDuplet> = Vec::new();
         let n = matrix[0].len(); // previously checked in qc_matrix_dimensions
@@ -206,7 +202,6 @@ impl HeaderDupletRow {
             individual_header: iheader, 
             disease_header_list: vec![DiseaseHeader::new()], 
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
-            demographic_header: demoheader,
             hpo_duplets: hpo_duplet_list,
             template_type: TemplateType::Mendelian
         })
@@ -253,7 +248,6 @@ impl HeaderDupletRow {
             individual_header: self.individual_header.clone(), 
             disease_header_list: self.disease_header_list.clone(), 
             gene_variant_header_list: self.gene_variant_header_list.clone(), 
-            demographic_header: self.demographic_header.clone(),
             hpo_duplets: updated_hpo_duplets.clone(),
             template_type: self.template_type.clone()
         })
@@ -302,7 +296,6 @@ impl HeaderDupletRow {
             individual_header: self.individual_header.clone(),
             disease_header_list: self.disease_header_list.clone(),
             gene_variant_header_list: self.gene_variant_header_list.clone(),
-            demographic_header: self.demographic_header.clone(),
             hpo_duplets: updated_hpo_duplets,
             template_type: self.template_type,
         }       
