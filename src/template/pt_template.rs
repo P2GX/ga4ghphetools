@@ -93,28 +93,16 @@ impl PheToolsTemplate {
             ppkt_rows: vec![]
         }) */
        eprint!("refacotr");
-       Err(Error::TemplateError { msg: format!("OUAGHDASAS") })
+       Err(Error::TemplateError { msg: "OUAGHDASAS".to_string() })
         
     }
 
 
-    /// A function to export a ``Vec<Vec<String>>`` matrix from the data
-    ///
-    /// # Returns
-    ///     
-    /// - `Vec<Vec<String>>`: A 2d matrix of owned strings representing the data in the template, including the two header rows.
-    /*
-    pub fn get_string_matrix(&self) -> Vec<Vec<String>> {
-        let mut rows: Vec<Vec<String>> = self.header.get_string_matrix();
-        for ppkt in &self.ppkt_rows {
-            let row = ppkt.get_string_row();
-            rows.push(row);
-        }
-        rows
-    } */
+   
+    
 
     pub fn get_template_dto(&self) -> Result<TemplateDto> {
-        let header_dto = self.header.get_header_dto();
+        let header_dto = self.header.get_hpo_header_dtos();
         let row_dto_list: Vec<RowDto> = self.ppkt_rows
             .iter()
             .map(RowDto::from_ppkt_row)

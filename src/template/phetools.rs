@@ -139,8 +139,8 @@ impl PheTools {
     pub fn arrange_terms(&self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
         let hpo_arc = Arc::clone(&self.hpo);
         let mut term_arrager = HpoTermArranger::new(hpo_arc);
-        let arranged_terms = term_arrager.arrange_term_ids(hpo_terms_for_curation);
-        arranged_terms
+        
+        term_arrager.arrange_term_ids(hpo_terms_for_curation)
     }
 
     /// Get a table of values as Strings for display/export
@@ -171,7 +171,7 @@ impl PheTools {
                 Ok(dto)
             }
             None => {
-                return Err(format!("Template is not initialized"));
+                return Err("Template is not initialized".to_string());
             }
         }
     }
@@ -189,10 +189,10 @@ impl PheTools {
                 let matrix = template
                     .get_hpo_col_with_context(col)
                     .map_err(|e| e.to_string())?;
-                return Ok(matrix);
+                Ok(matrix)
             }
             None => {
-                return Err(format!("Template is not initialized"));
+                Err("Template is not initialized".to_string())
             }
         }
     }
@@ -384,7 +384,7 @@ impl PheTools {
                 Err(e) => Err(e.to_string()),
             },
             None => {
-                return Err(format!("template not initialized"));
+                return Err("template not initialized".to_string());
             }
         }
     }
@@ -416,7 +416,7 @@ impl PheTools {
                 return Ok(());
             },
             None => {
-                return Err(format!("template not initialized"));
+                return Err("template not initialized".to_string());
             }
         } 
     }
@@ -462,7 +462,7 @@ impl PheTools {
             Some(template) => {
                 todo!()
             }
-            None => Err(format!("phetools template not initialized")),
+            None => Err("phetools template not initialized".to_string()),
         }
     }
 
@@ -480,7 +480,7 @@ impl PheTools {
             Some(template) => {
                 todo!()
             }
-            None => Err(format!("phetools template not initialized")),
+            None => Err("phetools template not initialized".to_string()),
         }
     }
 
@@ -490,20 +490,20 @@ impl PheTools {
             Some(template) => {
                 let summary = template.get_summary();
                 if summary.is_empty() {
-                    return Err(format!("Empty template"));
+                    Err("Empty template".to_string())
                 } else {
-                    return Ok(summary);
+                    Ok(summary)
                 }
             },
-            None => Err(format!("Phetools template not initialized"))
+            None => Err("Phetools template not initialized".to_string())
         }
     }
 
     pub fn get_hpo_data(&self) -> HashMap<String, String> {
         let hpo_clone = Arc::clone(&self.hpo);
         let mut hpo_map: HashMap<String, String> = HashMap::new();
-        let hpo_version = "ontolius update".to_ascii_lowercase(); //hpo_clone.version();
-        hpo_map.insert("version".to_string(), hpo_version);
+        let hpo_version = hpo_clone.version();
+        hpo_map.insert("version".to_string(), hpo_version.to_string());
         let n_terms = hpo_clone.len();
         hpo_map.insert("n_terms".to_string(), format!("{n_terms}"));
         hpo_map      
@@ -525,13 +525,13 @@ impl PheTools {
         match self.hpo.term_by_id(&tid) {
             Some(term) => {
                 if term.name() != label {
-                    Err(format!("Malformed HPO label {} for {} (expected: {})", label, tid.to_string(), term.name()))
+                    Err(format!("Malformed HPO label {} for {} (expected: {})", label, tid, term.name()))
                 } else {
                     Ok(dto)
                 }
             },
             None => {
-                Err(format!("Could not find HPO term identifier {} in the ontology", tid.to_string()))
+                Err(format!("Could not find HPO term identifier {} in the ontology", tid))
             }
         }
     }

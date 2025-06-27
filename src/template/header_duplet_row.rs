@@ -20,7 +20,7 @@ use ontolius::{Identified, TermId};
 use serde::de;
 
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{HeaderDto, HeaderDupletDto};
+use crate::dto::template_dto::{HeaderDupletDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::header::demographic_header::DemographicHeader;
 use crate::header::disease_header::DiseaseHeader;
@@ -322,32 +322,10 @@ impl HeaderDupletRow {
         self.hpo_duplets.clone()
     }
 
-    fn get_hpo_header_dtos(&self) -> Vec<HeaderDupletDto> {
+    pub fn get_hpo_header_dtos(&self) -> Vec<HeaderDupletDto> {
         self.hpo_duplets.iter()
             .map(|hpo_duplet| hpo_duplet.to_header_dto())
             .collect()
-    }
-
-    fn get_mendelian_header_dto(&self) -> HeaderDto {
-        let individual_dto = HeaderDupletDto::new("individual", "na");
-        let disease_dto = HeaderDupletDto::new("disease", "na");
-        let gene_dto = HeaderDupletDto::new("genetics", "na");
-        let demographics_dto = HeaderDupletDto::new("demographics", "na");
-        HeaderDto {
-            individual_header: individual_dto,
-            disease_headers: vec![disease_dto],
-            gene_var_headers: vec![gene_dto],
-            demographic_header: demographics_dto,
-            hpo_headers: self.get_hpo_header_dtos(),
-        }
-    }
-
-     /// Get the data dtransfer objects for creating a header in the display table
-    pub fn get_header_dto(&self) -> HeaderDto {
-        match self.template_type {
-            TemplateType::Mendelian => self.get_mendelian_header_dto(),
-            TemplateType::Melded => todo!(),
-        }
     }
 
     pub fn n_mendelian_contant_fields() -> usize {
