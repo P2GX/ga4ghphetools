@@ -72,7 +72,6 @@ impl PpktExporter {
     /// Create a GA4GH Individual message
     pub fn extract_individual(&self, ppkt_row: &PpktRow) -> Result<Individual> {
         let individual_dto = ppkt_row.get_individual_dto();
-        let demographic_dto = ppkt_row.get_demographic_dto();
         let mut idvl = Individual{ 
             id: individual_dto.individual_id, 
             alternate_ids: vec![], 
@@ -83,21 +82,21 @@ impl PpktExporter {
             karyotypic_sex: KaryotypicSex::UnknownKaryotype.into(), 
             gender: None, 
             taxonomy: None };
-        match demographic_dto.sex.as_ref() {
+        match individual_dto.sex.as_ref() {
             "M" => idvl.sex = Sex::Male.into(),
             "F" => idvl.sex = Sex::Female.into(),
             "O" => idvl.sex = Sex::OtherSex.into(),
             "U" => idvl.sex = Sex::UnknownSex.into(),
-            _ => { return Err(Error::TemplateError { msg: format!("Did not recognize sex string '{}'", demographic_dto.sex) });
+            _ => { return Err(Error::TemplateError { msg: format!("Did not recognize sex string '{}'", idvl.sex) });
             }
         };
-        let last_enc = demographic_dto.age_at_last_encounter;
+        let last_enc = individual_dto.age_at_last_encounter;
         if last_enc != "na" {
             let age = time_element_from_str(&last_enc)
                 .map_err(|e| Error::malformed_time_element(e.to_string()))?;
             idvl.time_at_last_encounter = Some(age);
         }
-        if demographic_dto.deceased == "yes" {
+        if individual_dto.deceased == "yes" {
             idvl.vital_status = Some(VitalStatus{ 
                 status: Status::Deceased.into(), 
                 time_of_death: None, 
@@ -193,8 +192,8 @@ impl PpktExporter {
             primary_site: None, 
             laterality: None 
         };
-        let demo_dto = ppkt_row.get_demographic_dto();
-        let onset = demo_dto.age_of_onset;
+        let idl_dto = ppkt_row.get_individual_dto();
+        let onset = idl_dto.age_of_onset;
         if onset != "na" {
             let age = time_element_from_str(&onset)
                 .map_err(|e| Error::malformed_time_element(e.to_string()))?;

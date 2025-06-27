@@ -16,6 +16,10 @@ pub struct IndividualBundleDto {
     pub title: String,
     pub individual_id: String,
     pub comment: String,
+    pub age_of_onset: String,
+    pub age_at_last_encounter: String,
+    pub deceased: String,
+    pub sex: String
 }
 
 impl IndividualBundleDto {
@@ -23,12 +27,20 @@ impl IndividualBundleDto {
         pmid: &str,
         title: &str,
         individual_id: &str,
-        comment: &str,) -> Self{
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,) -> Self{
             Self { 
                 pmid: pmid.to_string(), 
                 title: title.to_string(), 
                 individual_id: individual_id.to_string(), 
-                comment: comment.to_string() 
+                comment: comment.to_string(),
+                age_of_onset: age_of_onset.to_string(),
+                age_at_last_encounter: age_at_last_encounter.to_string(),
+                deceased: deceased.to_string(),
+                sex: sex.to_string(),
             }
     }
 }
@@ -81,31 +93,8 @@ impl DiseaseDto {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DemographicDto {
-    pub age_of_onset: String,
-    pub age_at_last_encounter: String,
-    pub deceased: String,
-    pub sex: String
-}
 
 
-impl DemographicDto {
-    pub fn new(
-        age_of_onset: &str,
-        age_at_last_encounter: &str,
-        deceased: &str,
-        sex: &str,
-    ) -> Self {
-        Self {
-            age_of_onset: age_of_onset.to_string(),
-            age_at_last_encounter: age_at_last_encounter.to_string(),
-            deceased: deceased.to_string(),
-            sex: sex.to_string(),
-        }
-    }
-}
 
 
 /// For Melded Phenotypes, there are two diseases, and two gene/variant bundles.
@@ -142,7 +131,6 @@ pub struct RowDto {
     pub individual_dto: IndividualBundleDto,
     pub disease_dto_list: Vec<DiseaseDto>,
     pub gene_var_dto_list: Vec<GeneVariantBundleDto>,
-    pub demographic_dto: DemographicDto,
     pub hpo_data: Vec<CellDto>
 }
 
@@ -151,7 +139,6 @@ impl RowDto {
         Self { individual_dto: ppkt_row.get_individual_dto(), 
             disease_dto_list: ppkt_row.get_disease_dto_list(), 
             gene_var_dto_list: ppkt_row.get_gene_var_dto_list(), 
-            demographic_dto: ppkt_row.get_demographic_dto(), 
             hpo_data: ppkt_row.get_hpo_value_list()
         }
     }
