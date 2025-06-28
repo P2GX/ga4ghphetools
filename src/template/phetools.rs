@@ -539,7 +539,7 @@ impl PheTools {
                 }
             },
             None => {
-                Err("Variant Manager not initialized".to_string())
+                return Err("Variant Manager not initialized".to_string());
             },
         }
         Ok(())
@@ -565,19 +565,9 @@ impl PheTools {
     pub fn validate_template(
         &self, 
         cohort_dto: TemplateDto) 
-    -> Result<(), ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
-        match cohort_dto.cohort_type.as_str() {
-            "mendelian" => Ok(()),
-            _ => todo!()
-        };
-        /*
-         pub cohort_type: String,
-    pub hpo_headers: Vec<HeaderDupletDto>,
-    pub rows: Vec<RowDto>
-     */
-
-        verrs.ok()
+    -> Result<PheToolsTemplate, ValidationErrors> {
+        let template = PheToolsTemplate::from_template_dto(cohort_dto, self.hpo.clone())?;
+        Ok(template)
     }
 
     pub fn export_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {

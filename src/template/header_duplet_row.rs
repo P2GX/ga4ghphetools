@@ -37,23 +37,6 @@ const NOT_AVAILABLE: &str = "na";
 const EXCLUDED: &str = "excluded";
 const OBSERVED: &str = "observed";
 
-/// Create macros to get the specific duplet object from the Enum.
-macro_rules! impl_duplet_getters {
-    ($( $variant:ident => $method:ident : $ty:ty ),*) => {
-        impl HeaderDuplet {
-            $(
-            pub fn $method(&self) -> std::result::Result<&$ty, crate::error::Error> {
-                match self {
-                    HeaderDuplet::$variant(inner) => Ok(inner),
-                    _ => Err(crate::error::Error::TemplateError {
-                        msg: format!("Expected {}", stringify!($variant)),
-                    }),
-                }
-            }
-            )*
-        }
-    };
-}
 
 
 
@@ -82,85 +65,10 @@ const DEMOGRAPHIC_IDX: usize = 12;
 const SEPARATOR_IDX: usize = 16;
 const HPO_SECTION_IDX: usize = 17;
 
-/// The header duplet has the following sections.
-/// Note that Mendelian does not have a DiseaseGeneBundleMelded section
-/// which in essence represents the second gene of a pair
-/// We know that everything not in this list is an HPO Term Column
-#[derive(Clone, Debug)]
-enum SectionType {
-    Individual,
-    DiseaseGeneBundleMendelian,
-    DiseaseGeneBundleMelded,
-    Demographic,
-    Separator,
-}
-
-impl SectionType {
-
-    pub fn n_elements(section_type: SectionType) -> usize {
-        match section_type {
-            SectionType::Individual => 4,
-            SectionType::DiseaseGeneBundleMendelian => 7,
-            SectionType::DiseaseGeneBundleMelded => 7,
-            SectionType::Demographic => 4,
-            SectionType::Separator => 1,
-        }
-    }
-
-    pub fn mendelian() -> Vec<SectionType> {
-        let mut stlist: Vec<SectionType> = Vec::new();
-        stlist.extend(std::iter::repeat(SectionType::Individual.clone()).take(SectionType::n_elements(SectionType::Individual)));
-        stlist.extend(std::iter::repeat(SectionType::DiseaseGeneBundleMendelian.clone()).take(SectionType::n_elements(SectionType::DiseaseGeneBundleMendelian)));
-        stlist.extend(std::iter::repeat(SectionType::Demographic.clone()).take(SectionType::n_elements(SectionType::Demographic)));
-        stlist.push(SectionType::Separator);
-        stlist
-    }
-
-}
-
 
 /// Total number of constant fields (columns) in the Mendelian template
 const N_CONSTANT_FIELDS_MENDELIAN: usize = 
     NUMBER_OF_INDIVIDUAL_FIELDS + NUMBER_OF_DISEASE_GENE_BUNDLE_FIELDS + NUMBER_OF_DEMOGRAPHIC_FIELDS + NUMBER_OF_SEPARATOR_FIELDS;
-
-
-impl Error {
-    fn could_not_extract_duplet(item: &str, i: usize) -> Self {
-        Error::TemplateError { msg: format!("Could not extract {item} at index {i}") }
-    }
-
-    fn could_not_extract_hpo_duplet(i: usize) -> Self {
-        Error::TemplateError { msg: format!("Could not extract HPO Term Column at index {i}") }
-    }
-
-    fn template_index_error(actual: usize, maxi: usize, template_name: &str) -> Self {
-        Error::TemplateError { msg: format!("Attempt to access item at index {actual} but {template_name} has {maxi} items.") }
-    }
-
-    fn no_hpo_column(i: usize, j: usize) -> Self {
-        Error::TemplateError { 
-            msg: format!("could not retrieve HPO column at index i={}, j={}", i, j)
-        }
-    }
-
-    fn index_too_large(max_val: usize, n_columns: usize) -> Self {
-        Error::TemplateError { 
-            msg: format!("Attempt to retrieve from index i={} with a HeaderDupletRow of size {}", 
-            max_val, n_columns)
-        }
-    }
-
-    fn indices_empty() -> Self {
-        Error::TemplateError { 
-            msg: format!("Attempt to retrieve from HeaderDupletRow with empty indices")
-        }
-    }
-
-    pub fn invalid_header() -> Self {
-        Self::TemplateError { msg: "Invalid HeaderDuplet header".to_string() }
-    }
-    
-}
 
 
 
@@ -181,8 +89,6 @@ impl HeaderDupletRow {
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<Self, ValidationErrors> {
         Self::qc_matrix_dimensions(matrix)?;
-
-
         /// first Q/C the constant part of the Mendelian header
         let iheader = IndividualHeader::from_matrix(matrix, MENDELIAN_DEMOGRAPHIC_IDX)?;
         let dheader = DiseaseHeader::from_matrix(matrix, MENDELIAN_DISEASE_IDX)?;
@@ -274,9 +180,24 @@ impl HeaderDupletRow {
             let dto = HpoTermDto::new(hpo_id, hpo_label, cell_contents);
             hpo_dto_list.push(dto);
         }
-
         Ok(hpo_dto_list)
     }
+
+    pub fn mendelian_from_dto(dto_list: Vec<HeaderDupletDto>) -> Self {
+        let hpo_termduplet_list: Vec<HpoTermDuplet> = dto_list
+            .into_iter()
+            .map(|dto| dto.to_hpo_duplet())
+            .collect();
+        Self { 
+            individual_header: IndividualHeader::new(), 
+            disease_header_list: vec![DiseaseHeader::new()], 
+            gene_variant_header_list: vec![GeneVariantHeader::new()], 
+            hpo_duplets: hpo_termduplet_list, 
+            template_type: TemplateType::Mendelian
+        }
+    }
+
+
 
     /// Total number of columns in the template, including separator column
     pub fn n_columns(&self) -> usize {

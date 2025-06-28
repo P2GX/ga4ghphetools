@@ -108,7 +108,33 @@ impl PheToolsTemplate {
             .map(RowDto::from_ppkt_row)
             .collect();
         Ok(TemplateDto::mendelian(header_dto, row_dto_list))
+    }
 
+    pub fn from_template_dto(
+        template_dto: TemplateDto, 
+        hpo: Arc<FullCsrOntology>) 
+    -> std::result::Result<Self, ValidationErrors> {
+        let header_duplet_row = match template_dto.cohort_type.as_str() {
+            "mendelian" => HeaderDupletRow::mendelian_from_dto(template_dto.hpo_headers),
+            other => {
+                return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{other}'")));
+            }
+        };
+        let header_arc = Arc::new(header_duplet_row);
+        let mut ppkt_rows: Vec<PpktRow> = Vec::new();
+        for row_dto in template_dto.rows {
+            let ppkt_row = PpktRow::from_dto(row_dto, header_arc.clone());
+            ppkt_rows.push(ppkt_row);
+        }
+        let template = PheToolsTemplate {
+            header: header_arc.clone(),
+            template_type: TemplateType::Mendelian,
+            hpo,
+            ppkt_rows,
+        };
+
+        template.check_for_errors()?;
+        Ok(template)
     }
 
     /// Get a list of all HPO identifiers currently in the template
@@ -172,45 +198,39 @@ impl PheToolsTemplate {
 
     }
 
-    /*
-    pub fn from_mendelian_templateOLD(
-        matrix: Vec<Vec<String>>,
-        hpo: Arc<FullCsrOntology>,
-    ) -> std::result::Result<Self, Error> {
-        if matrix.len() < 3 {
-            return Err(Error::empty_template(matrix.len()));
-        }
-        // check equal length of all rows
-        let row_len = matrix[0].len();
-        if !matrix.iter().all(|v| v.len() == row_len) {
-            return Err(Error::unequal_row_lengths());
-        }
-        let hdup_list = match HeaderDuplet::extract_from_string_matrix(&matrix) {
-            Ok(val) => val,
-            Err(e) => {
-                return Err(e); 
-            }
+    fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), String> {
+        let term_id = match TermId::from_str(duplet.hpo_id()) {
+            Ok(tid) => tid,
+            Err(e) => { return Err(format!("Could not create TermId from '{}': {}", duplet.hpo_id(), e)); },
         };
-        let hpo_util = HpoUtil::new(hpo.clone());
-        let _ = hpo_util.check_hpo_duplets(&hdup_list)?;
-        let hpo_arc = hpo.clone();
-        let header_duplet_row = HeaderDupletRowOLD::mendelian_from_duplets(hdup_list)?;
-        let hdr_arc = Arc::new(header_duplet_row);
-        const HEADER_ROWS: usize = 2; // first two rows of template are header
-        let mut ppt_rows: Vec<PpktRow> = Vec::new();
-        for row in matrix.into_iter().skip(HEADER_ROWS) {
-            let hdr_clone = hdr_arc.clone();
-            let ppkt_row = PpktRow::new(hdr_clone, row);
-            ppt_rows.push(ppkt_row);
+        match self.hpo.term_by_id(&term_id) {
+            Some(term) => {
+                if term.identifier().to_string() != duplet.hpo_id() {
+                    return Err(format!("Identifier '{}' did not match primary ID {}", duplet.hpo_id(), term.identifier()));
+                } else if term.name() != duplet.hpo_label() {
+                    return Err(format!("HPO Label '{}' did not match expected label {}", duplet.hpo_label(), term.name()));
+                }
+            },
+            None => { return Err(format!("Could not retrieve Term from TermId '{:?}'", term_id)); },
         }
-        Ok(Self { 
-                header: hdr_arc, 
-                template_type: TemplateType::Mendelian,
-                hpo: hpo.clone(),
-                ppkt_rows: ppt_rows
-            })
+
+        Ok(())
     }
-*/
+
+    /// This function can be used after we have converted a DTO to a PhetoolsTemplate
+    /// to check for syntactic errors in all of the fields (corresponding to all of the columns of the template)
+    /// It does not check for ontology errors, e.g., a term is excluded and a child of that term is observed
+    pub fn check_for_errors(&self) -> std::result::Result<(), ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
+        for duplet in &self.header.get_hpo_duplets() {
+            verrs.push_result(self.check_duplet(duplet));
+        }
+        for ppkt_row in &self.ppkt_rows {
+            verrs.push_verr_result(ppkt_row.check_for_errors());
+        }
+
+        verrs.ok()
+    }
 
     /// Get a value from a column that we expect to be the same in all phenopackets (DiseaseGeneBundle)
     fn get_unique(&self, i: usize) -> Result<String> {

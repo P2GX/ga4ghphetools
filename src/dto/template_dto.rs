@@ -4,6 +4,7 @@ use std::str::FromStr;
 use phenopackets::schema::v1::core::disease;
 use serde::{de, Deserialize, Serialize};
 use crate::header::duplet_item::DupletItem;
+use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
 use crate::template::excel::read_excel_to_dataframe;
 use crate::error::{Error, Result};
@@ -161,6 +162,10 @@ impl HeaderDupletDto {
 
     pub fn from_duplet_item(duplet: &DupletItem) -> Self {
         Self::new(duplet.row1(), duplet.row2())
+    }
+
+    pub fn to_hpo_duplet(self) -> HpoTermDuplet {
+        HpoTermDuplet::new(self.h1, self.h2)
     }
 }
 /// convert from DupletItem using into()

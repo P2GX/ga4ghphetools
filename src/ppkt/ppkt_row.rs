@@ -18,7 +18,7 @@ use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
-use crate::hpo::age_util;
+use crate::hpo::age_util::{self, check_hpo_table_cell};
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::phetools_traits::TableCell;
@@ -92,8 +92,22 @@ impl PpktRow {
             individual_bundle: ibundle, 
             disease_bundle_list: vec![disease_bundle], 
             gene_var_bundle_list: vec![gene_variant_bundle],
-            hpo_content: hpo_content 
+            hpo_content 
         })
+    }
+
+
+    pub fn from_dto(dto: RowDto, header: Arc<HeaderDupletRow>) -> Self {
+        let hpo_content = dto.hpo_data.into_iter()
+            .map(|c|c.value)
+            .collect();
+        Self { 
+            header, 
+            individual_bundle: IndividualBundle::from_dto(dto.individual_dto), 
+            disease_bundle_list: DiseaseBundle::from_dto_list(dto.disease_dto_list), 
+            gene_var_bundle_list: GeneVariantBundle::from_dto_list(dto.gene_var_dto_list), 
+            hpo_content
+        }
     }
 
     pub fn get_individual_dto(&self) -> IndividualBundleDto {
@@ -147,6 +161,23 @@ impl PpktRow {
             content: values
         })*/
         Err(Error::custom("mendelian_from-refacot"))
+    }
+
+    /// This function checks the current PpktRow for syntactical errors
+    pub fn check_for_errors(&self) -> std::result::Result<(), ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
+        verrs.push_verr_result(self.individual_bundle.do_qc());
+        for db in &self.disease_bundle_list {
+            verrs.push_verr_result(db.do_qc());
+        }
+        for gvb in &self.gene_var_bundle_list {
+            verrs.push_verr_result(gvb.do_qc());
+        }
+        for item in &self.hpo_content {
+            verrs.push_result(check_hpo_table_cell(item));
+        }
+
+        verrs.ok()
     }
 }
 
