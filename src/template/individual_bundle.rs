@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::validation_errors::ValidationErrors, header::individual_header::IndividualHeader};
+use crate::{dto::{template_dto::IndividualBundleDto, validation_errors::ValidationErrors}, header::individual_header::IndividualHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<IndividualHeader>> = Lazy::new(|| {
@@ -91,6 +91,20 @@ impl IndividualBundle {
 
     pub fn sex(&self) -> &str {
         &self.sex
+    }
+
+    pub fn from_dto(dto: IndividualBundleDto) -> Self {
+        Self { 
+            header: SHARED_HEADER.clone(), 
+            pmid: dto.pmid, 
+            title: dto.title, 
+            individual_id: dto.individual_id, 
+            comment: dto.comment, 
+            age_of_onset: dto.age_of_onset, 
+            age_at_last_encounter: dto.age_at_last_encounter, 
+            deceased: dto.deceased, 
+            sex: dto.sex 
+        }
     }
 
 }

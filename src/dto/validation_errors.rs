@@ -31,9 +31,21 @@ impl ValidationErrors {
         Self::default()
     }
 
+    pub fn from_string(error: impl Into<String>) -> Self {
+        Self { errors: vec![error.into()] }
+    }
+
     pub fn push_result(&mut self, res: Result<(), String>) {
         if let Err(e) = res {
             self.errors.push(e);
+        }
+    }
+
+    pub fn push_verr_result(&mut self, res: Result<(), ValidationErrors>) {
+        if let Err(verr) = res {
+            if verr.has_error() {
+                self.errors.extend(verr.errors);
+            }
         }
     }
 

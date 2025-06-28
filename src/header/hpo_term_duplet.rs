@@ -16,7 +16,7 @@ use crate::hpo::age_util;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HpoTermDuplet {
-    hpo_label: String,
+    pub(crate) hpo_label: String,
     hpo_id: String,
 }
 
@@ -50,12 +50,27 @@ impl HpoTermDuplet {
         HeaderDupletDto::new(&self.hpo_label, &self.hpo_id)
     }
 
+    pub fn from_header_dto(dto: HeaderDupletDto) -> Self {
+        Self { 
+            hpo_label: dto.h1, 
+            hpo_id: dto.h2 
+        }
+    }
+
     pub fn row1(&self) -> String {
         self.hpo_label.clone()
     }
 
     pub fn row2(&self) -> String {
         self.hpo_id.clone()
+    }
+
+    pub fn hpo_id(&self) -> &str {
+        &self.hpo_id
+    }
+
+    pub fn hpo_label(&self) -> &str {
+        &self.hpo_label
     }
     
 }

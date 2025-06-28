@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 use once_cell::sync::Lazy;
 
 use crate::{dto::{template_dto::GeneVariantBundleDto, validation_errors::ValidationErrors}, header::gene_variant_header::GeneVariantHeader};
@@ -58,6 +58,24 @@ impl GeneVariantBundle {
 
     pub fn to_dto(&self) -> GeneVariantBundleDto {
         GeneVariantBundleDto:: new(self.hgnc_id(), self.gene_symbol(), self.transcript(), self.allele1(), self.allele2(), self.variant_comment())
+    }
+
+    pub fn from_dto(dto: GeneVariantBundleDto) -> Self {
+        Self { 
+            header: SHARED_HEADER.clone(), 
+            hgnc_id: dto.hgnc_id, 
+            gene_symbol: dto.gene_symbol, 
+            transcript: dto.transcript, 
+            allele1: dto.allele1, 
+            allele2: dto.allele2, 
+            variant_comment: dto.variant_comment
+        }
+    }
+
+    pub fn from_dto_list(dto_list: Vec<GeneVariantBundleDto>) -> Vec<Self> {
+        dto_list.into_iter()
+            .map(|dto| Self::from_dto(dto))
+            .collect()
     }
 
     pub fn  hgnc_id(&self) -> &str {

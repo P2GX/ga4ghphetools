@@ -22,7 +22,7 @@ impl IndividualHeader {
             title: DupletItem::title(), 
             individual_id: DupletItem::individual_id(), 
             comment: DupletItem::comment(),
-             age_of_onset: DupletItem::age_of_onset(), 
+            age_of_onset: DupletItem::age_of_onset(), 
             age_at_last_encounter: DupletItem::age_at_last_encounter() ,
             deceased: DupletItem::deceased(),
             sex: DupletItem::sex()

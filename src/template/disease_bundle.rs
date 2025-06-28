@@ -47,4 +47,18 @@ impl DiseaseBundle {
     pub fn to_dto(&self) -> DiseaseDto {
         DiseaseDto::new(&self.disease_id, &self.disease_label)
     }
+
+    pub fn from_dto(dto: DiseaseDto) -> Self {
+        Self { header: SHARED_HEADER.clone(), 
+            disease_id: dto.disease_id, 
+            disease_label: dto.disease_label
+        }
+    }
+
+    pub fn from_dto_list(dto_list: Vec<DiseaseDto>) -> Vec<Self> {
+        dto_list.into_iter()
+            .map(|dto| Self::from_dto(dto))
+            .collect()
+    }
+
 }
