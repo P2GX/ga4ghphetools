@@ -222,12 +222,12 @@ impl HeaderDupletRow {
         }       
     }
     
-    pub fn get_hpo_id_list(&self) -> Result<Vec<TermId>> {
+    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, String> {
         self.hpo_duplets
             .iter()
             .map(|duplet| {
                 TermId::from_str(&duplet.row2())
-                    .map_err(|_| Error::termid_parse_error(&duplet.row2()))
+                    .map_err(|_| format!("Could not get HPO TermId from: {}", duplet.row2()))
             })
             .collect()
     }
@@ -240,6 +240,43 @@ impl HeaderDupletRow {
         self.hpo_duplets.iter()
             .map(|hpo_duplet| hpo_duplet.to_header_dto())
             .collect()
+    }
+
+    pub fn get_hpo_content_dtos(
+        &self,
+        cell_content_list: &Vec<String>)
+    -> std::result::Result<Vec<HpoTermDto>, String> {
+        if cell_content_list.len() != self.hpo_count() {
+            return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
+            self.hpo_count(), cell_content_list.len()));
+        }
+        let dto_list: Vec<HpoTermDto> = self.get_hpo_duplets()
+            .iter()
+            .zip(cell_content_list.iter())
+            .map(|(duplet, content)| {
+                HpoTermDto::new(duplet.hpo_id(), duplet.hpo_label(), content)
+            })
+            .collect();
+        Ok(dto_list)
+    }
+
+      pub fn get_hpo_content_map(
+        &self,
+        cell_content_list: &Vec<String>)
+    -> std::result::Result<HashMap<TermId, String>, String> {
+        if cell_content_list.len() != self.hpo_count() {
+            return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
+            self.hpo_count(), cell_content_list.len()));
+        }
+       /*  let hpo_map: HashMap<TermId, String> = self.get_hpo_duplets()
+            .iter()
+            .zip(cell_content_list.iter())
+            .map(|(duplet, content)| {
+                (duplet.hpo_id().clone(), content.clone())
+            })
+            .collect();
+        Ok(hpo_map)*/
+        Err("refactoring string to term id TODO123".to_ascii_lowercase())
     }
 
     pub fn n_mendelian_contant_fields() -> usize {

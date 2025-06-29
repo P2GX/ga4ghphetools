@@ -138,7 +138,7 @@ impl PheToolsTemplate {
     }
 
     /// Get a list of all HPO identifiers currently in the template
-    pub fn get_hpo_term_ids(&self) -> Result<Vec<TermId>> {
+    pub fn get_hpo_term_ids(&self) -> std::result::Result<Vec<TermId>, String> {
         self.header.get_hpo_id_list()
     }
 
@@ -563,6 +563,78 @@ impl PheToolsTemplate {
     }
 
 
+    /* let hpo_util = HpoUtil::new(self.hpo.clone());
+        // === STEP 1: Extract all HPO TIDs from DTO and classify ===
+        let mut dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
+        let mut term_id_set: HashSet<TermId>  = dto_map.keys().cloned().collect();
+        let existing_term_ids = self.header.get_hpo_id_list()?;
+        term_id_set.extend(existing_term_ids);
+        // === STEP 2: Arrange TIDs before borrowing template mutably ===
+        let all_tids: Vec<TermId> = term_id_set.into_iter().collect();
+        let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
+        let arranged_terms = term_arrager.arrange_terms(&all_tids).map_err(|e|e.to_string())?;
+         // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
+        // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
+        // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
+        // the new HeaderDupletRow object to write the values.
+        // 3a. Update the HeaderDupletRow object.
+        let update_hdr = self.header.update_old(&arranged_terms);
+        let updated_hdr_arc = Arc::new(update_hdr);
+        // 3b. Update the existing PpktRow objects
+        let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
+        for ppkt in &self.ppkt_rows {
+            let mut term_id_map: HashMap<TermId, String> = HashMap::new();
+                for term in &arranged_terms {
+                    term_id_map.insert(term.identifier().clone(), "na".to_string());
+                } */
+    pub fn add_hpo_term_to_cohort(
+        &mut self,
+        hpo_id: &str,
+        hpo_label: &str) -> std::result::Result<(), String> {
+            let tid = match TermId::from_str(hpo_id) {
+                Ok(term_id) => term_id,
+                Err(_) => { return Err(format!("could not parse HPO id '{hpo_id}'")); }
+            };
+            let term = match &self.hpo.term_by_id(&tid) {
+                Some(term) => term,
+                None =>{ return Err(format!("could not retrieve HPO term for '{hpo_id}'")); }
+            };
+            // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
+            let hpo_util = HpoUtil::new(self.hpo.clone());
+            let mut all_tids = self.header.get_hpo_id_list()?;
+            if all_tids.contains(&tid) {
+                return Err(format!("Not allowed to add term {} because it already is present", &tid));
+            }
+            all_tids.push(tid);
+            let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
+            let arranged_terms = term_arrager.arrange_terms(&all_tids).map_err(|e|e.to_string())?;
+            // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
+            // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
+            // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
+            // the new HeaderDupletRow object to write the values.
+            // 3a. Update the HeaderDupletRow object.
+            let update_hdr = self.header.update_old(&arranged_terms);
+            let updated_hdr_arc = Arc::new(update_hdr);
+            let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
+            for ppkt in &self.ppkt_rows {
+                let mut term_id_map: HashMap<TermId, String> = HashMap::new();
+                for term in &arranged_terms {
+                    term_id_map.insert(term.identifier().clone(), "na".to_string());
+                } 
+            }
+         /*   let updated_ppkt = ppkt; // .update(&mut term_id_map, updated_hdr_arc.clone())?;
+                updated_ppkt_rows.push(updated_ppkt.clone());
+        
+        /// Now add the new phenopacket
+        let hpo_cell_values = updated_hdr_arc.get_hpo_row(&hpo_dto_items);
+        let dgb = self.get_mendelian_disease_gene_bundle()?;
+        let new_ppkt = PpktRow::mendelian_from( updated_hdr_arc.clone(), case_dto, dgb, hpo_cell_values)?;
+        updated_ppkt_rows.push(new_ppkt);
+        self.header = updated_hdr_arc;
+        self.ppkt_rows = updated_ppkt_rows;*/
+
+            Ok(())
+        }
 }
 
 

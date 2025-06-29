@@ -179,54 +179,27 @@ impl PpktRow {
 
         verrs.ok()
     }
+
+
+    pub fn update_new_na_term(
+        &self, 
+        new_term: SimpleTerm,
+        updated_hdr: Arc<HeaderDupletRow>
+    ) -> std::result::Result<Self, String> {
+        let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
+        let previous_header = &self.header;
+        let hpo_dtos = previous_header.get_hpo_content_dtos(&self.hpo_content);
+        
+
+        Err("refacgtoring TODO123".to_ascii_lowercase())
+    }
+
 }
 
 /*
     
-    fn get_item(&self, title: &str) -> Result<String> {
-        self.header_duplet_row
-        .get_idx(title)
-        .and_then(|i| {
-            self.content
-                .get(i)
-                .cloned()
-                .ok_or_else(|| Error::no_content(i))
-        })
-    }
-
    
-
-    pub fn get_value_at(&self, i: usize) -> Result<String> {
-            if i >= self.content.len() {
-                Err(Error::TemplateError { msg: format!("Invalid index {i}") })
-            } else {
-                Ok(self.content[i].clone())
-            }
-    } 
-
-    /// Return the data transfer object for displaying information about the individual (id, PMID, title, comment) in a GUI
-    pub fn get_individual_dto(&self) -> Result<IndividualBundleDto> {
-        Ok(IndividualBundleDto::new(&self.pmid()?, &self.title()?, &self.individual_id()?, &self.get_comment()?))
-    }
-
-    /// Return the data (outside of IndividualDto) as a vector of CellDtos-
-    /// TODO -- we will want to update this as we create more DTOs
-    pub fn get_cell_dtos(&self) -> Result<Vec<CellDto>> {
-        let mut dtos: Vec<CellDto> = Vec::new();
-        for val in self.content.iter().skip(4) {
-            dtos.push(CellDto::new(val));
-        }
-        Ok(dtos)
-    }
-
-    pub fn get_row_dto(&self) -> Result<RowDto> {
-        let individual_dto = self.get_individual_dto()?;
-        let cell_dto_list = self.get_cell_dtos()?;
-        
-
-        //Ok(RowDto::new(individual_dto, cell_dto_list))
-        Err(Error::TemplateError { msg: format!("refactoring error") })
-    }
+   
 */
 
     /// the tid_map has TermId to label
