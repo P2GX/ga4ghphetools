@@ -260,23 +260,21 @@ impl HeaderDupletRow {
         Ok(dto_list)
     }
 
-      pub fn get_hpo_content_map(
+    pub fn get_hpo_content_map(
         &self,
-        cell_content_list: &Vec<String>)
+        cell_content_list: &[String])
     -> std::result::Result<HashMap<TermId, String>, String> {
         if cell_content_list.len() != self.hpo_count() {
             return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
             self.hpo_count(), cell_content_list.len()));
         }
-       /*  let hpo_map: HashMap<TermId, String> = self.get_hpo_duplets()
+        self.get_hpo_duplets()
             .iter()
             .zip(cell_content_list.iter())
             .map(|(duplet, content)| {
-                (duplet.hpo_id().clone(), content.clone())
+                duplet.to_term_id().map(|tid| (tid, content.clone()))
             })
-            .collect();
-        Ok(hpo_map)*/
-        Err("refactoring string to term id TODO123".to_ascii_lowercase())
+            .collect()
     }
 
     pub fn n_mendelian_contant_fields() -> usize {

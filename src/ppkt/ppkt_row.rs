@@ -181,17 +181,29 @@ impl PpktRow {
     }
 
 
-    pub fn update_new_na_term(
+    pub fn update_header(
         &self, 
-        new_term: SimpleTerm,
         updated_hdr: Arc<HeaderDupletRow>
     ) -> std::result::Result<Self, String> {
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
         let previous_header = &self.header;
-        let hpo_dtos = previous_header.get_hpo_content_dtos(&self.hpo_content);
-        
+        let hpo_map = previous_header.get_hpo_content_map(&self.hpo_content)?;
+        let mut content = Vec::new();
+        for tid in updated_hpo_id_list {
+            let item: String = hpo_map
+                .get(&tid)
+                .cloned() // converts Option<&String> to Option<String>
+                .unwrap_or_else(|| "na".to_string()); // this will pertain to the new HPO term we are adding
+            content.push(item);
+        }
 
-        Err("refacgtoring TODO123".to_ascii_lowercase())
+        Ok(Self { 
+            header: updated_hdr, 
+            individual_bundle: self.individual_bundle.clone(), 
+            disease_bundle_list: self.disease_bundle_list.clone(), 
+            gene_var_bundle_list: self.gene_var_bundle_list.clone(), 
+            hpo_content: content 
+        })
     }
 
 }

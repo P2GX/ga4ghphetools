@@ -617,22 +617,11 @@ impl PheToolsTemplate {
             let updated_hdr_arc = Arc::new(update_hdr);
             let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
             for ppkt in &self.ppkt_rows {
-                let mut term_id_map: HashMap<TermId, String> = HashMap::new();
-                for term in &arranged_terms {
-                    term_id_map.insert(term.identifier().clone(), "na".to_string());
-                } 
+                let new_ppkt = ppkt.update_header(updated_hdr_arc.clone())?;
+                updated_ppkt_rows.push(new_ppkt);
             }
-         /*   let updated_ppkt = ppkt; // .update(&mut term_id_map, updated_hdr_arc.clone())?;
-                updated_ppkt_rows.push(updated_ppkt.clone());
-        
-        /// Now add the new phenopacket
-        let hpo_cell_values = updated_hdr_arc.get_hpo_row(&hpo_dto_items);
-        let dgb = self.get_mendelian_disease_gene_bundle()?;
-        let new_ppkt = PpktRow::mendelian_from( updated_hdr_arc.clone(), case_dto, dgb, hpo_cell_values)?;
-        updated_ppkt_rows.push(new_ppkt);
-        self.header = updated_hdr_arc;
-        self.ppkt_rows = updated_ppkt_rows;*/
-
+            self.header = updated_hdr_arc.clone();
+            self.ppkt_rows = updated_ppkt_rows;
             Ok(())
         }
 }

@@ -4,7 +4,9 @@
 //! 
 
 use std::collections::HashSet;
+use std::str::FromStr;
 use lazy_static::lazy_static;
+use ontolius::TermId;
 
 use crate::dto::template_dto::{HeaderDupletDto};
 use crate::template::curie;
@@ -71,6 +73,11 @@ impl HpoTermDuplet {
 
     pub fn hpo_label(&self) -> &str {
         &self.hpo_label
+    }
+
+    pub fn to_term_id(&self) -> std::result::Result<TermId, String> {
+        let tid = TermId::from_str(&self.hpo_id).map_err(|_| format!("Could not create TermId from {}", self.hpo_id()))?;
+        Ok(tid)
     }
     
 }
