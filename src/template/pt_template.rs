@@ -103,6 +103,7 @@ impl PheToolsTemplate {
 
     pub fn get_template_dto(&self) -> Result<TemplateDto> {
         let header_dto = self.header.get_hpo_header_dtos();
+        println!("get_template_dto: {:?}", header_dto);
         let row_dto_list: Vec<RowDto> = self.ppkt_rows
             .iter()
             .map(RowDto::from_ppkt_row)
@@ -173,6 +174,7 @@ impl PheToolsTemplate {
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<Self, ValidationErrors> {
+        println!("from_mendelian_template");
         let verrs = ValidationErrors::new();
         let header = HeaderDupletRow::mendelian(&matrix, hpo.clone())?;
 
@@ -563,30 +565,7 @@ impl PheToolsTemplate {
     }
 
 
-    /* let hpo_util = HpoUtil::new(self.hpo.clone());
-        // === STEP 1: Extract all HPO TIDs from DTO and classify ===
-        let mut dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
-        let mut term_id_set: HashSet<TermId>  = dto_map.keys().cloned().collect();
-        let existing_term_ids = self.header.get_hpo_id_list()?;
-        term_id_set.extend(existing_term_ids);
-        // === STEP 2: Arrange TIDs before borrowing template mutably ===
-        let all_tids: Vec<TermId> = term_id_set.into_iter().collect();
-        let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
-        let arranged_terms = term_arrager.arrange_terms(&all_tids).map_err(|e|e.to_string())?;
-         // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
-        // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
-        // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
-        // the new HeaderDupletRow object to write the values.
-        // 3a. Update the HeaderDupletRow object.
-        let update_hdr = self.header.update_old(&arranged_terms);
-        let updated_hdr_arc = Arc::new(update_hdr);
-        // 3b. Update the existing PpktRow objects
-        let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
-        for ppkt in &self.ppkt_rows {
-            let mut term_id_map: HashMap<TermId, String> = HashMap::new();
-                for term in &arranged_terms {
-                    term_id_map.insert(term.identifier().clone(), "na".to_string());
-                } */
+    
     pub fn add_hpo_term_to_cohort(
         &mut self,
         hpo_id: &str,

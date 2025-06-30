@@ -11,7 +11,7 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
         format!(
             "Could not open Excel file at '{}': {}",
             file_path,
-            e.to_string()
+            e
         )
     })?;
     let range = workbook
@@ -20,11 +20,11 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
     let mut row_iter = range.rows(); // Create a single iterator over the rows
     let first_row = row_iter
         .next()
-        .ok_or_else(|| calamine::Error::Msg("No data in the worksheet"))?;
+        .ok_or(calamine::Error::Msg("No data in the worksheet"))?;
     let first_row_headers: Vec<String> = first_row.iter().map(|cell| cell.to_string()).collect();
     let second_row = row_iter
         .next()
-        .ok_or_else(|| calamine::Error::Msg("No data in the worksheet"))?;
+        .ok_or(calamine::Error::Msg("No data in the worksheet"))?;
     let second_row_headers: Vec<String> = second_row.iter().map(|cell| cell.to_string()).collect();
     let n1 = first_row_headers.len();
     let n2 = second_row_headers.len();
@@ -39,9 +39,9 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
     list_of_rows.push(first_row_headers);
     list_of_rows.push(second_row_headers);
     // Now, iterate over the remaining rows
-    for (_, row) in row_iter.enumerate() {
+    for row in row_iter {
         let row_data: Vec<String> = row.iter().map(|cell| cell.to_string()).collect();
-        //println!("Row {}: {:?}", i + 3, row_data);
+        println!("Row {:?}",  row_data);
         if row_data.len() != n1 {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -54,7 +54,8 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
         }
         list_of_rows.push(row_data);
     }
-    return Ok(list_of_rows);
+      println!("Returning list of rows");
+    Ok(list_of_rows)
 }
 
 // region:    --- Tests

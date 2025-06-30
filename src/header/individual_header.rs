@@ -69,8 +69,17 @@ impl IndividualHeader {
     }
 
 
-    pub fn qc_data(&self, pmid: &str, title: &str, individual_id: &str, comment: &str,
-            age_of_onset: &str, age_at_last_encounter: &str, deceased: &str, sex: &str) -> Result<(), ValidationErrors> {
+    pub fn qc_data(&self, 
+        pmid: &str, 
+        title: &str, 
+        individual_id: &str, 
+        comment: &str,
+        age_of_onset: &str, 
+        age_at_last_encounter: &str, 
+        deceased: &str, 
+        sex: &str) 
+    -> Result<(), ValidationErrors> {
+        println!("QC DATA pmid: {pmid} age of on: {age_of_onset} last {age_at_last_encounter}");
         let mut verrors = ValidationErrors::new();
         verrors.push_result(self.pmid.qc_data(pmid));
         verrors.push_result(self.title.qc_data(title));

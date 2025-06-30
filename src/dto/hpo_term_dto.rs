@@ -12,6 +12,7 @@ use crate::template::excel::read_excel_to_dataframe;
 use crate::error::{Error, Result};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HpoTermDto {
     /// String representation of an HPO identifier, e.g., HP:0025234
     term_id: String,

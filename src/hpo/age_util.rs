@@ -50,9 +50,15 @@ static ALLOWABLE_HPO_GENERIC_ENTRIES: Lazy<HashSet<String>> = Lazy::new(||{
 });
 
 
-
+/// TODO 
+/// In the existing templates, we have allowed "na" or empty cell for HPO entries that are na.
+/// In the future, we will allow only na. 
+/// For now, we need to allow empty strings as a valid vale
 pub fn check_hpo_table_cell(cell_value: &str) -> Result<(), String> {
-    if ALLOWABLE_HPO_GENERIC_ENTRIES.contains(cell_value) || is_valid_age_string(cell_value) {
+    if cell_value.is_empty() {
+        Ok(())
+    }
+    else if ALLOWABLE_HPO_GENERIC_ENTRIES.contains(cell_value) || is_valid_age_string(cell_value) {
         Ok(())
     } else {
         Err(format!("Invalid age string '{cell_value}'"))

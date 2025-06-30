@@ -40,16 +40,16 @@ fn main() {
         .expect("HPO should be loaded");
     let hpo_arc = Arc::new(hpo);
     let mut phetools = PheTools::new(hpo_arc);
+    println!("Created phetools");
     match phetools.load_excel_template(&cli.template) {
         Ok(template) => {
             println!("[INFO] No errors identified for {}", &cli.template);
-            println!("{}", &phetools);
-            println!("{:?}", phetools.get_string_matrix());
         }
         Err(e) => {
             println!("[ERROR] {}", e);
+            return;
         }
     }
-    let hmap = phetools.get_hpo_data();
-    println!("{:?}", hmap);
+    let dto = phetools.get_template_dto();
+    println!("{:?}", dto);
 }

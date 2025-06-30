@@ -166,6 +166,7 @@ impl PheTools {
 
     /// Return a Data Transfer Object to display the entire phenopacket cohort (template)
     pub fn get_template_dto(&self) -> Result<TemplateDto, String> {
+        println!("get_template_dto");
         match &self.template {
             Some(template) => {
                 let dto = template.get_template_dto().map_err(|e| e.to_string())?;
@@ -233,37 +234,8 @@ impl PheTools {
         Ok(())
     }
 
-    /// Return true if this column contains data about an HPO term
-    pub fn is_hpo_col(&self, col: usize) -> bool {
-        match &self.template {
-            Some(tplt) => {
-                tplt.is_hpo_column(col)
-            },
-            None => false,
-        }
-    }
 
-    /// todo - is this function needed?
-    pub fn col_type_at(&self, col: usize) -> Result<String, String> {
-        match &self.template {
-            Some(tplt) => {
-                if col >= tplt.n_columns() {
-                    return Err(Error::column_index_error(col, tplt.n_columns()).to_string());
-                }
-                match tplt.get_column_name(col) {
-                    Ok(ctype) => {
-                        Ok(format!("{:?}", ctype))
-                    },
-                    Err(e) => {
-                        Err(format!("{}", e))
-                    }
-                }
-            }
-            None => {
-                Err("col_type_at: template not initialized".to_string())
-            }
-        }
-    }
+
 
     /// Adds a new row to the template, filling in only the constant fields.
     ///
@@ -327,101 +299,33 @@ impl PheTools {
         }
     }
 
-    /// Edit (set) the value at a particular table cell.
+    /// Add a new HPO term to the template with initial value "na". Client code can edit the new column
     ///
     /// # Arguments
     ///
-    /// * `row` - row index
-    /// * `col` - column index
-    /// * `value` - value to set the corresponding table cell to
+    /// * `hpo_id` - HPO identifier
+    /// * `hpo_label` - Corresponding HPO label
     ///
     /// # Returns
     ///
     /// ``Ok(())`` if successful, otherwise ``Err(String)``
     /// # Notes
     /// 
-    /// The row index includes the first two (header rows), so that the index of the first phenopacket row is 2
-    pub fn set_value(
+    /// The method returns an error if an attempt is made to add an existing HPO term. The method rearranged terms in DFS order
+    pub fn add_hpo_term_to_cohort(
         &mut self,
-        row: usize,
-        col: usize,
-        value: &str,
-    ) -> Result<(), String> {
+        hpo_id: &str,
+        hpo_label: &str) 
+    -> std::result::Result<(), String> {
         match &mut self.template {
             Some(template) => {
-                template
-                    .set_value(row, col, value)
-                    .map_err(|e| e.to_string())?;
-                return Ok(());
-            }
-            None => {
-                Err("template not initialized".to_string())
-            }
-        }
-    }
-
-    /// Get a vector of options that apply for the selected table cell 
-    /// (row 0 is header 1, row 1 is header 2, row 2.. are the phenopacket rows)
-    ///  # Arguments
-    ///
-    /// * `row` - row index
-    /// * `col` - column index
-    /// * `addtl` - List of additional options to show (if present, these are added to the standard options for each column type)
-    ///
-    /// # Returns
-    ///
-    /// ``Vec<String>`` if successful (list of options), otherwise ``Err(String)``
-    /// # Notes
-    /// 
-    /// This function is intended to be used to create the items needed for an option menu upon right click.
-    pub fn get_edit_options_for_table_cell(
-        &self,
-        row: usize,
-        col: usize,
-        addtl: Vec<String>,
-    ) -> Result<Vec<String>, String> {
-        match &self.template {
-            Some(template) => match template.get_options(row, col, addtl) {
-                Ok(options) => Ok(options),
-                Err(e) => Err(e.to_string()),
-            },
-            None => {
-                Err("template not initialized".to_string())
-            }
-        }
-    }
-
-    /// Get a vector of options that apply for the selected table cell 
-    /// (row 0 is header 1, row 1 is header 2, row 2.. are the phenopacket rows)
-    ///  # Arguments
-    ///
-    /// * `row` - row index
-    /// * `col` - column index
-    /// * `operation` - Operation to be performed on the table cell, e.g., "na" (set value to na). See 
-    ///
-    /// # Returns
-    ///
-    /// ``Vec<String>`` if successful (list of options), otherwise ``Err(String)``
-    /// # Notes
-    /// 
-    /// This function is intended to be used to create the items needed for an option menu upon right click.
-    /// See the (private) `template::operations` module for a list of implemented operations.
-    pub fn execute_operation(
-        &mut self,
-        row: usize,
-        col: usize,
-        operation: &str) -> Result<(), String>
-    {
-        match &mut self.template {
-            Some(template) =>  {
-                template.execute_operation(row, col, operation).map_err(|e| e.to_string())?;
+                template.add_hpo_term_to_cohort(hpo_id, hpo_label)?;
                 Ok(())
-            },
-            None => {
-                Err("template not initialized".to_string())
             }
-        } 
+            None => Err("Template not initialized".to_string())
+        }
     }
+
 
     pub fn delete_row(&mut self, row: usize) -> Result<(), String> {
         match &mut self.template {
@@ -454,7 +358,6 @@ impl PheTools {
         }
     }
 
-   
 
     pub fn get_template_summary(&self) -> Result<HashMap<String, String>, String> {
         match &self.template {
@@ -628,34 +531,7 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    #[ignore]
-    fn test_name() -> Result<()> {
-        let hpo_json = "../../data/hpo/hp.json";
-        let template = "../phenopacket-store/notebooks/FBN2/input/FBN2_CCA_individuals.xlsx";
-        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
-        let hpo: FullCsrOntology = loader
-            .load_from_path(hpo_json)
-            .expect("HPO should be loaded");
-        let hpo_arc = Arc::new(hpo);
-        let mut pyphetools = PheTools::new(hpo_arc);
-        pyphetools.load_excel_template(template);
-        let matrix = pyphetools.get_string_matrix();
-        match matrix {
-            Ok(mat) => {
-                println!("{:?}", mat);
-            }
-            Err(e) => {
-                println!("{}", e)
-            }
-        }
-        println!("setting value");
-        match pyphetools.set_value(9, 31, "observed") {
-            Ok(_) => println!("Able to set value"),
-            Err(e) => println!("error: {}", e)
-        }
-        Ok(())
-    }
+ 
 }
 
 // endregion: --- Tests

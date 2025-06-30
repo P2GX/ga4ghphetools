@@ -114,7 +114,7 @@ pub enum DupletType {
     AGEATLASTENCOUNTER,
     DECEASED,
     SEX,
-    HPOSEPARATOR,
+    HpoSeparator,
 }
 
 
@@ -174,7 +174,7 @@ impl DupletItem {
     /// white-space is not allowed.
     fn check_valid_curie(s: &str) -> Result<(), String> {
         if s.is_empty() {
-            return Err(format!("Empty CURIE"));
+            return Err("Empty CURIE".to_string());
         } else if let Some(pos) = s.find(':') {
             if s.chars().any(|c| c.is_whitespace()) {
                 return Err(format!("Contains stray whitespace: '{}'", s));
@@ -270,6 +270,7 @@ impl DupletItem {
 
     fn check_valid_age_string(cell_value: &str) -> Result<(), String> {
         // empty not allowed
+        println!("check_valid_age_string - '{cell_value}'");
         if cell_value.is_empty() {
             return Err("Empty age string not allowed (use na)".to_string());
         }
@@ -284,7 +285,7 @@ impl DupletItem {
         // check for match to ISO (601)
         if ISO8601_RE.is_match(cell_value) {
             return Ok(());
-        }
+        } 
 
         if GESTATIONAL_AGE_RE.is_match(cell_value) {
             return Ok(());
@@ -443,7 +444,7 @@ impl DupletItem {
             DupletType::AGEATLASTENCOUNTER => Self::check_valid_age_string(cell_contents)?,
             DupletType::DECEASED => self.check_deceased(cell_contents)?,
             DupletType::SEX => self.check_sex(cell_contents)?,
-            DupletType::HPOSEPARATOR => self.check_separator(cell_contents)?,
+            DupletType::HpoSeparator => self.check_separator(cell_contents)?,
         };
         Ok(())
     }
@@ -467,7 +468,7 @@ impl DupletItem {
             DupletType::AGEATLASTENCOUNTER => "age_at_last_encounter",
             DupletType::DECEASED => "deceased",
             DupletType::SEX => "sex",
-            DupletType::HPOSEPARATOR => "HPO",
+            DupletType::HpoSeparator => "HPO",
         }
     }
 
@@ -545,9 +546,6 @@ impl DupletItem {
         DupletItem::new("sex", "M:F:O:U", DupletType::SEX)
     }
 
-
- 
- 
 }
 
 
