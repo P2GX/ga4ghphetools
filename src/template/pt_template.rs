@@ -6,7 +6,6 @@
 //! - HeaderDupletRow (defines each of the columns)
 //! - A list of PpktRow (one per phenopacket)
 use std::{collections::{HashMap, HashSet}, fmt::format, str::FromStr, sync::Arc, vec};
-
 use ontolius::{
     ontology::{csr::FullCsrOntology, OntologyTerms},
     term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
@@ -30,6 +29,18 @@ pub enum TemplateType {
     Melded,
 }
 
+impl FromStr for TemplateType {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, String> {
+        match s.to_ascii_lowercase().as_str() {
+            "mendelian" => Ok(TemplateType::Mendelian),
+            "melded" => Ok(TemplateType::Melded),
+            _ => Err(format!("Unrecognized template type {s}")),
+        }
+    }
+}
+
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
 pub struct PheToolsTemplate {
     header: Arc<HeaderDupletRow>,
@@ -45,22 +56,6 @@ const TITLE_COL: usize = 1;
 const INDIVIDUAL_ID_COL: usize = 2;
 const INDIVIDUAL_COMMENT: usize = 3;
 const EMPTY_STRING: &str = "";
-
-impl Error {
-    fn empty_template(nlines: usize) -> Self {
-        let msg = format!("Valid template must have at least three rows (at least one data row) but template has only {nlines} rows");
-        Error::TemplateError { msg }
-    }
-    fn unequal_row_lengths() -> Self {
-        let msg = format!("Not all rows of template have the same number of fields");
-        Error::TemplateError { msg }
-    }
-
-    fn could_not_find_column(colname: &str) -> Self {
-        let msg = format!("Could not retrieve {colname} column");
-        Error::TemplateError { msg }
-    }
-}
 
 impl PheToolsTemplate {
     /// Create the initial pyphetools template (Table)
@@ -97,7 +92,28 @@ impl PheToolsTemplate {
         
     }
 
+    pub fn from_dto(
+        hpo: Arc<FullCsrOntology>,
+        cohort_dto: TemplateDto) 
+    -> std::result::Result<Self, String>  {
+        let tt: TemplateType = cohort_dto.cohort_type.parse()?;
+        let hpo_duplets: Vec<HpoTermDuplet> = cohort_dto
+            .hpo_headers
+            .into_iter()
+            .map(|dto| dto.to_hpo_duplet())
+            .collect();
+        let updated_header: HeaderDupletRow = HeaderDupletRow::from_hpo_duplets(hpo_duplets, tt);
+        let arc_header = Arc::new(updated_header);
+        let updated_ppkt_rows = cohort_dto.rows.into_iter()
+            .map(|dto| PpktRow::from_dto(dto, arc_header.clone())).collect();
 
+        Ok(Self { 
+            header: arc_header.clone(), 
+            template_type: tt, 
+            hpo: hpo.clone(), 
+            ppkt_rows: updated_ppkt_rows 
+        })
+    }
    
     
 
@@ -234,48 +250,6 @@ impl PheToolsTemplate {
         verrs.ok()
     }
 
-    /// Get a value from a column that we expect to be the same in all phenopackets (DiseaseGeneBundle)
-    fn get_unique(&self, i: usize) -> Result<String> {
-       // let mut value_set = HashSet::new();
-        /* *
-        for ppkt in &self.ppkt_rows {
-            let value = ppkt.get_value_at(i)?;
-            value_set.insert(value);
-        }
-        if value_set.is_empty() {
-            Err(Error::TemplateError { msg: format!("contents empty") })
-        } else if value_set.len() > 1 {
-            Err(Error::TemplateError { msg: format!("Multiple values found") })
-        } else {
-            Ok(value_set.iter().next().unwrap().to_string())
-        }
-        */
-        Ok(format!("REFACOTR get unique"))
-
-    }
-
-    pub fn get_mendelian_disease_gene_bundle(&self) -> Result<DiseaseGeneBundle> {
-        if ! self.is_mendelian() {
-            return  Err(Error::TemplateError { msg: format!("The template is not Mendelian") })
-        }
-        let disease_id_idx = 4; //self.header.get_idx("disease_id")?;
-        let disease_label_idx = 5; //self.header.get_idx("disease_label")?;
-        let hgnc_idx = 6; //self.header.get_idx("HGNC_id")?;
-        let symbol_idx =7;// self.header.get_idx("gene_symbol")?;
-        let transcript_idx =8;// self.header.get_idx("transcript")?;
-        eprint!("NEED TO REFACTOR get_mendelian_disease_gene_bundle");
-        let disease_id = self.get_unique(disease_id_idx)?;
-        let disease_tid = TermId::from_str(&disease_id).map_err(|e| Error::termid_parse_error(disease_id))?;
-        let disease_name = self.get_unique(disease_label_idx)?;
-        let hgnc = self.get_unique(hgnc_idx)?;
-        let hgnc_tid = TermId::from_str(&hgnc).map_err(|e| Error::termid_parse_error(hgnc))?;
-        let symbol = self.get_unique(symbol_idx)?;
-        let transcript = self.get_unique(transcript_idx)?;
-        let dgb = DiseaseGeneBundle::new(&disease_tid, disease_name, &hgnc_tid, symbol, transcript)?;
-        Ok(dgb)
-    }
-
-
 
     /// Validate the current template
     ///
@@ -393,7 +367,7 @@ impl PheToolsTemplate {
 
     pub fn get_summary(&self) -> HashMap<String, String> {
         let mut summary: HashMap<String, String> = HashMap::new();
-        let result = self.get_mendelian_disease_gene_bundle();
+       /*  let result = self.get_mendelian_disease_gene_bundle();
         if result.is_err() {
             return summary;
         }
@@ -406,7 +380,7 @@ impl PheToolsTemplate {
         let hpo_terms = self.header.hpo_count();
         summary.insert("hpo_term_count".to_string(), format!("{}", hpo_terms));
         let ppkt_n = self.phenopacket_count();
-        summary.insert("n_ppkt".to_string(), format!("{}", ppkt_n));
+        summary.insert("n_ppkt".to_string(), format!("{}", ppkt_n));*/
         summary
     }
 
@@ -432,51 +406,50 @@ impl PheToolsTemplate {
     pub fn add_hpo_term_to_cohort(
         &mut self,
         hpo_id: &str,
-        hpo_label: &str) -> std::result::Result<(), ValidationErrors> {
-            let mut verrs = ValidationErrors::new();
-            let tid = TermId::from_str(hpo_id);
-            if tid.is_err() {
-                return Err(ValidationErrors::from_one_err(format!("Could not arrange terms: {}\n", hpo_id)));
-            };
-            let tid = tid.unwrap();
-            let term = match &self.hpo.term_by_id(&tid) {
-                Some(term) => term,
-                None =>{ return  Err(ValidationErrors::from_one_err(format!("could not retrieve HPO term for '{hpo_id}'"))); }
-            };
-            // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
-            let hpo_util = HpoUtil::new(self.hpo.clone());
-            let mut all_tids = self.header.get_hpo_id_list()?;
-            if all_tids.contains(&tid) {
-                return Err(ValidationErrors::from_one_err(format!("Not allowed to add term {} because it already is present", &tid)));
-            }
-            all_tids.push(tid);
-            let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
-            let arranged_terms = term_arrager.arrange_terms(&all_tids)?;
-            // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
-            // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
-            // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
-            // the new HeaderDupletRow object to write the values.
-            // 3a. Update the HeaderDupletRow object.
-            let update_hdr = self.header.update_old(&arranged_terms);
-            let updated_hdr_arc = Arc::new(update_hdr);
-            let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
-            for ppkt in &self.ppkt_rows {
-                let result = ppkt.update_header(updated_hdr_arc.clone());
-                if let Err(e) = result {
-                    verrs.add_errors(e.errors());
-                } else {
-                    let new_ppkt = result.unwrap();
-                    updated_ppkt_rows.push(new_ppkt);
-                }
-            }
-            if verrs.has_error() {
-                Err(verrs)
+        hpo_label: &str) 
+    -> std::result::Result<(), ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
+        let tid = TermId::from_str(hpo_id)
+                .map_err(|_| ValidationErrors::from_one_err(
+                format!("Could not arrange terms: {}\n", hpo_id)))?;
+        let term = self.hpo
+            .term_by_id(&tid)
+            .ok_or_else(|| ValidationErrors::from_one_err(
+                format!("could not retrieve HPO term for '{hpo_id}'")))?;
+        // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
+        let hpo_util = HpoUtil::new(self.hpo.clone());
+        let mut all_tids = self.header.get_hpo_id_list()?;
+        if all_tids.contains(&tid) {
+            return Err(ValidationErrors::from_one_err(format!("Not allowed to add term {} because it already is present", &tid)));
+        }
+        all_tids.push(tid);
+        let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
+        let arranged_terms = term_arrager.arrange_terms(&all_tids)?;
+        // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
+        // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
+        // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
+        // the new HeaderDupletRow object to write the values.
+        // 3a. Update the HeaderDupletRow object.
+        let update_hdr = self.header.update_old(&arranged_terms);
+        let updated_hdr_arc = Arc::new(update_hdr);
+        let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
+        for ppkt in &self.ppkt_rows {
+            let result = ppkt.update_header(updated_hdr_arc.clone());
+            if let Err(e) = result {
+                verrs.add_errors(e.errors());
             } else {
-                self.header = updated_hdr_arc.clone();
-                self.ppkt_rows = updated_ppkt_rows;
-                Ok(())
+                let new_ppkt = result.unwrap();
+                updated_ppkt_rows.push(new_ppkt);
             }
         }
+        if verrs.has_error() {
+            Err(verrs)
+        } else {
+            self.header = updated_hdr_arc.clone();
+            self.ppkt_rows = updated_ppkt_rows;
+            Ok(())
+        }
+    }
 }
 
 

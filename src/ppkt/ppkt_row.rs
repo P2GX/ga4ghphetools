@@ -246,13 +246,6 @@ impl PpktRow {
     /// # Panics
     /// This function will panic if any term from `previous_hpo_list` is not found in `updated_hpo_list`.
     ///
-    /// # Example
-    /// ```rust
-    /// let previous = vec![tid("HP:0001250"), tid("HP:0004322")];
-    /// let updated = vec![tid("HP:0004322"), tid("HP:0001250"), tid("HP:0001627")];
-    /// let indices = get_update_vector(&previous, &updated);
-    /// assert_eq!(indices, vec![1, 0]);
-    /// ```
     pub fn get_update_vector(
         previous_hpo_list: &[TermId],
         updated_hpo_list: &[TermId])

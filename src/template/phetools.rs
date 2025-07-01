@@ -246,18 +246,16 @@ impl PheTools {
     pub fn add_hpo_term_to_cohort(
         &mut self,
         hpo_id: &str,
-        hpo_label: &str) 
+        hpo_label: &str,
+        cohort_dto: TemplateDto) 
     -> std::result::Result<(), Vec<String>> {
-        match &mut self.template {
-            Some(template) => {
-                template.add_hpo_term_to_cohort(hpo_id, hpo_label)
-                .map_err(|verrs|verrs.errors().clone())?;
-                Ok(())
-            }
-            None => {
-                Err(vec!["Template not initialized".to_string()])
-            }
-        }
+        let mut updated_template = 
+            PheToolsTemplate::from_dto( self.hpo.clone(), cohort_dto)
+                .map_err(|e|vec![e])?;
+        updated_template.add_hpo_term_to_cohort(hpo_id, hpo_label)
+            .map_err(|verrs| verrs.errors().clone())?;
+        self.template = Some(updated_template);
+        Ok(())
     }
 
 
@@ -274,18 +272,14 @@ impl PheTools {
     pub fn add_new_row_to_cohort(
         &mut self,
         individual_dto: IndividualBundleDto, 
-        hpo_annotations: Vec<HpoTermDto>) 
+        hpo_annotations: Vec<HpoTermDto>,
+        cohort_dto: TemplateDto) 
     -> Result<(), Vec<String>> {
-        match self.template.as_mut() {
-            Some(template) => {
-                match  template.add_row_with_hpo_data(individual_dto, hpo_annotations) {
-                    Ok(_) => Ok(()),
-                    Err(verr) => Err(verr.errors()),
-                };
-            },
-            None => { return Err(vec!["Template not initialized".to_string()]); }
-        }
-        
+        let mut updated_template = 
+            PheToolsTemplate::from_dto( self.hpo.clone(), cohort_dto)
+                .map_err(|e|vec![e])?;
+        updated_template.add_row_with_hpo_data(individual_dto, hpo_annotations)
+            .map_err(|verr| verr.errors().clone())?;
         Ok(())
     }
 

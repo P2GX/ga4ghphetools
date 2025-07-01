@@ -158,6 +158,28 @@ impl HeaderDupletRow {
         })
     }
 
+
+    fn mendelian_from_hpo_duplets(hpo_duplets: Vec<HpoTermDuplet>) -> Self {
+        Self { 
+            individual_header: IndividualHeader::new(), 
+            disease_header_list: vec![DiseaseHeader::new()], 
+            gene_variant_header_list: vec![GeneVariantHeader::new()], 
+            hpo_duplets, 
+            template_type: TemplateType::Mendelian 
+        }
+    }
+
+    pub fn from_hpo_duplets(
+        hpo_duplets: Vec<HpoTermDuplet>, 
+        template_type: TemplateType)
+    -> Self {
+            match template_type {
+                TemplateType::Mendelian => Self::mendelian_from_hpo_duplets(hpo_duplets),
+                TemplateType::Melded => todo!()
+            }
+        }
+
+
     pub fn hpo_count(&self) -> usize {
         self.hpo_duplets.len()
     }
