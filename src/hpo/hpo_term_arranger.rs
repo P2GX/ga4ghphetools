@@ -43,7 +43,7 @@ impl HpoTermArranger {
         visited: &mut HashSet<TermId>,
         ordered_tids: &mut Vec<TermId>,
     ) {
-        if visited.contains(&start_tid) {
+        if visited.contains(start_tid) {
             return;
         }
 
@@ -60,7 +60,7 @@ impl HpoTermArranger {
             return;
         }
 
-        if self.hpo_curation_term_id_set.contains(&start_tid) {
+        if self.hpo_curation_term_id_set.contains(start_tid) {
             ordered_tids.push(start_tid.clone()); // Only include terms we want to curate!
         }
 
@@ -70,7 +70,7 @@ impl HpoTermArranger {
         }
     }
 
-    /// Arrange the terms chossen for the pyphetools curation template using Depth-First Search (DFS)
+    /// Arrange the terms chosen for the pyphetools curation template using Depth-First Search (DFS)
     ///
     /// Perform separate DFS for Neoplasm to arrange all neoplasm terms together
     ///
@@ -81,7 +81,8 @@ impl HpoTermArranger {
     /// * Returns:
     ///
     /// A Vector of TermIds in the order that they should be displayed in the template
-    pub fn arrange_term_ids(&mut self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
+    pub fn arrange_term_ids(&mut self, hpo_terms_for_curation: &Vec<TermId>) 
+    -> Vec<TermId> {
         self.hpo_curation_term_id_set.clear();
         for smt in hpo_terms_for_curation {
             self.hpo_curation_term_id_set.insert(smt.clone());
@@ -89,14 +90,14 @@ impl HpoTermArranger {
 
         let neoplasm = TermId::from_str("HP:0002664").unwrap();
         let mut visited: HashSet<TermId> = HashSet::new();
-        let mut result: Vec<TermId> = Vec::new();
+        let mut ordered_term_id_list: Vec<TermId> = Vec::new();
         let mut neoplasm_terms = Vec::new();
         // First get any Neoplasm terms
         self.dfs(&neoplasm, &mut visited, &mut neoplasm_terms);
         // then arrange the remaining terms according to organ system
-        self.dfs(&PHENOTYPIC_ABNORMALITY, &mut visited, &mut result);
-        result.extend(neoplasm_terms);
-        result
+        self.dfs(&PHENOTYPIC_ABNORMALITY, &mut visited, &mut ordered_term_id_list);
+        ordered_term_id_list.extend(neoplasm_terms);
+        ordered_term_id_list
     }
 
 

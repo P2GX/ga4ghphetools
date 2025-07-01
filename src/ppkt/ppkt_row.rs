@@ -192,7 +192,9 @@ impl PpktRow {
         verrs.ok()
     }
 
-
+    /// Update current HPO values according to a new header.
+    /// The new header may contain HPO terms that the current PpktRow does not have
+    /// in this case, we must add 'na' as the value for these terms.
     pub fn update_header(
         &self, 
         updated_hdr: Arc<HeaderDupletRow>
@@ -223,6 +225,79 @@ impl PpktRow {
         })
     }
 
+    /// Given a previous list of `TermId`s and an updated list, this function
+    /// returns a vector of indices representing where each element of the
+    /// `previous_hpo_list` now appears in the `updated_hpo_list`.
+    ///
+    /// This is useful for tracking how terms from an earlier template are
+    /// rearranged after updating the template (e.g., after inserting or reordering terms).
+    /// The returned vector can be used to remap associated data (e.g., column values)
+    /// to their new positions.
+    ///
+    /// # Arguments
+    /// - `previous_hpo_list`: The list of HPO term IDs before the update.
+    /// - `updated_hpo_list`: The reordered or expanded list of HPO term IDs after the update.
+    ///                       It must contain all terms from `previous_hpo_list`.
+    ///
+    /// # Returns
+    /// A `Vec<usize>` where each element `i` gives the index in `updated_hpo_list`
+    /// of the `i`-th term in `previous_hpo_list`.
+    ///
+    /// # Panics
+    /// This function will panic if any term from `previous_hpo_list` is not found in `updated_hpo_list`.
+    ///
+    /// # Example
+    /// ```rust
+    /// let previous = vec![tid("HP:0001250"), tid("HP:0004322")];
+    /// let updated = vec![tid("HP:0004322"), tid("HP:0001250"), tid("HP:0001627")];
+    /// let indices = get_update_vector(&previous, &updated);
+    /// assert_eq!(indices, vec![1, 0]);
+    /// ```
+    pub fn get_update_vector(
+        previous_hpo_list: &[TermId],
+        updated_hpo_list: &[TermId])
+    -> Vec<usize> {
+        let id_to_new_index: HashMap<TermId, usize> = updated_hpo_list
+            .iter()
+            .enumerate()
+            .map(|(i, tid)| (tid.clone(), i))
+            .collect();
+        let new_indices: Vec<usize> = previous_hpo_list
+            .iter()
+            .map(|tid| id_to_new_index[tid])
+            .collect();
+        new_indices
+    }
+
+    /// Given the old values and a mapping from old indices to new indices,
+    /// return a new vector of the size of the updated list, where each element
+    /// from the original list is moved to its new index, and all other positions
+    /// are filled with `"na"`.
+    ///
+    /// # Arguments
+    /// - `old_values`: The values associated with the old HPO list (same order).
+    /// - `old_to_new_indices`: A vector where `old_to_new_indices[i]` gives the
+    ///                         index in the new list where the `i`th old value should go.
+    /// - `new_size`: The size of the new list (typically, `updated_hpo_list.len()`).
+    ///
+    /// # Returns
+    /// A `Vec<String>` of length `new_size` where old values are in their new positions,
+    /// and new (missing) entries are `"na"`.
+    fn reorder_or_fill_na(
+        old_values: &[String],
+        old_to_new_indices: &[usize],
+        new_size: usize,
+    ) -> Vec<String> {
+        let mut new_values = vec!["na".to_string(); new_size];
+
+        for (old_idx, &new_idx) in old_to_new_indices.iter().enumerate() {
+            new_values[new_idx] = old_values[old_idx].clone();
+        }
+
+        new_values
+    }
+
+
     pub fn update(
         &self, 
         tid_map: &mut HashMap<TermId, String>, 
@@ -236,24 +311,12 @@ impl PpktRow {
             verr.push_str("Mismatched lengths between HPO ID list and HPO content");
             return Err(verr); // not recoverable
         }
-        for (hpo_id, cell_content) in previous_hpo_id_list.iter().zip(hpo_cell_content_list.iter()) {
-            tid_map.insert(hpo_id.clone(), cell_content.clone());
-        }
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
-        let updated_hpo: Result<Vec<String>> = updated_hpo_id_list
-                .into_iter()
-                .map(|term_id| {
-                    tid_map.get(&term_id)
-                        .cloned()
-                        .ok_or_else(|| Error::TemplateError {
-                            msg: format!("Could not retrieve updated value for '{}'", &term_id)
-                        })
-                })
-                .collect();
-        let updated_hpo = updated_hpo.map_err(|e| {
-                verr.push_str(&e.to_string());
-                verr
-            })?;
+        let reordering_indices = Self::get_update_vector(&previous_hpo_id_list, &updated_hpo_id_list);
+
+        let updated_hpo = Self::reorder_or_fill_na(&hpo_cell_content_list, 
+        &reordering_indices,
+        updated_hpo_id_list.len());
         Ok(Self {
             header: updated_hdr,
             individual_bundle: self.individual_bundle.clone(),

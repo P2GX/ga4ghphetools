@@ -435,7 +435,7 @@ impl PheToolsTemplate {
         hpo_label: &str) -> std::result::Result<(), ValidationErrors> {
             let mut verrs = ValidationErrors::new();
             let tid = TermId::from_str(hpo_id);
-            if let Err(_) = tid {
+            if tid.is_err() {
                 return Err(ValidationErrors::from_one_err(format!("Could not arrange terms: {}\n", hpo_id)));
             };
             let tid = tid.unwrap();
@@ -470,7 +470,7 @@ impl PheToolsTemplate {
                 }
             }
             if verrs.has_error() {
-                return Err(verrs);
+                Err(verrs)
             } else {
                 self.header = updated_hdr_arc.clone();
                 self.ppkt_rows = updated_ppkt_rows;

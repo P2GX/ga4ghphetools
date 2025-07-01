@@ -10,7 +10,6 @@ use std::fmt::format;
 use std::hash::DefaultHasher;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::usize;
 
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
