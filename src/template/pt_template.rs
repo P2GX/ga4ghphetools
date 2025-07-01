@@ -15,7 +15,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::{hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::{PpktRow}}, template::header_duplet_row::HeaderDupletRow};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow};
 use crate::{
     template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
@@ -116,7 +116,7 @@ impl PheToolsTemplate {
         hpo: Arc<FullCsrOntology>) 
     -> std::result::Result<Self, ValidationErrors> {
         let header_duplet_row = match template_dto.cohort_type.as_str() {
-            "mendelian" => HeaderDupletRow::mendelian_from_dto(template_dto.hpo_headers),
+            "mendelian" => HeaderDupletRow::new_mendelian_ppkt_from_dto(template_dto.hpo_headers),
             other => {
                 return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{other}'")));
             }
@@ -139,8 +139,8 @@ impl PheToolsTemplate {
     }
 
     /// Get a list of all HPO identifiers currently in the template
-    pub fn get_hpo_term_ids(&self) -> std::result::Result<Vec<TermId>, String> {
-        self.header.get_hpo_id_list()
+    pub fn get_hpo_term_ids(&self) -> std::result::Result<Vec<TermId>, Vec<String>> {
+        self.header.get_hpo_id_list().map_err(|verr|verr.errors().clone())
     }
 
     pub fn create_pyphetools_template(
@@ -292,39 +292,11 @@ impl PheToolsTemplate {
         return self.template_type == TemplateType::Mendelian;
     }
 
-    pub fn is_hpo_column(&self, i: usize) -> bool {
-        eprint!("NEEDS REFACTOR IS HPO COLUMN");
-        false
-        //self.header.is_hpo_column(i)
-    }
-
-    /// Get the name of the i'th column
-    pub fn get_column_name(&self, i: usize) -> Result<String> {
-        //return self.header.get_column_name(i);
-        Err(Error::Custom("get_column_name - refacotr".to_ascii_lowercase()))
-    }
-
-    pub fn get_hpo_col_with_context(&mut self, i: usize) -> Result<Vec<Vec<String>>> {
-        // the following are the column indices of the columns we will retrieve
-        let desired_column_indices: Vec<usize> = vec![0, 1, 2, i];
-        let mut rows: Vec<Vec<String>> = Vec::new();
-        /*for ppkt in &self.ppkt_rows {
-            let row = ppkt.get_items(&desired_column_indices)?;
-            rows.push(row);
-        }*/
-        eprintln!("get_hpo_col_with_context -TODO");
-        Ok(rows)
-    }
-
-
-
     pub fn phenopacket_count(&self) -> usize {
         self.ppkt_rows.len()
     }
 
-    pub fn header_row_count(&self) -> usize {
-        2
-    }
+
 
     /// Delete a row. We expect this to come from a GUI where the rows include
     /// the headers (two rows) and adjust here. TODO - Consider
@@ -361,22 +333,22 @@ impl PheToolsTemplate {
     /// in the list of items but present in the columns of the previous matrix will be set to "na"
     pub fn add_row_with_hpo_data(
         &mut self,
-        case_dto: CaseDto,
+        individual_dto: IndividualBundleDto,
         hpo_dto_items: Vec<HpoTermDto>
-    ) -> Result<()> {
-        /* 
+    ) -> std::result::Result<(), ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
         let hpo_util = HpoUtil::new(self.hpo.clone());
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
         let mut dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
         let mut term_id_set: HashSet<TermId>  = dto_map.keys().cloned().collect();
         let existing_term_ids = self.header.get_hpo_id_list()?;
         term_id_set.extend(existing_term_ids);
-        // === STEP 2: Arrange TIDs before borrowing template mutably ===
+         // === STEP 2: Arrange TIDs before borrowing template mutably ===
         let all_tids: Vec<TermId> = term_id_set.into_iter().collect();
         let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
-        let arranged_terms = term_arrager.arrange_terms(&all_tids).map_err(|e|e.to_string())?;
+        let arranged_terms = term_arrager.arrange_terms(&all_tids)?;
          // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
-        // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
+        // strategy: Make a HashMap with all new terms, initialize the values to na. Clone this, pass it to the
         // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
         // the new HeaderDupletRow object to write the values.
         // 3a. Update the HeaderDupletRow object.
@@ -384,91 +356,30 @@ impl PheToolsTemplate {
         let updated_hdr_arc = Arc::new(update_hdr);
         // 3b. Update the existing PpktRow objects
         let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
+        let mut term_id_map: HashMap<TermId, String> = HashMap::new();
+            for term in &arranged_terms {
+                term_id_map.insert(term.identifier().clone(), "na".to_string());
+            }
         for ppkt in &self.ppkt_rows {
-            let mut term_id_map: HashMap<TermId, String> = HashMap::new();
-                for term in &arranged_terms {
-                    term_id_map.insert(term.identifier().clone(), "na".to_string());
-                }
-            eprint!("REFASCOT");
-                let updated_ppkt = ppkt; // .update(&mut term_id_map, updated_hdr_arc.clone())?;
-                updated_ppkt_rows.push(updated_ppkt.clone());
+            let mut tid_map = term_id_map.clone();
+            match ppkt.update(&mut tid_map, updated_hdr_arc.clone()) {
+                Ok(updated_ppkt) => { updated_ppkt_rows.push(updated_ppkt.clone());},
+                Err(e) => {verrs.add_errors(e.errors());}
+            }
         }
         /// Now add the new phenopacket
-        let hpo_cell_values = updated_hdr_arc.get_hpo_row(&hpo_dto_items);
-        let dgb = self.get_mendelian_disease_gene_bundle()?;
-        let new_ppkt = PpktRow::mendelian_from( updated_hdr_arc.clone(), case_dto, dgb, hpo_cell_values)?;
-        updated_ppkt_rows.push(new_ppkt);
+        let mut tid_map = term_id_map.clone();
+        /*let new_ppkt = PpktRow::mendelian_from_dto( 
+            updated_hdr_arc.clone(), 
+            individual_dto, 
+            hpo_dto_items,
+            tid_map)?;
+        updated_ppkt_rows.push(new_ppkt);*/
         self.header = updated_hdr_arc;
         self.ppkt_rows = updated_ppkt_rows;
-        */
-        eprint!("Add hpo row NEEDS REFACTOR");
-        Ok(())
-    }
-
-    fn check_validity_of_indices(&self, row: usize, col: usize) -> Result<()> {
-        if row >= self.n_rows() {
-            return Err(Error::row_index_error(row, self.n_rows()));
-        }
-        if col >= self.header.n_columns() {
-            return Err(Error::column_index_error(col, self.header.n_columns()));
-        }
-        return Ok(())
-    }
-
-    /// Set the value of a specific cell of the matrix
-    /// 
-    /// Arguments:
-    /// - `row`: usize - index of the row (including the first two, header rows, that is, the first phenopacket is at index 2)
-    pub fn set_value(&mut self, row: usize, col: usize, value: &str) -> Result<()> {
-        self.check_validity_of_indices(row, col)?;
-        if row < 2 {
-            return Err(Error::TemplateError { msg: format!("Not allowed to set value of header (first two rows)") });
-        } else {
-            let idx = row - 2; // index of the phenopacket
-            match self.ppkt_rows.get_mut(idx) {
-                Some(ppkt) => { 
-                    eprint!("set_value - todo REFACTOR add_row_with_hpo_data")
-                    //ppkt.set_value(col, value)?; 
-                },
-                None => { return Err(Error::TemplateError { msg: format!("Could not retrieve Ppkt at row {idx}") }) },
-            }
-        }
-        Ok(())
-    }
-
-    pub fn trim_value(&mut self, row: usize, col: usize) -> Result<()> {
-        self.check_validity_of_indices(row, col)?;
-        if row < 2 {
-            return Err(Error::HeaderError{msg: format!("Cannot trim header item")});
-        } else {
-            let idx = row - 2; // index of the phenopacket
-            match self.ppkt_rows.get_mut(idx) {
-                Some(ppkt) => { 
-                     eprint!("trim_value - todo REFACTOR")
-                    //ppkt.trim(col); 
-                    },
-                None => { return Err(Error::TemplateError { msg: format!("Could not retrieve Ppkt at row {idx}") }) },
-            }
-        }
-        Ok(())
-    }
-
-    /// Remove whitespace from the item at the indicated cell
-    pub fn remove_whitespace(&mut self, row: usize, col: usize) -> Result<()> {
-        self.check_validity_of_indices(row, col)?;
-        if row < 2 {
-            return Err(Error::HeaderError{msg: format!("Cannot remove whitespace from header item")});
-        } else {
-            let idx = row - 2; // index of the phenopacket
-            match self.ppkt_rows.get_mut(idx) {
-                Some(ppkt) => { 
-                    eprint!("remove_whitespace - todo REFACTOR")
-                    //ppkt.remove_whitespace(col); 
-                },
-                None => { return Err(Error::TemplateError { msg: format!("Could not retrieve Ppkt at row {idx}") }) },
-            }
-        }
-        Ok(())
+        
+        
+        verrs.ok()
     }
 
      /// get the total number of rows (which is 2 for the header plus the number of phenopacket rows)
@@ -478,54 +389,6 @@ impl PheToolsTemplate {
 
     pub fn n_columns(&self) -> usize {
         self.header.n_columns()
-    }
-
-    /// Get the options for editing the indicated cell (intended for use in GUI to modify a table cell).
-    pub fn get_options(&self, row: usize, col: usize, addtl: Vec<String>) -> Result<Vec<String>> {
-        self.check_validity_of_indices(row, col)?;
-        /*match self.header.get_duplet_at_index(col) {
-            Ok(hduplet) => {
-                // We do not allow the contant headers to be edited 
-                if hduplet.is_constant_header() && row < 2 {
-                    return Ok(vec!["not editable".to_string()])
-                }
-                let mut options = hduplet.get_options();
-                options.extend(addtl);
-                Ok(options)
-            },
-            Err(_) => { return Err(Error::TemplateError { msg: format!("Could not retrieve header duplet at column {col}") });},
-        }
-         */
-        Ok(vec!["todo-get_options should be changed to use the DTOs".to_string()])
-        
-    }
-
-    pub fn execute_operation(
-        &mut self,
-        row: usize,
-        col: usize,
-        operation: &str) -> Result<()>
-    {
-        if col >= self.header.n_columns() {
-            return Err(Error::column_index_error(col, self.header.n_columns()));
-        }
-        if row >= self.n_rows() {
-            return Err(Error::row_index_error(row, self.n_rows()));
-        }
-        if let Some(operation) = Operation::from_keyword(operation) {
-            match operation {
-                Operation::Edit => { return Err(Error::OperationError { msg: format!("Edit operations should be be passed through this function") });},
-                Operation::Clear => { self.set_value(row, col, ""); },
-                Operation::Trim => { self.trim_value(row, col); },
-                Operation::RemoveWhitespace => { self.remove_whitespace(row, col); },
-                _ => { self.set_value(row, col, operation.as_str()); },
-            }
-            Ok(())
-        } else {
-            Err(Error::unrecognized_operation(operation))
-        }
-
-       
     }
 
     pub fn get_summary(&self) -> HashMap<String, String> {
@@ -569,24 +432,26 @@ impl PheToolsTemplate {
     pub fn add_hpo_term_to_cohort(
         &mut self,
         hpo_id: &str,
-        hpo_label: &str) -> std::result::Result<(), String> {
-            let tid = match TermId::from_str(hpo_id) {
-                Ok(term_id) => term_id,
-                Err(_) => { return Err(format!("could not parse HPO id '{hpo_id}'")); }
+        hpo_label: &str) -> std::result::Result<(), ValidationErrors> {
+            let mut verrs = ValidationErrors::new();
+            let tid = TermId::from_str(hpo_id);
+            if let Err(_) = tid {
+                return Err(ValidationErrors::from_one_err(format!("Could not arrange terms: {}\n", hpo_id)));
             };
+            let tid = tid.unwrap();
             let term = match &self.hpo.term_by_id(&tid) {
                 Some(term) => term,
-                None =>{ return Err(format!("could not retrieve HPO term for '{hpo_id}'")); }
+                None =>{ return  Err(ValidationErrors::from_one_err(format!("could not retrieve HPO term for '{hpo_id}'"))); }
             };
             // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
             let hpo_util = HpoUtil::new(self.hpo.clone());
             let mut all_tids = self.header.get_hpo_id_list()?;
             if all_tids.contains(&tid) {
-                return Err(format!("Not allowed to add term {} because it already is present", &tid));
+                return Err(ValidationErrors::from_one_err(format!("Not allowed to add term {} because it already is present", &tid)));
             }
             all_tids.push(tid);
             let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
-            let arranged_terms = term_arrager.arrange_terms(&all_tids).map_err(|e|e.to_string())?;
+            let arranged_terms = term_arrager.arrange_terms(&all_tids)?;
             // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
             // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
             // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
@@ -596,12 +461,21 @@ impl PheToolsTemplate {
             let updated_hdr_arc = Arc::new(update_hdr);
             let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
             for ppkt in &self.ppkt_rows {
-                let new_ppkt = ppkt.update_header(updated_hdr_arc.clone())?;
-                updated_ppkt_rows.push(new_ppkt);
+                let result = ppkt.update_header(updated_hdr_arc.clone());
+                if let Err(e) = result {
+                    verrs.add_errors(e.errors());
+                } else {
+                    let new_ppkt = result.unwrap();
+                    updated_ppkt_rows.push(new_ppkt);
+                }
             }
-            self.header = updated_hdr_arc.clone();
-            self.ppkt_rows = updated_ppkt_rows;
-            Ok(())
+            if verrs.has_error() {
+                return Err(verrs);
+            } else {
+                self.header = updated_hdr_arc.clone();
+                self.ppkt_rows = updated_ppkt_rows;
+                Ok(())
+            }
         }
 }
 

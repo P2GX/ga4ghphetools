@@ -183,7 +183,7 @@ impl HeaderDupletRow {
         Ok(hpo_dto_list)
     }
 
-    pub fn mendelian_from_dto(dto_list: Vec<HeaderDupletDto>) -> Self {
+    pub fn new_mendelian_ppkt_from_dto(dto_list: Vec<HeaderDupletDto>) -> Self {
         let hpo_termduplet_list: Vec<HpoTermDuplet> = dto_list
             .into_iter()
             .map(|dto| dto.to_hpo_duplet())
@@ -222,14 +222,20 @@ impl HeaderDupletRow {
         }       
     }
     
-    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, String> {
-        self.hpo_duplets
-            .iter()
-            .map(|duplet| {
-                TermId::from_str(&duplet.row2())
-                    .map_err(|_| format!("Could not get HPO TermId from: {}", duplet.row2()))
-            })
-            .collect()
+    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
+        let mut term_id_list: Vec<TermId> = Vec::with_capacity(self.hpo_duplets.len());
+        for duplet in &self.hpo_duplets {
+            match  TermId::from_str(&duplet.row2()) {
+                Ok(tid) => { term_id_list.push(tid);},
+                Err(_) => { verrs.push_str(format!("Could not parse {:?}", duplet));},
+            }
+        }
+        if verrs.has_error() {
+            Err(verrs)
+        } else {
+            Ok(term_id_list)
+        }
     }
 
     pub fn get_hpo_duplets(&self) -> Vec<HpoTermDuplet> {

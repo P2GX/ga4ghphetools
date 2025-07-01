@@ -61,6 +61,11 @@ impl ValidationErrors {
         }
     }
 
+
+    pub fn from_one_err(error: impl Into<String>) -> Self {
+        Self { errors: vec![error.into()] }
+    }
+
     pub fn add_errors(&mut self, additional_errors: &Vec<String>) {
         self.errors.extend(additional_errors.clone());
     }

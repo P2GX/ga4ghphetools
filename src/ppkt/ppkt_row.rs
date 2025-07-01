@@ -19,6 +19,7 @@ use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::hpo::age_util::{self, check_hpo_table_cell};
+use crate::hpo::hpo_util;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::phetools_traits::TableCell;
@@ -147,22 +148,31 @@ impl PpktRow {
     }
 
 
-    pub fn mendelian_from(
+    pub fn mendelian_from_dto(
+        &self,
         header_duplet_row: Arc<HeaderDupletRow>,
-        case: CaseDto, 
-        dgb: DiseaseGeneBundle, 
-        hpo_values: Vec<String>, ) -> Result<Self> 
+        individual_dto: IndividualBundleDto,
+        annotations: Vec<HpoTermDto>,
+        existing_annotation_map:HashMap<TermId, String>) 
+    -> std::result::Result<Self, ValidationErrors> 
     {
-        let mut values: Vec<String> = case.individual_values();
-        values.extend(dgb.values());
-        values.extend(case.variant_values());
-        values.push("na".to_string()); // separator
-        values.extend(hpo_values);
+        let verrs = ValidationErrors::new();
+        //let existing_header = self.header:
+        
        /*  Ok(Self {
             header_duplet_row: header_duplet_row,
             content: values
         })*/
-        Err(Error::custom("mendelian_from-refacot"))
+        if verrs.has_error() {
+            Err(verrs)
+        } else {
+            Ok(Self{ 
+                header: header_duplet_row, 
+                individual_bundle: todo!(), 
+                disease_bundle_list: todo!(), 
+                gene_var_bundle_list: todo!(), 
+                hpo_content: todo!() })
+        }
     }
 
     /// This function checks the current PpktRow for syntactical errors
@@ -186,10 +196,15 @@ impl PpktRow {
     pub fn update_header(
         &self, 
         updated_hdr: Arc<HeaderDupletRow>
-    ) -> std::result::Result<Self, String> {
+    ) -> std::result::Result<Self, ValidationErrors> {
+        let mut verrs = ValidationErrors::new();
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
         let previous_header = &self.header;
-        let hpo_map = previous_header.get_hpo_content_map(&self.hpo_content)?;
+        let hpo_map = previous_header.get_hpo_content_map(&self.hpo_content);
+        let hpo_map = hpo_map.map_err(|e|{
+            verrs.push_str(e);
+            verrs // only propagated if error occurs
+        })?;
         let mut content = Vec::new();
         for tid in updated_hpo_id_list {
             let item: String = hpo_map
@@ -207,6 +222,47 @@ impl PpktRow {
             hpo_content: content 
         })
     }
+
+    pub fn update(
+        &self, 
+        tid_map: &mut HashMap<TermId, String>, 
+        updated_hdr: Arc<HeaderDupletRow>) 
+    -> std::result::Result<Self, ValidationErrors> {
+        // update the tid map with the existing  values
+        let mut verr = ValidationErrors::new();
+        let previous_hpo_id_list = self.header.get_hpo_id_list()?;
+        let hpo_cell_content_list = self.hpo_content.clone();
+        if previous_hpo_id_list.len() != hpo_cell_content_list.len() {
+            verr.push_str("Mismatched lengths between HPO ID list and HPO content");
+            return Err(verr); // not recoverable
+        }
+        for (hpo_id, cell_content) in previous_hpo_id_list.iter().zip(hpo_cell_content_list.iter()) {
+            tid_map.insert(hpo_id.clone(), cell_content.clone());
+        }
+        let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
+        let updated_hpo: Result<Vec<String>> = updated_hpo_id_list
+                .into_iter()
+                .map(|term_id| {
+                    tid_map.get(&term_id)
+                        .cloned()
+                        .ok_or_else(|| Error::TemplateError {
+                            msg: format!("Could not retrieve updated value for '{}'", &term_id)
+                        })
+                })
+                .collect();
+        let updated_hpo = updated_hpo.map_err(|e| {
+                verr.push_str(&e.to_string());
+                verr
+            })?;
+        Ok(Self {
+            header: updated_hdr,
+            individual_bundle: self.individual_bundle.clone(),
+            disease_bundle_list: self.disease_bundle_list.clone(),
+            gene_var_bundle_list: self.gene_var_bundle_list.clone(),
+            hpo_content: updated_hpo,
+        })
+    }
+
 
 }
 

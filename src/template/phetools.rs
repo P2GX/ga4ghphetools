@@ -3,7 +3,7 @@
 
 
 
-use crate::dto::template_dto::{RowDto, TemplateDto};
+use crate::dto::template_dto::{IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantDto;
 use crate::error::Error;
@@ -144,25 +144,7 @@ impl PheTools {
         term_arrager.arrange_term_ids(hpo_terms_for_curation)
     }
 
-    /// Get a table of values as Strings for display/export
-    /// 
-    /// # Returns
-    ///
-    /// - A `Vec<Vec<String>>` containing all of the data in the template as Strings
-    /// # Notes
-    ///
-    /// - The matrix contains two header rows and then one row for each phenopacket in the template
-    pub fn get_string_matrix(&self) -> Result<Vec<Vec<String>>, String> {
-        match &self.template {
-            Some(template) => {
-                let matrix = vec![vec!["todo".to_ascii_lowercase()]];
-                Ok(matrix)
-            }
-            None => {
-                Err("Template is not initialized".to_string())
-            }
-        }
-    }
+  
 
     /// Return a Data Transfer Object to display the entire phenopacket cohort (template)
     pub fn get_template_dto(&self) -> Result<TemplateDto, String> {
@@ -179,25 +161,7 @@ impl PheTools {
     }
 
 
-    /// Get a focused table of values as Strings for display/export
-    /// The table contains the PMID, title, individual_id, and one HPO column (only)
-    /// 
-    /// # Returns 
-    /// 
-    /// - `Vec<Vec<String>>` containing data for the four columns mentioned above as Strings
-    pub fn get_hpo_col_with_context(&mut self, col: usize) -> Result<Vec<Vec<String>>, String> {
-        match &mut self.template {
-            Some(template) => {
-                let matrix = template
-                    .get_hpo_col_with_context(col)
-                    .map_err(|e| e.to_string())?;
-                Ok(matrix)
-            }
-            None => {
-                Err("Template is not initialized".to_string())
-            }
-        }
-    }
+
 
     /// Load a two dimensional String matrix representing the entire PheTools template
     pub fn load_matrix(
@@ -264,40 +228,7 @@ impl PheTools {
         todo!()
     }
 
-    /// Arranges the given HPO terms into a specific order for curation.
-    ///
-    /// # Arguments
-    ///
-    /// * `pmid` - The PubMed identifier for the new phenopacket row.
-    /// * `title` - The title of the article corresponding to the pmid.
-    /// * `individual_id` - The identifier of an individual described in the PMID
-    /// * `hpo_items` - List of [`HpoTermDto`](struct@crate::dto::hpo_term_dto::HpoTermDto) instances describing the observed HPO features
-    ///
-    /// # Returns
-    ///
-    /// - A ``Ok(())`` upon success, otherwise ``Err(String)`.
-    ///
-    /// # Notes
-    ///
-    /// - Client code should retrieve HpoTermDto objects using the function [`Self::get_hpo_term_dto`]. 
-    ///   This function will additionally rearrange the order of the HPO columns to keep them in "ideal" (DFS) order. 
-    ///   Cells for HPO terms (columns) not included
-    ///   in the list of items but present in the columns of the previous matrix will be set to "na"
-    pub fn add_row_with_hpo_data(
-        &mut self,
-        case_dto: CaseDto,
-        hpo_dto_items: Vec<HpoTermDto>
-    ) -> Result<(), String> {
-        let hpo_util = HpoUtil::new(self.hpo.clone());
-        let _ = hpo_util.check_hpo_dto(&hpo_dto_items);
-        match &mut self.template {
-            Some(template) => {
-                template.add_row_with_hpo_data(case_dto, hpo_dto_items).map_err(|e|e.to_string())?;
-                Ok(())
-            }
-            None => Err("Template not initialized".to_string())
-        }
-    }
+   
 
     /// Add a new HPO term to the template with initial value "na". Client code can edit the new column
     ///
@@ -316,49 +247,50 @@ impl PheTools {
         &mut self,
         hpo_id: &str,
         hpo_label: &str) 
-    -> std::result::Result<(), String> {
+    -> std::result::Result<(), Vec<String>> {
         match &mut self.template {
             Some(template) => {
-                template.add_hpo_term_to_cohort(hpo_id, hpo_label)?;
+                template.add_hpo_term_to_cohort(hpo_id, hpo_label)
+                .map_err(|verrs|verrs.errors().clone())?;
                 Ok(())
             }
-            None => Err("Template not initialized".to_string())
+            None => {
+                Err(vec!["Template not initialized".to_string()])
+            }
         }
     }
 
 
-    pub fn delete_row(&mut self, row: usize) -> Result<(), String> {
-        match &mut self.template {
+    /// This function is called if the user enters information about a new phenopacket to
+    /// be added to an existing cohort. The function will need to merge this with the
+    /// existing cohort - this means mainly that we need to add na to terms used in this
+    /// cohort but not in the existing phenopacket, and vice verssa
+    /// # Arguments
+    ///
+    /// * `individual_dto` - Information about the PMID, individual, demographivds
+    /// * `hpo_annotations` - list of observed/excluded HPO terms
+    /// 
+    /// # Returns Ok if successful, otherwise list of strings representing errors
+    pub fn add_new_row_to_cohort(
+        &mut self,
+        individual_dto: IndividualBundleDto, 
+        hpo_annotations: Vec<HpoTermDto>) 
+    -> Result<(), Vec<String>> {
+        match self.template.as_mut() {
             Some(template) => {
-                template.delete_row(row);
-                Ok(())
-            }
-            None => Err("template not initialized".to_string()),
+                match  template.add_row_with_hpo_data(individual_dto, hpo_annotations) {
+                    Ok(_) => Ok(()),
+                    Err(verr) => Err(verr.errors()),
+                };
+            },
+            None => { return Err(vec!["Template not initialized".to_string()]); }
         }
+        
+        Ok(())
     }
 
-     /// Total number of columns
-    ///
-    /// # Returns
-    ///
-    /// total number of columns (HPO and non-HPO)
-    pub fn ncols(&self) -> usize {
-        match &self.template {
-            Some(template) => template.n_columns(),
-            None => 0,
-        }
-    }
-
-
-    /// get number of rows including header
-    pub fn nrows(&self) -> usize {
-        match &self.template {
-            Some(template) => template.phenopacket_count() + template.header_row_count(),
-            None => 0,
-        }
-    }
-
-
+    /// Return information about the template for display in a GUI
+    /// TODO -- Create a DTO rather than a HashMap
     pub fn get_template_summary(&self) -> Result<HashMap<String, String>, String> {
         match &self.template {
             Some(template) => {
@@ -373,6 +305,7 @@ impl PheTools {
         }
     }
 
+    /// Return information about the version and number of terms of the HPO 
     pub fn get_hpo_data(&self) -> HashMap<String, String> {
         let hpo_clone = Arc::clone(&self.hpo);
         let mut hpo_map: HashMap<String, String> = HashMap::new();
