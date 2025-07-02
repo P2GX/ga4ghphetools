@@ -16,38 +16,21 @@ use polars::prelude::default_arrays;
 
 use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
+use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
+use crate::header::individual_header::IndividualHeader;
 use crate::hpo::age_util::{self, check_hpo_table_cell};
 use crate::hpo::hpo_util;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
 use crate::phetools_traits::TableCell;
-use crate::template::disease_bundle::DiseaseBundle;
+use crate::template::disease_bundle::{self, DiseaseBundle};
 use crate::template::gene_variant_bundle::{self, GeneVariantBundle};
 use crate::template::individual_bundle::IndividualBundle;
+use crate::template::pt_template::TemplateType;
 use crate::template::simple_label::SimpleLabel;
 use crate::template::disease_gene_bundle::DiseaseGeneBundle;
 use crate::template::header_duplet_row::{self, HeaderDupletRow};
-
-
-impl Error {
-    fn unrecognized_value(val: &str, field_name: &str) -> Self {
-        Error::UnrecognizedValue {
-            value: val.to_string(),
-            column_name: field_name.to_string(),
-        }
-    }
-
-    fn malformed_title(title: &str) -> Self {
-        Error::TemplateError { msg: format!("Malformed template header '{}'", title) }
-    }
-
-    fn no_content(i: usize) -> Self {
-        Error::TemplateError { msg: format!("No content and index '{i}'") }
-    }
-}
-
 
 
 #[derive(Clone, Debug)]
@@ -99,16 +82,40 @@ impl PpktRow {
         })
     }
 
+    pub fn from_map(
+        header: Arc<HeaderDupletRow>, 
+        individual_dto: IndividualBundleDto,
+        map: HashMap<TermId, String>, 
+        cohort_dto: TemplateDto) -> std::result::Result<Self, String> {
+        if cohort_dto.cohort_type != "mendelian" {
+            panic!("from_map: Melded not supported");
+        }
+        let mut items = Vec::with_capacity(header.hpo_count());
+        for hduplet in header.hpo_duplets() {
+            let tid = hduplet.to_term_id()?;
+            let value: String =  map.get(&tid).map_or("na", |v| v).to_string();
+            items.push(value);
+        }
+        let ibundle = IndividualBundle::from_dto(individual_dto);
+        let disease_bundle_list = DiseaseBundle::from_cohort_dto(&cohort_dto)?;
+        Ok(Self { header, 
+            individual_bundle: ibundle, 
+            disease_bundle_list, 
+            gene_var_bundle_list: vec![], 
+            hpo_content: items
+        })
+    }
 
-    pub fn from_dto(dto: RowDto, header: Arc<HeaderDupletRow>) -> Self {
-        let hpo_content = dto.hpo_data.into_iter()
-            .map(|c|c.value)
+
+    pub fn from_dto(dto: &RowDto, header: Arc<HeaderDupletRow>) -> Self {
+        let hpo_content = dto.hpo_data.iter()
+            .map(|c|c.value.clone())
             .collect();
         Self { 
             header, 
-            individual_bundle: IndividualBundle::from_dto(dto.individual_dto), 
-            disease_bundle_list: DiseaseBundle::from_dto_list(dto.disease_dto_list), 
-            gene_var_bundle_list: GeneVariantBundle::from_dto_list(dto.gene_var_dto_list), 
+            individual_bundle: IndividualBundle::from_dto(dto.individual_dto.clone()), 
+            disease_bundle_list: DiseaseBundle::from_dto_list(dto.disease_dto_list.clone()), 
+            gene_var_bundle_list: GeneVariantBundle::from_dto_list(dto.gene_var_dto_list.clone()), 
             hpo_content
         }
     }
@@ -380,11 +387,7 @@ mod test {
 
     #[fixture]
     fn original_matrix(row1: Vec<String>, row2: Vec<String>, row3: Vec<String>)  -> Vec<Vec<String>> {
-        let mut rows = Vec::with_capacity(3);
-        rows.push(row1);
-        rows.push(row2);
-        rows.push(row3);
-        rows
+        vec![row1, row2, row3]
     }
 
 
@@ -408,7 +411,31 @@ mod test {
     #[fixture]
     pub fn hpo_dtos() -> Vec<HpoTermDto> {
         vec![HpoTermDto::new("HP:0001382", "Joint hypermobility", "observed"),
-        HpoTermDto::new("HP:0000574", "Thick eyebrow", "observed") ]
+        HpoTermDto::new("HP:0000574", "Thick eyebrow", "observed")]
+    }
+    
+    #[rstest]
+    fn test_rearrange_vector() {
+        let tid1 = TermId::from_str("HP:0000001").unwrap();
+        let tid2 = TermId::from_str("HP:0000002").unwrap();
+        let tid3 = TermId::from_str("HP:0000003").unwrap();
+        let tid4 = TermId::from_str("HP:0000004").unwrap();
+        let tid5 = TermId::from_str("HP:0000005").unwrap();
+        let tid42 = TermId::from_str("HP:00000042").unwrap();
+        let tid43 = TermId::from_str("HP:00000043").unwrap();
+        let v1 = vec![tid1.clone(), tid2.clone(), tid3.clone(), tid4.clone(), tid5.clone()];
+        let v2 = vec![tid1.clone(), tid2.clone(), tid42.clone(), tid3.clone(), tid43.clone(),tid4.clone(), tid5.clone()];
+        // order of the original TIDs (v1) in the rearranged vector v2
+        let expected_order = vec![0,1,3,5,6];
+        let observed_order = PpktRow::get_update_vector(&v1, &v2);
+        assert_eq!(expected_order, observed_order);
+        // Now check we fill in with na
+        let hpo_values = vec!["observed".to_string(),"observed".to_string(),"observed".to_string(),"observed".to_string(),"observed".to_string()];
+        let expected = vec!["observed".to_string(),"observed".to_string(),"na".to_string(), "observed".to_string(),"na".to_string(), "observed".to_string(),"observed".to_string()];
+        let observed = PpktRow::reorder_or_fill_na(&hpo_values, &expected_order, expected.len());
+        assert_eq!(expected_order, observed_order);
+
+
     }
 
 

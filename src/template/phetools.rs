@@ -22,6 +22,7 @@ use serde_json::to_string;
 use crate::template::pt_template::PheToolsTemplate;
 use crate::template::excel;
 use crate::phetools_traits::PyphetoolsTemplateCreator;
+use core::option::Option::Some;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self};
 use std::path::Path;
@@ -99,7 +100,7 @@ impl PheTools {
         gene_symbol: &str,
         transcript_id: &str,
         hpo_term_ids: Vec<TermId>,
-    ) -> Result<(), String> {
+    ) -> std::result::Result<PheToolsTemplate, String> {
         let dgb = DiseaseGeneBundle::new_from_str(
             disease_id,
             disease_name,
@@ -113,7 +114,7 @@ impl PheTools {
             hpo_term_ids, 
             hpo_arc
         ).map_err(|e| e.to_string())?;
-        Ok(())
+        Ok(template)
     }
 
     /// Arranges the given HPO terms into a specific order for curation.
@@ -248,14 +249,16 @@ impl PheTools {
         hpo_id: &str,
         hpo_label: &str,
         cohort_dto: TemplateDto) 
-    -> std::result::Result<(), Vec<String>> {
+    -> std::result::Result<TemplateDto, Vec<String>> {
         let mut updated_template = 
-            PheToolsTemplate::from_dto( self.hpo.clone(), cohort_dto)
+            PheToolsTemplate::from_dto( self.hpo.clone(), &cohort_dto)
                 .map_err(|e|vec![e])?;
         updated_template.add_hpo_term_to_cohort(hpo_id, hpo_label)
             .map_err(|verrs| verrs.errors().clone())?;
+        let template_dto = updated_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
         self.template = Some(updated_template);
-        Ok(())
+        
+        Ok(template_dto)
     }
 
 
@@ -274,29 +277,18 @@ impl PheTools {
         individual_dto: IndividualBundleDto, 
         hpo_annotations: Vec<HpoTermDto>,
         cohort_dto: TemplateDto) 
-    -> Result<(), Vec<String>> {
-        let mut updated_template = 
-            PheToolsTemplate::from_dto( self.hpo.clone(), cohort_dto)
+    -> Result<TemplateDto, Vec<String>> {
+        let mut updated_template: PheToolsTemplate = 
+            PheToolsTemplate::from_dto( self.hpo.clone(), &cohort_dto)
                 .map_err(|e|vec![e])?;
-        updated_template.add_row_with_hpo_data(individual_dto, hpo_annotations)
+            println!("add_new_row_to_cohort before update n={}", updated_template.phenopacket_count());
+        updated_template.add_row_with_hpo_data(individual_dto, hpo_annotations,  cohort_dto)
             .map_err(|verr| verr.errors().clone())?;
-        Ok(())
-    }
-
-    /// Return information about the template for display in a GUI
-    /// TODO -- Create a DTO rather than a HashMap
-    pub fn get_template_summary(&self) -> Result<HashMap<String, String>, String> {
-        match &self.template {
-            Some(template) => {
-                let summary = template.get_summary();
-                if summary.is_empty() {
-                    Err("Empty template".to_string())
-                } else {
-                    Ok(summary)
-                }
-            },
-            None => Err("Phetools template not initialized".to_string())
-        }
+        let template_dto = updated_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
+        println!("add_new_row_to_cohort after update n={}", updated_template.phenopacket_count());
+        self.template = Some(updated_template);
+     
+        Ok(template_dto)
     }
 
     /// Return information about the version and number of terms of the HPO 

@@ -263,6 +263,10 @@ impl HeaderDupletRow {
         self.hpo_duplets.clone()
     }
 
+    pub fn hpo_duplets(&self) -> &[HpoTermDuplet] {
+        self.hpo_duplets.as_ref()
+    }
+
     pub fn get_hpo_header_dtos(&self) -> Vec<HeaderDupletDto> {
         self.hpo_duplets.iter()
             .map(|hpo_duplet| hpo_duplet.to_header_dto())

@@ -1,3 +1,4 @@
+use core::convert::From;
 use std::str::FromStr;
 
 
@@ -9,6 +10,7 @@ use crate::ppkt::ppkt_row::PpktRow;
 use crate::template::excel::read_excel_to_dataframe;
 use crate::error::{Error, Result};
 use crate::template::header_duplet_row::HeaderDupletRow;
+use crate::template::pt_template::TemplateType;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -78,7 +80,7 @@ impl GeneVariantBundleDto {
 }
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseDto {
     pub disease_id: String,
@@ -195,5 +197,43 @@ impl TemplateDto {
     pub fn mendelian(hpo_headers: Vec<HeaderDupletDto>, rows: Vec<RowDto>) -> Self {
         Self { cohort_type: "mendelian".to_string(), hpo_headers, rows }
     }
+
+    pub fn template_type(&self) -> std::result::Result<TemplateType, String> {
+        self.cohort_type
+            .parse::<TemplateType>()
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn is_mendelian(&self) -> bool {
+        match self.template_type() {
+            Ok(ctype) => { return ctype == TemplateType::Mendelian;},
+            Err(_) => { return false;}
+        }
+    }
+
+
+    pub fn get_disease_dto_list(&self) -> std::result::Result<Vec<DiseaseDto>, String> {
+        if ! self.is_mendelian() {
+            return Err("Not implemented except for Mendelian".to_string());
+        }
+        let first_disease = self.rows
+            .first()
+            .ok_or_else(|| "No rows provided".to_string())?
+            .disease_dto_list
+            .get(0)
+            .ok_or_else(|| "First row has no disease".to_string())?
+            .clone();
+
+        for (i, row) in self.rows.iter().enumerate() {
+            if row.disease_dto_list.len() != 1 {
+                return Err(format!("Row {} does not have exactly one disease", i));
+            }
+            if row.disease_dto_list[0] != first_disease {
+                return Err(format!("Row {} has a different disease", i));
+            }
+        }
+
+    Ok(vec![first_disease])
+}
     
 }

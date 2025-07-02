@@ -94,17 +94,17 @@ impl PheToolsTemplate {
 
     pub fn from_dto(
         hpo: Arc<FullCsrOntology>,
-        cohort_dto: TemplateDto) 
+        cohort_dto: &TemplateDto) 
     -> std::result::Result<Self, String>  {
         let tt: TemplateType = cohort_dto.cohort_type.parse()?;
         let hpo_duplets: Vec<HpoTermDuplet> = cohort_dto
             .hpo_headers
-            .into_iter()
-            .map(|dto| dto.to_hpo_duplet())
+            .iter()
+            .map(|dto| dto.clone().to_hpo_duplet())
             .collect();
         let updated_header: HeaderDupletRow = HeaderDupletRow::from_hpo_duplets(hpo_duplets, tt);
         let arc_header = Arc::new(updated_header);
-        let updated_ppkt_rows = cohort_dto.rows.into_iter()
+        let updated_ppkt_rows = cohort_dto.rows.iter()
             .map(|dto| PpktRow::from_dto(dto, arc_header.clone())).collect();
 
         Ok(Self { 
@@ -140,7 +140,7 @@ impl PheToolsTemplate {
         let header_arc = Arc::new(header_duplet_row);
         let mut ppkt_rows: Vec<PpktRow> = Vec::new();
         for row_dto in template_dto.rows {
-            let ppkt_row = PpktRow::from_dto(row_dto, header_arc.clone());
+            let ppkt_row = PpktRow::from_dto(&row_dto, header_arc.clone());
             ppkt_rows.push(ppkt_row);
         }
         let template = PheToolsTemplate {
@@ -308,7 +308,8 @@ impl PheToolsTemplate {
     pub fn add_row_with_hpo_data(
         &mut self,
         individual_dto: IndividualBundleDto,
-        hpo_dto_items: Vec<HpoTermDto>
+        hpo_dto_items: Vec<HpoTermDto>,
+        cohort_dto: TemplateDto
     ) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
         let hpo_util = HpoUtil::new(self.hpo.clone());
@@ -321,10 +322,7 @@ impl PheToolsTemplate {
         let all_tids: Vec<TermId> = term_id_set.into_iter().collect();
         let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
         let arranged_terms = term_arrager.arrange_terms(&all_tids)?;
-         // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
-        // strategy: Make a HashMap with all new terms, initialize the values to na. Clone this, pass it to the
-        // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
-        // the new HeaderDupletRow object to write the values.
+         // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms set to "na"
         // 3a. Update the HeaderDupletRow object.
         let update_hdr = self.header.update_old(&arranged_terms);
         let updated_hdr_arc = Arc::new(update_hdr);
@@ -342,13 +340,15 @@ impl PheToolsTemplate {
             }
         }
         /// Now add the new phenopacket
-        let mut tid_map = term_id_map.clone();
-        /*let new_ppkt = PpktRow::mendelian_from_dto( 
-            updated_hdr_arc.clone(), 
-            individual_dto, 
-            hpo_dto_items,
-            tid_map)?;
-        updated_ppkt_rows.push(new_ppkt);*/
+        let new_ppkt_result = PpktRow::from_map(updated_hdr_arc.clone(), individual_dto, dto_map,  cohort_dto);
+        let ppkt_row = match new_ppkt_result {
+            Ok(row) => row,
+            Err(msg) => {
+                verrs.push_str(msg);
+                return Err(verrs);
+            }
+        };
+        updated_ppkt_rows.push(ppkt_row);
         self.header = updated_hdr_arc;
         self.ppkt_rows = updated_ppkt_rows;
         
@@ -365,24 +365,6 @@ impl PheToolsTemplate {
         self.header.n_columns()
     }
 
-    pub fn get_summary(&self) -> HashMap<String, String> {
-        let mut summary: HashMap<String, String> = HashMap::new();
-       /*  let result = self.get_mendelian_disease_gene_bundle();
-        if result.is_err() {
-            return summary;
-        }
-        let dgb = result.unwrap();
-        summary.insert("disease".to_string(), dgb.disease_name());
-        summary.insert("disease_id".to_string(), dgb.disease_id_as_string());
-        summary.insert("hgnc_id".to_string(), dgb.hgnc_id_as_string());
-        summary.insert("gene_symbol".to_string(), dgb.gene_symbol());
-        summary.insert("transcript".to_string(), dgb.transcript());
-        let hpo_terms = self.header.hpo_count();
-        summary.insert("hpo_term_count".to_string(), format!("{}", hpo_terms));
-        let ppkt_n = self.phenopacket_count();
-        summary.insert("n_ppkt".to_string(), format!("{}", ppkt_n));*/
-        summary
-    }
 
     pub fn export_phenopackets(&self) -> Vec<Phenopacket> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
