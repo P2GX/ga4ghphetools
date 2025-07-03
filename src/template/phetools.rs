@@ -5,7 +5,7 @@
 
 use crate::dto::template_dto::{IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
-use crate::dto::variant_dto::VariantDto;
+use crate::dto::variant_dto::{VariantDto, VariantListDto};
 use crate::error::Error;
 use crate::hpo::hpo_util::HpoUtil;
 use crate::persistence::dir_manager::DirManager;
@@ -315,18 +315,15 @@ impl PheTools {
         let dto = HpoTermDto::new(tid, label, entry);
         let tid: TermId = dto.ontolius_term_id().map_err(|e| e.to_string())?;
         let label = dto.label();
-        match self.hpo.term_by_id(&tid) {
-            Some(term) => {
+        self.hpo.term_by_id(&tid)
+            .ok_or_else(|| format!("Could not find HPO term identifier {} in the ontology", tid))
+            .and_then(|term| {
                 if term.name() != label {
                     Err(format!("Malformed HPO label {} for {} (expected: {})", label, tid, term.name()))
                 } else {
                     Ok(dto)
                 }
-            },
-            None => {
-                Err(format!("Could not find HPO term identifier {} in the ontology", tid))
-            }
-        }
+            })
     }
 
 
@@ -353,12 +350,7 @@ impl PheTools {
     ) -> Result<(), String> {
         match &mut self.manager {
             Some(manager) => {
-                let dto = variant_dto;
-                if dto.variant_string().starts_with("c.") || dto.variant_string().starts_with("n.") {
-                    manager.validate_hgvs(dto.variant_string(), dto.transcript()).map_err(|e|e.to_string())?;
-                } else {
-                    manager.validate_sv(dto.variant_string(), dto.hgnc_id(), dto.gene_symbol()).map_err(|e|e.to_string())?;
-                }
+                manager.validate_variant(&variant_dto)?;
             },
             None => {
                 return Err("Variant Manager not initialized".to_string());
@@ -367,18 +359,21 @@ impl PheTools {
         Ok(())
     }
 
-    /// Validate all variants are are in the current template
-    pub fn validate_all_variants(&mut self) -> Result<(), String> {
-       // for x in self.
-        match &self.template {
-            Some(template) => {
+
+
+
+    pub fn get_variant_list_dto(&self) -> Result<VariantListDto, String> {
+        match &self.manager {
+            Some(manager) => {
+                Ok(manager.get_variant_list_dto())
             },
             None => {
-                return Err(format!(""));
+                Err("Variant manager not initialized".to_string())
             },
         }
-        Ok(())
     }
+
+
 
     /// Check correctness of a TemplateDto that was sent from the front end.
     /// This operation is performed to see if the edits made in the front end are valid.

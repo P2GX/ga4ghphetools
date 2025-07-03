@@ -6,34 +6,13 @@ use std::convert::TryInto;
 use polars::series::implementations;
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{error::{Error, Result}, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
+use crate::{dto::{self, variant_dto::VariantDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
 const GENOME_ASSEMBLY_HG38: &str = "hg38";
 
 const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
-
-impl Error {
-    pub fn malformed_chr(vcf: &Value) -> Self
-    {
-        Self::VariantError { msg: format!("Missing or invalid 'chrom' in VCF object: {vcf}"),}
-    } 
-    pub fn malformed_ref(vcf: &Value) -> Self
-    {
-        Self::VariantError { msg: format!("Missing or invalid 'REF' in VCF object: {vcf}"),}
-    } 
-
-    pub fn malformed_alt(vcf: &Value) -> Self
-    {
-        Self::VariantError { msg: format!("Missing or invalid 'ALT' in VCF object: {vcf}"),}
-    } 
-
-    pub fn malformed_pos(vcf: &Value) -> Self
-    {
-        Self::VariantError { msg: format!("Missing or invalid 'POS' in VCF object: {vcf}"),}
-    } 
-}
 
 pub struct VariantValidator {
     genome_assembly: String,
@@ -55,9 +34,9 @@ fn get_variant_validator_url(
 }
 
 impl VariantValidator {
-    pub fn new(genome_build: &str) -> Result<Self> {
+    pub fn new(genome_build: &str) -> Result<Self, String> {
         if !ACCEPTABLE_GENOMES.contains(&genome_build) {
-            return Err(Error::TemplateError { msg: format!("genome_build \"{}\" not recognized", genome_build)});
+            return Err(format!("genome_build \"{}\" not recognized", genome_build));
         }
         Ok(Self {
             genome_assembly: genome_build.to_string(),
@@ -85,18 +64,17 @@ impl VariantValidator {
         &self, 
         hgvs: &str, 
         transcript: &str
-    ) -> Result<HgvsVariant> 
+    ) -> Result<HgvsVariant, String> 
     {
         let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
         let response: Value = get(&url)
-            .map_err(|e| Error::VariantError{msg: e.to_string()})?
+            .map_err(|e| format!("Could not map {hgvs}: {e}"))?
             .json()
             .map_err(|e| e.to_string())?;
 
         if let Some(flag) = response.get("flag") {
             if flag != "gene_variant" {
-                let msg = format!("Expecting to get a gene_variant but got {}", flag);
-                return Err(Error::VariantError{msg});
+                return Err(format!("Expecting to get a gene_variant but got {}", flag));
             }
         }
 
@@ -175,18 +153,22 @@ impl VariantValidator {
         return Ok(hgvs_v);
     }
 
-    pub fn validate_sv(&mut self, variant: &str, hgnc_id: &str, gene_symbol: &str) -> Result<()> {
-        todo!()
-    }
+    
 
 
     pub fn validate_hgvs(
         &self, 
-        hgvs: &str, 
-        transcript: &str
-    ) -> Result<()> {
-        todo!();
-        Ok(())
+        variant_dto: &VariantDto
+    ) -> Result<HgvsVariant, String> {
+        match variant_dto.transcript() {
+            Some(transcript) => {
+                let hgvs =  self.encode_hgvs(variant_dto.variant_string(), transcript)?;
+                return Ok(hgvs);
+            },
+            None => {
+                return Err(format!("Attempt to encode variant {} without transcript", variant_dto.variant_string()));
+            }
+        }
     }
 }
 

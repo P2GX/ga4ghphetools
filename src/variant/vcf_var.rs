@@ -18,7 +18,7 @@ impl VcfVar {
     {
         VcfVar { 
             chromosome: chromosome.into(), 
-            pos: pos, 
+            pos, 
             reference: reference.into(), 
             alternate: alternate.into() 
         }

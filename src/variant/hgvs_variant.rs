@@ -84,7 +84,7 @@ impl HgvsVariant {
     pub fn alt_allele(&self) -> &str {
         self.alt_allele.as_ref()
     }
-   
+
     pub fn symbol(&self) -> Option<&str> {
         self.symbol.as_deref()
     }

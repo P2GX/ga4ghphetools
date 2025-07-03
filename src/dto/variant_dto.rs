@@ -15,16 +15,19 @@ use serde::{Deserialize, Serialize};
 pub struct VariantDto {
     /// either an HGVS String (e.g., c.123T>G) or a SV String: DEL: deletion of exon 5
     variant_string: String,
-    /// transcript of reference for the gene of interest (usually MANE) with version number, e.g. NM_000123.2
-    transcript: String,
+    /// transcript of reference for the gene of interest (usually MANE) with version number, e.g. NM_000123.2 (not required for SV)
+    transcript: Option<String>,
     /// HUGO Gene Nomenclature Committee identifier, e.g., HGNC:123
     hgnc_id: String,
     /// Symbol recommended by HGNC, e.g. FBN1
-    gene_symbol: String
+    gene_symbol: String,
+    /// Have we validated this variant in the backend?
+    validated: bool,
+    is_structural: bool,
 }
 
 impl VariantDto {
-    pub fn new(
+    pub fn new_hgvs(
         variant_string: impl Into<String>,
         transcript: impl Into<String>,
         hgnc_id: impl Into<String>,
@@ -32,9 +35,26 @@ impl VariantDto {
     ) -> Self {
         Self { 
             variant_string: variant_string.into(), 
-            transcript: transcript.into(), 
+            transcript: Some(transcript.into()), 
             hgnc_id: hgnc_id.into(), 
-            gene_symbol: gene_symbol.into() 
+            gene_symbol: gene_symbol.into(),
+            validated: false,
+            is_structural: false
+        }
+    }
+
+     pub fn new_sv(
+        variant_string: impl Into<String>,
+        hgnc_id: impl Into<String>,
+        gene_symbol: impl Into<String>,
+    ) -> Self {
+        Self { 
+            variant_string: variant_string.into(), 
+            transcript: None, 
+            hgnc_id: hgnc_id.into(), 
+            gene_symbol: gene_symbol.into(),
+            validated: false,
+            is_structural: true
         }
     }
 
@@ -42,8 +62,11 @@ impl VariantDto {
         &self.variant_string
     }
 
-    pub fn transcript(&self) -> &str {
-        &self.transcript
+    pub fn transcript(&self) -> Option<&str> {
+        match &self.transcript {
+            None => None,
+            Some(tr) => Some(tr)
+        }
     }
 
     pub fn hgnc_id(&self) -> &str {
@@ -54,4 +77,48 @@ impl VariantDto {
         &self.gene_symbol
     }
 
+    pub fn validated(&self) -> bool {
+        self.validated
+    }
+
+    pub fn is_structural(&self) -> bool {
+        self.is_structural
+    }
+
+    pub fn clone_validated(&self) -> Self {
+        Self { 
+            variant_string:  self.variant_string.clone(), 
+            transcript: self.transcript.clone(), 
+            hgnc_id: self.hgnc_id.clone(), 
+            gene_symbol: self.gene_symbol.clone(), 
+            validated: true, 
+            is_structural: self.is_structural
+        }
+    }
+
+    pub fn clone_unvalidated(&self) -> Self {
+        Self { 
+            variant_string:  self.variant_string.clone(), 
+            transcript: self.transcript.clone(), 
+            hgnc_id: self.hgnc_id.clone(), 
+            gene_symbol: self.gene_symbol.clone(), 
+            validated: false, 
+            is_structural: self.is_structural
+        }
+    }
+
+}
+
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct VariantListDto {
+    pub variant_dto_list: Vec<VariantDto>
+}
+
+
+impl VariantListDto {
+    pub fn new(dto_list: Vec<VariantDto>) -> Self {
+        Self { variant_dto_list: dto_list }
+    }
+    
 }
