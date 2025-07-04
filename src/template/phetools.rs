@@ -25,7 +25,7 @@ use crate::phetools_traits::PyphetoolsTemplateCreator;
 use core::option::Option::Some;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt::format, str::FromStr, vec};
 
@@ -145,9 +145,14 @@ impl PheTools {
         term_arrager.arrange_term_ids(hpo_terms_for_curation)
     }
 
-  
+    pub fn initialize_project_dir(&mut self, project_dir: PathBuf) -> Result<(), String> {
+        self.manager = Some(DirManager::new(project_dir)?);
+        Ok(())
+    }
 
     /// Return a Data Transfer Object to display the entire phenopacket cohort (template)
+    /// This function is called when the user opens a new template. It
+    /// opens the file, creates a DTO, and sets up the directory/variant managers
     pub fn get_template_dto(&self) -> Result<TemplateDto, String> {
         println!("get_template_dto");
         match &self.template {
@@ -344,19 +349,19 @@ impl PheTools {
     /// If the variant starts with "c." or "n.", we validate it as HGVS,
     /// otherwise we validate it as a candidate Structural Variant.
     /// The method has the side effect of adding successfully validated variants to a file cache.
+    /// If the variant was successfully validated, we return the same dto but with the validated flag set to true
     pub fn validate_variant(
         &mut self,
         variant_dto: VariantDto
-    ) -> Result<(), String> {
+    ) -> Result<VariantDto, String> {
         match &mut self.manager {
             Some(manager) => {
-                manager.validate_variant(&variant_dto)?;
+                manager.validate_variant(&variant_dto) 
             },
             None => {
-                return Err("Variant Manager not initialized".to_string());
+                return Err("validate_variant: Variant Manager not initialized".to_string());
             },
         }
-        Ok(())
     }
 
 

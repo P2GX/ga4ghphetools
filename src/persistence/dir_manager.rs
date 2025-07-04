@@ -39,9 +39,8 @@ impl DirManager {
 
 
 impl DirManager {
-    pub fn validate_variant(&mut self, variant: &VariantDto) -> Result<(), String> {
-        self.variant_manager.validate_variant(variant)?;
-        Ok(())
+    pub fn validate_variant(&mut self, variant: &VariantDto) -> Result<VariantDto, String> {
+        self.variant_manager.validate_variant(variant)
     }
 
     /*pub fn check_variants(&mut self, dto_list: &Vec<VariantDto>) 
