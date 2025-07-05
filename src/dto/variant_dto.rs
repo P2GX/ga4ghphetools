@@ -107,6 +107,28 @@ impl VariantDto {
         }
     }
 
+    fn variant_string_sort_key(s: &str) -> u8 {
+        if s.starts_with("c.") {
+            0
+        } else if s.starts_with("n.") {
+            1
+        } else {
+            2
+        }
+    }
+
+    pub fn sort_variant_dtos(variants: &mut [VariantDto]) {
+        variants.sort_by(|a, b| {
+            let rank_a = Self::variant_string_sort_key(&a.variant_string);
+            let rank_b = Self::variant_string_sort_key(&b.variant_string);
+
+            match rank_a.cmp(&rank_b) {
+                std::cmp::Ordering::Equal => a.variant_string.cmp(&b.variant_string),
+                other => other,
+            }
+        });
+    }
+
 }
 
 
