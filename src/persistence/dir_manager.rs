@@ -45,8 +45,7 @@ impl DirManager {
         self.variant_manager.validate_variant(variant)
     }
 
-    pub fn get_variant_list_dto(&self) -> VariantListDto {
-
-        self.variant_manager.get_variant_list_dto()
+    pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Vec<VariantDto> {
+        self.variant_manager.validate_variant_dto_list(variant_dto_list)
     }
 }

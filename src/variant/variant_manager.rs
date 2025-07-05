@@ -1,6 +1,8 @@
 use std::fs::{File, OpenOptions};
 use std::{collections::HashMap, path::PathBuf};
 
+use phenopackets::schema::v1::core::variant;
+
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantListDto;
 use crate::variant::hgvs_variant::HgvsVariant;
@@ -145,6 +147,7 @@ impl VariantManager {
             } else {
                 let sv = self.structural_validator.validate_sv(dto)?;
                 self.structural_cache.insert(key.to_string(), sv);
+                self.save_structural();
                 Ok(dto.clone_validated())
             }
         } else if self.hgvs_cache.contains_key(key) {
@@ -152,6 +155,7 @@ impl VariantManager {
         } else {
             let hgvs = self.validator.validate_hgvs(dto)?;
             self.hgvs_cache.insert(key.to_string(), hgvs);
+            self.save_hgvs();
             Ok(dto.clone_validated())
         }
     }
@@ -189,6 +193,43 @@ impl VariantManager {
             }
         }
         VariantListDto::new(evaluated_dto_list)
+    }
+
+    pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Vec<VariantDto> {
+        let mut evaluated_dto_list: Vec<VariantDto> = Vec::with_capacity(variant_dto_list.len());
+        for dto in variant_dto_list {
+            let variant = dto.variant_string();
+            if dto.is_structural() {
+                if self.structural_cache.contains_key(variant ) {
+                    evaluated_dto_list.push(dto.clone_validated());
+                } else {
+                    match self.structural_validator.validate_sv(&dto) {
+                        Ok(sv) => {
+                            self.structural_cache.insert(variant.to_string(), sv);
+                            evaluated_dto_list.push(dto.clone_validated());
+                        },
+                        Err(e) => {
+                            evaluated_dto_list.push(dto.clone_unvalidated());
+                        },
+                    }
+                }
+            } else if self.hgvs_cache.contains_key(variant) {
+                evaluated_dto_list.push(dto.clone_validated());
+            } else {
+                match self.validator.validate_hgvs(&dto) {
+                    Ok(hgvs) => {
+                        self.hgvs_cache.insert(variant.to_string(), hgvs);
+                        evaluated_dto_list.push(dto.clone_validated());
+                    },
+                    Err(e) => {
+                        evaluated_dto_list.push(dto.clone_unvalidated());
+                    },
+                }
+            }
+        }
+        self.save_hgvs();
+        self.save_structural(); // write variants to cache.
+        evaluated_dto_list
     }
 
 
