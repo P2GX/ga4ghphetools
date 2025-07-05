@@ -49,6 +49,10 @@ impl ValidationErrors {
         }
     }
 
+    pub fn extend_errs(&mut self, err_strings: Vec<String>) {
+        self.errors.extend(err_strings);
+    }
+
     pub fn push_str(&mut self, message: impl Into<String>) {
         self.errors.push(message.into());
     }

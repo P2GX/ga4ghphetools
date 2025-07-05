@@ -6,7 +6,7 @@ use std::convert::TryInto;
 use polars::series::implementations;
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{dto::{self, variant_dto::VariantDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
+use crate::{dto::{self, validation_errors::ValidationErrors, variant_dto::VariantDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
@@ -66,11 +66,13 @@ impl VariantValidator {
         transcript: &str
     ) -> Result<HgvsVariant, String> 
     {
+        let mut verrs = ValidationErrors::new();
         let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
         let response: Value = get(&url)
             .map_err(|e| format!("Could not map {hgvs}: {e}"))?
             .json()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("Could not parse JSON for {hgvs}: {e}"))?;
+        Self::extract_variant_validator_warnings(&response)?;
 
         if let Some(flag) = response.get("flag") {
             if flag != "gene_variant" {
@@ -150,11 +152,38 @@ impl VariantValidator {
             genomic_hgvs,
             None,
         );
-        return Ok(hgvs_v);
+        Ok(hgvs_v)
     }
 
     
-
+    fn extract_variant_validator_warnings(response: &Value) -> Result<(), String> {
+        let mut verrs = ValidationErrors::new();
+        if let Some(flag) = response.get("flag").and_then(|f| f.as_str()) {
+            if flag == "warning" {
+                if let Some(warnings) = response
+                    .get("validation_warning_1")
+                    .and_then(|v| v.get("validation_warnings"))
+                    .and_then(|w| w.as_array())
+                {
+                    let warning_strings: Vec<String> = warnings
+                        .iter()
+                        .filter_map(|w| w.as_str().map(|s| s.to_string()))
+                        .collect();
+                    if let Some(first_warning) = warning_strings.into_iter().next() {
+                        return Err(first_warning);
+                    } else {
+                        // Should never happen, if it does, we need to check parsing of variant validator API.
+                        return Err(format!(
+                            "[variant_validator: {}:{}] invalid HGVS",
+                            file!(),
+                            line!()
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 
     pub fn validate_hgvs(
         &self, 
@@ -195,6 +224,18 @@ mod tests {
         assert!(json.is_ok());
         let json = json.unwrap();
         println!("{:?}", json);
+    }
+
+    #[test]
+    #[ignore = "runs with API"]
+    fn test_variant_validator_invalid() {
+        let vvalidator = VariantValidator::new("hg38").unwrap();
+        // This is an invalid HGVS because the reference base should be C and not G
+        let result = vvalidator.encode_hgvs("c.8230G>T", "NM_000138.5");
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert_eq!("NM_000138.5:c.8230G>T: Variant reference (G) does not agree with reference sequence (C)", e);
+        } 
     }
 }
 

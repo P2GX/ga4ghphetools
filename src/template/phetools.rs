@@ -364,7 +364,11 @@ impl PheTools {
         }
     }
 
-
+    pub fn validate_all_variants(&mut self) -> Result<VariantListDto, ValidationErrors> {
+            let verrs = ValidationErrors::new();
+            todo!();
+            verrs.ok(); // TODO
+    }
 
 
     pub fn get_variant_list_dto(&self) -> Result<VariantListDto, String> {
