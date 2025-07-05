@@ -14,7 +14,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow};
 use crate::{
     template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
@@ -309,6 +309,7 @@ impl PheToolsTemplate {
         &mut self,
         individual_dto: IndividualBundleDto,
         hpo_dto_items: Vec<HpoTermDto>,
+        gene_variant_list: Vec<GeneVariantBundleDto>,
         cohort_dto: TemplateDto
     ) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
@@ -340,7 +341,7 @@ impl PheToolsTemplate {
             }
         }
         /// Now add the new phenopacket
-        let new_ppkt_result = PpktRow::from_map(updated_hdr_arc.clone(), individual_dto, dto_map,  cohort_dto);
+        let new_ppkt_result = PpktRow::from_map(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, dto_map,  cohort_dto);
         let ppkt_row = match new_ppkt_result {
             Ok(row) => row,
             Err(msg) => {

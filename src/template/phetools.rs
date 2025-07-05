@@ -3,7 +3,7 @@
 
 
 
-use crate::dto::template_dto::{IndividualBundleDto, RowDto, TemplateDto};
+use crate::dto::template_dto::{GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::{VariantDto, VariantListDto};
 use crate::error::Error;
@@ -281,13 +281,14 @@ impl PheTools {
         &mut self,
         individual_dto: IndividualBundleDto, 
         hpo_annotations: Vec<HpoTermDto>,
+        gene_variant_list: Vec<GeneVariantBundleDto>,
         cohort_dto: TemplateDto) 
     -> Result<TemplateDto, Vec<String>> {
         let mut updated_template: PheToolsTemplate = 
             PheToolsTemplate::from_dto( self.hpo.clone(), &cohort_dto)
                 .map_err(|e|vec![e])?;
             println!("add_new_row_to_cohort before update n={}", updated_template.phenopacket_count());
-        updated_template.add_row_with_hpo_data(individual_dto, hpo_annotations,  cohort_dto)
+        updated_template.add_row_with_hpo_data(individual_dto, hpo_annotations,gene_variant_list,  cohort_dto)
             .map_err(|verr| verr.errors().clone())?;
         let template_dto = updated_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
         println!("add_new_row_to_cohort after update n={}", updated_template.phenopacket_count());
@@ -356,10 +357,10 @@ impl PheTools {
     ) -> Result<VariantDto, String> {
         match &mut self.manager {
             Some(manager) => {
-                manager.validate_variant(&variant_dto) 
+                manager.validate_variant(&variant_dto)
             },
             None => {
-                return Err("validate_variant: Variant Manager not initialized".to_string());
+                Err("validate_variant: Variant Manager not initialized".to_string())
             },
         }
     }

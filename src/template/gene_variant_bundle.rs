@@ -74,7 +74,7 @@ impl GeneVariantBundle {
 
     pub fn from_dto_list(dto_list: Vec<GeneVariantBundleDto>) -> Vec<Self> {
         dto_list.into_iter()
-            .map(|dto| Self::from_dto(dto))
+            .map(Self::from_dto)
             .collect()
     }
 

@@ -85,6 +85,7 @@ impl PpktRow {
     pub fn from_map(
         header: Arc<HeaderDupletRow>, 
         individual_dto: IndividualBundleDto,
+        gene_variant_list: Vec<GeneVariantBundleDto>,
         map: HashMap<TermId, String>, 
         cohort_dto: TemplateDto) -> std::result::Result<Self, String> {
         if cohort_dto.cohort_type != "mendelian" {
@@ -98,10 +99,11 @@ impl PpktRow {
         }
         let ibundle = IndividualBundle::from_dto(individual_dto);
         let disease_bundle_list = DiseaseBundle::from_cohort_dto(&cohort_dto)?;
+        let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 
             individual_bundle: ibundle, 
             disease_bundle_list, 
-            gene_var_bundle_list: vec![], 
+            gene_var_bundle_list: gvb_list, 
             hpo_content: items
         })
     }

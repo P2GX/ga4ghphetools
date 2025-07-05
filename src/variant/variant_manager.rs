@@ -143,17 +143,15 @@ impl VariantManager {
             if self.structural_cache.contains_key(key) {
                 Ok(dto.clone_validated())
             } else {
-                self.structural_validator.validate_sv(dto).map(|sv| {
-                    self.structural_cache.insert(key.to_string(), sv);
-                })?;
+                let sv = self.structural_validator.validate_sv(dto)?;
+                self.structural_cache.insert(key.to_string(), sv);
                 Ok(dto.clone_validated())
             }
         } else if self.hgvs_cache.contains_key(key) {
             Ok(dto.clone_validated())
         } else {
-            self.validator.validate_hgvs(dto).map(|hgvs| {
-                self.hgvs_cache.insert(key.to_string(), hgvs);
-            });
+            let hgvs = self.validator.validate_hgvs(dto)?;
+            self.hgvs_cache.insert(key.to_string(), hgvs);
             Ok(dto.clone_validated())
         }
     }

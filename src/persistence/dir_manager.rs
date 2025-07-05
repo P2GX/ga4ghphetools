@@ -35,19 +35,16 @@ impl DirManager {
         })
     }
 
-}
-
-
-impl DirManager {
-    pub fn validate_variant(&mut self, variant: &VariantDto) -> Result<VariantDto, String> {
+    /// Check an HGVS or structural variant.
+    /// If we validate, we return the same DTO (except that the validated flag is set to true)
+    /// The cause of any error is returned as a string.
+    pub fn validate_variant(
+        &mut self, 
+        variant: &VariantDto) 
+    -> Result<VariantDto, String> {
         self.variant_manager.validate_variant(variant)
     }
 
-    /*pub fn check_variants(&mut self, dto_list: &Vec<VariantDto>) 
-        -> Vec<VariantDto> {
-            self.variant_manager.check_variants(dto_list)
-        }
-*/
     pub fn get_variant_list_dto(&self) -> VariantListDto {
 
         self.variant_manager.get_variant_list_dto()
