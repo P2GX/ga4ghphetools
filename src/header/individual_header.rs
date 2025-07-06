@@ -68,7 +68,7 @@ impl IndividualHeader {
         self.qc_data(&bundle.pmid, &bundle.title, &bundle.individual_id, &bundle.comment, &bundle.age_of_onset, &bundle.age_at_last_encounter, &bundle.deceased, &bundle.sex)
     }
 
-
+    #[allow(clippy::too_many_arguments)]
     pub fn qc_data(&self, 
         pmid: &str, 
         title: &str, 
@@ -79,7 +79,6 @@ impl IndividualHeader {
         deceased: &str, 
         sex: &str) 
     -> Result<(), ValidationErrors> {
-        println!("QC DATA pmid: {pmid} age of on: {age_of_onset} last {age_at_last_encounter}");
         let mut verrors = ValidationErrors::new();
         verrors.push_result(self.pmid.qc_data(pmid));
         verrors.push_result(self.title.qc_data(title));

@@ -7,14 +7,14 @@
 //! - A list of PpktRow (one per phenopacket)
 use std::{collections::{HashMap, HashSet}, fmt::format, str::FromStr, sync::Arc, vec};
 use ontolius::{
-    ontology::{csr::FullCsrOntology, OntologyTerms},
+    ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
     term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
     Identified, TermId,
 };
 use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_manager::VariantManager}};
 use crate::{
     template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
@@ -87,8 +87,8 @@ impl PheToolsTemplate {
             hpo: hpo.clone(),
             ppkt_rows: vec![]
         }) */
-       eprint!("refacotr");
-       Err(Error::TemplateError { msg: "OUAGHDASAS".to_string() })
+        eprint!("refactor");
+        Err(Error::TemplateError { msg: "OUAGHDASAS".to_string() })
         
     }
 
@@ -114,7 +114,6 @@ impl PheToolsTemplate {
             ppkt_rows: updated_ppkt_rows 
         })
     }
-   
     
 
     pub fn get_template_dto(&self) -> Result<TemplateDto> {
@@ -128,19 +127,19 @@ impl PheToolsTemplate {
     }
 
     pub fn from_template_dto(
-        template_dto: TemplateDto, 
+        template_dto: &TemplateDto, 
         hpo: Arc<FullCsrOntology>) 
     -> std::result::Result<Self, ValidationErrors> {
         let header_duplet_row = match template_dto.cohort_type.as_str() {
-            "mendelian" => HeaderDupletRow::new_mendelian_ppkt_from_dto(template_dto.hpo_headers),
+            "mendelian" => HeaderDupletRow::new_mendelian_ppkt_from_dto(&template_dto.hpo_headers),
             other => {
                 return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{other}'")));
             }
         };
         let header_arc = Arc::new(header_duplet_row);
         let mut ppkt_rows: Vec<PpktRow> = Vec::new();
-        for row_dto in template_dto.rows {
-            let ppkt_row = PpktRow::from_dto(&row_dto, header_arc.clone());
+        for row_dto in &template_dto.rows {
+            let ppkt_row = PpktRow::from_dto(row_dto, header_arc.clone());
             ppkt_rows.push(ppkt_row);
         }
         let template = PheToolsTemplate {
@@ -263,7 +262,7 @@ impl PheToolsTemplate {
     }
 
     pub fn is_mendelian(&self) -> bool {
-        return self.template_type == TemplateType::Mendelian;
+        self.template_type == TemplateType::Mendelian
     }
 
     pub fn phenopacket_count(&self) -> usize {
@@ -341,7 +340,15 @@ impl PheToolsTemplate {
             }
         }
         /// Now add the new phenopacket
-        let new_ppkt_result = PpktRow::from_map(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, dto_map,  cohort_dto);
+        /// 1. get map with TermId and Value (e.g., observed) for the new terms
+        let mut tid_to_value_map: HashMap<TermId, String> = HashMap::new();
+        for dto in   hpo_dto_items {
+            println!("HERE -- {:?}\n\n", &dto);
+            let tid = dto.ontolius_term_id().map_err(|_| 
+                    ValidationErrors::from_one_err(format!("Could not create TermId from {:?}", &dto)))?;
+            tid_to_value_map.insert(tid, dto.entry().to_string());
+        }
+        let new_ppkt_result = PpktRow::from_tid_to_value_map(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,  cohort_dto);
         let ppkt_row = match new_ppkt_result {
             Ok(row) => row,
             Err(msg) => {
@@ -367,21 +374,23 @@ impl PheToolsTemplate {
     }
 
 
-    pub fn export_phenopackets(&self) -> Vec<Phenopacket> {
+    pub fn extract_phenopackets(
+        &self,
+        hgvs_dict: &HashMap<String, HgvsVariant>,
+        structural_dict: &HashMap<String, StructuralVariant>) 
+    -> std::result::Result<Vec<Phenopacket>, String> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
-        let hpo_version = "TEMP";
+        let hpo_version = self.hpo.version();
         let creator_orcid = "TEMP_ORCID";
         let ppkt_exporter = PpktExporter::new(hpo_version, creator_orcid);
         for row in &self.ppkt_rows {
-            let ppkt = ppkt_exporter.export_phenopacket(row);
-            if ppkt.is_ok() {
-                ppkt_list.push(ppkt.unwrap());
-            } else {
-                eprintln!("TODO ERROR HANDLINGS");
-            }
+            match ppkt_exporter.extract_phenopacket(row,  hgvs_dict,
+                structural_dict) {
+                    Ok(ppkt) =>  { ppkt_list.push(ppkt); },
+                    Err(e) => { return Err(format!("Could not extract phenopacket: {}", e));},
+                }
         }
-
-        ppkt_list
+        Ok(ppkt_list)
     }
 
 

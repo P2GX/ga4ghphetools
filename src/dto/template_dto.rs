@@ -166,8 +166,8 @@ impl HeaderDupletDto {
         Self::new(duplet.row1(), duplet.row2())
     }
 
-    pub fn to_hpo_duplet(self) -> HpoTermDuplet {
-        HpoTermDuplet::new(self.h1, self.h2)
+    pub fn to_hpo_duplet(&self) -> HpoTermDuplet {
+        HpoTermDuplet::new(self.h1.clone(), self.h2.clone())
     }
 }
 /// convert from DupletItem using into()

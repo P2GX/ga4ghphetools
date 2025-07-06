@@ -141,7 +141,7 @@ impl StructuralVariant {
         Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), &CHROMOSOMAL_TRANSLOCATION, variant_id)
     }
 
-     pub fn chromosomal_structure_variation(
+    pub fn chromosomal_structure_variation(
         cell_contents: impl Into<String>,  
         gene_symbol: impl Into<String>,  
         gene_id: impl Into<String>,  
@@ -185,4 +185,34 @@ impl StructuralVariant {
     ) -> std::result::Result<Self, String> {
         Self::chromosomal_translocation(allele, dto.gene_symbol(), dto.hgnc_id(), None)
     }
+
+    pub fn variant_id(&self) -> &str {
+        &self.variant_id
+    }
+
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub fn gene_symbol(&self) -> &str {
+        &self.gene_symbol
+    }
+
+    pub fn hgnc_id(&self) -> &str {
+        &self.hgnc_id
+    }
+
+    pub fn so_id(&self) -> &str {
+        &self.so_id
+    }
+
+    pub fn so_label(&self) -> &str {
+        &self.so_label
+    }
+
+    pub fn genotype(&self) -> Option<&str> {
+        self.genotype.as_deref()
+    }
+
+    
 }

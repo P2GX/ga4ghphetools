@@ -25,6 +25,7 @@ use crate::phetools_traits::PyphetoolsTemplateCreator;
 use core::option::Option::Some;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self};
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt::format, str::FromStr, vec};
@@ -287,13 +288,10 @@ impl PheTools {
         let mut updated_template: PheToolsTemplate = 
             PheToolsTemplate::from_dto( self.hpo.clone(), &cohort_dto)
                 .map_err(|e|vec![e])?;
-            println!("add_new_row_to_cohort before update n={}", updated_template.phenopacket_count());
         updated_template.add_row_with_hpo_data(individual_dto, hpo_annotations,gene_variant_list,  cohort_dto)
             .map_err(|verr| verr.errors().clone())?;
         let template_dto = updated_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
-        println!("add_new_row_to_cohort after update n={}", updated_template.phenopacket_count());
         self.template = Some(updated_template);
-     
         Ok(template_dto)
     }
 
@@ -391,27 +389,75 @@ impl PheTools {
     /// TODO, probably combine in the same command, and add a second command to write to disk
     pub fn validate_template(
         &self, 
-        cohort_dto: TemplateDto) 
+        cohort_dto: &TemplateDto) 
     -> Result<PheToolsTemplate, ValidationErrors> {
         let template = PheToolsTemplate::from_template_dto(cohort_dto, self.hpo.clone())?;
         Ok(template)
     }
 
-    pub fn export_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {
-        let ppkt_list: Vec<Phenopacket> = Vec::new();
-        let template = match &self.template {
+
+    pub fn get_default_cohort_dir(&self) -> Option<PathBuf> {
+        self.manager.as_ref().map(|dirman| dirman.get_cohort_dir())
+    }
+
+      /// Check correctness of a TemplateDto that was sent from the front end.
+    /// This operation is performed to see if the edits made in the front end are valid.
+    /// If everything is OK, we can go ahead and save the template using another command.
+    /// TODO, probably combine in the same command, and add a second command to write to disk
+    pub fn save_template(
+        &mut self, 
+        cohort_dto: &TemplateDto) 
+    -> Result<(), ValidationErrors> {
+        let template = self.validate_template(cohort_dto)?;
+        self.template = Some(template);
+        Ok(())
+    }
+
+    pub fn export_ppkt(
+        &mut self,
+        cohort_dto: &TemplateDto) -> Result<Vec<Phenopacket>, String> {
+            let template = self.validate_template(cohort_dto)
+                .map_err(|_| "Could not validate template. Try again".to_string())?;
+            self.template = Some(template);
+            let template = match &self.template {
             Some(template) => template,
-            None => {
-                return Err(format!("Phenopacket Template not initialized"));
-            },
-        };
-        let variant_manager = match &self.manager {
-            Some(manager) => manager,
-            None => {
-                return Err(format!("Variant Manager Template not initialized"));
-            }
-        };
-        Ok(template.export_phenopackets())
+                None => {
+                    return Err("Phenopacket Template not initialized".to_string());
+                },
+            };
+            let dir_manager = match self.manager.as_mut() {
+                Some(manager) => manager,
+                None => {
+                    return Err("Variant Manager Template not initialized".to_string());
+                }
+            };
+            let hgvs_dict = dir_manager.get_hgvs_dict();
+            let structural_dict = dir_manager.get_structural_dict();
+            template.extract_phenopackets(hgvs_dict, structural_dict)
+    }
+
+    
+    fn write_ppkt(ppkt: &Phenopacket, file_path: PathBuf) -> Result<(), String> {
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&file_path)
+            .map_err(|e| e.to_string())?;
+        serde_json::to_writer_pretty(file, &ppkt)
+            .map_err(|e| e.to_string())?; 
+        Ok(())
+    }
+    
+    pub fn write_ppkt_list(&mut self,  cohort_dto: TemplateDto, dir: PathBuf) -> Result<(), String> {
+        let ppkt_list: Vec<Phenopacket> = self.export_ppkt(&cohort_dto)?;
+        for ppkt in ppkt_list {
+            let title = ppkt.id.clone() + ".json";
+            let mut file_path = dir.clone();
+            file_path.push(title);
+            Self::write_ppkt(&ppkt, file_path)?;
+        }
+        Ok(())
     }
 
 

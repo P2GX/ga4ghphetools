@@ -67,6 +67,7 @@ impl VariantValidator {
     ) -> Result<HgvsVariant, String> 
     {
         let mut verrs = ValidationErrors::new();
+        println!("{}{} encode_hgvs -- {}", file!(), line!(), hgvs);
         let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
         let response: Value = get(&url)
             .map_err(|e| format!("Could not map {hgvs}: {e}"))?
@@ -84,7 +85,7 @@ impl VariantValidator {
             .unwrap()
             .keys()
             .find(|&k| k != "flag" && k != "metadata")
-            .ok_or_else(|| format!("Missing variant key"))?;
+            .ok_or_else(|| "Missing variant key".to_string())?;
 
         let var = &response[variant_key];
 
@@ -98,7 +99,7 @@ impl VariantValidator {
             .map(|s| s.to_string());
 
         let assemblies = var.get("primary_assembly_loci")
-            .ok_or_else(|| format!("Missing primary_assembly_loci"))?;
+            .ok_or_else(|| "Missing primary_assembly_loci".to_string())?;
 
         let assembly = assemblies.get(&self.genome_assembly)
             .ok_or_else(|| format!("Could not identify {} in response", self.genome_assembly))?;
@@ -123,7 +124,7 @@ impl VariantValidator {
             });
 
         let vcf = assembly.get("vcf")
-            .ok_or_else(|| format!("Could not identify vcf element"))?;
+            .ok_or_else(|| "Could not identify vcf element".to_string())?;
         let chrom: String = vcf.get("chr")
                 .and_then(Value::as_str)
                 .ok_or_else(|| format!("Malformed chr: {:?}", vcf))? 
@@ -189,15 +190,7 @@ impl VariantValidator {
         &self, 
         variant_dto: &VariantDto
     ) -> Result<HgvsVariant, String> {
-        match variant_dto.transcript() {
-            Some(transcript) => {
-                let hgvs =  self.encode_hgvs(variant_dto.variant_string(), transcript)?;
-                return Ok(hgvs);
-            },
-            None => {
-                return Err(format!("Attempt to encode variant {} without transcript", variant_dto.variant_string()));
-            }
-        }
+        self.encode_hgvs(variant_dto.variant_string(), variant_dto.transcript())
     }
 }
 

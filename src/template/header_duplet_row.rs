@@ -101,7 +101,7 @@ impl HeaderDupletRow {
         }
         Self::check_separator(matrix)?;
         let hpo_util = HpoUtil::new(hpo.clone());
-        let _ = hpo_util.check_hpo_duplets(&hpo_duplet_list)?;
+        hpo_util.check_hpo_duplets(&hpo_duplet_list)?;
         
         Ok(Self { 
             individual_header: iheader, 
@@ -204,9 +204,9 @@ impl HeaderDupletRow {
         Ok(hpo_dto_list)
     }
 
-    pub fn new_mendelian_ppkt_from_dto(dto_list: Vec<HeaderDupletDto>) -> Self {
+    pub fn new_mendelian_ppkt_from_dto(dto_list: &[HeaderDupletDto]) -> Self {
         let hpo_termduplet_list: Vec<HpoTermDuplet> = dto_list
-            .into_iter()
+            .iter()
             .map(|dto| dto.to_hpo_duplet())
             .collect();
         Self { 

@@ -12,6 +12,7 @@ type VariantCache = HashMap<String, HgvsVariant>;
 type StructuralCache = HashMap<String, StructuralVariant>;
 
 pub struct DirManager {
+    /// Path to the directory where we store the various files for the project (e.g., FBN1 for the FBN1 cohort)
     cache_dir_path: PathBuf,
     variant_manager: VariantManager
 }
@@ -48,4 +49,50 @@ impl DirManager {
     pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Vec<VariantDto> {
         self.variant_manager.validate_variant_dto_list(variant_dto_list)
     }
+
+    pub fn get_cohort_dir(&self) -> PathBuf {
+        self.cache_dir_path.clone()
+    }
+
+    pub fn variant_manager(&mut self) -> &VariantManager {
+        &self.variant_manager
+    }
+
+     pub fn get_hgvs_dict(&self) -> &HashMap<String, HgvsVariant> {
+        self.variant_manager.get_hgvs_dict()
+    }
+
+    pub fn get_structural_dict(&self) -> &HashMap<String, StructuralVariant> {
+        self.variant_manager.get_structural_dict()
+    }
 }
+
+
+
+// region:    --- Tests
+
+#[cfg(test)]
+mod tests {
+     
+
+    use super::*;
+
+
+    #[test]
+    #[ignore]
+    pub fn test_var() {
+        let dirpat = "/Users/robin/TMP/CMPK2";
+        let result = DirManager::new(dirpat);
+        assert!(result.is_ok());
+        let mut dirman = result.unwrap();
+        let var_dto = VariantDto::new_hgvs("c.1A>C", "NM_207315.4",   "HGNC:27015","CMPK2");
+        assert_eq!(false, var_dto.validated());
+        let updated_result = dirman.validate_variant(&var_dto);
+        assert!(updated_result.is_ok());
+        let updated_dto = updated_result.unwrap();
+        assert!(updated_dto.validated());
+    }
+    
+}
+
+// endregion: --- Tests

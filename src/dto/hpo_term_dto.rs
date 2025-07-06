@@ -7,7 +7,7 @@
 use std::str::FromStr;
 
 use ontolius::TermId;
-use serde::{de, Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use crate::template::excel::read_excel_to_dataframe;
 use crate::error::{Error, Result};
 
@@ -21,6 +21,15 @@ pub struct HpoTermDto {
     /// Entry: can be observed, excluded, na, or a time String
     entry: String,
 }
+
+fn deserialize_term_id<'de, D>(deserializer: D) -> std::result::Result<TermId, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    TermId::from_str(&s).map_err(serde::de::Error::custom)
+}
+
 
 impl HpoTermDto {
 
@@ -41,10 +50,9 @@ impl HpoTermDto {
         &self.term_id
     }
 
-    pub fn ontolius_term_id(&self) -> Result<TermId> {
-        let tid: TermId = TermId::from_str(&self.term_id).map_err(|_| 
-            Error::termid_parse_error(format!("Could not create TermId from string '{}'", self.term_id)))?;
-        Ok(tid)
+    pub fn ontolius_term_id(&self) -> std::result::Result<TermId, String> {
+        TermId::from_str(&self.term_id)
+            .map_err(|_| format!("Could not create TermId from '{}'", self.term_id))
     }
 
     pub fn label(&self) -> String {
@@ -74,8 +82,12 @@ impl HpoTermDto {
     pub fn onset(&self) -> Result<String> {
         match self.has_onset() {
             true => Ok(self.entry.clone()),
-            false => Err(Error::TemplateError{msg: format!("Attempt to get onset but DTO does not have onset")})
+            false => Err(Error::TemplateError{msg: "Attempt to get onset but DTO does not have onset".to_string()})
         }
+    }
+
+    pub fn entry(&self) -> &str {
+        &self.entry
     }
 
 }
@@ -94,7 +106,7 @@ mod test {
         let hpo_label = "Short NREM sleep";
         let onset = "P29Y";
         let dto = HpoTermDto::new(hpo_id, hpo_label, onset);
-        assert_eq!(hpo_id, dto.term_id());
+        assert_eq!(hpo_id, dto.term_id_string());
         assert_eq!(hpo_label, dto.label());
         assert!(dto.has_onset());
         assert!(! dto.is_excluded());

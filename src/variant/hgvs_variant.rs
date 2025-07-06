@@ -1,11 +1,12 @@
 // src/variant/hgvs_variant.rs
 
 use ontolius::term::simple::SimpleMinimalTerm;
+use phenopackets::ga4gh::vrsatile::v1::{MoleculeContext, VariationDescriptor};
 use rand::{self, distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
 use crate::variant::acmg::AcmgPathogenicityClassification;
-use crate::variant::variant_trait::Variant;
+use crate::variant::variant_util;
 use crate::{error::Error, variant::vcf_var::{self, VcfVar}};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -112,12 +113,6 @@ impl HgvsVariant {
         self.variant_id.as_ref()
     }
 
-
-
-
-}
-
-impl Variant for HgvsVariant {
     fn set_heterozygous(&mut self) {
         self.genotype = Some("heterozygous".to_string())
     }
@@ -129,7 +124,30 @@ impl Variant for HgvsVariant {
     fn set_hemizygous(&mut self) {
         self.genotype = Some("hemizygous".to_string())
     }
+
+
+    fn to_variant_interpretation(&self) -> VariationDescriptor {
+        VariationDescriptor{ 
+            id: todo!(), 
+            variation: todo!(), 
+            label: todo!(), 
+            description: todo!(), 
+            gene_context: todo!(), 
+            expressions: todo!(), 
+            vcf_record: todo!(), 
+            xrefs: vec![], 
+            alternate_labels: vec![], 
+            extensions: vec![], 
+            molecule_context: MoleculeContext::Genomic.into(), 
+            structural_type: None, 
+            vrs_ref_allele_seq: todo!(), 
+            allelic_state: None,  
+        }
+    }
+
+
 }
+
 
 
 

@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct VariantDto {
     /// either an HGVS String (e.g., c.123T>G) or a SV String: DEL: deletion of exon 5
     variant_string: String,
-    /// transcript of reference for the gene of interest (usually MANE) with version number, e.g. NM_000123.2 (not required for SV)
-    transcript: Option<String>,
+    /// transcript of reference for the gene of interest (usually MANE) with version number, e.g. NM_000123.2 
+    transcript: String,
     /// HUGO Gene Nomenclature Committee identifier, e.g., HGNC:123
     hgnc_id: String,
     /// Symbol recommended by HGNC, e.g. FBN1
@@ -35,7 +35,7 @@ impl VariantDto {
     ) -> Self {
         Self { 
             variant_string: variant_string.into(), 
-            transcript: Some(transcript.into()), 
+            transcript: transcript.into(), 
             hgnc_id: hgnc_id.into(), 
             gene_symbol: gene_symbol.into(),
             validated: false,
@@ -43,14 +43,15 @@ impl VariantDto {
         }
     }
 
-     pub fn new_sv(
+    pub fn new_sv(
         variant_string: impl Into<String>,
+        transcript: impl Into<String>,
         hgnc_id: impl Into<String>,
         gene_symbol: impl Into<String>,
     ) -> Self {
         Self { 
             variant_string: variant_string.into(), 
-            transcript: None, 
+            transcript: transcript.into(), 
             hgnc_id: hgnc_id.into(), 
             gene_symbol: gene_symbol.into(),
             validated: false,
@@ -62,11 +63,8 @@ impl VariantDto {
         &self.variant_string
     }
 
-    pub fn transcript(&self) -> Option<&str> {
-        match &self.transcript {
-            None => None,
-            Some(tr) => Some(tr)
-        }
+    pub fn transcript(&self) -> &str {
+        &self.transcript
     }
 
     pub fn hgnc_id(&self) -> &str {

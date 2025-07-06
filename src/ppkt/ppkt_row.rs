@@ -82,11 +82,21 @@ impl PpktRow {
         })
     }
 
-    pub fn from_map(
+    /// Create a new PpktRow. This is used when we create a row (phenopacket) with terms that
+    /// may not be included in the previous phenopackets and which may not have values for all of the
+    /// terms in the previous phenopackets. 
+    ///  # Arguments
+    ///
+    /// * `header` - Header with all HPO terms in previous cohort and new phenopacket, ordered by DFS
+    /// * `individual_dto` - DTO with demographic information about the new individual
+    /// * `gene_variant_list` - genotypes
+    /// * `tid_to_value_map` - this has values (e.g., observed, na, P32Y2M) for which we have information in the new phenopacket
+    /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
+    pub fn from_tid_to_value_map(
         header: Arc<HeaderDupletRow>, 
         individual_dto: IndividualBundleDto,
         gene_variant_list: Vec<GeneVariantBundleDto>,
-        map: HashMap<TermId, String>, 
+        tid_to_value_map: HashMap<TermId, String>, 
         cohort_dto: TemplateDto) -> std::result::Result<Self, String> {
         if cohort_dto.cohort_type != "mendelian" {
             panic!("from_map: Melded not supported");
@@ -94,7 +104,7 @@ impl PpktRow {
         let mut items = Vec::with_capacity(header.hpo_count());
         for hduplet in header.hpo_duplets() {
             let tid = hduplet.to_term_id()?;
-            let value: String =  map.get(&tid).map_or("na", |v| v).to_string();
+            let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
             items.push(value);
         }
         let ibundle = IndividualBundle::from_dto(individual_dto);

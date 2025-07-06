@@ -1,4 +1,6 @@
 use std::fs::{File, OpenOptions};
+use std::hash::Hash;
+use std::ops::DerefMut;
 use std::{collections::HashMap, path::PathBuf};
 
 use phenopackets::schema::v1::core::variant;
@@ -230,7 +232,17 @@ impl VariantManager {
         self.save_hgvs();
         self.save_structural(); // write variants to cache.
         VariantDto::sort_variant_dtos(&mut evaluated_dto_list);
+        println!("{}{} {:?}",file!(), line!(), &evaluated_dto_list);
         evaluated_dto_list
+    }
+
+
+    pub fn get_hgvs_dict(&self) -> &HashMap<String, HgvsVariant> {
+        &self.hgvs_cache
+    }
+
+    pub fn get_structural_dict(&self) -> &HashMap<String, StructuralVariant> {
+        &self.structural_cache
     }
 
 

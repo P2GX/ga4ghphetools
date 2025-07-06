@@ -76,16 +76,15 @@ impl HpoUtil {
         let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::with_capacity(hpo_dto_list.len());
         let mut verr = ValidationErrors::new();
         for hpo_dto in hpo_dto_list {
-            let tid = match TermId::from_str(&hpo_dto.term_id()) {
-                Ok(term_id) => term_id,
-                Err(_) => {
-                    verr.push_str(format!("Could not create TermId from '{}'", hpo_dto.term_id()));
-                    return Err(verr);
-                },
+            let tid = match hpo_dto.ontolius_term_id() {
+                Ok(tid) => tid,
+                Err(e) => {
+                    return Err(ValidationErrors::from_one_err(
+                    format!("Could not create TermId from {:?}", hpo_dto)));}
             };
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 if term.name() != hpo_dto.label() {
-                    verr.push_str(format!("Expected label '{}' but got '{}' for TermId '{}'",term.name(), hpo_dto.label(), tid.to_string()));
+                    verr.push_str(format!("Expected label '{}' but got '{}' for TermId '{}'",term.name(), hpo_dto.label(), tid));
                 }
                 hpo_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
             } else {
@@ -102,10 +101,7 @@ impl HpoUtil {
     /// Check that the HPO Term Id and label used in the DTO object are correct
     pub fn check_hpo_dto(&self, hpo_dto_items: &Vec<HpoTermDto>) -> Result<()> {
         for dto in hpo_dto_items {
-            let tid = TermId::from_str(&dto.term_id())
-                .map_err(|_| Error::HpoError {
-                    msg: format!("Invalid term ID: '{}'", dto.term_id()),
-                })?;
+            let tid = dto.ontolius_term_id()?;
             let term = self.hpo.term_by_id(&tid).ok_or_else(|| Error::HpoError {
                 msg: format!("Term ID not found in ontology: '{}'", dto.term_id()),
             })?;

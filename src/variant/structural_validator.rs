@@ -59,11 +59,11 @@ mod tests {
 
     #[fixture]
     fn invalid_sv1() -> VariantDto {
-        VariantDto::new_sv("DEL: arr 16q24.3 DEL89,754,790 −89,757,400", "HGNC:1770", "CDK10")
+        VariantDto::new_sv("DEL: arr 16q24.3 DEL89,754,790 −89,757,400", "NM_052988.5", "HGNC:1770", "CDK10")
     }
 
     fn valid_sv1() -> VariantDto {
-        VariantDto::new_sv("DEL: arr 16q24.3 DEL89,754,790-89,757,400", "HGNC:1770", "CDK10")
+        VariantDto::new_sv("DEL: arr 16q24.3 DEL89,754,790-89,757,400", "NM_052988.5", "HGNC:1770", "CDK10")
     }
 
     
@@ -79,7 +79,7 @@ mod tests {
 
     #[rstest]
     fn test_invalid_sv()  {
-        let dto = VariantDto::new_sv("DEL: arr 16q24.3 DEL89,754,790 −89,757,400", "HGNC:1770", "CDK10");
+        let dto = invalid_sv1();
         let mut validator = StructuralValidator::hg38();
         let result = validator.validate_sv(&dto);
         assert!(result.is_err());
