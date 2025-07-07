@@ -106,7 +106,7 @@ mod test {
         let hpo_label = "Short NREM sleep";
         let onset = "P29Y";
         let dto = HpoTermDto::new(hpo_id, hpo_label, onset);
-        assert_eq!(hpo_id, dto.term_id_string());
+        assert_eq!(hpo_id, dto.term_id());
         assert_eq!(hpo_label, dto.label());
         assert!(dto.has_onset());
         assert!(! dto.is_excluded());
