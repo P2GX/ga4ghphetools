@@ -155,7 +155,6 @@ impl PheTools {
     /// This function is called when the user opens a new template. It
     /// opens the file, creates a DTO, and sets up the directory/variant managers
     pub fn get_template_dto(&self) -> Result<TemplateDto, String> {
-        println!("get_template_dto");
         match &self.template {
             Some(template) => {
                 let dto = template.get_template_dto().map_err(|e| e.to_string())?;

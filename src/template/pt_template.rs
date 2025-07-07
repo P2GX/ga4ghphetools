@@ -118,7 +118,6 @@ impl PheToolsTemplate {
 
     pub fn get_template_dto(&self) -> Result<TemplateDto> {
         let header_dto = self.header.get_hpo_header_dtos();
-        println!("get_template_dto: {:?}", header_dto);
         let row_dto_list: Vec<RowDto> = self.ppkt_rows
             .iter()
             .map(RowDto::from_ppkt_row)

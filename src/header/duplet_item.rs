@@ -269,28 +269,21 @@ impl DupletItem {
     }
 
     fn check_valid_age_string(cell_value: &str) -> Result<(), String> {
-        // empty not allowed
-        println!("check_valid_age_string - '{cell_value}'");
         if cell_value.is_empty() {
             return Err("Empty age string not allowed (use na)".to_string());
         }
-        // but na is OK
         if cell_value == "na" {
             return Ok(());
         }
-        // check for match to HPO Onset terms
         if ALLOWED_AGE_LABELS.contains(cell_value) {
             return Ok(());
         }
-        // check for match to ISO (601)
         if ISO8601_RE.is_match(cell_value) {
             return Ok(());
         } 
-
         if GESTATIONAL_AGE_RE.is_match(cell_value) {
             return Ok(());
         }
-
         Err(format!("Malformed age string '{}'", cell_value))
     }
 

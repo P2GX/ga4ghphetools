@@ -13,6 +13,7 @@ use phenopackets::schema::v2::core::vital_status::Status;
 use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, ExternalReference, GenomicInterpretation, Individual, Interpretation, MetaData, PhenotypicFeature, Sex, TherapeuticActionability, TimeElement, VariantInterpretation, VitalStatus};
 use phenopackets::schema::v2::Phenopacket;
 use prost_types::value;
+use regex::Regex;
 use crate::dto::template_dto::GeneVariantBundleDto;
 use crate::error::{self, Error, Result};
 use crate::hpo::hpo_util;
@@ -45,7 +46,6 @@ impl Error {
     pub fn malformed_time_element(msg: impl Into<String>) -> Self {
         Error::AgeParseError { msg: msg.into() }
     }
-
 }
 
 
@@ -169,22 +169,23 @@ impl PpktExporter {
 
 
     /// Generate the phenopacket identifier from the PMID and the individual identifier
-    /// TODO - improve
-    pub fn get_phenopacket_id(&self, ppkt_row: &PpktRow) -> Result<String> {
+    pub fn get_phenopacket_id(&self, ppkt_row: &PpktRow) -> String {
         let individual_dto = ppkt_row.get_individual_dto();
         let pmid = individual_dto.pmid.replace(":", "_");
         let individual_id = individual_dto.individual_id.replace(" ", "_");
         let ppkt_id = format!("{}_{}", pmid, individual_id);
         let ppkt_id = ppkt_id.replace("__", "_");
-        /* TODO remove trailing "_" 
-        if ppkt_id.ends_with("_") {
-            ppkt_id = ppkt_id.
-        }*/
-        // TODO don't just filter, replace with "_"
-        let ppkt_id = ppkt_id.chars().into_iter()
-            .filter(|c| char::is_alphanumeric(*c))
+        // Replace any non-ASCII characters with _, but remove trailing "_" if it exists.
+        let mut sanitized: String = ppkt_id.chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .clone().collect();
-        Ok(ppkt_id)
+         // Collapse multiple underscores, if any
+        let re = Regex::new(r"_+").unwrap();
+        sanitized = re.replace_all(&sanitized, "_").to_string();
+        if let Some(stripped) = sanitized.strip_suffix('_') {
+            sanitized = stripped.to_string();
+        }
+        sanitized
     }
 
     /// TODO extend for multiple diseases
@@ -276,7 +277,7 @@ impl PpktExporter {
             xrefs: vec![] 
             };
         let vcf_record = VcfRecord{ 
-            genome_assembly: todo!(), 
+            genome_assembly: hgvs.assembly().to_string(), 
             chrom: hgvs.chr().to_string(), 
             pos: hgvs.position() as u64, 
             id: String::default(), 
@@ -313,7 +314,7 @@ impl PpktExporter {
             vcf_record: Some(vcf_record), 
             xrefs: vec![], 
             alternate_labels: vec![], 
-            extensions: todo!(), 
+            extensions: vec![], 
             molecule_context: MoleculeContext::Genomic.into(), 
             structural_type: None, 
             vrs_ref_allele_seq: String::default(), 
@@ -361,13 +362,13 @@ impl PpktExporter {
         hgvs_dict: &HashMap<String, HgvsVariant>,
         structural_dict: &HashMap<String, StructuralVariant>) 
     -> std::result::Result<Vec<Interpretation>, String> {
-        let mut interp_list: Vec<Interpretation> = Vec::new();
         let mut dx_list = ppkt_row.get_disease_dto_list();
         let gdb_list = ppkt_row.get_gene_var_dto_list();
         //TODO for now we just support Mendelian. Need to extend for digenic and Melded
         if dx_list.len() != 1 || gdb_list.len() != 1 {
             return Err("Only mendelian supported TODO".to_ascii_lowercase());
         }
+        println!("{}{}-", file!(), line!());
         let gdb_dto = gdb_list.first().unwrap();
         let dx_dto = dx_list.first().unwrap();
         let a1 = &gdb_dto.allele1;
@@ -396,14 +397,14 @@ impl PpktExporter {
             disease: Some(disease_clz),
             genomic_interpretations: g_interpretations,
         };
-        let interpretation_list: Vec<Interpretation> = Vec::new();
         let i = Interpretation{
             id: generate_id(),
             progress_status: ProgressStatus::Solved.into(),
             diagnosis: Some(diagnosis),
             summary: String::default(),
         };
-        Ok(interp_list)
+        let interpretation_list: Vec<Interpretation> = vec![i];
+        Ok(interpretation_list)
     }
 
     
@@ -454,7 +455,7 @@ impl PpktExporter {
         let allele1 = gv_dto.allele1;
         let allele2= gv_dto.allele2;
         let ppkt = Phenopacket{ 
-            id: self.get_phenopacket_id(ppkt_row)?, 
+            id: self.get_phenopacket_id(ppkt_row), 
             subject:  Some(self.extract_individual(ppkt_row)?), 
             phenotypic_features: self.get_phenopacket_features(ppkt_row)?, 
             measurements: vec![], 
