@@ -53,7 +53,6 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
                 }
             })
             .collect();
-        println!("Row {:?}",  row_data);
         if row_data.len() != n1 {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -66,7 +65,6 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
         }
         list_of_rows.push(row_data);
     }
-      println!("Returning list of rows");
     Ok(list_of_rows)
 }
 

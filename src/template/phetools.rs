@@ -174,13 +174,18 @@ impl PheTools {
         &mut self, 
         matrix: Vec<Vec<String>>,
         fix_errors: bool
-    ) -> Result<(), Vec<String>> 
+    ) -> Result<TemplateDto, Vec<String>> 
     {
         let hpo_arc = self.hpo.clone();
         match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc, fix_errors) {
             Ok(ppt) => {
-                self.template = Some(ppt);
-                Ok(())
+                match ppt.get_template_dto() {
+                    Ok(dto) => {
+                        self.template = Some(ppt);
+                        Ok(dto)
+                    } 
+                    Err(e) => Err(vec![e.to_string()]),
+                }
             },
             Err(verrs) => { Err(verrs.errors())}
         }
@@ -394,8 +399,9 @@ impl PheTools {
     pub fn validate_template(
         &self, 
         cohort_dto: &TemplateDto) 
-    -> Result<PheToolsTemplate, ValidationErrors> {
-        let template = PheToolsTemplate::from_template_dto(cohort_dto, self.hpo.clone())?;
+    -> Result<PheToolsTemplate, Vec<String>> {
+        let template = PheToolsTemplate::from_template_dto(cohort_dto, self.hpo.clone())
+            .map_err(|verrs| verrs.errors())?;
         Ok(template)
     }
 
@@ -411,7 +417,7 @@ impl PheTools {
     pub fn save_template(
         &mut self, 
         cohort_dto: &TemplateDto) 
-    -> Result<(), ValidationErrors> {
+    -> Result<(), Vec<String>> {
         let template = self.validate_template(cohort_dto)?;
         self.template = Some(template);
         Ok(())

@@ -234,7 +234,6 @@ impl VariantManager {
         self.save_hgvs();
         self.save_structural(); // write variants to cache.
         VariantDto::sort_variant_dtos(&mut evaluated_dto_list);
-        println!("{}{} {:?}",file!(), line!(), &evaluated_dto_list);
         evaluated_dto_list
     }
 

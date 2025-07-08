@@ -177,14 +177,12 @@ mod tests {
         let hp_json = "/Users/robin/data/hpo/hp.json";
         let hpo: FullCsrOntology = loader.load_from_path(hp_json).expect("could not unwrap");
         let duration = start.elapsed();
-        println!("Loaded HPO: {:?}", duration);
         let start = Instant::now();
         let hpo_arc = Arc::new(hpo);
         let hpo_arc2 = hpo_arc.clone();
         let mut arranger = HpoTermArranger::new(hpo_arc);
         let ordered_terms = arranger.arrange_term_ids(&term_list);
         let duration = start.elapsed();
-        println!("Arranged terms: {:?}", duration);
         for t in ordered_terms {
             let result = hpo_arc2.term_by_id(&t);
             match result {

@@ -62,7 +62,6 @@ impl PpktRow {
         header: Arc<HeaderDupletRow>,
         content: Vec<String>
     ) -> std::result::Result<Self, ValidationErrors> {
-        println!("from_mendelian_row");
         let ibundle = IndividualBundle::from_row(&content, DEMOGRAPHIC_IDX)?;
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;

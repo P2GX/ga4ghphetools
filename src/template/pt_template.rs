@@ -189,7 +189,6 @@ impl PheToolsTemplate {
         hpo: Arc<FullCsrOntology>,
         fix_errors: bool
     ) -> std::result::Result<Self, ValidationErrors> {
-        println!("from_mendelian_template");
         let verrs = ValidationErrors::new();
         let header = HeaderDupletRow::mendelian(&matrix, hpo.clone())?;
 
