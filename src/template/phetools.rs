@@ -172,35 +172,40 @@ impl PheTools {
     /// Load a two dimensional String matrix representing the entire PheTools template
     pub fn load_matrix(
         &mut self, 
-        matrix: Vec<Vec<String>>
-    ) -> Result<(), String> 
+        matrix: Vec<Vec<String>>,
+        fix_errors: bool
+    ) -> Result<(), Vec<String>> 
     {
         let hpo_arc = self.hpo.clone();
-        match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc) {
+        match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc, fix_errors) {
             Ok(ppt) => {
                 self.template = Some(ppt);
                 Ok(())
             },
-            Err(e) => { Err(e.to_string())}
+            Err(verrs) => { Err(verrs.errors())}
         }
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
     fn excel_template_to_matrix(
         phetools_template_path: &str,
-    ) -> Result<Vec<Vec<String>>, String> 
+    ) -> Result<Vec<Vec<String>>, Vec<String>> 
     {
         excel::read_excel_to_dataframe(phetools_template_path)
-            .map_err(|e| e.to_string())
+            .map_err(|e| vec![e.to_string()])
     }
 
     /// Load an Excel file representing the entire PheTools template
+    /// Arguments
+    /// - `template_path` - path to excel file with Phetools cohort template
+    /// - `fix_errors` - if true, atempt to fix easily fixable errors
     pub fn load_excel_template(
         &mut self,
         phetools_template_path: &str,
-    ) -> Result<(), String> {
+        fix_errors: bool
+    ) -> Result<(), Vec<String>> {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
-        self.load_matrix(matrix)?;
+        self.load_matrix(matrix, fix_errors)?;
         Ok(())
     }
 

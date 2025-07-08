@@ -187,6 +187,7 @@ impl PheToolsTemplate {
     pub fn from_mendelian_template(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
+        fix_errors: bool
     ) -> std::result::Result<Self, ValidationErrors> {
         println!("from_mendelian_template");
         let verrs = ValidationErrors::new();

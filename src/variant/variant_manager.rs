@@ -121,18 +121,20 @@ impl VariantManager {
     }
 
     /// Extract a list of the variant DTOs sorted such that the HGVS variants come first and are sorted
-    /// by gene symbol and then alphabetically by HGVS nomenclature
+    /// by gene symbol and then alphanumerbetically by HGVS nomenclature
     pub fn sorted_variant_dtos(&self) -> Vec<VariantDto> {
         let mut variant_list: Vec<VariantDto> = self.variant_map.values().cloned().collect();
         variant_list.sort_by(|a, b| {
             (
                 a.is_structural(), // false < true
                 a.gene_symbol(),
+                a.numerical_key(),
                 a.variant_string(),
             )
             .cmp(&(
                 b.is_structural(),
                 b.gene_symbol(),
+                b.numerical_key(),
                 b.variant_string(),
             ))
         });

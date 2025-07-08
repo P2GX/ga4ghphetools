@@ -10,7 +10,7 @@ use std::{collections::HashSet, fmt::format};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::{dto::template_dto::HeaderDupletDto, hpo::age_util};
+use crate::{dto::template_dto::HeaderDupletDto, header::allele_util, hpo::age_util};
 
 
 
@@ -20,21 +20,6 @@ static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
 });
 
 
-pub static HGVS_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"c.[\d_]+(.*)").unwrap()
-});
-
-pub static SUBSTITUTION_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"([ACGT]+)([>]{1}[ACGT]+)$").unwrap()
-});
-
-pub static INSERTION_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"ins[ACGT]+$").unwrap()
-});
-
-pub static DELINS_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^c\.(\d+_\d+)delins[A-Za-z0-9]+$").unwrap()
-});
 
 pub static ALLOWED_STRUCTURAL_PREFIX: Lazy<HashSet<String>> = Lazy::new(|| {
     ["DEL", "DUP", "INV", "INS", "TRANSL"]
@@ -198,9 +183,9 @@ impl DupletItem {
     /// A valid label does not begin with or end with a white space
     /// Valid labels also may not contain /,\, (,  ), or perdiod (".").
     fn check_white_space(cell_contents: &str) -> Result<(), String> {
-        if cell_contents.chars().last().map_or(false, |c| c.is_whitespace()) {
-            return Err( format!("Trailing whitespace in '{}'", cell_contents));
-        } else if cell_contents.chars().next().map_or(false, |c| c.is_whitespace()) {
+        if cell_contents.chars().last().is_some_and(|c| c.is_whitespace()) {
+            Err(format!("Trailing whitespace in '{}'", cell_contents))
+        } else if cell_contents.chars().next().is_some_and(|c| c.is_whitespace()) {
             return Err(format!("Leading whitespace in '{}'", cell_contents));
         } else if cell_contents.contains("  ") {
             return Err(format!("Consecutive whitespace in '{}'", cell_contents));
@@ -227,26 +212,6 @@ impl DupletItem {
     }
 
 
-    fn check_valid_hgvs(value: &str) -> Result<(), String>  {
-        // if we get here, there was a non-empty string that starts with "c."
-        if let Some(captures) = HGVS_RE.captures(value) {
-            if let Some(matched_substr) = captures.get(1) {
-                // we now have either G>T, del, insT (etc), or delinsT (etc)
-                let remaining_hgvs = matched_substr.as_str();
-                if SUBSTITUTION_RE.is_match(remaining_hgvs) {
-                    return Ok(());
-                } else if INSERTION_RE.is_match(remaining_hgvs) {
-                    return Ok(());
-                } else if remaining_hgvs == "del" {
-                    return Ok(());
-                } else if DELINS_RE.is_match(remaining_hgvs) {
-                    return Ok(());
-                }
-                return Err(format!("Malformed HGVS '{value}'"));
-            }
-        }
-        Err(format!("Malformed HGVS '{value}'"))
-    }
 
     fn check_tab(cell_contents: &str) -> Result<(), String> {
         if cell_contents.contains('\t') {
@@ -370,8 +335,10 @@ impl DupletItem {
     fn check_allele1(&self, cell_contents: &str) -> Result<(), String> {
         Self::check_empty(cell_contents)?;
         Self::check_white_space(cell_contents)?;
-        if cell_contents.starts_with("c.") {
-            Self::check_valid_hgvs(cell_contents)?;
+        if cell_contents.starts_with("c.")|| cell_contents.starts_with("n."){
+            if ! allele_util::is_plausible_hgvs(cell_contents) {
+                return Err(format!("Malformed HGVS string '{cell_contents}'"));
+            }
         } else {
             Self::check_valid_structural(cell_contents)?;
         }
@@ -383,8 +350,8 @@ impl DupletItem {
         Self::check_white_space(cell_contents)?;
         if cell_contents == "na" {
             return Ok(());
-        } else if cell_contents.starts_with("c.") {
-            Self::check_valid_hgvs(cell_contents)?;
+        } else if cell_contents.starts_with("c.") || cell_contents.starts_with("n."){
+            allele_util::check_valid_hgvs(cell_contents)?;
         } else {
             Self::check_valid_structural(cell_contents)?;
         }
@@ -549,6 +516,8 @@ impl DupletItem {
 mod tests {
 
     use super::*;
+    use rstest::rstest;
+    use crate::header::allele_util::check_valid_hgvs;
 
     #[test]
     fn test_pmid()  {
@@ -560,6 +529,39 @@ mod tests {
         let result = pmid_duplet.check_column_labels(&matrix, 0);
         assert!(result.is_ok());
     }
+
+
+    #[rstest]
+    #[case("c.6231dup", true)]
+    #[case("c.6231_6233dup", true)]
+    #[case("c.1932T>A", true)]
+    #[case("c.417_418insA", true)]
+    #[case("c.112_115delinsG", true)]
+    #[case("c.76_78del", true)]  // you allow just 'del' in your logic
+    #[case("c.76A>G", true)]
+    #[case("c.1177del", true)]
+    #[case("c.76_78ins", false)] // missing inserted sequence
+    #[case("g.123456A>T", false)] // wrong prefix
+    #[case("c.6231inv", false)]   // unsupported type
+    #[case("c.", false)]          // incomplete
+    fn test_check_valid_hgvs(#[case] input: &str, #[case] should_pass: bool) {
+        let validity = check_valid_hgvs(input);
+        //assert_eq!(validity, should_pass, "Failed on input: {}", input);
+    }
+
+
+    #[test]
+    fn wtf() {
+        let re = Regex::new(r"^(c|n)\.\d+(?:_\d+)?dup$").unwrap();
+        let test = "c.6231dup";
+        //println!("Match? {}", DUPLICATION_RE.is_match(test));
+         let validity = check_valid_hgvs(test);
+         assert!(validity.is_ok());
+    
+   // assert_eq!(validity, true, "Failed on input: '{}'", test);
+    }
+
+    
 }
 
 // endregion: --- Testsq

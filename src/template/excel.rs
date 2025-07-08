@@ -6,6 +6,9 @@
 use calamine::{open_workbook, Reader, Xlsx, XlsxError};
 use std::error::Error;
 
+
+/// Reads in data from the initial formatversion of phenopacket store (up to version 0.1.24)
+/// This function replaces any empty cells in the data with na
 pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<dyn Error>> {
     let mut workbook: Xlsx<_> = open_workbook(file_path).map_err(|e: XlsxError| {
         format!(
@@ -40,7 +43,16 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Box<
     list_of_rows.push(second_row_headers);
     // Now, iterate over the remaining rows
     for row in row_iter {
-        let row_data: Vec<String> = row.iter().map(|cell| cell.to_string()).collect();
+        let row_data: Vec<String> = row.iter()
+            .map(|cell| {
+                let s = cell.to_string();
+                if s.is_empty() {
+                    "na".to_string()
+                } else {
+                    s
+                }
+            })
+            .collect();
         println!("Row {:?}",  row_data);
         if row_data.len() != n1 {
             return Err(Box::new(std::io::Error::new(

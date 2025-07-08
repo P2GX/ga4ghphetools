@@ -70,7 +70,8 @@ impl ValidationErrors {
         Self { errors: vec![error.into()] }
     }
 
-    pub fn add_errors(&mut self, additional_errors: &Vec<String>) {
+    /// Use this method to combine errors from a second ValidationErrors object
+    pub fn add_errors(&mut self, additional_errors: Vec<String>) {
         self.errors.extend(additional_errors.clone());
     }
 
@@ -78,8 +79,9 @@ impl ValidationErrors {
         !self.errors.is_empty()
     }
 
-    pub fn errors(&self) -> &Vec<String> {
-        &self.errors
+    /// Use this method to transfer ownership of the vector of errors
+    pub fn errors(self) -> Vec<String> {
+        self.errors
     }
 
     pub fn ok(self) -> Result<(), Self> {

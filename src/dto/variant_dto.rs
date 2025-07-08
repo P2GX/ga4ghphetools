@@ -115,6 +115,22 @@ impl VariantDto {
         }
     }
 
+
+    pub fn numerical_key(&self) -> u32 {
+        if self.is_structural() {
+            return 0;
+        }
+        if self.variant_string.len() < 2 {
+            return 0;
+        }
+        self.variant_string[2..]  // skip "c."
+            .chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect::<String>()
+            .parse::<u32>()
+            .unwrap_or(0) // fallback if we cannot parse
+    }
+
     pub fn sort_variant_dtos(variants: &mut [VariantDto]) {
         variants.sort_by(|a, b| {
             let rank_a = Self::variant_string_sort_key(&a.variant_string);
