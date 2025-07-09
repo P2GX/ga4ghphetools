@@ -97,6 +97,23 @@ impl DiseaseDto {
 }
 
 
+/// This is used to transmit information about a new disease template
+/// It can be used for Mendelian, Melded, Digenic
+/// seed_text can have text with phenotypic descriptions from which we will generate 
+/// appropriate columns for the template by text mining
+/// Mendelian: disease_dto_list and gene_variant_dto_list must both be of length 1
+/// Melded: both of length two
+/// Digenic: disease_dto of length 1, gene_variant_dto of length 2
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewTemplateDto {
+    pub template_type: String,
+    pub disease_dto_list: Vec<DiseaseDto>,
+    pub gene_variant_dto_list: Vec<GeneVariantBundleDto>,
+    pub seed_text: String
+}
+
+
 
 
 

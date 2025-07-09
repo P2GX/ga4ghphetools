@@ -3,7 +3,7 @@
 
 
 
-use crate::dto::template_dto::{GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
+use crate::dto::template_dto::{GeneVariantBundleDto, IndividualBundleDto, NewTemplateDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::{VariantDto, VariantListDto};
 use crate::error::Error;
@@ -93,21 +93,23 @@ impl PheTools {
     /// - `Ok(())` - success.
     /// - `Err(String)` - An error if template generation fails.
     ///
-    pub fn create_pyphetools_template(
+    /// # TODO - implemented Melded/Digenic
+    pub fn create_pyphetools_template_from_seeds(
         &mut self,
-        disease_id: &str,
-        disease_name: &str,
-        hgnc_id: &str,
-        gene_symbol: &str,
-        transcript_id: &str,
+        dto: NewTemplateDto,
         hpo_term_ids: Vec<TermId>,
     ) -> std::result::Result<PheToolsTemplate, String> {
+        if dto.template_type.as_str() != "mendelian" {
+            return Err("TemplateDto generation for non-Mendelian not implemented yet".to_string());
+        }
+        let disease_dto = &dto.disease_dto_list[0];
+        let gene_var_dto = &dto.gene_variant_dto_list[0];
         let dgb = DiseaseGeneBundle::new_from_str(
-            disease_id,
-            disease_name,
-            hgnc_id,
-            gene_symbol,
-            transcript_id,
+            &disease_dto.disease_id,
+            &disease_dto.disease_label,
+            &gene_var_dto.hgnc_id,
+            &gene_var_dto.gene_symbol,
+            &gene_var_dto.transcript,
         ).map_err(|e| e.to_string())?;
         let hpo_arc = self.hpo.clone();
         let template = PheToolsTemplate::create_pyphetools_template(
@@ -208,10 +210,9 @@ impl PheTools {
         &mut self,
         phetools_template_path: &str,
         fix_errors: bool
-    ) -> Result<(), Vec<String>> {
+    ) -> Result<TemplateDto, Vec<String>> {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
-        self.load_matrix(matrix, fix_errors)?;
-        Ok(())
+        self.load_matrix(matrix, fix_errors)
     }
 
 
