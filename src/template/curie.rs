@@ -1,4 +1,3 @@
-use crate::phetools_traits::TableCell;
 
 use crate::error::{self, Error, Result};
 
@@ -48,11 +47,6 @@ pub struct Curie {
     curie_value: String,
 }
 
-impl TableCell for Curie {
-    fn value(&self) -> String {
-        self.curie_value.clone()
-    }
-}
 
 impl Curie {
     pub fn new_pmid(value: &str) -> Result<Self> {
@@ -65,6 +59,10 @@ impl Curie {
         return Ok(Curie {
             curie_value: value.to_string(),
         });
+    }
+
+    fn value(&self) -> String {
+        self.curie_value.clone()
     }
 
     pub fn new_disease_id(value: &str) -> Result<Self> {

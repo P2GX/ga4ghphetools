@@ -13,17 +13,18 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 use prost::Name;
+use serde::{Deserialize, Serialize};
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_manager::VariantManager}};
+use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_manager::VariantManager}};
 use crate::{
-    template::disease_gene_bundle::DiseaseGeneBundle,
     hpo::hpo_term_arranger::HpoTermArranger
 };
 
 use super::{operations::Operation};
 
 /// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum TemplateType {
     Mendelian,
     Melded,
@@ -58,9 +59,9 @@ const INDIVIDUAL_COMMENT: usize = 3;
 const EMPTY_STRING: &str = "";
 
 impl PheToolsTemplate {
-    /// Create the initial pyphetools template (Table)
+    /// Create the initial pyphetools template using HPO seed terms
     pub fn create_pyphetools_template_mendelian(
-        dg_bundle: DiseaseGeneBundle,
+        disease_gene_dto: DiseaseGeneDto,
         hpo_term_ids: Vec<TermId>,
         // Reference to the Ontolius Human Phenotype Ontology Full CSR object
         hpo: Arc<FullCsrOntology>,
@@ -78,25 +79,23 @@ impl PheToolsTemplate {
                     });
                 }
             }
-        }/*
-        let header_dup_row = HeaderDupletRow::mendelian(hp_header_duplet_list);
+        }
+        let header_dup_row = HeaderDupletRow::from_hpo_duplets(hp_header_duplet_list, TemplateType::Mendelian);
         let hdr_arc = Arc::new(header_dup_row);
+
         Ok(Self {
             header: hdr_arc,
             template_type: TemplateType::Mendelian,
             hpo: hpo.clone(),
             ppkt_rows: vec![]
-        }) */
-        eprint!("refactor");
-        Err(Error::TemplateError { msg: "OUAGHDASAS".to_string() })
-        
+        })
     }
 
     pub fn from_dto(
         hpo: Arc<FullCsrOntology>,
         cohort_dto: &TemplateDto) 
     -> std::result::Result<Self, String>  {
-        let tt: TemplateType = cohort_dto.cohort_type.parse()?;
+        let tt: TemplateType = cohort_dto.cohort_type;
         let hpo_duplets: Vec<HpoTermDuplet> = cohort_dto
             .hpo_headers
             .iter()
@@ -129,10 +128,10 @@ impl PheToolsTemplate {
         template_dto: &TemplateDto, 
         hpo: Arc<FullCsrOntology>) 
     -> std::result::Result<Self, ValidationErrors> {
-        let header_duplet_row = match template_dto.cohort_type.as_str() {
-            "mendelian" => HeaderDupletRow::new_mendelian_ppkt_from_dto(&template_dto.hpo_headers),
+        let header_duplet_row = match template_dto.cohort_type {
+            TemplateType::Mendelian => HeaderDupletRow::new_mendelian_ppkt_from_dto(&template_dto.hpo_headers),
             other => {
-                return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{other}'")));
+                return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{:?}'", other)));
             }
         };
         let header_arc = Arc::new(header_duplet_row);
@@ -158,7 +157,7 @@ impl PheToolsTemplate {
     }
 
     pub fn create_pyphetools_template(
-        dg_bundle: DiseaseGeneBundle,
+        dg_dto: DiseaseGeneDto,
         hpo_term_ids: Vec<TermId>,
         hpo: Arc<FullCsrOntology>,
     ) -> Result<PheToolsTemplate> {
@@ -177,8 +176,7 @@ impl PheToolsTemplate {
                 }
             }
         }
-    
-        let result = Self::create_pyphetools_template_mendelian(dg_bundle, hpo_term_ids, hpo)?;
+        let result = Self::create_pyphetools_template_mendelian(dg_dto, hpo_term_ids, hpo)?;
         Ok(result)
     }
 
@@ -446,7 +444,7 @@ impl PheToolsTemplate {
 
 #[cfg(test)]
 mod test {
-    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}};
+    use crate::{dto::template_dto::{DiseaseDto, GeneTranscriptDto}, error::Error, header::hpo_term_duplet::HpoTermDuplet};
     use lazy_static::lazy_static;
     use ontolius::{io::OntologyLoaderBuilder, ontology::csr::MinimalCsrOntology};
     use polars::io::SerReader;
@@ -499,6 +497,25 @@ mod test {
 
 
     #[fixture]
+    fn disease_gene_dto() -> DiseaseGeneDto {
+        let dx_dto = DiseaseDto{ 
+            disease_id: "OMIM:135100".to_string(), 
+            disease_label: "Fibrodysplasia ossificans progressiva".to_string()
+        };
+        let gv_dto = GeneTranscriptDto{ 
+            hgnc_id: "HGNC:171".to_string(), 
+            gene_symbol: "ACVR1".to_string(), 
+            transcript:   "NM_001111067.4".to_string(),
+        };
+        DiseaseGeneDto{ 
+            template_type: "mendelian".to_string(), 
+            disease_dto_list: vec![dx_dto], 
+            gene_transcript_dto_list: vec![gv_dto]
+        }
+    }
+
+
+    #[fixture]
     fn original_matrix(row1: Vec<String>, row2: Vec<String>, row3: Vec<String>)  -> Vec<Vec<String>> {
         let mut rows = Vec::with_capacity(3);
         rows.push(row1);
@@ -512,7 +529,7 @@ mod test {
     fn test_factory_valid_input(
         original_matrix: Vec<Vec<String>>, 
         hpo: Arc<FullCsrOntology>) {
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
         assert!(factory.is_ok());
     }
 
@@ -521,7 +538,7 @@ mod test {
     fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
         // "Hallux valgus" has extra white space
         original_matrix[0][19] = "Hallux  valgus".to_string(); 
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
         assert!(&factory.is_err());
         assert!(matches!(&factory, Err(ValidationErrors { .. })));
         let validation_errs = factory.err().unwrap();
@@ -564,7 +581,7 @@ mod test {
         #[case] expected_label: &str) {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
-        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
         if result.is_ok() {
             println!("{}{} {}", idx, label, expected_label);
         }
@@ -583,7 +600,7 @@ mod test {
     // we change entries in the third row (which is the first and only data row)
     // and introduce typical potential errors
     #[rstest]
-  /*  #[case(0, "PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
+    /*  #[case(0, "PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
     #[case(0, "PMID: 29482508", "Contains stray whitespace: 'PMID: 29482508'")]
     #[case(1, "", "Value must not be empty")]
     #[case(1, "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report ", 
@@ -610,7 +627,7 @@ mod test {
     #[case(18, "Observed", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'Observed'")]
     #[case(18, "yes", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'yes'")]
     #[case(18, "exc.", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'exc.'")]
-      fn test_malformed_entry(
+    fn test_malformed_entry(
         mut original_matrix: Vec<Vec<String>>, 
         hpo: Arc<FullCsrOntology>, 
         #[case] idx: usize, 
@@ -618,7 +635,7 @@ mod test {
         #[case] error_msg: &str) 
     {
         original_matrix[2][idx] = entry.to_string();
-        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo);
+        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
         assert!(result.is_err());
         let verr = result.err().unwrap();
         for e in verr.errors() {

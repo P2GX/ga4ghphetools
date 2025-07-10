@@ -96,7 +96,7 @@ impl DiseaseDto {
     }
 }
 
-
+/*
 /// This is used to transmit information about a new disease template
 /// It can be used for Mendelian, Melded, Digenic
 /// seed_text can have text with phenotypic descriptions from which we will generate 
@@ -107,10 +107,32 @@ impl DiseaseDto {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewTemplateDto {
-    pub template_type: String,
+    pub template_type: TemplateType,
     pub disease_dto_list: Vec<DiseaseDto>,
     pub gene_variant_dto_list: Vec<GeneVariantBundleDto>,
     pub seed_text: String
+}
+ */
+
+/// A gene and its trasncript of reference
+/// We use this to act as a seed when we create a new row (phenopacket)
+/// as part of a DiseaseGeneBundleDto
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneTranscriptDto {
+    pub hgnc_id: String,
+    pub gene_symbol: String,
+    pub transcript: String,
+}
+
+/// Genes and Diseases of reference for a cohort 
+/// We use this to act as a seed when we create a new row (phenopacket) 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiseaseGeneDto {
+    pub template_type: String,
+    pub disease_dto_list: Vec<DiseaseDto>,
+    pub gene_transcript_dto_list: Vec<GeneTranscriptDto>,
 }
 
 
@@ -205,27 +227,22 @@ impl From<DupletItem> for HeaderDupletDto {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemplateDto {
-    pub cohort_type: String,
+    pub cohort_type: TemplateType,
     pub hpo_headers: Vec<HeaderDupletDto>,
     pub rows: Vec<RowDto>
 }
 
 impl TemplateDto {
     pub fn mendelian(hpo_headers: Vec<HeaderDupletDto>, rows: Vec<RowDto>) -> Self {
-        Self { cohort_type: "mendelian".to_string(), hpo_headers, rows }
+        Self { cohort_type: TemplateType::Mendelian, hpo_headers, rows }
     }
 
-    pub fn template_type(&self) -> std::result::Result<TemplateType, String> {
+    pub fn template_type(&self) -> TemplateType {
         self.cohort_type
-            .parse::<TemplateType>()
-            .map_err(|e| e.to_string())
     }
 
     pub fn is_mendelian(&self) -> bool {
-        match self.template_type() {
-            Ok(ctype) => { return ctype == TemplateType::Mendelian;},
-            Err(_) => { return false;}
-        }
+        self.template_type() == TemplateType::Mendelian
     }
 
 

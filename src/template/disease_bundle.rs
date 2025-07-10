@@ -58,7 +58,7 @@ impl DiseaseBundle {
 
 
     pub fn from_cohort_dto(cohort_dto: &TemplateDto) -> Result<Vec<Self>, String> {
-        match cohort_dto.template_type()? {
+        match cohort_dto.template_type() {
             TemplateType::Mendelian => {
                 let disease_dto_list: Vec<DiseaseDto> = cohort_dto.get_disease_dto_list()?;
                 let disease_bundle_list = Self::from_dto_list(disease_dto_list);

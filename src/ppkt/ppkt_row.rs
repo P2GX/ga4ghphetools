@@ -23,13 +23,11 @@ use crate::hpo::age_util::{self, check_hpo_table_cell};
 use crate::hpo::hpo_util;
 use crate::template::curie::Curie;
 use crate::error::{self, Error, Result};
-use crate::phetools_traits::TableCell;
 use crate::template::disease_bundle::{self, DiseaseBundle};
 use crate::template::gene_variant_bundle::{self, GeneVariantBundle};
 use crate::template::individual_bundle::IndividualBundle;
 use crate::template::pt_template::TemplateType;
 use crate::template::simple_label::SimpleLabel;
-use crate::template::disease_gene_bundle::DiseaseGeneBundle;
 use crate::template::header_duplet_row::{self, HeaderDupletRow};
 
 /// The index where the Mendelian demographic part sars
@@ -99,7 +97,7 @@ impl PpktRow {
         gene_variant_list: Vec<GeneVariantBundleDto>,
         tid_to_value_map: HashMap<TermId, String>, 
         cohort_dto: TemplateDto) -> std::result::Result<Self, String> {
-        if cohort_dto.cohort_type != "mendelian" {
+        if cohort_dto.cohort_type != TemplateType::Mendelian {
             panic!("from_map: Melded not supported");
         }
         let mut items = Vec::with_capacity(header.hpo_count());

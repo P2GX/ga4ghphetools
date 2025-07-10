@@ -16,7 +16,6 @@ mod header;
 mod hpo;
 mod persistence;
 mod ppkt;
-mod phetools_traits;
 mod template;
 mod variant;
 

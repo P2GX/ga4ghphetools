@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::error::{self, Error, Result};
-use crate::phetools_traits::TableCell;
+
 
 impl Error {
     fn malformed_label(label: &str) -> Self {
@@ -43,11 +43,6 @@ pub struct SimpleLabel {
     label: String,
 }
 
-impl TableCell for SimpleLabel {
-    fn value(&self) -> String {
-        self.label.clone()
-    }
-}
 
 impl SimpleLabel {
     pub fn individual_id(value: &str) -> Result<Self> {
@@ -59,6 +54,10 @@ impl SimpleLabel {
         return Ok(SimpleLabel {
             label: value.to_string(),
         });
+    }
+
+     fn value(&self) -> String {
+        self.label.clone()
     }
 
     pub fn disease_label(value: &str) -> Result<Self> {
