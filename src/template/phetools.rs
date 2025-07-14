@@ -18,7 +18,7 @@ use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use phenopackets::schema::v2::Phenopacket;
 use serde_json::to_string;
-use crate::template::pt_template::PheToolsTemplate;
+use crate::template::pt_template::{PheToolsTemplate, TemplateType};
 use crate::template::excel;
 use core::option::Option::Some;
 use std::collections::{HashMap, HashSet};
@@ -97,7 +97,7 @@ impl PheTools {
         dto: DiseaseGeneDto,
         hpo_term_ids: Vec<TermId>,
     ) -> std::result::Result<TemplateDto, String> {
-        if dto.template_type.as_str() != "mendelian" {
+        if dto.template_type != TemplateType::Mendelian {
             return Err("TemplateDto generation for non-Mendelian not implemented yet".to_string());
         }
         let disease_dto = &dto.disease_dto_list[0];

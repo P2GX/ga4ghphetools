@@ -175,7 +175,8 @@ impl HeaderDupletRow {
     -> Self {
             match template_type {
                 TemplateType::Mendelian => Self::mendelian_from_hpo_duplets(hpo_duplets),
-                TemplateType::Melded => todo!()
+                TemplateType::Melded => todo!(),
+                TemplateType::Digenic => todo!()
             }
         }
 

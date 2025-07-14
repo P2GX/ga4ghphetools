@@ -130,7 +130,7 @@ pub struct GeneTranscriptDto {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseGeneDto {
-    pub template_type: String,
+    pub template_type: TemplateType,
     pub disease_dto_list: Vec<DiseaseDto>,
     pub gene_transcript_dto_list: Vec<GeneTranscriptDto>,
 }

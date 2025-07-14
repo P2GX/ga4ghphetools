@@ -28,6 +28,7 @@ use super::{operations::Operation};
 pub enum TemplateType {
     Mendelian,
     Melded,
+    Digenic
 }
 
 impl FromStr for TemplateType {
@@ -37,6 +38,7 @@ impl FromStr for TemplateType {
         match s.to_ascii_lowercase().as_str() {
             "mendelian" => Ok(TemplateType::Mendelian),
             "melded" => Ok(TemplateType::Melded),
+            "digenic" => Ok(TemplateType::Digenic),
             _ => Err(format!("Unrecognized template type {s}")),
         }
     }
@@ -508,7 +510,7 @@ mod test {
             transcript:   "NM_001111067.4".to_string(),
         };
         DiseaseGeneDto{ 
-            template_type: "mendelian".to_string(), 
+            template_type: TemplateType::Mendelian, 
             disease_dto_list: vec![dx_dto], 
             gene_transcript_dto_list: vec![gv_dto]
         }

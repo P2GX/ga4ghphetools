@@ -1,5 +1,6 @@
 // src/main.rs
-use clap::Parser;
+use clap::{command, Parser};
+use ga4ghphetools::etl::etl_tools::EtlTools;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::path::Path;
 use std::sync::Arc;
@@ -39,17 +40,37 @@ fn main() {
         .load_from_path(&cli.json)
         .expect("HPO should be loaded");
     let hpo_arc = Arc::new(hpo);
+
+    if false {
+        test_load_template(hpo_arc, &cli.template);
+    } else {
+        test_load_etl(hpo_arc);
+    }
+   
+}
+
+
+
+fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
     let mut phetools = PheTools::new(hpo_arc);
     println!("Created phetools");
-    match phetools.load_excel_template(&cli.template) {
+    match phetools.load_excel_template(template, false) {
         Ok(template) => {
-            println!("[INFO] No errors identified for {}", &cli.template);
+            println!("[INFO] No errors identified for {:?}", template);
         }
         Err(e) => {
-            println!("[ERROR] {}", e);
+            println!("[ERROR] {:?}", e);
             return;
         }
     }
     let dto = phetools.get_template_dto();
     println!("{:?}", dto);
+}
+
+
+fn test_load_etl(hpo_arc: Arc<FullCsrOntology>) {
+    let template_path = "/Users/robin/data/hpo/etlTest.xlsx";
+    let mut etl_tools = EtlTools::new(hpo_arc, template_path).unwrap();
+    println!("Created etl_tools");
+    println!("{}", etl_tools.raw_table());
 }

@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.2.56"
+version = "0.3.1"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -10,6 +10,9 @@ readme = "README.md"
 [lib]
 name = "ga4ghphetools"
 path = "src/lib.rs"
+
+[features]
+cli = ["dep:clap"]
 
 [[bin]]
 name = "rpt"
@@ -37,13 +40,12 @@ serde = { version = "1.0", features = ["derive"] }
 zip = "4.2.0"
 reqwest = {version = "0.12.22", features = ["blocking", "json"]}
 serde_json = "1.0.140"
-
+clap = { version = "4.5.40", features = ["derive"], optional = true }
 
 [lints.rust]
 unsafe_code = "forbid"
-unused = "allow" # for initial development only!
+
 
 [dev-dependencies]
 flate2 = "1.0.30"
 rstest = "0.25.0"
-clap = { version = "4.5.40", features = ["derive"] }

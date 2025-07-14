@@ -64,7 +64,8 @@ impl DiseaseBundle {
                 let disease_bundle_list = Self::from_dto_list(disease_dto_list);
                 Ok(disease_bundle_list)
         },
-            TemplateType::Melded => todo!()
+            TemplateType::Melded => todo!(),
+            TemplateType::Digenic => todo!(),
         }
     }
 

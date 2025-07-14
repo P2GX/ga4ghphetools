@@ -53,6 +53,7 @@ impl PpktRow {
         match header.template_type() {
             crate::template::pt_template::TemplateType::Mendelian => Self::from_mendelian_row(header, content),
             crate::template::pt_template::TemplateType::Melded => todo!(),
+            crate::template::pt_template::TemplateType::Digenic => todo!(),
         }
     }
 
