@@ -2,7 +2,7 @@ use std::{fmt::{self, Display}, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::etl_dto::{ColumnTableDto, RawTableDto}, template::excel};
+use crate::{dto::etl_dto::{ColumnTableDto}, template::excel};
 
 
 

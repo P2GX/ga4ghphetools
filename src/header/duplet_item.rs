@@ -337,7 +337,7 @@ impl DupletItem {
         Self::check_white_space(cell_contents)?;
         if cell_contents.starts_with("c.")|| cell_contents.starts_with("n."){
             if ! allele_util::is_plausible_hgvs(cell_contents) {
-                return Err(format!("Malformed HGVS string '{cell_contents}'"));
+                return Err(format!("Malformed Allele1 HGVS string '{cell_contents}'"));
             }
         } else {
             Self::check_valid_structural(cell_contents)?;
@@ -351,7 +351,9 @@ impl DupletItem {
         if cell_contents == "na" {
             return Ok(());
         } else if cell_contents.starts_with("c.") || cell_contents.starts_with("n."){
-            allele_util::check_valid_hgvs(cell_contents)?;
+            if ! allele_util::is_plausible_hgvs(cell_contents) {
+                return Err(format!("Malformed Allele2 HGVS string '{cell_contents}'"));
+            }
         } else {
             Self::check_valid_structural(cell_contents)?;
         }

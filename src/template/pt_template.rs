@@ -5,22 +5,20 @@
 //! Each template has the following main members
 //! - HeaderDupletRow (defines each of the columns)
 //! - A list of PpktRow (one per phenopacket)
-use std::{collections::{HashMap, HashSet}, fmt::format, str::FromStr, sync::Arc, vec};
+use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
     ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
-    term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
+    term::{simple::{SimpleMinimalTerm}, MinimalTerm},
     Identified, TermId,
 };
 use phenopackets::schema::v2::Phenopacket;
-use prost::Name;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto, template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{self, Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{self, PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_manager::VariantManager}};
+use crate::{dto::{hpo_term_dto::HpoTermDto, template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::{ PpktExporter}, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
 
-use super::{operations::Operation};
 
 /// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]

@@ -1,13 +1,11 @@
 // src/variant/hgvs_variant.rs
 
-use ontolius::term::simple::SimpleMinimalTerm;
 use phenopackets::ga4gh::vrsatile::v1::{MoleculeContext, VariationDescriptor};
 use rand::{self, distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
-use crate::variant::acmg::AcmgPathogenicityClassification;
-use crate::variant::variant_util;
-use crate::{error::Error, variant::vcf_var::{self, VcfVar}};
+
+use crate::variant::vcf_var::VcfVar;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HgvsVariant {

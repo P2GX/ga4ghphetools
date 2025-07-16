@@ -1,12 +1,10 @@
 // This is a Rust port of the Python VariantValidator class
 // Dependencies: reqwest = { version = "0.11", features = ["blocking", "json"] }, serde, serde_json, anyhow
 
-use std::collections::HashMap;
-use std::convert::TryInto;
-use polars::series::implementations;
+
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{dto::{self, validation_errors::ValidationErrors, variant_dto::VariantDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::{self, VcfVar}}};
+use crate::{dto::{ validation_errors::ValidationErrors, variant_dto::VariantDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::{VcfVar}}};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
@@ -66,7 +64,7 @@ impl VariantValidator {
         transcript: &str
     ) -> Result<HgvsVariant, String> 
     {
-        let mut verrs = ValidationErrors::new();
+        let verrs = ValidationErrors::new();
         println!("{}{} encode_hgvs -- {}", file!(), line!(), hgvs);
         let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
         let response: Value = get(&url)
@@ -158,7 +156,7 @@ impl VariantValidator {
 
     
     fn extract_variant_validator_warnings(response: &Value) -> Result<(), String> {
-        let mut verrs = ValidationErrors::new();
+        let verrs = ValidationErrors::new();
         if let Some(flag) = response.get("flag").and_then(|f| f.as_str()) {
             if flag == "warning" {
                 if let Some(warnings) = response

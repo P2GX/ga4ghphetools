@@ -1,9 +1,7 @@
 use std::fs::{File, OpenOptions};
-use std::hash::Hash;
-use std::ops::DerefMut;
 use std::{collections::HashMap, path::PathBuf};
 
-use phenopackets::schema::v1::core::variant;
+
 
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantListDto;
@@ -12,10 +10,7 @@ use crate::variant::structural_validator::StructuralValidator;
 use crate::{dto::variant_dto::VariantDto, variant::variant_validator::VariantValidator};
 
 
-use crate::variant::structural_variant::{StructuralVariant, DELETION as DEL};
-use crate::variant::structural_variant::DUPLICATION as DUP;
-use crate::variant::structural_variant::INVSERSION as INV;
-use crate::variant::structural_variant::TRANSLOCATION as TRANSL;
+use crate::variant::structural_variant::StructuralVariant;
 
 type VariantCache = HashMap<String, HgvsVariant>;
 type StructuralCache = HashMap<String, StructuralVariant>;
@@ -181,7 +176,7 @@ impl VariantManager {
 
     pub fn get_variant_list_dto(&self) 
     -> VariantListDto {
-        let mut verrs = ValidationErrors::new();
+        let verrs = ValidationErrors::new();
         let mut evaluated_dto_list: Vec<VariantDto> = Vec::with_capacity(self.variant_map.len());
         for (variant, dto) in self.variant_map.iter() {
             if dto.is_structural() {

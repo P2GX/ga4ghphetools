@@ -6,30 +6,22 @@
 
 
 use std::collections::HashMap;
-use std::fmt::format;
-use std::hash::DefaultHasher;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
-use ontolius::ontology::OntologyTerms;
 use ontolius::term::simple::SimpleTerm;
-use ontolius::term::{MinimalTerm, Term};
+use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
-use serde::de;
 
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{HeaderDupletDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::header::disease_header::DiseaseHeader;
-use crate::header::duplet_item::DupletItem;
 use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::individual_header::IndividualHeader;
-use crate::error::{self, Error, Result};
 use crate::hpo::hpo_util::HpoUtil;
-use crate::template::disease_bundle::DiseaseBundle;
-use crate::template::individual_bundle::IndividualBundle;
 use crate::template::pt_template::TemplateType;
 
 const NOT_AVAILABLE: &str = "na";

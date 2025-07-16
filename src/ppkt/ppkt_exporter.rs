@@ -362,7 +362,7 @@ impl PpktExporter {
         hgvs_dict: &HashMap<String, HgvsVariant>,
         structural_dict: &HashMap<String, StructuralVariant>) 
     -> std::result::Result<Vec<Interpretation>, String> {
-        let mut dx_list = ppkt_row.get_disease_dto_list();
+        let dx_list = ppkt_row.get_disease_dto_list();
         let gdb_list = ppkt_row.get_gene_var_dto_list();
         //TODO for now we just support Mendelian. Need to extend for digenic and Melded
         if dx_list.len() != 1 || gdb_list.len() != 1 {

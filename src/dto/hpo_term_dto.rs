@@ -7,8 +7,7 @@
 use std::str::FromStr;
 
 use ontolius::TermId;
-use serde::{de, Deserialize, Deserializer, Serialize};
-use crate::template::excel::read_excel_to_dataframe;
+use serde::{Deserialize, Deserializer, Serialize};
 use crate::error::{Error, Result};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -95,9 +94,7 @@ impl HpoTermDto {
 
 #[cfg(test)]
 mod test {
-    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}};
     use super::*;
-    use ontolius::common::hpo;
     use rstest::rstest;
 
     #[rstest]

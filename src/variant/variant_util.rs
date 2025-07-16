@@ -1,10 +1,8 @@
 use std::{fmt, str::FromStr};
 use lazy_static::lazy_static;
-use crate::variant::acmg::AcmgPathogenicityClassification;
 use rand::Rng;
-use ontolius::{term::{simple::SimpleMinimalTerm, Term}, TermId};
+use ontolius::{term::{simple::SimpleMinimalTerm}, TermId};
 
-use super::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant};
 
 
 #[derive(Debug, Clone)]

@@ -3,30 +3,28 @@
 
 
 
+use crate::dto::etl_dto::ColumnTableDto;
 use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::{VariantDto, VariantListDto};
-use crate::error::Error;
-use crate::hpo::hpo_util::HpoUtil;
+use crate::etl::etl_tools::EtlTools;
 use crate::persistence::dir_manager::DirManager;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
-use crate::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
-use crate::variant::variant_validator::VariantValidator;
+use crate::dto::{ hpo_term_dto::HpoTermDto};
 
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use phenopackets::schema::v2::Phenopacket;
-use serde_json::to_string;
 use crate::template::pt_template::{PheToolsTemplate, TemplateType};
 use crate::template::excel;
 use core::option::Option::Some;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::fmt::{self};
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{fmt::format, str::FromStr, vec};
+use std::{ vec};
 
 
 /// The main struct for interacting with this library
@@ -37,7 +35,7 @@ pub struct PheTools {
     template: Option<PheToolsTemplate>,
     /// Manager to validate and cache variants
     manager: Option<DirManager>, 
-    variant_validator: VariantValidator,
+    etl_tools: Option<EtlTools>,
 }
 
 impl PheTools {
@@ -66,7 +64,7 @@ impl PheTools {
             hpo,
             template: None,
             manager: None,
-            variant_validator: VariantValidator::hg38(),
+            etl_tools: None,
         }
     }
 
@@ -100,8 +98,6 @@ impl PheTools {
         if dto.template_type != TemplateType::Mendelian {
             return Err("TemplateDto generation for non-Mendelian not implemented yet".to_string());
         }
-        let disease_dto = &dto.disease_dto_list[0];
-        let gene_transcript_dto = &dto.gene_transcript_dto_list[0];
         let hpo_arc = self.hpo.clone();
         let template = PheToolsTemplate::create_pyphetools_template(
             dto, 
@@ -434,6 +430,16 @@ impl PheTools {
         Ok(())
     }
 
+    /// Load an excel file with a table of information that can be
+    /// transformed into a collection of phenopackets (e.g. a Supplementary Table)
+    pub fn load_external_excel(
+        &mut self,
+        external_excel_path: &str) -> Result<ColumnTableDto, String> {
+        let etl_tools = EtlTools::new(self.hpo.clone(), external_excel_path)?;
+        let dto = etl_tools.raw_table().clone();
+        self.etl_tools = Some(etl_tools);
+        Ok(dto)
+    }
 
 }
 

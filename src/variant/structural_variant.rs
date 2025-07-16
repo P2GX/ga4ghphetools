@@ -1,9 +1,9 @@
 use ontolius::{term::{simple::SimpleMinimalTerm, MinimalTerm}, Identified, TermId};
 use rand::{distr::Alphanumeric, Rng};
 use serde::{Serialize, Deserialize};
-use std::{collections::HashMap, str::FromStr};
+use std::{str::FromStr};
 use once_cell::sync::Lazy;
-use crate::{dto::variant_dto::VariantDto, error::{Error, Result}};
+use crate::{dto::variant_dto::VariantDto};
 const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
 
 pub const DELETION: &str = "DEL";

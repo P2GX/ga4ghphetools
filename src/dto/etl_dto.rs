@@ -9,6 +9,7 @@
 /// Each column will be transformed one by one. Columns start off as RAW and then are changed to the other
 ///types listed here
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum EtlColumnType {
     Raw,
     FamilyId,
@@ -41,34 +42,5 @@ pub struct ColumnTableDto {
 
 
 
-pub struct  RawTableDto {
-    pub file_name: String,
-    pub headers: Vec<String>,
-    pub rows: Vec<Vec<String>>,
-    pub total_rows: usize,
-    pub total_columns: usize
-}
 
 
-pub struct   ColumnTransformationDto {
-    columnIndex: usize,
-    originalHeader: String,
-    columnType: EtlColumnType,
-    transformedHeader: String,
-    originalValues: Vec<String>,
-    transformedValues: Vec<String>,
-    //transformationRules: Vec<TransformationRule>,
-    validationErrors: Vec<String>,
-}
-
-
-/* 
-export interface EtlSessionDto {
-  id: string;
-  rawTable: RawTableDto;
-  columnTransformations: ColumnTransformationDto[];
-  currentColumnIndex: number;
-  isComplete: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}*/

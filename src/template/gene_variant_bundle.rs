@@ -45,7 +45,7 @@ impl GeneVariantBundle {
         row: &Vec<String>,
         start_idx: usize
     ) -> std::result::Result<Self, ValidationErrors> {
-        let mut i = start_idx;
+        let i = start_idx;
         let bundle = Self::new(&row[i], &row[i+1],&row[i+2],&row[i+3],&row[i+4],&row[i+5]);
         let _ = bundle.do_qc()?;
         Ok(bundle)

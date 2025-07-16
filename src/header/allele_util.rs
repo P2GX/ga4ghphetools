@@ -91,24 +91,6 @@ pub fn is_plausible_hgvs(hgvs: &str) -> bool {
 }
 
 
-pub fn check_valid_hgvs(value: &str) -> std::result::Result<(), String> {
-    if SUBSTITUTION_RE.is_match(value) {
-        return Ok(());
-    }
-    if INSERTION_RE.is_match(value) {
-        return Ok(());
-    }
-    if DELINS_RE.is_match(value) {
-        return Ok(());
-    }
-    if DUPLICATION_RE.is_match(value) {
-        return Ok(());
-    } 
-    if DEL_RE.is_match(value) {
-        return Ok(());
-    }
-    Err(format!("Malformed HGVS '{value}'"))
-}
 
 
 pub fn check_valid_structural(value: &str) -> bool {
@@ -140,6 +122,7 @@ mod tests {
     #[case("g.123456A>T", false)] // wrong prefix
     #[case("c.", false)]          // incomplete
     #[case("c.-19_*21del", true)]
+    #[case("c.1630+1G>A", true)]
     fn test_check_valid_hgvs(#[case] input: &str, #[case] should_pass: bool) {
         let result = is_plausible_hgvs(input);
         assert_eq!(result, should_pass, "Failed on input: {}", input);
