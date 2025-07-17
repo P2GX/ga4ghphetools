@@ -5,9 +5,8 @@
 //!
 
 use core::fmt;
-use derive_more::{Display, From};
+use derive_more::From;
 use ontolius::TermId;
-use polars::series::implementations;
 use serde::Serialize;
 
 use crate::dto::validation_errors::ValidationErrors;

@@ -152,7 +152,7 @@ impl HgvsVariant {
 #[cfg(test)]
 mod tests {
 
-    use crate::{error::Error, variant::variant_validator::VariantValidator};
+    use crate::variant::variant_validator::VariantValidator;
     use super::*;
     use rstest::rstest;
 

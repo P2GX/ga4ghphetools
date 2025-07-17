@@ -6,8 +6,6 @@ use ontolius::ontology::csr::FullCsrOntology;
 use ga4ghphetools::PheTools;
 use rstest::rstest;
 use common::hpo;
-use common::matrix;
-use zip::result;
 
 use crate::common::one_case_matrix;
 
@@ -22,7 +20,7 @@ fn create_ppkt_1(
     let mut phetools = PheTools::new(hpo);
     assert_eq!(3, one_case_matrix.len()); // original matrix has headers and four data rows
     let original_matrix = one_case_matrix.clone();
-    let res = phetools.load_matrix(one_case_matrix);
+    let res = phetools.load_matrix(one_case_matrix, false);
     assert!(res.is_ok());
     let hpo_version = "2025-05-31";
     let dto = phetools.get_template_dto();

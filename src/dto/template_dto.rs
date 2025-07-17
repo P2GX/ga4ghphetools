@@ -1,15 +1,9 @@
 use core::convert::From;
-use std::str::FromStr;
 
-
-use phenopackets::schema::v1::core::disease;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
-use crate::template::excel::read_excel_to_dataframe;
-use crate::error::{Error, Result};
-use crate::template::header_duplet_row::HeaderDupletRow;
 use crate::template::pt_template::TemplateType;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

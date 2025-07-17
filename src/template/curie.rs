@@ -1,5 +1,5 @@
 
-use crate::error::{self, Error, Result};
+use crate::error::{Error, Result};
 
 /// A valid curie must have a non-empty prefix and a non-empty numeric suffic
 /// white-space is not allowed.

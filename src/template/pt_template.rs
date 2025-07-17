@@ -311,7 +311,7 @@ impl PheToolsTemplate {
         let mut verrs = ValidationErrors::new();
         let hpo_util = HpoUtil::new(self.hpo.clone());
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
-        let mut dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
+        let dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
         let mut term_id_set: HashSet<TermId>  = dto_map.keys().cloned().collect();
         let existing_term_ids = self.header.get_hpo_id_list()?;
         term_id_set.extend(existing_term_ids);
@@ -336,8 +336,8 @@ impl PheToolsTemplate {
                 Err(e) => {verrs.add_errors(e.errors());}
             }
         }
-        /// Now add the new phenopacket
-        /// 1. get map with TermId and Value (e.g., observed) for the new terms
+        // Now add the new phenopacket
+        // 1. get map with TermId and Value (e.g., observed) for the new terms
         let mut tid_to_value_map: HashMap<TermId, String> = HashMap::new();
         for dto in   hpo_dto_items {
             println!("HERE -- {:?}\n\n", &dto);
@@ -444,10 +444,9 @@ impl PheToolsTemplate {
 
 #[cfg(test)]
 mod test {
-    use crate::{dto::template_dto::{DiseaseDto, GeneTranscriptDto}, error::Error, header::hpo_term_duplet::HpoTermDuplet};
-    use lazy_static::lazy_static;
-    use ontolius::{io::OntologyLoaderBuilder, ontology::csr::MinimalCsrOntology};
-    use polars::io::SerReader;
+    use crate::{dto::template_dto::{DiseaseDto, GeneTranscriptDto}};
+    use ontolius::{io::OntologyLoaderBuilder};
+  
     use super::*;
     use std::{fs::File, io::BufReader};
     use rstest::{fixture, rstest};

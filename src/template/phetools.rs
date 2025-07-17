@@ -4,7 +4,7 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
+use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,  TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::{VariantDto, VariantListDto};
 use crate::etl::etl_tools::EtlTools;
@@ -204,6 +204,16 @@ impl PheTools {
         self.load_matrix(matrix, fix_errors)
     }
 
+    /// Here we load a JSON file that represents a partially finished
+    /// transformation of an external template file
+    pub fn set_external_template_dto(
+        &mut self,
+        dto: &ColumnTableDto) -> Result<(), String> {
+        let etl = EtlTools::from_dto(self.hpo.clone(), dto);
+        self.etl_tools = Some(etl);
+        Ok(())
+    }
+
 
 
     /// Add a new HPO term to the template with initial value "na". Client code can edit the new column
@@ -335,7 +345,7 @@ impl PheTools {
     pub fn validate_all_variants(&mut self) -> Result<VariantListDto, ValidationErrors> {
             let verrs = ValidationErrors::new();
             todo!();
-            verrs.ok(); // TODO
+            //verrs.ok(); // TODO
     }
 
 
@@ -432,10 +442,13 @@ impl PheTools {
 
     /// Load an excel file with a table of information that can be
     /// transformed into a collection of phenopackets (e.g. a Supplementary Table)
+    /// row_based is true of the data for an individual is arranged in a row,
+    /// and it is false if the data is arranged as a column
     pub fn load_external_excel(
         &mut self,
-        external_excel_path: &str) -> Result<ColumnTableDto, String> {
-        let etl_tools = EtlTools::new(self.hpo.clone(), external_excel_path)?;
+        external_excel_path: &str,
+        row_based: bool) -> Result<ColumnTableDto, String> {
+        let etl_tools = EtlTools::new(self.hpo.clone(), external_excel_path, row_based)?;
         let dto = etl_tools.raw_table().clone();
         self.etl_tools = Some(etl_tools);
         Ok(dto)
@@ -469,19 +482,3 @@ Disease id: {ds_id}
         }
     }
 }
-
-// region:    --- Tests
-
-#[cfg(test)]
-mod tests {
-    type Error = Box<dyn std::error::Error>;
-    type Result<T> = core::result::Result<T, Error>; // For tests.
-
-    use ontolius::io::OntologyLoaderBuilder;
-
-    use super::*;
-
- 
-}
-
-// endregion: --- Tests

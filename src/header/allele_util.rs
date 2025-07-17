@@ -1,43 +1,9 @@
 
 use std::collections::HashSet;
-
-use once_cell::sync::Lazy;
-use polars::series::implementations;
-use regex::Regex;
 use lazy_static::lazy_static;
 
-use crate::error::{self, Error, Result};
 
-impl Error {
-    fn hgnc_error<T>(val: &str) -> Self
-    {
-        Error::AlleleError { msg: format!("{}", val) }
-    }
 
-    fn empty_allele() -> Self {
-        Error::AlleleError{ msg: format!("HGVS cannot be empty")}
-    }
-}
-
-pub static SUBSTITUTION_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(c|n)\.\d+[ACGT]+>[ACGT]+$").unwrap()
-});
-
-pub static INSERTION_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(c|n)\.\d+_\d+ins[ACGT]+$").unwrap()
-});
-
-pub static DELINS_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(c|n)\.\d+_\d+delins[A-Za-z0-9]+$").unwrap()
-});
-
-pub static DEL_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(c|n)\.\d+(?:_\d+)?del+$").unwrap()
-});
-
-pub static DUPLICATION_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(c|n)\.\d+(?:_\d+)?dup$").unwrap()
-});
 
 
 lazy_static! {

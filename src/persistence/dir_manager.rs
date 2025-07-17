@@ -1,12 +1,8 @@
 
-use std::{collections::HashMap, fs::{self, File, OpenOptions}, path::{Path, PathBuf}, sync::{Arc, Mutex}};
+use std::{collections::HashMap, fs, path::{Path, PathBuf}};
 
-use crate::{dto::variant_dto::{VariantDto, VariantListDto}, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_manager::VariantManager, variant_validator::VariantValidator}};
+use crate::{dto::variant_dto::VariantDto, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_manager::VariantManager}};
 
-use crate::variant::structural_variant::DELETION as DEL;
-use crate::variant::structural_variant::DUPLICATION as DUP;
-use crate::variant::structural_variant::INVSERSION as INV;
-use crate::variant::structural_variant::TRANSLOCATION as TRANSL;
 
 type VariantCache = HashMap<String, HgvsVariant>;
 type StructuralCache = HashMap<String, StructuralVariant>;

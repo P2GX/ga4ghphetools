@@ -1,5 +1,3 @@
-use std::env::var;
-
 use serde::{Deserialize, Serialize};
 
 

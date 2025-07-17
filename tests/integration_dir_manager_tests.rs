@@ -11,7 +11,6 @@ use ga4ghphetools::PheTools;
 use rstest::rstest;
 use common::hpo;
 use common::matrix;
-use zip::result;
 
 
 #[rstest]
@@ -24,7 +23,7 @@ fn test_variant_manager_cache(
     ) {
     let mut phetools = PheTools::new(hpo);
     let original_matrix = matrix.clone();
-    let res = phetools.load_matrix(matrix);
+    let res = phetools.load_matrix(matrix, false);
     let dir_path = "/tmp/vman";
     let result = phetools.set_cache_location(dir_path);
     assert!(result.is_ok());

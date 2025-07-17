@@ -6,11 +6,11 @@
 //!      "deceased", "sex", "HPO", "Clinodactyly of the 5th finger", (etc., arbitrarily many HPO columns)
 
 
-use std::{collections::HashSet, fmt::format};
+use std::collections::HashSet;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::{dto::template_dto::HeaderDupletDto, header::allele_util, hpo::age_util};
+use crate::header::allele_util;
 
 
 
@@ -517,9 +517,10 @@ impl DupletItem {
 #[cfg(test)]
 mod tests {
 
+    use crate::header::allele_util::is_plausible_hgvs;
+
     use super::*;
     use rstest::rstest;
-    use crate::header::allele_util::check_valid_hgvs;
 
     #[test]
     fn test_pmid()  {
@@ -544,24 +545,13 @@ mod tests {
     #[case("c.1177del", true)]
     #[case("c.76_78ins", false)] // missing inserted sequence
     #[case("g.123456A>T", false)] // wrong prefix
-    #[case("c.6231inv", false)]   // unsupported type
+    #[case("c.6231inv", true)]   // This one is not valid, but it is plausible. It will be picked up by VariantValidator
     #[case("c.", false)]          // incomplete
     fn test_check_valid_hgvs(#[case] input: &str, #[case] should_pass: bool) {
-        let validity = check_valid_hgvs(input);
-        //assert_eq!(validity, should_pass, "Failed on input: {}", input);
+        let validity = is_plausible_hgvs(input);
+        assert_eq!(validity, should_pass, "Failed on input: {}", input);
     }
 
-
-    #[test]
-    fn wtf() {
-        let re = Regex::new(r"^(c|n)\.\d+(?:_\d+)?dup$").unwrap();
-        let test = "c.6231dup";
-        //println!("Match? {}", DUPLICATION_RE.is_match(test));
-         let validity = check_valid_hgvs(test);
-         assert!(validity.is_ok());
-    
-   // assert_eq!(validity, true, "Failed on input: '{}'", test);
-    }
 
     
 }

@@ -5,10 +5,10 @@
 //! Objects of this class are created to perform a DSF to find a good way of arranging HPO term columns
 //! We do not need to take ownership of the ontology, therefore indicate explicit lifetime
 use std::{collections::HashSet, str::FromStr, sync::Arc};
-use crate::{dto::validation_errors::ValidationErrors, error::{self, Error, Result}};
+use crate::{dto::validation_errors::ValidationErrors};
 
 use ontolius::{
-    common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::{simple::{SimpleMinimalTerm, SimpleTerm}, Term}, TermId
+    common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::{simple::SimpleTerm}, TermId
 };
 
 /// Arranges HPO terms into a meaningful order for curation using DFS.
@@ -131,7 +131,7 @@ mod tests {
 
     use ontolius::{
         io::OntologyLoaderBuilder,
-        ontology::{csr::MinimalCsrOntology, OntologyTerms},
+        ontology::OntologyTerms,
         term::MinimalTerm,
     };
 

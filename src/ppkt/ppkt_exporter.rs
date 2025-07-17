@@ -1,8 +1,6 @@
 //! Module to export GA4GH Phenopackets from the information in the template.
 
 use std::collections::HashMap;
-use std::process::id;
-use std::sync::Arc;
 
 use phenopacket_tools::builders::time_elements::time_element_from_str;
 use phenopackets::ga4gh::vrsatile::v1::{Expression, GeneDescriptor, MoleculeContext, VariationDescriptor, VcfRecord};
@@ -10,20 +8,18 @@ use phenopackets::schema::v2::core::genomic_interpretation::{Call, Interpretatio
 use phenopackets::schema::v2::core::interpretation::ProgressStatus;
 use phenopackets::schema::v2::core::{Diagnosis, KaryotypicSex, OntologyClass};
 use phenopackets::schema::v2::core::vital_status::Status;
-use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, ExternalReference, GenomicInterpretation, Individual, Interpretation, MetaData, PhenotypicFeature, Sex, TherapeuticActionability, TimeElement, VariantInterpretation, VitalStatus};
+use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, ExternalReference, GenomicInterpretation, Individual, Interpretation, MetaData, PhenotypicFeature, Sex, TherapeuticActionability, VariantInterpretation, VitalStatus};
 use phenopackets::schema::v2::Phenopacket;
-use prost_types::value;
+
 use regex::Regex;
 use crate::dto::template_dto::GeneVariantBundleDto;
-use crate::error::{self, Error, Result};
-use crate::hpo::hpo_util;
-use crate::template::gene_variant_bundle::GeneVariantBundle;
+use crate::error::{Error, Result};
+
 use crate::variant::hgvs_variant::HgvsVariant;
 use crate::variant::structural_variant::StructuralVariant;
-use crate::variant::variant_manager::VariantManager;
 use crate::variant::variant_util::{self, generate_id};
 use phenopacket_tools;
-use super::ppkt_row::{self, PpktRow};
+use super::ppkt_row::PpktRow;
 use phenopacket_tools::builders::builder::Builder;
 
 

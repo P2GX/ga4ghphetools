@@ -1,4 +1,4 @@
-use std::{fmt::{self, Display}, sync::Arc};
+use std::{fmt, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
 
@@ -15,10 +15,17 @@ pub struct EtlTools {
 
 impl EtlTools {
 
-    pub fn new( hpo: Arc<FullCsrOntology>, excel_file_path: &str) -> Result<Self, String> {
-        let raw_table = excel::read_external_excel_to_df(excel_file_path)
+    pub fn new( hpo: Arc<FullCsrOntology>, excel_file_path: &str, row_based: bool) -> Result<Self, String> {
+        let raw_table = excel::read_external_excel_to_df(excel_file_path, row_based)
             .map_err(|e| e.to_string())?;
         Ok(Self { hpo, raw_table })
+    }
+
+    pub fn from_dto(hpo: Arc<FullCsrOntology>, dto: &ColumnTableDto) -> Self {
+        Self{
+            hpo,
+            raw_table: dto.clone(),
+        }
     }
 
     pub fn raw_table(&self) -> &ColumnTableDto {

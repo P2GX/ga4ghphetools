@@ -1,11 +1,10 @@
 //! TODO - obsolete this class, we can do everything with ontolius directly now
 
-use crate::dto::hpo_term_dto::{self, HpoTermDto};
+use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::validation_errors::ValidationErrors;
-use crate::error::{self, Error, Result};
+use crate::error::{Error, Result};
 use crate::header::hpo_term_duplet::HpoTermDuplet;
-use ontolius::io::OntologyLoaderBuilder;
-use ontolius::ontology::csr::{FullCsrOntology, MinimalCsrOntology};
+use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::term::MinimalTerm;

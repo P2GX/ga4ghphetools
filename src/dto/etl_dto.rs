@@ -25,6 +25,7 @@ pub enum EtlColumnType {
 }
 
  #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+ #[serde(rename_all = "camelCase")]
  pub struct ColumnDto {
     pub column_type: EtlColumnType,
     pub transformed: bool,
@@ -33,6 +34,7 @@ pub enum EtlColumnType {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ColumnTableDto {
     pub file_name: String,
     pub columns: Vec<ColumnDto>,

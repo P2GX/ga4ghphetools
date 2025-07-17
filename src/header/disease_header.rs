@@ -1,4 +1,4 @@
-use crate::{dto::{template_dto::{DiseaseDto, IndividualBundleDto}, validation_errors::ValidationErrors}, header::duplet_item::DupletItem, template::disease_bundle::DiseaseBundle};
+use crate::{dto::{template_dto::{DiseaseDto}, validation_errors::ValidationErrors}, header::duplet_item::DupletItem, template::disease_bundle::DiseaseBundle};
 
 
 

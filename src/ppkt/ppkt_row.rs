@@ -4,31 +4,21 @@
 //! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
 use std::collections::HashMap;
-use std::fmt::{self};
-use std::ops::Deref;
 use std::sync::Arc;
-use std::time::Instant;
-
-use ontolius::ontology::csr::FullCsrOntology;
-use ontolius::term::simple::SimpleTerm;
 use ontolius::TermId;
-use polars::prelude::default_arrays;
-
-use crate::dto::case_dto::CaseDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
-use crate::header::individual_header::IndividualHeader;
+
 use crate::hpo::age_util::{self, check_hpo_table_cell};
-use crate::hpo::hpo_util;
-use crate::template::curie::Curie;
-use crate::error::{self, Error, Result};
-use crate::template::disease_bundle::{self, DiseaseBundle};
-use crate::template::gene_variant_bundle::{self, GeneVariantBundle};
+
+
+use crate::template::disease_bundle::{ DiseaseBundle};
+use crate::template::gene_variant_bundle::{ GeneVariantBundle};
 use crate::template::individual_bundle::IndividualBundle;
 use crate::template::pt_template::TemplateType;
-use crate::template::simple_label::SimpleLabel;
-use crate::template::header_duplet_row::{self, HeaderDupletRow};
+
+use crate::template::header_duplet_row::{ HeaderDupletRow};
 
 /// The index where the Mendelian demographic part sars
 const DEMOGRAPHIC_IDX:usize = 12;
@@ -345,10 +335,10 @@ impl PpktRow {
 
 #[cfg(test)]
 mod test {
-    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}, hpo::hpo_util::{self, HpoUtil}};
-    use lazy_static::lazy_static;
-    use ontolius::{io::OntologyLoaderBuilder, ontology::{csr::MinimalCsrOntology, OntologyTerms}, term};
-    use polars::io::SerReader;
+    
+    use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
+    use crate::dto::case_dto::CaseDto;
+
     use super::*;
     use std::{fs::File, io::BufReader, str::FromStr};
     use rstest::{fixture, rstest};

@@ -1,4 +1,4 @@
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// All information about a case (phenopacket) except for the HPO terms, which will be 
 /// transmitted in a separate step

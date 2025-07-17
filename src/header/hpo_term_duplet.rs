@@ -9,8 +9,7 @@ use lazy_static::lazy_static;
 use ontolius::TermId;
 
 use crate::dto::template_dto::{HeaderDupletDto};
-use crate::template::curie;
-use crate::error::{self, Error, Result};
+use crate::error::{Error, Result};
 use crate::hpo::age_util;
 
 
@@ -108,10 +107,10 @@ impl  HpoTermDuplet {
 
 #[cfg(test)]
 mod test {
-    use std::result;
+   
 
     use super::*;
-    use rstest::{fixture, rstest};
+   
 
 /*
     #[rstest]

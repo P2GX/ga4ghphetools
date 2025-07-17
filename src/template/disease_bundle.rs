@@ -2,7 +2,7 @@ use core::{result::Result, todo};
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::{template_dto::{DiseaseDto, TemplateDto}, validation_errors::ValidationErrors}, header::{disease_header::DiseaseHeader, individual_header::IndividualHeader}, template::pt_template::TemplateType};
+use crate::{dto::{template_dto::{DiseaseDto, TemplateDto}, validation_errors::ValidationErrors}, header::disease_header::DiseaseHeader, template::pt_template::TemplateType};
 
 
 static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {
@@ -35,7 +35,7 @@ impl DiseaseBundle {
         row: &Vec<String>,
         start_idx: usize
     ) -> std::result::Result<Self, ValidationErrors> {
-        let mut i = start_idx;
+        let i = start_idx;
         let bundle = Self::new(&row[i], &row[i+1]);
         let _ = bundle.do_qc()?;
         Ok(bundle)

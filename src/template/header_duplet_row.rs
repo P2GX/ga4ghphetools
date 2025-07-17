@@ -80,11 +80,11 @@ impl HeaderDupletRow {
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<Self, ValidationErrors> {
         Self::qc_matrix_dimensions(matrix)?;
-        /// first Q/C the constant part of the Mendelian header
+        // first Q/C the constant part of the Mendelian header
         let iheader = IndividualHeader::from_matrix(matrix, MENDELIAN_DEMOGRAPHIC_IDX)?;
         let dheader = DiseaseHeader::from_matrix(matrix, MENDELIAN_DISEASE_IDX)?;
         let gheader = GeneVariantHeader::from_matrix(matrix, MENDELIAN_GENE_VAR_IDX)?;
-        /// If we get here, the constant part is OK and we can check the HPO columns
+        // If we get here, the constant part is OK and we can check the HPO columns
         let mut hpo_duplet_list: Vec<HpoTermDuplet> = Vec::new();
         let n = matrix[0].len(); // previously checked in qc_matrix_dimensions
         for i in MENDELIAN_HPO_IDX..n {
@@ -314,8 +314,6 @@ impl HeaderDupletRow {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{error::Error, header::{hpo_term_duplet::HpoTermDuplet}};
-    use ontolius::{io::OntologyLoaderBuilder, ontology::csr::MinimalCsrOntology, term::simple::SimpleMinimalTerm};
     use rstest::{fixture, rstest};
 
     #[fixture]
@@ -334,12 +332,9 @@ mod test {
 
     #[rstest]
     fn test_n_fields() {
-        /// We expect a total of 17 fields before the HPO Term fields start
+        // We expect a total of 17 fields before the HPO Term fields start
         assert_eq!(17, HeaderDupletRow::n_mendelian_contant_fields())
     }
-
-
-   
 
 
 }
