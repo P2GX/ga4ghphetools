@@ -49,7 +49,7 @@ impl HpoaOnsetCalculator {
         Ok(())
     }
 
-    /// Get a SimpleMinimalTerm representing age from an age string (iso8601 or gestational)
+    /// Get a SimpleMinimalTerm representing age from an age string (iso8601 or gestationalclear)
     pub fn get_term_from_age_string(onset: &str) -> Result<SimpleMinimalTerm, String> {
         let label = if onset.starts_with("P") {
             Self::get_hpo_onset_term_from_iso8601(onset)

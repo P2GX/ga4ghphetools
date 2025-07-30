@@ -47,7 +47,7 @@ impl PmidCounter {
     }
 
     pub fn contains(&self, term_id: &str) -> bool {
-        self.term_map.contains_key(term_id),
+        self.term_map.contains_key(term_id)
     }
 
     pub fn get_freq(&self, tid: &str) -> Result<String,String> {
