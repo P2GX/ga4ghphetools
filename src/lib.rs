@@ -14,6 +14,7 @@
 mod error;
 mod header;
 mod hpo;
+mod hpoa;
 mod persistence;
 mod ppkt;
 mod template;

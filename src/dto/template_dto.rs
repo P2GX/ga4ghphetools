@@ -74,7 +74,7 @@ impl GeneVariantBundleDto {
 }
 
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseDto {
     pub disease_id: String,

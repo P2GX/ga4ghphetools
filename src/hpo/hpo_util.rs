@@ -60,7 +60,7 @@ impl HpoUtil {
     pub fn simple_terms_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Result<Vec<SimpleTerm>> {
         let mut simple_terms = vec![];
         for hpo_dto in hpo_dto_list {
-            let tid = TermId::from_str(&hpo_dto.term_id()).map_err(|e| Error::TermIdError { msg: format!("Could not map termId") })?;
+            let tid = TermId::from_str(hpo_dto.term_id()).map_err(|e| Error::TermIdError { msg: "Could not map termId".to_string() })?;
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 simple_terms.push(term.clone());
             } else {
