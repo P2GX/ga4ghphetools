@@ -1,8 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
-
-use ontolius::{term::simple::SimpleMinimalTerm, TermId};
-
-
+use std::collections::HashMap;
 
 
 #[derive(Debug, Clone, Copy)]

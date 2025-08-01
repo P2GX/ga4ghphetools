@@ -132,8 +132,6 @@ pub fn read_external_excel_to_df(file_path: &str, row_based: bool) -> Result<Col
     Ok(ColumnTableDto {
         file_name: file_path.to_string(),
         columns,
-        total_rows,
-        total_columns,
     })
 }
 

@@ -4,7 +4,7 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,  TemplateDto};
+use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::{VariantDto, VariantListDto};
 use crate::etl::etl_tools::EtlTools;

@@ -1,5 +1,5 @@
 use std::{collections::{HashMap, HashSet}, str::FromStr};
-use ontolius::{term::simple::{SimpleMinimalTerm, SimpleTerm}, TermId};
+use ontolius::{term::simple::SimpleMinimalTerm, TermId};
 use regex::Regex;
 use once_cell::sync::Lazy;
 

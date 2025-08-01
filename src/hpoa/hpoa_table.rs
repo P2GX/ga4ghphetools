@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, str::FromStr};
+use std::{collections::{HashMap, HashSet}};
 
 use chrono::Local;
 
@@ -16,7 +16,6 @@ impl HpoaTable {
 
     pub fn new(cohort: TemplateDto, biocurator: &str) -> Result<Self, String>{
         let todays_date = Local::now().format("%Y-%m-%d").to_string();
-        let mut row_list: Vec<HpoaTableRow> = Vec::new();
         if ! cohort.is_mendelian() {
             return Err(format!("Can only export Mendelian HPOA table, but this cohort is {:?}", 
                 cohort.cohort_type));

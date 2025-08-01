@@ -1,4 +1,4 @@
-use ontolius::{term::{simple::SimpleMinimalTerm, MinimalTerm}, Identified};
+
 
 use crate::dto::template_dto::DiseaseDto;
 

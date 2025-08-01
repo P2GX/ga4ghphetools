@@ -109,6 +109,7 @@ impl HpoaOnsetCalculator {
     }
 
 
+    /// Derive an HPO onset term from a Gestational Age string such as G32w3d
     pub fn get_hpo_onset_term_from_gestational_age(gestational_age: &str) -> Result<String, String> {
         let captures = age_util::GESTATIONAL_AGE_RE
             .captures(gestational_age)
@@ -118,8 +119,6 @@ impl HpoaOnsetCalculator {
             .get(1)
             .map_or(Ok(0), |m| m.as_str().parse())
             .map_err(|_| "Invalid weeks format")?;
-
-        println!("weekes {}", weeks);
 
         let label = if weeks >= 28 {
             "Third trimester onset"

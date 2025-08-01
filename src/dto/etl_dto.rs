@@ -38,8 +38,6 @@ pub enum EtlColumnType {
 pub struct ColumnTableDto {
     pub file_name: String,
     pub columns: Vec<ColumnDto>,
-    pub total_rows: usize,
-    pub total_columns: usize,
 }
 
 
