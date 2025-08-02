@@ -116,6 +116,8 @@ pub struct GeneTranscriptDto {
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseGeneDto {
     pub template_type: TemplateType,
+    /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
+    pub cohort_acronym: String,
     pub disease_dto_list: Vec<DiseaseDto>,
     pub gene_transcript_dto_list: Vec<GeneTranscriptDto>,
 }

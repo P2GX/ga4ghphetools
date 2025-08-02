@@ -225,10 +225,12 @@ impl PheToolsTemplate {
             gene_symbol: first.3.clone(),
             transcript: first.4.clone(),
         };
+        /// Note we will need to manually fix the cohort acronym for legacy files TODO possibly refactor
         let dg_dto = DiseaseGeneDto{
             template_type: TemplateType::Mendelian,
             disease_dto_list: vec![disease_dto],
             gene_transcript_dto_list: vec![gtr_dto],
+            cohort_acronym:  "TODO".to_string(),
         };
         Ok(dg_dto)
     }

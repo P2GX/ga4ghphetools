@@ -367,7 +367,7 @@ impl PheTools {
     pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Result<Vec<VariantDto>, String> {
         match self.manager.as_mut() {
             Some(manager) => {
-                Ok(manager.validate_variant_dto_list(variant_dto_list))
+                Ok(manager.validate_variant_dto_list(variant_dto_list)?)
             },
             None => {
                 Err("Variant manager not initialized".to_string())

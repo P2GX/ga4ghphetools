@@ -194,7 +194,7 @@ impl VariantManager {
         VariantListDto::new(evaluated_dto_list)
     }
 
-    pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Vec<VariantDto> {
+    pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Result<Vec<VariantDto>, String> {
         let mut evaluated_dto_list: Vec<VariantDto> = Vec::with_capacity(variant_dto_list.len());
         for dto in variant_dto_list {
             let variant = dto.variant_string();
@@ -226,10 +226,11 @@ impl VariantManager {
                 }
             }
         }
-        self.save_hgvs();
-        self.save_structural(); // write variants to cache.
+        // write variants to cache.
+        self.save_hgvs()?;
+        self.save_structural()?; 
         VariantDto::sort_variant_dtos(&mut evaluated_dto_list);
-        evaluated_dto_list
+        Ok(evaluated_dto_list)
     }
 
 
