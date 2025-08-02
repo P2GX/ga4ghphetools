@@ -31,6 +31,8 @@ use std::{ vec};
 pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
+    /// Data structure used to seed new entries in the template (info re: gene[s], disease[s])
+    disease_gene_dto: Option<DiseaseGeneDto>,
     /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
     template: Option<PheToolsTemplate>,
     /// Manager to validate and cache variants
@@ -62,6 +64,7 @@ impl PheTools {
     pub fn new(hpo: Arc<FullCsrOntology>) -> Self {
         PheTools {
             hpo,
+            disease_gene_dto: None,
             template: None,
             manager: None,
             etl_tools: None,
@@ -92,20 +95,23 @@ impl PheTools {
     /// # TODO - implemented Melded/Digenic
     pub fn create_pyphetools_template_from_seeds(
         &mut self,
-        dto: DiseaseGeneDto,
+        template_type: TemplateType,
+        dir_path: PathBuf,
         hpo_term_ids: Vec<TermId>,
     ) -> std::result::Result<TemplateDto, String> {
-        if dto.template_type != TemplateType::Mendelian {
+        if template_type != TemplateType::Mendelian {
             return Err("TemplateDto generation for non-Mendelian not implemented yet".to_string());
         }
+        let dirman = DirManager::new(dir_path)?;
         let hpo_arc = self.hpo.clone();
         let template = PheToolsTemplate::create_pyphetools_template(
-            dto, 
+            template_type, 
             hpo_term_ids, 
             hpo_arc
         ).map_err(|e| e.to_string())?;
         let dto = template.get_template_dto().map_err(|e| e.to_string())?;
         self.template = Some(template);
+        self.manager = Some(dirman);
         Ok(dto)
     }
 
@@ -248,29 +254,41 @@ impl PheTools {
 
 
     /// This function is called if the user enters information about a new phenopacket to
-    /// be added to an existing cohort. The function will need to merge this with the
-    /// existing cohort - this means mainly that we need to add na to terms used in this
-    /// cohort but not in the existing phenopacket, and vice verssa
+    /// be added to an existing cohort. The existing cohort is represented as cohort_dto
+    /// (the source of truth about the cohort data comes from the frontend, is updated here, and then
+    /// passed back to the frontend)
+    /// Note that disease_gene_dto should match with the genes/diseases information if previous rows
+    /// are present, otherwise it will seed the first row.
     /// # Arguments
     ///
-    /// * `individual_dto` - Information about the PMID, individual, demographivds
-    /// * `hpo_annotations` - list of observed/excluded HPO terms
+    /// * `individual_dto` - Information about the PMID, individual, demographics for the new row
+    /// * `hpo_annotations` - list of observed/excluded HPO terms for the new row
+    /// * `gene_variant_list` - list of genes/variants for the new row
+    /// * `disease_gene_dto` - diseases and genes/transcripts required for the new row 
+    /// * `cohort_dto` - previous cohort (source of truth), to which the new data will be added
     /// 
-    /// # Returns Ok if successful, otherwise list of strings representing errors
+    /// # Returns updated cohort DTO if successful, otherwise list of strings representing errors
     pub fn add_new_row_to_cohort(
         &mut self,
         individual_dto: IndividualBundleDto, 
         hpo_annotations: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantBundleDto>,
+        disease_gene_dto: DiseaseGeneDto,
         cohort_dto: TemplateDto) 
     -> Result<TemplateDto, Vec<String>> {
-        let mut updated_template: PheToolsTemplate = 
+        let mut pt_template: PheToolsTemplate = 
             PheToolsTemplate::from_dto( self.hpo.clone(), &cohort_dto)
                 .map_err(|e|vec![e])?;
-        updated_template.add_row_with_hpo_data(individual_dto, hpo_annotations,gene_variant_list,  cohort_dto)
-            .map_err(|verr| verr.errors().clone())?;
-        let template_dto = updated_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
-        self.template = Some(updated_template);
+        pt_template.add_row_with_hpo_data(
+            individual_dto, 
+            hpo_annotations, 
+            gene_variant_list, 
+            disease_gene_dto, 
+            cohort_dto)
+                .map_err(|verr| verr.errors().clone())?;
+
+        let template_dto = pt_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
+        self.template = Some(pt_template);
         Ok(template_dto)
     }
 
@@ -380,7 +398,7 @@ impl PheTools {
         self.manager.as_ref().map(|dirman| dirman.get_cohort_dir())
     }
 
-      /// Check correctness of a TemplateDto that was sent from the front end.
+    /// Check correctness of a TemplateDto that was sent from the front end.
     /// This operation is performed to see if the edits made in the front end are valid.
     /// If everything is OK, we can go ahead and save the template using another command.
     /// TODO, probably combine in the same command, and add a second command to write to disk

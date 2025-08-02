@@ -61,11 +61,10 @@ const EMPTY_STRING: &str = "";
 impl PheToolsTemplate {
     /// Create the initial pyphetools template using HPO seed terms
     pub fn create_pyphetools_template_mendelian(
-        dis_gene_dto: DiseaseGeneDto,
         hpo_term_ids: Vec<TermId>,
         // Reference to the Ontolius Human Phenotype Ontology Full CSR object
         hpo: Arc<FullCsrOntology>,
-    ) -> Result<Self> {
+    ) -> std::result::Result<Self, String> {
         let mut hp_header_duplet_list: Vec<HpoTermDuplet> = Vec::new();
         for hpo_id in hpo_term_ids {
             match hpo.term_by_id(&hpo_id) {
@@ -74,9 +73,7 @@ impl PheToolsTemplate {
                     hp_header_duplet_list.push(hpo_duplet);
                 }
                 None => {
-                    return Err(Error::HpIdNotFound {
-                        id: hpo_id.to_string(),
-                    });
+                    return Err(format!("Could not find HPO identifier '{}'", hpo_id.to_string()));
                 }
             }
         }
@@ -91,6 +88,9 @@ impl PheToolsTemplate {
         })
     }
 
+    /**
+     * Transform a DTO received from the frontend into a PheToolsTemplate object.
+     */
     pub fn from_dto(
         hpo: Arc<FullCsrOntology>,
         cohort_dto: &TemplateDto) 
@@ -101,16 +101,16 @@ impl PheToolsTemplate {
             .iter()
             .map(|dto| dto.clone().to_hpo_duplet())
             .collect();
-        let updated_header: HeaderDupletRow = HeaderDupletRow::from_hpo_duplets(hpo_duplets, tt);
-        let arc_header = Arc::new(updated_header);
-        let updated_ppkt_rows = cohort_dto.rows.iter()
+        let header_duplet_row: HeaderDupletRow = HeaderDupletRow::from_hpo_duplets(hpo_duplets, tt);
+        let arc_header = Arc::new(header_duplet_row);
+        let ppkt_rows = cohort_dto.rows.iter()
             .map(|dto| PpktRow::from_dto(dto, arc_header.clone())).collect();
-
+        println!("{}{}-from dto.", file!(), line!());
         Ok(Self { 
             header: arc_header.clone(), 
             template_type: tt, 
             hpo: hpo.clone(), 
-            ppkt_rows: updated_ppkt_rows 
+            ppkt_rows 
         })
     }
     
@@ -157,10 +157,10 @@ impl PheToolsTemplate {
     }
 
     pub fn create_pyphetools_template(
-        dg_dto: DiseaseGeneDto,
+        template_type: TemplateType,
         hpo_term_ids: Vec<TermId>,
         hpo: Arc<FullCsrOntology>,
-    ) -> Result<PheToolsTemplate> {
+    ) -> std::result::Result<PheToolsTemplate, String> {
         let mut smt_list: Vec<SimpleMinimalTerm> = Vec::new();
         for hpo_id in &hpo_term_ids {
             match hpo.term_by_id(hpo_id) {
@@ -170,14 +170,17 @@ impl PheToolsTemplate {
                     smt_list.push(smt);
                 }
                 None => {
-                    return Err(Error::HpIdNotFound {
-                        id: hpo_id.to_string(),
-                    });
+                    return Err(format!("Could not find HPO identifier '{}'", hpo_id.to_string()));
                 }
             }
         }
-        let result = Self::create_pyphetools_template_mendelian(dg_dto, hpo_term_ids, hpo)?;
-        Ok(result)
+        if template_type == TemplateType::Mendelian {
+            let result = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo)?;
+            Ok(result)
+        } else {
+            Err(format!("Creation of template of type {:?} not supported", template_type))
+        }
+        
     }
 
 
@@ -306,6 +309,7 @@ impl PheToolsTemplate {
         individual_dto: IndividualBundleDto,
         hpo_dto_items: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantBundleDto>,
+        disease_gene_dto: DiseaseGeneDto,
         cohort_dto: TemplateDto
     ) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
@@ -340,12 +344,12 @@ impl PheToolsTemplate {
         // 1. get map with TermId and Value (e.g., observed) for the new terms
         let mut tid_to_value_map: HashMap<TermId, String> = HashMap::new();
         for dto in   hpo_dto_items {
-            println!("HERE -- {:?}\n\n", &dto);
             let tid = dto.ontolius_term_id().map_err(|_| 
                     ValidationErrors::from_one_err(format!("Could not create TermId from {:?}", &dto)))?;
             tid_to_value_map.insert(tid, dto.entry().to_string());
         }
-        let new_ppkt_result = PpktRow::from_tid_to_value_map(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,  cohort_dto);
+        let new_ppkt_result = PpktRow::from_tid_to_value_map(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,  disease_gene_dto, cohort_dto);
+          println!("{}{} -- result id OK?= n={}\n\n",file!(), line!(), new_ppkt_result.is_ok());
         let ppkt_row = match new_ppkt_result {
             Ok(row) => row,
             Err(msg) => {
@@ -353,10 +357,11 @@ impl PheToolsTemplate {
                 return Err(verrs);
             }
         };
+        println!("{}{} -- ppkt_row={:?}\n\n",file!(), line!(), ppkt_row);
         updated_ppkt_rows.push(ppkt_row);
         self.header = updated_hdr_arc;
         self.ppkt_rows = updated_ppkt_rows;
-        
+         println!("{}{} -- ppkt rows n={}\n\n",file!(), line!(), self.ppkt_rows.len());
         
         verrs.ok()
     }

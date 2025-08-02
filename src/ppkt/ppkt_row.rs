@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
+use crate::dto::template_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
@@ -87,9 +87,10 @@ impl PpktRow {
         individual_dto: IndividualBundleDto,
         gene_variant_list: Vec<GeneVariantBundleDto>,
         tid_to_value_map: HashMap<TermId, String>, 
+        disease_gene_dto: DiseaseGeneDto,
         cohort_dto: TemplateDto) -> std::result::Result<Self, String> {
         if cohort_dto.cohort_type != TemplateType::Mendelian {
-            panic!("from_map: Melded not supported");
+            panic!("from_map: Melded/Digenic not supported");
         }
         let mut items = Vec::with_capacity(header.hpo_count());
         for hduplet in header.hpo_duplets() {
@@ -98,7 +99,7 @@ impl PpktRow {
             items.push(value);
         }
         let ibundle = IndividualBundle::from_dto(individual_dto);
-        let disease_bundle_list = DiseaseBundle::from_cohort_dto(&cohort_dto)?;
+        let disease_bundle_list = DiseaseBundle::from_disease_gene_dto(disease_gene_dto);
         let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 
             individual_bundle: ibundle, 
