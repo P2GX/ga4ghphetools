@@ -204,18 +204,32 @@ impl From<DupletItem> for HeaderDupletDto {
     }
 }
 
-
+/// This is the representation of the cohort (source of truth)
+/// There is a corresponding typescript DTO in the front-end
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemplateDto {
+    /// Mendelian, Melded, or Digenic
     pub cohort_type: TemplateType,
+    /// The diseases and genes in focus for the current cohort
+    pub disease_gene_dto: DiseaseGeneDto,
+    /// The HPO terms used to annotate the cohort
     pub hpo_headers: Vec<HeaderDupletDto>,
+    /// The phenopackets (rows) in the current cohort
     pub rows: Vec<RowDto>
 }
 
 impl TemplateDto {
-    pub fn mendelian(hpo_headers: Vec<HeaderDupletDto>, rows: Vec<RowDto>) -> Self {
-        Self { cohort_type: TemplateType::Mendelian, hpo_headers, rows }
+    pub fn mendelian(
+            dg_dto: DiseaseGeneDto,
+            hpo_headers: Vec<HeaderDupletDto>, 
+            rows: Vec<RowDto>) -> Self {
+        Self { 
+            cohort_type: TemplateType::Mendelian, 
+            disease_gene_dto: dg_dto,
+            hpo_headers, 
+            rows 
+        }
     }
 
     pub fn template_type(&self) -> TemplateType {

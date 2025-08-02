@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
+use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
 use crate::dto::validation_errors::ValidationErrors;
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
@@ -82,12 +82,11 @@ impl PpktRow {
     /// * `gene_variant_list` - genotypes
     /// * `tid_to_value_map` - this has values (e.g., observed, na, P32Y2M) for which we have information in the new phenopacket
     /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
-    pub fn from_tid_to_value_map(
+    pub fn from_dtos(
         header: Arc<HeaderDupletRow>, 
         individual_dto: IndividualBundleDto,
         gene_variant_list: Vec<GeneVariantBundleDto>,
         tid_to_value_map: HashMap<TermId, String>, 
-        disease_gene_dto: DiseaseGeneDto,
         cohort_dto: TemplateDto) -> std::result::Result<Self, String> {
         if cohort_dto.cohort_type != TemplateType::Mendelian {
             panic!("from_map: Melded/Digenic not supported");
@@ -98,7 +97,10 @@ impl PpktRow {
             let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
             items.push(value);
         }
+         println!("from_dtos {}:l.{} individual dto {:?}", file!(), line!(), individual_dto);
         let ibundle = IndividualBundle::from_dto(individual_dto);
+        println!("from_dtos {}:l.{} individual bndle {:?}", file!(), line!(), ibundle);
+        let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
         let disease_bundle_list = DiseaseBundle::from_disease_gene_dto(disease_gene_dto);
         let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 
@@ -178,7 +180,7 @@ impl PpktRow {
         } else {
             Ok(Self{ 
                 header: header_duplet_row, 
-                individual_bundle: todo!(), 
+                individual_bundle: IndividualBundle::from_dto(individual_dto), 
                 disease_bundle_list: todo!(), 
                 gene_var_bundle_list: todo!(), 
                 hpo_content: todo!() })

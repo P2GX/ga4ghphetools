@@ -1,6 +1,5 @@
 // src/variant/hgvs_variant.rs
 
-use phenopackets::ga4gh::vrsatile::v1::{MoleculeContext, VariationDescriptor};
 use rand::{self, distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
@@ -123,8 +122,9 @@ impl HgvsVariant {
         self.genotype = Some("hemizygous".to_string())
     }
 
-
-    fn to_variant_interpretation(&self) -> VariationDescriptor {
+/*  
+    OBSOLETE, see ppkt_exporter
+fn to_variant_interpretation(&self) -> VariationDescriptor {
         VariationDescriptor{ 
             id: todo!(), 
             variation: todo!(), 
@@ -142,7 +142,7 @@ impl HgvsVariant {
             allelic_state: None,  
         }
     }
-
+*/
 
 }
 

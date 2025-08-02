@@ -14,7 +14,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{hpo_term_dto::HpoTermDto, template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
+use crate::{dto::{hpo_term_dto::HpoTermDto, template_dto::{DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -46,6 +46,8 @@ impl FromStr for TemplateType {
 pub struct PheToolsTemplate {
     header: Arc<HeaderDupletRow>,
     template_type: TemplateType,
+    /// Data structure used to seed new entries in the template (info re: gene[s], disease[s])
+    disease_gene_dto: DiseaseGeneDto,
      /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
      /// One row for each individual (phenopacket) in the cohort
@@ -64,6 +66,7 @@ impl PheToolsTemplate {
         hpo_term_ids: Vec<TermId>,
         // Reference to the Ontolius Human Phenotype Ontology Full CSR object
         hpo: Arc<FullCsrOntology>,
+        disease_gene_dto: DiseaseGeneDto,
     ) -> std::result::Result<Self, String> {
         let mut hp_header_duplet_list: Vec<HpoTermDuplet> = Vec::new();
         for hpo_id in hpo_term_ids {
@@ -83,6 +86,7 @@ impl PheToolsTemplate {
         Ok(Self {
             header: hdr_arc,
             template_type: TemplateType::Mendelian,
+            disease_gene_dto,
             hpo: hpo.clone(),
             ppkt_rows: vec![]
         })
@@ -109,6 +113,7 @@ impl PheToolsTemplate {
         Ok(Self { 
             header: arc_header.clone(), 
             template_type: tt, 
+            disease_gene_dto: cohort_dto.disease_gene_dto.clone(),
             hpo: hpo.clone(), 
             ppkt_rows 
         })
@@ -121,7 +126,7 @@ impl PheToolsTemplate {
             .iter()
             .map(RowDto::from_ppkt_row)
             .collect();
-        Ok(TemplateDto::mendelian(header_dto, row_dto_list))
+        Ok(TemplateDto::mendelian(self.disease_gene_dto.clone(), header_dto, row_dto_list, ))
     }
 
     pub fn from_template_dto(
@@ -143,6 +148,7 @@ impl PheToolsTemplate {
         let template = PheToolsTemplate {
             header: header_arc.clone(),
             template_type: TemplateType::Mendelian,
+            disease_gene_dto: template_dto.disease_gene_dto.clone(),
             hpo,
             ppkt_rows,
         };
@@ -158,6 +164,7 @@ impl PheToolsTemplate {
 
     pub fn create_pyphetools_template(
         template_type: TemplateType,
+        disease_gene_dto: DiseaseGeneDto,
         hpo_term_ids: Vec<TermId>,
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<PheToolsTemplate, String> {
@@ -175,7 +182,7 @@ impl PheToolsTemplate {
             }
         }
         if template_type == TemplateType::Mendelian {
-            let result = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo)?;
+            let result = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo, disease_gene_dto)?;
             Ok(result)
         } else {
             Err(format!("Creation of template of type {:?} not supported", template_type))
@@ -183,8 +190,53 @@ impl PheToolsTemplate {
         
     }
 
+    /// We are extract a DiseaseGeneDto from the Excel files (version 1), all of which are
+    /// Mendelian. We know the columns are
+    /// (0) "PMID", (1) "title", (2) "individual_id", (3)"comment", 
+    /// (4*) "disease_id", (5*) "disease_label", (6*) "HGNC_id", (7*) "gene_symbol", 
+    ///  (8*)  "transcript", (9) "allele_1", (10) "allele_2", (11) "variant.comment", 
+    ///    (12) "age_of_onset", (13)"age_at_last_encounter", (14)  "deceased", (15) "sex", (16) "HPO", 
+    /// The columns with asterisk are what we need
+    /// Note: This function should be deleted after the Excel files have been converted.
+    fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseGeneDto, String> {
+        let rows: Vec<&Vec<String>> = matrix.iter().skip(2).collect();
+        if rows.is_empty() {
+            return Err("Could not extract DTO because less than three rows found".to_string());
+        };
+        let mut extracted_data: Vec<(String, String, String, String, String)> = Vec::new();
+        for (row_idx, row) in rows.iter().enumerate() {
+            if row.len() <= 16 {
+                return Err(format!("Row {} (after skipping 2) has only {} columns, need at least 16", 
+                                row_idx, row.len()));
+            }
+            extracted_data.push((row[4].clone(), row[5].clone(), row[6].clone(), row[7].clone(), row[8].clone()));
+        }
+        let first = &extracted_data[0];
+        let all_identical = extracted_data.iter().all(|tuple| tuple == first);
+        if ! all_identical {
+            return Err("DiseaseGeneDto-related columns are not equal in all rows - requires manual check".to_string());
+        }
+        let disease_dto = DiseaseDto{
+            disease_id: first.0.clone(),
+            disease_label: first.1.clone(),
+        };
+        let gtr_dto = GeneTranscriptDto{
+            hgnc_id: first.2.clone(),
+            gene_symbol: first.3.clone(),
+            transcript: first.4.clone(),
+        };
+        let dg_dto = DiseaseGeneDto{
+            template_type: TemplateType::Mendelian,
+            disease_dto_list: vec![disease_dto],
+            gene_transcript_dto_list: vec![gtr_dto],
+        };
+        Ok(dg_dto)
+    }
 
-
+    /// Extract a template from the version 1 Excel files (that will be deprecated)
+    /// These files do not have a disease_gene_dto element, but we know that all the
+    /// excel files share the fields we will need to extract this data. 
+    /// Note: This function should be deleted after the Excel files have been converted.
     pub fn from_mendelian_template(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
@@ -196,6 +248,8 @@ impl PheToolsTemplate {
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
         let mut ppt_rows: Vec<PpktRow> = Vec::new();
+        let dg_dto = Self::get_disease_dto_from_excel(&matrix)
+            .map_err(|e| ValidationErrors::from_one_err(e))?;
         for row in matrix.into_iter().skip(HEADER_ROWS) {
             let hdr_clone = hdr_arc.clone();
             let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
@@ -205,10 +259,10 @@ impl PheToolsTemplate {
         if verrs.has_error() {
             return Err(verrs);
         }
-
         Ok(Self { 
                 header: hdr_arc, 
                 template_type: TemplateType::Mendelian,
+                disease_gene_dto: dg_dto,
                 hpo: hpo.clone(),
                 ppkt_rows: ppt_rows
             })
@@ -309,7 +363,6 @@ impl PheToolsTemplate {
         individual_dto: IndividualBundleDto,
         hpo_dto_items: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantBundleDto>,
-        disease_gene_dto: DiseaseGeneDto,
         cohort_dto: TemplateDto
     ) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
@@ -348,7 +401,7 @@ impl PheToolsTemplate {
                     ValidationErrors::from_one_err(format!("Could not create TermId from {:?}", &dto)))?;
             tid_to_value_map.insert(tid, dto.entry().to_string());
         }
-        let new_ppkt_result = PpktRow::from_tid_to_value_map(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,  disease_gene_dto, cohort_dto);
+        let new_ppkt_result = PpktRow::from_dtos(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,   cohort_dto);
           println!("{}{} -- result id OK?= n={}\n\n",file!(), line!(), new_ppkt_result.is_ok());
         let ppkt_row = match new_ppkt_result {
             Ok(row) => row,
@@ -379,12 +432,12 @@ impl PheToolsTemplate {
     pub fn extract_phenopackets(
         &self,
         hgvs_dict: &HashMap<String, HgvsVariant>,
-        structural_dict: &HashMap<String, StructuralVariant>) 
+        structural_dict: &HashMap<String, StructuralVariant>,
+        orcid: &str) 
     -> std::result::Result<Vec<Phenopacket>, String> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
         let hpo_version = self.hpo.version();
-        let creator_orcid = "TEMP_ORCID";
-        let ppkt_exporter = PpktExporter::new(hpo_version, creator_orcid);
+        let ppkt_exporter = PpktExporter::new(hpo_version, orcid);
         for row in &self.ppkt_rows {
             match ppkt_exporter.extract_phenopacket(row,  hgvs_dict,
                 structural_dict) {

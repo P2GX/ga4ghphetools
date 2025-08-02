@@ -31,8 +31,6 @@ use std::{ vec};
 pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
-    /// Data structure used to seed new entries in the template (info re: gene[s], disease[s])
-    disease_gene_dto: Option<DiseaseGeneDto>,
     /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
     template: Option<PheToolsTemplate>,
     /// Manager to validate and cache variants
@@ -64,7 +62,6 @@ impl PheTools {
     pub fn new(hpo: Arc<FullCsrOntology>) -> Self {
         PheTools {
             hpo,
-            disease_gene_dto: None,
             template: None,
             manager: None,
             etl_tools: None,
@@ -96,6 +93,7 @@ impl PheTools {
     pub fn create_pyphetools_template_from_seeds(
         &mut self,
         template_type: TemplateType,
+        disease_gene_dto: DiseaseGeneDto,
         dir_path: PathBuf,
         hpo_term_ids: Vec<TermId>,
     ) -> std::result::Result<TemplateDto, String> {
@@ -106,6 +104,7 @@ impl PheTools {
         let hpo_arc = self.hpo.clone();
         let template = PheToolsTemplate::create_pyphetools_template(
             template_type, 
+            disease_gene_dto,
             hpo_term_ids, 
             hpo_arc
         ).map_err(|e| e.to_string())?;
@@ -258,7 +257,7 @@ impl PheTools {
     /// (the source of truth about the cohort data comes from the frontend, is updated here, and then
     /// passed back to the frontend)
     /// Note that disease_gene_dto should match with the genes/diseases information if previous rows
-    /// are present, otherwise it will seed the first row.
+    /// are present, otherwise it will seed a new template
     /// # Arguments
     ///
     /// * `individual_dto` - Information about the PMID, individual, demographics for the new row
@@ -273,7 +272,6 @@ impl PheTools {
         individual_dto: IndividualBundleDto, 
         hpo_annotations: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantBundleDto>,
-        disease_gene_dto: DiseaseGeneDto,
         cohort_dto: TemplateDto) 
     -> Result<TemplateDto, Vec<String>> {
         let mut pt_template: PheToolsTemplate = 
@@ -283,7 +281,6 @@ impl PheTools {
             individual_dto, 
             hpo_annotations, 
             gene_variant_list, 
-            disease_gene_dto, 
             cohort_dto)
                 .map_err(|verr| verr.errors().clone())?;
 
@@ -413,25 +410,27 @@ impl PheTools {
 
     pub fn export_ppkt(
         &mut self,
-        cohort_dto: &TemplateDto) -> Result<Vec<Phenopacket>, String> {
-            let template = self.validate_template(cohort_dto)
-                .map_err(|_| "Could not validate template. Try again".to_string())?;
-            self.template = Some(template);
-            let template = match &self.template {
-            Some(template) => template,
-                None => {
-                    return Err("Phenopacket Template not initialized".to_string());
-                },
-            };
-            let dir_manager = match self.manager.as_mut() {
-                Some(manager) => manager,
-                None => {
-                    return Err("Variant Manager Template not initialized".to_string());
-                }
-            };
-            let hgvs_dict = dir_manager.get_hgvs_dict();
-            let structural_dict = dir_manager.get_structural_dict();
-            template.extract_phenopackets(hgvs_dict, structural_dict)
+        cohort_dto: &TemplateDto,
+        orcid: &str) 
+    -> Result<Vec<Phenopacket>, String> {
+        let template = self.validate_template(cohort_dto)
+            .map_err(|_| "Could not validate template. Try again".to_string())?;
+        self.template = Some(template);
+        let template = match &self.template {
+        Some(template) => template,
+            None => {
+                return Err("Phenopacket Template not initialized".to_string());
+            },
+        };
+        let dir_manager = match self.manager.as_mut() {
+            Some(manager) => manager,
+            None => {
+                return Err("Variant Manager Template not initialized".to_string());
+            }
+        };
+        let hgvs_dict = dir_manager.get_hgvs_dict();
+        let structural_dict = dir_manager.get_structural_dict();
+        template.extract_phenopackets(hgvs_dict, structural_dict, orcid)
     }
 
     
@@ -447,8 +446,14 @@ impl PheTools {
         Ok(())
     }
     
-    pub fn write_ppkt_list(&mut self,  cohort_dto: TemplateDto, dir: PathBuf) -> Result<(), String> {
-        let ppkt_list: Vec<Phenopacket> = self.export_ppkt(&cohort_dto)?;
+
+    /// Write phenopackets to file that correspond to the current TemplateDto
+    pub fn write_ppkt_list(
+        &mut self,  
+        cohort_dto: TemplateDto, 
+        dir: PathBuf,
+        orcid: String) -> Result<(), String> {
+        let ppkt_list: Vec<Phenopacket> = self.export_ppkt(&cohort_dto, &orcid)?;
         for ppkt in ppkt_list {
             let title = ppkt.id.clone() + ".json";
             let mut file_path = dir.clone();
