@@ -70,7 +70,7 @@ fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
 
 fn test_load_etl(hpo_arc: Arc<FullCsrOntology>) {
     let template_path = "/Users/robin/data/hpo/etlTest.xlsx";
-    let mut etl_tools = EtlTools::new(hpo_arc, template_path).unwrap();
+    let etl_tools = EtlTools::new(hpo_arc, template_path, false).unwrap();
     println!("Created etl_tools");
     println!("{}", etl_tools.raw_table());
 }

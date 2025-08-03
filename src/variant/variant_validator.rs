@@ -10,8 +10,6 @@ const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/var
 
 const GENOME_ASSEMBLY_HG38: &str = "hg38";
 
-const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
-
 pub struct VariantValidator {
     genome_assembly: String,
 }
@@ -32,15 +30,7 @@ fn get_variant_validator_url(
 }
 
 impl VariantValidator {
-    pub fn new(genome_build: &str) -> Result<Self, String> {
-        if !ACCEPTABLE_GENOMES.contains(&genome_build) {
-            return Err(format!("genome_build \"{}\" not recognized", genome_build));
-        }
-        Ok(Self {
-            genome_assembly: genome_build.to_string(),
-        })
-    }
-
+    
     pub fn hg38() -> Self {
         Self {
             genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
@@ -64,8 +54,6 @@ impl VariantValidator {
         transcript: &str
     ) -> Result<HgvsVariant, String> 
     {
-        let verrs = ValidationErrors::new();
-        println!("{}{} encode_hgvs -- {}", file!(), line!(), hgvs);
         let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
         let response: Value = get(&url)
             .map_err(|e| format!("Could not map {hgvs}: {e}"))?
@@ -156,7 +144,6 @@ impl VariantValidator {
 
     
     fn extract_variant_validator_warnings(response: &Value) -> Result<(), String> {
-        let verrs = ValidationErrors::new();
         if let Some(flag) = response.get("flag").and_then(|f| f.as_str()) {
             if flag == "warning" {
                 if let Some(warnings) = response
@@ -210,7 +197,7 @@ mod tests {
     #[test]
     #[ignore = "runs with API"]
     fn test_variant_validator() {
-        let vvalidator = VariantValidator::new("hg38").unwrap();
+        let vvalidator = VariantValidator::hg38();
         let json = vvalidator.encode_hgvs("c.8230C>T", "NM_000138.5");
         assert!(json.is_ok());
         let json = json.unwrap();
@@ -220,7 +207,7 @@ mod tests {
     #[test]
     #[ignore = "runs with API"]
     fn test_variant_validator_invalid() {
-        let vvalidator = VariantValidator::new("hg38").unwrap();
+        let vvalidator = VariantValidator::hg38();
         // This is an invalid HGVS because the reference base should be C and not G
         let result = vvalidator.encode_hgvs("c.8230G>T", "NM_000138.5");
         assert!(result.is_err());

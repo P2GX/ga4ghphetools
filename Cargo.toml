@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.3.21"
+version = "0.3.22"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -30,7 +30,7 @@ lazy_static = "1.5.0"
 once_cell = "1.21.3"
 ontolius = "0.5.3"
 phenopackets = "0.2.2-post1"
-phenopacket_tools = { git = " https://github.com/P2GX/phenopacket_tools.git", tag = "0.2.1" }
+phenopacket_tools = { git = " https://github.com/P2GX/phenopacket_tools.git", tag = "0.2.2" }
 polars = "0.49.1"
 prost = "0.14.1" 
 prost-types = "0.14.1"

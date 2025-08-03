@@ -164,7 +164,7 @@ mod tests {
     #[rstest]
     #[ignore = "testing API"]
     fn test_hgvs_c_fbn1() {
-        let vvalidator = VariantValidator::new("hg38").unwrap();
+        let vvalidator = VariantValidator::hg38();
         let result = vvalidator.encode_hgvs("c.8242G>T", "NM_000138.5");
         assert!(result.is_ok());
         let hgvs_var = result.unwrap();

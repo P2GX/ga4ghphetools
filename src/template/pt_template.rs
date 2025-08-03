@@ -1,7 +1,8 @@
-//! PptTemplate2
+//! PheToolsTemplate
 //!
 //! The struct that contains all data needed to create or edit a cohort of phenopackets
-//! in "pyphetools" format, and to export GA4GH Phenopackets.
+//! in "pyphetools" format, and to export GA4GH Phenopackets. The struct is created from the TemplateDto
+//! and is used to Q/C, input, and output the serialized data.
 //! Each template has the following main members
 //! - HeaderDupletRow (defines each of the columns)
 //! - A list of PpktRow (one per phenopacket)
@@ -20,7 +21,6 @@ use crate::{
 };
 
 
-/// Phetools can be used to curate cases with Mendelian disease or with melded phenotypes
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TemplateType {
@@ -53,12 +53,6 @@ pub struct PheToolsTemplate {
      /// One row for each individual (phenopacket) in the cohort
     ppkt_rows: Vec<PpktRow>
 }
-
-const PMID_COL: usize = 0;
-const TITLE_COL: usize = 1;
-const INDIVIDUAL_ID_COL: usize = 2;
-const INDIVIDUAL_COMMENT: usize = 3;
-const EMPTY_STRING: &str = "";
 
 impl PheToolsTemplate {
     /// Create the initial pyphetools template using HPO seed terms
@@ -225,7 +219,7 @@ impl PheToolsTemplate {
             gene_symbol: first.3.clone(),
             transcript: first.4.clone(),
         };
-        /// Note we will need to manually fix the cohort acronym for legacy files TODO possibly refactor
+        // Note we will need to manually fix the cohort acronym for legacy files TODO possibly refactor
         let dg_dto = DiseaseGeneDto{
             template_type: TemplateType::Mendelian,
             disease_dto_list: vec![disease_dto],
@@ -568,6 +562,7 @@ mod test {
         };
         DiseaseGeneDto{ 
             template_type: TemplateType::Mendelian, 
+            cohort_acronym: "FOP".to_string(),
             disease_dto_list: vec![dx_dto], 
             gene_transcript_dto_list: vec![gv_dto]
         }

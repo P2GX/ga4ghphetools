@@ -23,11 +23,10 @@ use super::ppkt_row::PpktRow;
 use phenopacket_tools::builders::builder::Builder;
 
 
-
 const DEFAULT_HGNC_VERSION: &str =  "06/01/25";
 const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
 const DEFAULT_SEQUENCE_ONTOLOGY_VERSION: &str =  "2024-11-18";
-const DEFAULT_GENO_VERSION: &str =  "2023-10-08";
+const DEFAULT_GENO_VERSION: &str =  "2025-07-25";
 
 pub struct PpktExporter {
     hpo_version: String,
@@ -48,8 +47,9 @@ impl Error {
 impl PpktExporter {
 
 
-    pub fn new(hpo_version: &str, 
-                creator_orcid: &str,
+    pub fn new(
+        hpo_version: &str, 
+        creator_orcid: &str,
     ) -> Self {
         Self::from_versions(
             hpo_version,
@@ -138,18 +138,16 @@ impl PpktExporter {
         &self.hgnc_version
     } 
 
-    /// TODO possibly the PpktExporter has state (created, etc, also dynamically get the time string)
+    /// Create GA4GH MetaData object from version numbers using functions from phenopacket_tools
     pub fn get_meta_data(&self, ppkt_row: &PpktRow) -> Result<MetaData> {
-
-        let created_by = "Earnest B. Biocurator";
+        let created_by = self.orcid_id.clone();
         let mut meta_data = Builder::meta_data_now(created_by);
         let hpo = phenopacket_tools::builders::resources::Resources::hpo_version(self.hpo_version());
         let geno = phenopacket_tools::builders::resources::Resources::geno_version(self.geno_version());
         let so = phenopacket_tools::builders::resources::Resources::geno_version(self.so_version());
         let omim = phenopacket_tools::builders::resources::Resources::omim_version(self.omim_version());
+        let hgnc = phenopacket_tools::builders::resources::Resources::hgnc_version(&self.hgnc_version());
         let indvl_dto = ppkt_row.get_individual_dto();
-        // TODO add HGNC
-        //let hgnc =  phenopacket_tools::builders::resources::Resources::hgnc_version(self.omim_version());
         let ext_res = ExternalReference{ 
             id: indvl_dto.pmid, 
             reference: String::default(), 
@@ -159,6 +157,7 @@ impl PpktExporter {
         meta_data.resources.push(geno);
         meta_data.resources.push(so);
         meta_data.resources.push(omim);
+        meta_data.resources.push(hgnc);
         meta_data.external_references.push(ext_res);
         Ok(meta_data)
     }
