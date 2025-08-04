@@ -90,10 +90,13 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Stri
 }
 
 
-/// Function to input an external Excel file for ETL purposes.
+/// Function to input an external Excel file for ETL purposes (not the version 1 Excel templates from phenopacket store!)
 /// Let's use a separate file for now TODO - consider sharing code with above once API/strategy are clear.
 /// We may want to allow some automatic error correction here, we can correct minor errors in the GUI!
-pub fn read_external_excel_to_df(file_path: &str, row_based: bool) -> Result<ColumnTableDto, String> {
+pub fn read_external_excel_to_df(
+    file_path: &str, 
+    row_based: bool) 
+-> Result<ColumnTableDto, String> {
     let mut matrix = get_list_of_rows_from_excel(file_path)?;
     if matrix.len() < 3 {
         return Err(format!("Input file with insufficient rows ({})", matrix.len()));

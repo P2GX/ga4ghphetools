@@ -233,6 +233,12 @@ impl PheToolsTemplate {
     /// These files do not have a disease_gene_dto element, but we know that all the
     /// excel files share the fields we will need to extract this data. 
     /// Note: This function should be deleted after the Excel files have been converted.
+    /// 
+    /// # Parameters
+    /// 
+    /// * `matrix` - A 2D vector representing Excel data as rows and columns of string values
+    /// * `hpo` - Shared reference to the Human Phenotype Ontology for validation and processing
+    /// * `fix_errors` - Whether to attempt automatic correction of validation errors during processing
     pub fn from_mendelian_template(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,

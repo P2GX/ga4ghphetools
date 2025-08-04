@@ -144,7 +144,7 @@ impl PpktExporter {
         let mut meta_data = Builder::meta_data_now(created_by);
         let hpo = phenopacket_tools::builders::resources::Resources::hpo_version(self.hpo_version());
         let geno = phenopacket_tools::builders::resources::Resources::geno_version(self.geno_version());
-        let so = phenopacket_tools::builders::resources::Resources::geno_version(self.so_version());
+        let so = phenopacket_tools::builders::resources::Resources::so_version(self.so_version());
         let omim = phenopacket_tools::builders::resources::Resources::omim_version(self.omim_version());
         let hgnc = phenopacket_tools::builders::resources::Resources::hgnc_version(&self.hgnc_version());
         let indvl_dto = ppkt_row.get_individual_dto();

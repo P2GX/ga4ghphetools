@@ -1,6 +1,7 @@
 // src/main.rs
 use clap::{command, Parser};
 use ga4ghphetools::etl::etl_tools::EtlTools;
+use ga4ghphetools::PheTools;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::path::Path;
 use std::sync::Arc;
@@ -22,7 +23,7 @@ struct Cli {
     verbose: bool,
 }
 
-use ga4ghphetools::PheTools;
+
 
 fn main() {
     let cli = Cli::parse();
