@@ -119,6 +119,34 @@ impl HpoUtil {
         Ok(())
     }
 
+    /// Update the HPO duplets with the current term names from the ontology
+    /// This will automatically update term labels if they have changed
+    /// This function is only used for the legacy Excel files and we will
+    /// need a better solution for the new JSON templates
+    pub fn update_hpo_duplets(
+        &self,
+        hpo_duplets: &Vec<HpoTermDuplet>,
+    ) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {
+        let mut updated_duplets = vec![];
+        let verrs = ValidationErrors::new();
+        for duplet in hpo_duplets {
+            let tid = TermId::from_str(&duplet.row2()).unwrap_or_else(|_| {
+                // If this happens, then we need to revise the Excel file
+                // It is not possible to recover from this error
+                panic!("Failed to parse TermId from row2: {}", duplet.row2())
+            });
+            if let Some(term) = self.hpo.term_by_id(&tid) {
+                updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
+            } else {
+                let verrs = ValidationErrors::from_one_err(
+                    format!("No HPO Term found for '{}'", &tid)
+                );
+                return Err(verrs);
+            }
+        }
+        Ok(updated_duplets)
+    }
+
     pub fn check_hpo_duplets(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
         for header_dup in hpo_dup_list {

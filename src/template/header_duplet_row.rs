@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use ontolius::common::hpo;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::term::{MinimalTerm};
@@ -75,6 +76,11 @@ pub struct HeaderDupletRow {
 
 
 impl HeaderDupletRow {
+    /// Create a new HeaderDupletRow from the provided matrix that is created from the legacy
+    /// Excel template (all of which are Mendelian). We will automatically update HPO term labels
+    /// if they have changed in the ontology. If the TermIds are not valid, we will quit the 
+    /// application because this is a fatal error that needs to be fixed in the Excel file.
+    /// TODO - delete this function once we have migrated all the Excel files to the new JSON templates.
     pub fn mendelian(
         matrix: &Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
@@ -93,7 +99,8 @@ impl HeaderDupletRow {
         }
         Self::check_separator(matrix)?;
         let hpo_util = HpoUtil::new(hpo.clone());
-        hpo_util.check_hpo_duplets(&hpo_duplet_list)?;
+        //hpo_util.check_hpo_duplets(&hpo_duplet_list)?;
+        let hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list)?;
         
         Ok(Self { 
             individual_header: iheader, 
