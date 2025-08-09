@@ -7,18 +7,18 @@ use serde::{Deserialize, Serialize};
 use crate::variant::vcf_var::VcfVar;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HgvsVariant {
     assembly: String,
     chr: String,
     position: u32,
     ref_allele: String,
     alt_allele: String,
-    symbol: Option<String>,
-    hgnc_id: Option<String>,
-    hgvs: Option<String>,
-    transcript: Option<String>,
-    g_hgvs: Option<String>,
-    genotype: Option<String>,
+    symbol: String,
+    hgnc_id: String,
+    hgvs: String,
+    transcript: String,
+    g_hgvs: String,
     variant_id: String,
 }
 
@@ -26,11 +26,11 @@ impl HgvsVariant {
     pub fn new(
         assembly: String,
         vcf_var: VcfVar,
-        symbol: Option<String>,
-        hgnc_id: Option<String>,
-        hgvs: Option<String>,
-        transcript: Option<String>,
-        g_hgvs: Option<String>,
+        symbol: String,
+        hgnc_id: String,
+        hgvs: String,
+        transcript: String,
+        g_hgvs: String,
         variant_id: Option<String>,
     ) -> Self {
         let chr = vcf_var.chrom();
@@ -38,15 +38,15 @@ impl HgvsVariant {
         let ref_allele = vcf_var.ref_allele();
         let alt_allele = vcf_var.alt_allele();
 
-        let variant_id = variant_id.unwrap_or_else(|| {
-            let rand_str: String = rand::rng()
+        let variant_id = match variant_id {
+            Some(id) => id,
+            None => rand::rng()
                 .sample_iter(&Alphanumeric)
                 .take(25)
                 .map(char::from)
-                .collect();
-            format!("var_{}", rand_str)
-        });
-
+                .collect()
+        };
+        
         HgvsVariant {
             assembly,
             chr,
@@ -58,7 +58,6 @@ impl HgvsVariant {
             hgvs,
             transcript,
             g_hgvs,
-            genotype: None,
             variant_id,
         }
     }
@@ -83,66 +82,36 @@ impl HgvsVariant {
         self.alt_allele.as_ref()
     }
 
-    pub fn symbol(&self) -> Option<&str> {
-        self.symbol.as_deref()
+    pub fn symbol(&self) -> &str {
+        &self.symbol
     }
 
-    pub fn hgnc_id(&self) -> Option<&str> {
-        self.hgnc_id.as_deref()
+    pub fn hgnc_id(&self) -> &str {
+        self.hgnc_id.as_ref()
     }
 
-    pub fn hgvs(&self) -> Option<&str> {
-        self.hgvs.as_deref()
+    pub fn hgvs(&self) -> &str {
+        self.hgvs.as_ref()
     }
 
-    pub fn transcript(&self) -> Option<&str> {
-        self.transcript.as_deref()
+    pub fn transcript(&self) -> &str {
+        self.transcript.as_ref()
     }
 
-    pub fn g_hgvs(&self) -> Option<&str> {
-        self.g_hgvs.as_deref()
+    pub fn g_hgvs(&self) -> &str {
+        self.g_hgvs.as_ref()
     }
-    pub fn genotype(&self) ->  Option<&str> {
-        self.genotype.as_deref()
-    }
+ 
 
     pub fn variant_id(&self) ->  &str {
         self.variant_id.as_ref()
     }
 
-    fn set_heterozygous(&mut self) {
-        self.genotype = Some("heterozygous".to_string())
-    }
-    
-    fn set_homozygous(&mut self) {
-        self.genotype = Some("homozygous".to_string())
-    }
-    
-    fn set_hemizygous(&mut self) {
-        self.genotype = Some("hemizygous".to_string())
-    }
 
-/*  
-    OBSOLETE, see ppkt_exporter
-fn to_variant_interpretation(&self) -> VariationDescriptor {
-        VariationDescriptor{ 
-            id: todo!(), 
-            variation: todo!(), 
-            label: todo!(), 
-            description: todo!(), 
-            gene_context: todo!(), 
-            expressions: todo!(), 
-            vcf_record: todo!(), 
-            xrefs: vec![], 
-            alternate_labels: vec![], 
-            extensions: vec![], 
-            molecule_context: MoleculeContext::Genomic.into(), 
-            structural_type: None, 
-            vrs_ref_allele_seq: todo!(), 
-            allelic_state: None,  
-        }
+    /// returns a String key that can be used in HashMaps to unambiguously identify this variant
+    pub fn variant_key(&self) -> String {
+        format!("{}_{}_{}", self.hgvs, self.symbol, self.transcript)
     }
-*/
 
 }
 
@@ -152,7 +121,7 @@ fn to_variant_interpretation(&self) -> VariationDescriptor {
 #[cfg(test)]
 mod tests {
 
-    use crate::variant::variant_validator::VariantValidator;
+    use crate::{dto::variant_dto::VariantValidationDto, variant::hgvs_variant_validator::HgvsVariantValidator};
     use super::*;
     use rstest::rstest;
 
@@ -164,8 +133,9 @@ mod tests {
     #[rstest]
     #[ignore = "testing API"]
     fn test_hgvs_c_fbn1() {
-        let vvalidator = VariantValidator::hg38();
-        let result = vvalidator.encode_hgvs("c.8242G>T", "NM_000138.5");
+        let vvalidator = HgvsVariantValidator::hg38();
+        let vv_dto = VariantValidationDto::hgvs_c("c.8242G>T", "NM_000138.5", "HGNC:3603", "FBN1");
+        let result = vvalidator.validate_hgvs(vv_dto);
         assert!(result.is_ok());
         let hgvs_var = result.unwrap();
         println!("{:?}", hgvs_var);
@@ -174,11 +144,11 @@ mod tests {
         assert_eq!(48411364, hgvs_var.position());
         assert_eq!("C", hgvs_var.ref_allele());
         assert_eq!("A", hgvs_var.alt_allele());
-        assert_eq!(Some("FBN1"), hgvs_var.symbol());
-        assert_eq!(Some("HGNC:3603"), hgvs_var.hgnc_id());
-        assert_eq!(Some("NM_000138.5:c.8242G>T"), hgvs_var.transcript());
-        assert_eq!(Some("NC_000015.10:g.48411364C>A"), hgvs_var.g_hgvs());
-        assert!(hgvs_var.genotype().is_none()); // the variant validator call does not set the genotype
+        assert_eq!("FBN1", hgvs_var.symbol());
+        assert_eq!("HGNC:3603", hgvs_var.hgnc_id());
+        assert_eq!("NM_000138.5:c.8242G>T", hgvs_var.transcript());
+        assert_eq!("NC_000015.10:g.48411364C>A", hgvs_var.g_hgvs());
+      
     }
 
 

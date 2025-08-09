@@ -6,7 +6,7 @@ pub mod header_duplet_row;
 pub mod individual_bundle;
 pub mod operations;
 pub mod phetools;
-pub mod pt_template;
+pub mod cohort_dto_builder;
 
 
 

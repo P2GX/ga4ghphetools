@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use ontolius::common::hpo;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::term::{MinimalTerm};
@@ -23,7 +22,7 @@ use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::individual_header::IndividualHeader;
 use crate::hpo::hpo_util::HpoUtil;
-use crate::template::pt_template::TemplateType;
+use crate::template::cohort_dto_builder::CohortType;
 
 const NOT_AVAILABLE: &str = "na";
 const EXCLUDED: &str = "excluded";
@@ -71,7 +70,7 @@ pub struct HeaderDupletRow {
     disease_header_list: Vec<DiseaseHeader>,
     gene_variant_header_list: Vec<GeneVariantHeader>,
     hpo_duplets: Vec<HpoTermDuplet>,
-    template_type: TemplateType,
+    template_type: CohortType,
 }
 
 
@@ -107,7 +106,7 @@ impl HeaderDupletRow {
             disease_header_list: vec![DiseaseHeader::new()], 
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
             hpo_duplets: hpo_duplet_list,
-            template_type: TemplateType::Mendelian
+            template_type: CohortType::Mendelian
         })
     }
 
@@ -164,18 +163,18 @@ impl HeaderDupletRow {
             disease_header_list: vec![DiseaseHeader::new()], 
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
             hpo_duplets, 
-            template_type: TemplateType::Mendelian 
+            template_type: CohortType::Mendelian 
         }
     }
 
     pub fn from_hpo_duplets(
         hpo_duplets: Vec<HpoTermDuplet>, 
-        template_type: TemplateType)
+        template_type: CohortType)
     -> Self {
             match template_type {
-                TemplateType::Mendelian => Self::mendelian_from_hpo_duplets(hpo_duplets),
-                TemplateType::Melded => todo!(),
-                TemplateType::Digenic => todo!()
+                CohortType::Mendelian => Self::mendelian_from_hpo_duplets(hpo_duplets),
+                CohortType::Melded => todo!(),
+                CohortType::Digenic => todo!()
             }
         }
 
@@ -184,7 +183,7 @@ impl HeaderDupletRow {
         self.hpo_duplets.len()
     }
 
-    pub fn template_type(&self) -> &TemplateType {
+    pub fn template_type(&self) -> &CohortType {
         &self.template_type
     }
 
@@ -214,7 +213,7 @@ impl HeaderDupletRow {
             disease_header_list: vec![DiseaseHeader::new()], 
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
             hpo_duplets: hpo_termduplet_list, 
-            template_type: TemplateType::Mendelian
+            template_type: CohortType::Mendelian
         }
     }
 

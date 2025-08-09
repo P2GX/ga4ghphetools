@@ -12,7 +12,7 @@ use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, E
 use phenopackets::schema::v2::Phenopacket;
 
 use regex::Regex;
-use crate::dto::template_dto::GeneVariantBundleDto;
+use crate::dto::template_dto::{CohortDto, GeneVariantBundleDto};
 use crate::error::{Error, Result};
 
 use crate::variant::hgvs_variant::HgvsVariant;
@@ -35,6 +35,7 @@ pub struct PpktExporter {
     omim_version: String,
     hgnc_version: String,
     orcid_id: String,
+    cohort_dto: CohortDto,
 }
 
 impl Error {
@@ -50,6 +51,7 @@ impl PpktExporter {
     pub fn new(
         hpo_version: &str, 
         creator_orcid: &str,
+        cohort: CohortDto
     ) -> Self {
         Self::from_versions(
             hpo_version,
@@ -57,7 +59,8 @@ impl PpktExporter {
             DEFAULT_GENO_VERSION,
             DEFAULT_OMIM_VERSION,
             DEFAULT_HGNC_VERSION,
-            creator_orcid)
+            creator_orcid,
+            cohort)
     }
 
     pub fn from_versions(
@@ -67,6 +70,7 @@ impl PpktExporter {
         omim_version: &str, 
         hgnc_version: &str ,
         creator_orcid: &str,
+        cohort: CohortDto
     ) -> Self {
         Self{ 
             hpo_version: hpo_version.to_string(), 
@@ -75,6 +79,7 @@ impl PpktExporter {
             omim_version: omim_version.to_string(), 
             hgnc_version: hgnc_version.to_string(),
             orcid_id: creator_orcid.to_string(),
+            cohort_dto: cohort
         }
     }
 
@@ -231,10 +236,12 @@ impl PpktExporter {
             alternate_symbols: vec![] , 
             xrefs: vec![] 
             };
+            /*
         let sv_type = OntologyClass{ 
             id: sv.so_id().to_string(), 
             label: sv.so_label().to_string() 
-        };
+        }; */
+        // TODO
         let vdesc = VariationDescriptor {
             id: variant_util::generate_id(),
             variation: None,
@@ -247,7 +254,7 @@ impl PpktExporter {
             alternate_labels: vec![],
             extensions: vec![],
             molecule_context: MoleculeContext::Genomic.into(),
-            structural_type: Some(sv_type),
+            structural_type: None, // TODO
             vrs_ref_allele_seq: String::default(),
             allelic_state: None,
         };
@@ -289,15 +296,13 @@ impl PpktExporter {
             version: String::default() 
         };
         let mut expression_list = vec![hgvs_c];
-        if let Some(hgvs_g) = hgvs.g_hgvs() {
-            let hgvs_g = Expression{
-                        syntax: "hgvs.g".to_string(),
-                        value: hgvs_g.to_string(),
-                        version: String::default(),
-                    };
-            expression_list.push(hgvs_g);
-        };
-        
+        let hgvs_g = Expression{
+                    syntax: "hgvs.g".to_string(),
+                    value: hgvs.g_hgvs().to_string(),
+                    version: String::default(),
+                };
+        expression_list.push(hgvs_g);
+         
 
         let vdesc = VariationDescriptor{ 
             id: variant_util::generate_id(), 

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ontolius::term::simple::SimpleMinimalTerm;
 use regex::Regex;
 
-use crate::{dto::template_dto::TemplateDto, hpo::age_util};
+use crate::{dto::template_dto::CohortDto, hpo::age_util};
 
 
 
@@ -32,7 +32,7 @@ impl HpoaOnsetCalculator {
         self.total_counts += 1;
     }
 
-    pub fn ingest_dto(&mut self, dto: &TemplateDto) -> Result<(), String>  {
+    pub fn ingest_dto(&mut self, dto: &CohortDto) -> Result<(), String>  {
         for row in &dto.rows {
             let pmid = row.individual_dto.pmid.clone();
             if row.individual_dto.age_of_onset != "na" {

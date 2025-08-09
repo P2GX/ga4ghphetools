@@ -1,11 +1,7 @@
-//! PheToolsTemplate
+//! CohortDtoBuilder
 //!
-//! The struct that contains all data needed to create or edit a cohort of phenopackets
-//! in "pyphetools" format, and to export GA4GH Phenopackets. The struct is created from the TemplateDto
-//! and is used to Q/C, input, and output the serialized data.
-//! Each template has the following main members
-//! - HeaderDupletRow (defines each of the columns)
-//! - A list of PpktRow (one per phenopacket)
+//! The struct that creates and edits the [`CohortDto`] object that we use
+//! to store information about the Cohort.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
     ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
@@ -15,7 +11,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{hpo_term_dto::HpoTermDto, template_dto::{DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
+use crate::{dto::{hpo_term_dto::HpoTermDto, template_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, HeaderDupletDto, IndividualBundleDto, RowDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::ppkt_row::PpktRow, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, hgvs_variant_validator::HgvsVariantValidator, structural_validator::StructuralValidator, structural_variant::StructuralVariant}};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -23,45 +19,45 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum TemplateType {
+pub enum CohortType {
     Mendelian,
     Melded,
     Digenic
 }
 
-impl FromStr for TemplateType {
+impl FromStr for CohortType {
     type Err = String;
 
     fn from_str(s: &str) -> std::result::Result<Self, String> {
         match s.to_ascii_lowercase().as_str() {
-            "mendelian" => Ok(TemplateType::Mendelian),
-            "melded" => Ok(TemplateType::Melded),
-            "digenic" => Ok(TemplateType::Digenic),
+            "mendelian" => Ok(CohortType::Mendelian),
+            "melded" => Ok(CohortType::Melded),
+            "digenic" => Ok(CohortType::Digenic),
             _ => Err(format!("Unrecognized template type {s}")),
         }
     }
 }
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
-pub struct PheToolsTemplate {
+pub struct CohortDtoBuilder {
     header: Arc<HeaderDupletRow>,
-    template_type: TemplateType,
+    cohort_type: CohortType,
     /// Data structure used to seed new entries in the template (info re: gene[s], disease[s])
     disease_gene_dto: DiseaseGeneDto,
      /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
      /// One row for each individual (phenopacket) in the cohort
-    ppkt_rows: Vec<PpktRow>
+    ppkt_rows: Vec<PpktRow>,
 }
 
-impl PheToolsTemplate {
+impl CohortDtoBuilder {
     /// Create the initial pyphetools template using HPO seed terms
     pub fn create_pyphetools_template_mendelian(
         hpo_term_ids: Vec<TermId>,
         // Reference to the Ontolius Human Phenotype Ontology Full CSR object
         hpo: Arc<FullCsrOntology>,
         disease_gene_dto: DiseaseGeneDto,
-    ) -> std::result::Result<Self, String> {
+    ) -> std::result::Result<CohortDto, String> {
         let mut hp_header_duplet_list: Vec<HpoTermDuplet> = Vec::new();
         for hpo_id in hpo_term_ids {
             match hpo.term_by_id(&hpo_id) {
@@ -74,82 +70,38 @@ impl PheToolsTemplate {
                 }
             }
         }
-        let header_dup_row = HeaderDupletRow::from_hpo_duplets(hp_header_duplet_list, TemplateType::Mendelian);
-        let hdr_arc = Arc::new(header_dup_row);
-
-        Ok(Self {
+       /*  let header_dup_row = HeaderDupletRow::from_hpo_duplets(hp_header_duplet_list, CohortType::Mendelian);*/
+        //let hdr_arc = Arc::new(header_dup_row);
+ 
+        /*let builder = Self {
             header: hdr_arc,
-            template_type: TemplateType::Mendelian,
+            cohort_type: CohortType::Mendelian,
             disease_gene_dto,
             hpo: hpo.clone(),
-            ppkt_rows: vec![]
-        })
+            ppkt_rows: vec![],
+        };
+*/
+        let hpo_headers: Vec<HeaderDupletDto> = hp_header_duplet_list.iter()
+            .map(|hpo_duplet| hpo_duplet.to_header_dto())
+            .collect();
+         Ok(CohortDto::mendelian(disease_gene_dto, hpo_headers, vec![] ))
     }
 
-    /**
-     * Transform a DTO received from the frontend into a PheToolsTemplate object.
-     */
-    pub fn from_dto(
-        hpo: Arc<FullCsrOntology>,
-        cohort_dto: &TemplateDto) 
-    -> std::result::Result<Self, String>  {
-        let tt: TemplateType = cohort_dto.cohort_type;
-        let hpo_duplets: Vec<HpoTermDuplet> = cohort_dto
-            .hpo_headers
-            .iter()
-            .map(|dto| dto.clone().to_hpo_duplet())
-            .collect();
-        let header_duplet_row: HeaderDupletRow = HeaderDupletRow::from_hpo_duplets(hpo_duplets, tt);
-        let arc_header = Arc::new(header_duplet_row);
-        let ppkt_rows = cohort_dto.rows.iter()
-            .map(|dto| PpktRow::from_dto(dto, arc_header.clone())).collect();
-        println!("{}{}-from dto.", file!(), line!());
-        Ok(Self { 
-            header: arc_header.clone(), 
-            template_type: tt, 
-            disease_gene_dto: cohort_dto.disease_gene_dto.clone(),
-            hpo: hpo.clone(), 
-            ppkt_rows 
-        })
-    }
+   
+
+  
     
 
-    pub fn get_template_dto(&self) -> Result<TemplateDto> {
+    pub fn get_template_dto(&self) -> std::result::Result<CohortDto, String> {
         let header_dto = self.header.get_hpo_header_dtos();
         let row_dto_list: Vec<RowDto> = self.ppkt_rows
             .iter()
             .map(RowDto::from_ppkt_row)
             .collect();
-        Ok(TemplateDto::mendelian(self.disease_gene_dto.clone(), header_dto, row_dto_list, ))
+        Ok(CohortDto::mendelian(self.disease_gene_dto.clone(), header_dto, row_dto_list, ))
     }
 
-    pub fn from_template_dto(
-        template_dto: &TemplateDto, 
-        hpo: Arc<FullCsrOntology>) 
-    -> std::result::Result<Self, ValidationErrors> {
-        let header_duplet_row = match template_dto.cohort_type {
-            TemplateType::Mendelian => HeaderDupletRow::new_mendelian_ppkt_from_dto(&template_dto.hpo_headers),
-            other => {
-                return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{:?}'", other)));
-            }
-        };
-        let header_arc = Arc::new(header_duplet_row);
-        let mut ppkt_rows: Vec<PpktRow> = Vec::new();
-        for row_dto in &template_dto.rows {
-            let ppkt_row = PpktRow::from_dto(row_dto, header_arc.clone());
-            ppkt_rows.push(ppkt_row);
-        }
-        let template = PheToolsTemplate {
-            header: header_arc.clone(),
-            template_type: TemplateType::Mendelian,
-            disease_gene_dto: template_dto.disease_gene_dto.clone(),
-            hpo,
-            ppkt_rows,
-        };
-
-        template.check_for_errors()?;
-        Ok(template)
-    }
+   
 
     /// Get a list of all HPO identifiers currently in the template
     pub fn get_hpo_term_ids(&self) -> std::result::Result<Vec<TermId>, Vec<String>> {
@@ -157,11 +109,11 @@ impl PheToolsTemplate {
     }
 
     pub fn create_pyphetools_template(
-        template_type: TemplateType,
+        template_type: CohortType,
         disease_gene_dto: DiseaseGeneDto,
         hpo_term_ids: Vec<TermId>,
         hpo: Arc<FullCsrOntology>,
-    ) -> std::result::Result<PheToolsTemplate, String> {
+    ) -> std::result::Result<CohortDto, String> {
         let mut smt_list: Vec<SimpleMinimalTerm> = Vec::new();
         for hpo_id in &hpo_term_ids {
             match hpo.term_by_id(hpo_id) {
@@ -175,14 +127,43 @@ impl PheToolsTemplate {
                 }
             }
         }
-        if template_type == TemplateType::Mendelian {
-            let result = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo, disease_gene_dto)?;
-            Ok(result)
+        if template_type == CohortType::Mendelian {
+            let cohort_dto = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo, disease_gene_dto)?;
+            Ok(cohort_dto)
         } else {
             Err(format!("Creation of template of type {:?} not supported", template_type))
-        }
-        
+        } 
     }
+
+    pub fn from_cohort_dto(
+        template_dto: &CohortDto, 
+        hpo: Arc<FullCsrOntology>) 
+    -> std::result::Result<Self, ValidationErrors> {
+        let header_duplet_row = match template_dto.cohort_type {
+            CohortType::Mendelian => HeaderDupletRow::new_mendelian_ppkt_from_dto(&template_dto.hpo_headers),
+            other => {
+                return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{:?}'", other)));
+            }
+        };
+        let header_arc = Arc::new(header_duplet_row);
+        let mut ppkt_rows: Vec<PpktRow> = Vec::new();
+        for row_dto in &template_dto.rows {
+            let ppkt_row = PpktRow::from_dto(row_dto, header_arc.clone());
+            ppkt_rows.push(ppkt_row);
+        }
+        let template = CohortDtoBuilder {
+            header: header_arc.clone(),
+            disease_gene_dto: template_dto.disease_gene_dto.clone(),
+            hpo,
+            ppkt_rows,
+            cohort_type: CohortType::Mendelian,
+        };
+
+        template.check_for_errors()?;
+        Ok(template)
+    }
+
+
 
     /// We are extract a DiseaseGeneDto from the Excel files (version 1), all of which are
     /// Mendelian. We know the columns are
@@ -221,7 +202,7 @@ impl PheToolsTemplate {
         };
         // Note we will need to manually fix the cohort acronym for legacy files TODO possibly refactor
         let dg_dto = DiseaseGeneDto{
-            template_type: TemplateType::Mendelian,
+            template_type: CohortType::Mendelian,
             disease_dto_list: vec![disease_dto],
             gene_transcript_dto_list: vec![gtr_dto],
             cohort_acronym:  "TODO".to_string(),
@@ -233,6 +214,11 @@ impl PheToolsTemplate {
     /// These files do not have a disease_gene_dto element, but we know that all the
     /// excel files share the fields we will need to extract this data. 
     /// Note: This function should be deleted after the Excel files have been converted.
+    /// The legacy Excel file templates did not include variant information, so we initial
+    /// the fields for HGVS and structural variant validation to empty maps. We will need to 
+    /// use variant validator etc. to create validated objects that can then be stored in
+    /// the JSON templates for the cohorts.
+    /// TODO: This method can be deleted once the legacy excel templates have been converted.
     /// 
     /// # Parameters
     /// 
@@ -263,10 +249,10 @@ impl PheToolsTemplate {
         }
         Ok(Self { 
                 header: hdr_arc, 
-                template_type: TemplateType::Mendelian,
+                cohort_type: CohortType::Mendelian,
                 disease_gene_dto: dg_dto,
                 hpo: hpo.clone(),
-                ppkt_rows: ppt_rows
+                ppkt_rows: ppt_rows,
             })
 
     }
@@ -318,7 +304,7 @@ impl PheToolsTemplate {
     }
 
     pub fn is_mendelian(&self) -> bool {
-        self.template_type == TemplateType::Mendelian
+        self.cohort_type == CohortType::Mendelian
     }
 
     pub fn phenopacket_count(&self) -> usize {
@@ -365,7 +351,7 @@ impl PheToolsTemplate {
         individual_dto: IndividualBundleDto,
         hpo_dto_items: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantBundleDto>,
-        cohort_dto: TemplateDto
+        disease_gene_dto: DiseaseGeneDto
     ) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
         let hpo_util = HpoUtil::new(self.hpo.clone());
@@ -403,7 +389,7 @@ impl PheToolsTemplate {
                     ValidationErrors::from_one_err(format!("Could not create TermId from {:?}", &dto)))?;
             tid_to_value_map.insert(tid, dto.entry().to_string());
         }
-        let new_ppkt_result = PpktRow::from_dtos(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,   cohort_dto);
+        let new_ppkt_result = PpktRow::from_dtos(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,   disease_gene_dto);
           println!("{}{} -- result id OK?= n={}\n\n",file!(), line!(), new_ppkt_result.is_ok());
         let ppkt_row = match new_ppkt_result {
             Ok(row) => row,
@@ -430,23 +416,75 @@ impl PheToolsTemplate {
         self.header.n_columns()
     }
 
+    fn get_hgvs_variants(
+        &self,
+        row: &PpktRow,
+        hgvs_dict: &HashMap<String, HgvsVariant>) 
+    -> std::result::Result<Vec<HgvsVariant>, String> {
+        let mut var_list: Vec<HgvsVariant> = Vec::new();
+        for dto in row.get_gene_var_dto_list() {
+            if dto.allele1_is_hgvs() {
+                let key = dto.get_key_allele1();
+                let variant = hgvs_dict
+                    .get(&key)
+                    .ok_or_else(|| format!("No variant found for allele1: '{}'", key))?;
+                var_list.push(variant.clone());
+            }
+            if dto.allele2_is_hgvs() {
+                let key = dto.get_key_allele2();
+                let variant = hgvs_dict
+                    .get(&key)
+                    .ok_or_else(|| format!("No variant found for allele2: '{}'", key))?;
+                var_list.push(variant.clone());
+            }
+        }
+        Ok(var_list)
+    }
+
+    fn get_structural_variants(
+        &self,
+        row: &PpktRow,
+        sv_dict: &HashMap<String, StructuralVariant>) 
+    -> std::result::Result<Vec<StructuralVariant>, String> {
+        let mut var_list: Vec<StructuralVariant> = Vec::new();
+        for dto in row.get_gene_var_dto_list() {
+            if ! dto.allele1_is_sv() {
+                let key = dto.get_key_allele1();
+                let variant = sv_dict
+                    .get(&key)
+                    .ok_or_else(|| format!("No structural variant found for allele1: '{}'", key))?;
+                var_list.push(variant.clone());
+            }
+            if dto.allele2_is_sv() {
+                let key = dto.get_key_allele2();
+                let variant = sv_dict
+                    .get(&key)
+                    .ok_or_else(|| format!("No structural variant found for allele2: '{}'", key))?;
+                var_list.push(variant.clone());
+            }
+        }
+        Ok(var_list)
+    }
+
 
     pub fn extract_phenopackets(
         &self,
-        hgvs_dict: &HashMap<String, HgvsVariant>,
-        structural_dict: &HashMap<String, StructuralVariant>,
         orcid: &str) 
     -> std::result::Result<Vec<Phenopacket>, String> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
         let hpo_version = self.hpo.version();
+        /*
         let ppkt_exporter = PpktExporter::new(hpo_version, orcid);
         for row in &self.ppkt_rows {
+            let gvdto_list = row.get_gene_var_dto_list();
+            let hgvs_list = self.get_hgvs_variants(row, &hgvs_dict)
             match ppkt_exporter.extract_phenopacket(row,  hgvs_dict,
                 structural_dict) {
                     Ok(ppkt) =>  { ppkt_list.push(ppkt); },
                     Err(e) => { return Err(format!("Could not extract phenopacket: {}", e));},
                 }
         }
+         */
         Ok(ppkt_list)
     }
 
@@ -567,7 +605,7 @@ mod test {
             transcript:   "NM_001111067.4".to_string(),
         };
         DiseaseGeneDto{ 
-            template_type: TemplateType::Mendelian, 
+            template_type: CohortType::Mendelian, 
             cohort_acronym: "FOP".to_string(),
             disease_dto_list: vec![dx_dto], 
             gene_transcript_dto_list: vec![gv_dto]
@@ -589,7 +627,7 @@ mod test {
     fn test_factory_valid_input(
         original_matrix: Vec<Vec<String>>, 
         hpo: Arc<FullCsrOntology>) {
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
+        let factory = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
         assert!(factory.is_ok());
     }
 
@@ -598,7 +636,7 @@ mod test {
     fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
         // "Hallux valgus" has extra white space
         original_matrix[0][19] = "Hallux  valgus".to_string(); 
-        let factory = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
+        let factory = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
         assert!(&factory.is_err());
         assert!(matches!(&factory, Err(ValidationErrors { .. })));
         let validation_errs = factory.err().unwrap();
@@ -641,7 +679,7 @@ mod test {
         #[case] expected_label: &str) {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
-        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
+        let result = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
         if result.is_ok() {
             println!("{}{} {}", idx, label, expected_label);
         }
@@ -695,7 +733,7 @@ mod test {
         #[case] error_msg: &str) 
     {
         original_matrix[2][idx] = entry.to_string();
-        let result = PheToolsTemplate::from_mendelian_template(original_matrix, hpo, false);
+        let result = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
         assert!(result.is_err());
         let verr = result.err().unwrap();
         for e in verr.errors() {

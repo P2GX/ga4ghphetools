@@ -4,22 +4,24 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,TemplateDto};
+use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,CohortDto};
 use crate::dto::validation_errors::ValidationErrors;
-use crate::dto::variant_dto::{VariantDto, VariantListDto};
+use crate::dto::variant_dto::VariantValidationDto;
 use crate::etl::etl_tools::EtlTools;
 use crate::persistence::dir_manager::DirManager;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
 use crate::dto::{ hpo_term_dto::HpoTermDto};
+use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
+use crate::variant::structural_validator::StructuralValidator;
 
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use phenopackets::schema::v2::Phenopacket;
-use crate::template::pt_template::{PheToolsTemplate, TemplateType};
+use crate::template::cohort_dto_builder::{CohortDtoBuilder, CohortType};
 use crate::template::excel;
 use core::option::Option::Some;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fmt::{self};
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
@@ -32,10 +34,18 @@ pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
     /// Template with matrix of all values, quality control methods, and export function to GA4GH Phenopacket Schema
-    template: Option<PheToolsTemplate>,
+   // template: Option<CohortDtoBuilder>,
+    /// Data transfer object to represent entire cohort. 
+    /// TODO maybe we do not need to keep a copy of the DTO here since we will regard the front-end
+    /// as the source of truth. The backend will need to modify and return the DTO, to read it from persistance,
+    /// and to serialize it (either to save the Cohort as a JSON file or to export GA4GH phenopackets.)
+    /// TODO - try to remove the PheToolsTemplate to simplify operations!
+    cohort: Option<CohortDto>,
     /// Manager to validate and cache variants
     manager: Option<DirManager>, 
     etl_tools: Option<EtlTools>,
+    hgsv_validator: HgvsVariantValidator,
+    sv_validator: StructuralValidator
 }
 
 impl PheTools {
@@ -62,9 +72,11 @@ impl PheTools {
     pub fn new(hpo: Arc<FullCsrOntology>) -> Self {
         PheTools {
             hpo,
-            template: None,
+            cohort: None,
             manager: None,
             etl_tools: None,
+            hgsv_validator: HgvsVariantValidator::hg38(),
+            sv_validator: StructuralValidator::hg38()
         }
     }
 
@@ -86,32 +98,30 @@ impl PheTools {
     /// # Returns
     ///
     /// A `Result` containing:
-    /// - `Ok(())` - success.
+    /// - `Ok(TemplateDto)` - a cohort template object that can be used to add phenopacket data.
     /// - `Err(String)` - An error if template generation fails.
     ///
-    /// # TODO - implemented Melded/Digenic
+    /// # TODO - implement Melded/Digenic
     pub fn create_pyphetools_template_from_seeds(
         &mut self,
-        template_type: TemplateType,
+        template_type: CohortType,
         disease_gene_dto: DiseaseGeneDto,
         dir_path: PathBuf,
         hpo_term_ids: Vec<TermId>,
-    ) -> std::result::Result<TemplateDto, String> {
-        if template_type != TemplateType::Mendelian {
+    ) -> std::result::Result<CohortDto, String> {
+        if template_type != CohortType::Mendelian {
             return Err("TemplateDto generation for non-Mendelian not implemented yet".to_string());
         }
         let dirman = DirManager::new(dir_path)?;
         let hpo_arc = self.hpo.clone();
-        let template = PheToolsTemplate::create_pyphetools_template(
+        let cohort_dto = CohortDtoBuilder::create_pyphetools_template(
             template_type, 
             disease_gene_dto,
             hpo_term_ids, 
             hpo_arc
         ).map_err(|e| e.to_string())?;
-        let dto = template.get_template_dto().map_err(|e| e.to_string())?;
-        self.template = Some(template);
         self.manager = Some(dirman);
-        Ok(dto)
+        Ok(cohort_dto)
     }
 
     /// Arranges the given HPO terms into a specific order for curation.
@@ -150,7 +160,10 @@ impl PheTools {
     /// Return a Data Transfer Object to display the entire phenopacket cohort (template)
     /// This function is called when the user opens a new template. It
     /// opens the file, creates a DTO, and sets up the directory/variant managers
-    pub fn get_template_dto(&self) -> Result<TemplateDto, String> {
+    /// TODO deprecate, we do not want to get the template from the backend object
+    /// except if we have just opened a file
+    /*
+    pub fn get_template_dto(&self) -> Result<CohortDto, String> {
         match &self.template {
             Some(template) => {
                 let dto = template.get_template_dto().map_err(|e| e.to_string())?;
@@ -161,7 +174,7 @@ impl PheTools {
             }
         }
     }
-
+ */
 
 
 
@@ -170,14 +183,13 @@ impl PheTools {
         &mut self, 
         matrix: Vec<Vec<String>>,
         fix_errors: bool
-    ) -> Result<TemplateDto, Vec<String>> 
+    ) -> Result<CohortDto, Vec<String>> 
     {
         let hpo_arc = self.hpo.clone();
-        match PheToolsTemplate::from_mendelian_template(matrix, hpo_arc, fix_errors) {
+        match CohortDtoBuilder::from_mendelian_template(matrix, hpo_arc, fix_errors) {
             Ok(ppt) => {
                 match ppt.get_template_dto() {
                     Ok(dto) => {
-                        self.template = Some(ppt);
                         Ok(dto)
                     } 
                     Err(e) => Err(vec![e.to_string()]),
@@ -188,6 +200,8 @@ impl PheTools {
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
+    /// This is used to create the CohortDto object
+    /// TODO delete this method once we have converted all of the existing Excel templates.
     fn excel_template_to_matrix(
         phetools_template_path: &str,
     ) -> Result<Vec<Vec<String>>, Vec<String>> 
@@ -204,13 +218,13 @@ impl PheTools {
         &mut self,
         phetools_template_path: &str,
         fix_errors: bool
-    ) -> Result<TemplateDto, Vec<String>> {
+    ) -> Result<CohortDto, Vec<String>> {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
         self.load_matrix(matrix, fix_errors)
     }
 
     /// Here we load a JSON file that represents a partially finished
-    /// transformation of an external template file
+    /// transformation of an external template file (work in progress)
     pub fn set_external_template_dto(
         &mut self,
         dto: &ColumnTableDto) -> Result<(), String> {
@@ -238,16 +252,14 @@ impl PheTools {
         &mut self,
         hpo_id: &str,
         hpo_label: &str,
-        cohort_dto: TemplateDto) 
-    -> std::result::Result<TemplateDto, Vec<String>> {
+        cohort_dto: CohortDto) 
+    -> std::result::Result<CohortDto, Vec<String>> {
         let mut updated_template = 
-            PheToolsTemplate::from_dto( self.hpo.clone(), &cohort_dto)
-                .map_err(|e|vec![e])?;
+            CohortDtoBuilder::from_cohort_dto(  &cohort_dto, self.hpo.clone())
+                .map_err(|verrs| verrs.errors())?;
         updated_template.add_hpo_term_to_cohort(hpo_id, hpo_label)
             .map_err(|verrs| verrs.errors().clone())?;
         let template_dto = updated_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
-        self.template = Some(updated_template);
-        
         Ok(template_dto)
     }
 
@@ -272,20 +284,21 @@ impl PheTools {
         individual_dto: IndividualBundleDto, 
         hpo_annotations: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantBundleDto>,
-        cohort_dto: TemplateDto) 
-    -> Result<TemplateDto, Vec<String>> {
-        let mut pt_template: PheToolsTemplate = 
-            PheToolsTemplate::from_dto( self.hpo.clone(), &cohort_dto)
-                .map_err(|e|vec![e])?;
-        pt_template.add_row_with_hpo_data(
+        cohort_dto: CohortDto) 
+    -> Result<CohortDto, Vec<String>> {
+        let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
+        let mut builder: CohortDtoBuilder = 
+            CohortDtoBuilder::from_cohort_dto( &cohort_dto, self.hpo.clone())
+                .map_err(|verrs| verrs.errors())?;
+        builder.add_row_with_hpo_data(
             individual_dto, 
             hpo_annotations, 
             gene_variant_list, 
-            cohort_dto)
+            disease_gene_dto)
                 .map_err(|verr| verr.errors().clone())?;
 
-        let template_dto = pt_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
-        self.template = Some(pt_template);
+        let template_dto = builder.get_template_dto().map_err(|e| vec![e.to_string()])?;
+        panic!("CHECK THISSTEP");
         Ok(template_dto)
     }
 
@@ -324,7 +337,9 @@ impl PheTools {
             })
     }
 
-
+    /// Set the location of the directory where we will store phenopackets
+    /// and will store the CohortDto as a JSON file. The legacy Excel file(s) for the
+    /// gene in question are located within existing directories.
     pub fn set_cache_location<P: AsRef<Path>>(&mut self, dir_path: P) -> Result<(), String> {
         match DirManager::new(dir_path) {
             Ok(manager) => {
@@ -338,42 +353,115 @@ impl PheTools {
     }
 
     
-    /// Validate a variant sent by the front-end using a Data Transfer Object.
-    /// If the variant starts with "c." or "n.", we validate it as HGVS,
-    /// otherwise we validate it as a candidate Structural Variant.
-    /// The method has the side effect of adding successfully validated variants to a file cache.
-    /// If the variant was successfully validated, we return the same dto but with the validated flag set to true
+    /// Validates a single variant against the appropriate validator (HGVS or SV),
+    /// updating the given [`CohortDto`] with the result.
+    ///
+    /// This function delegates to either:
+    /// - `hgsv_validator.validate_hgvs` if the variant is in HGVS format
+    /// - `sv_validator.validate_sv` if it is a structural variant (SV)
+    ///
+    /// The validated variant is inserted into the corresponding map inside the [`CohortDto`]
+    /// (either `validated_hgvs_variants` or `validated_structural_variants`) keyed by its
+    /// [`variant_key`](Variant::variant_key).
+    ///
+    /// Returns the updated [`CohortDto`] on success, or a `String` error message on failure.
+    ///
+    /// # Arguments
+    /// * `vv_dto` — Data transfer object containing the variant to validate
+    /// * `cohort_dto` — The cohort to update with the validated variant
+    ///
+    /// # See also
+    /// - [`validate_all_variants`] — for validating *all* variants in a cohort at once
     pub fn validate_variant(
         &mut self,
-        variant_dto: VariantDto
-    ) -> Result<VariantDto, String> {
-        match &mut self.manager {
-            Some(manager) => {
-                manager.validate_variant(&variant_dto)
-            },
-            None => {
-                Err("validate_variant: Variant Manager not initialized".to_string())
-            },
+        vv_dto: VariantValidationDto,
+        mut cohort_dto: CohortDto
+    ) -> Result<CohortDto, String> {
+        if (vv_dto.is_hgvs()) {
+            let hgvs = self.hgsv_validator.validate_hgvs(vv_dto)?;
+            cohort_dto.validated_hgvs_variants.insert(hgvs.variant_key(), hgvs);
+        } else if (vv_dto.is_sv()) {
+            let sv = self.sv_validator.validate_sv(vv_dto)?;
+            cohort_dto.validated_structural_variants.insert(sv.variant_key(), sv);
         }
+
+        Ok(cohort_dto)
+       
     }
 
-    pub fn validate_all_variants(&mut self) -> Result<VariantListDto, ValidationErrors> {
-            let verrs = ValidationErrors::new();
-            todo!();
-            //verrs.ok(); // TODO
-    }
-
-
-    pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Result<Vec<VariantDto>, String> {
-        match self.manager.as_mut() {
-            Some(manager) => {
-                Ok(manager.validate_variant_dto_list(variant_dto_list)?)
-            },
-            None => {
-                Err("Variant manager not initialized".to_string())
-            },
+    /// Validates all variants in the given [`CohortDto`] that originate from
+    /// legacy Excel template files.
+    ///
+    /// This function is intended for bulk validation of variants that were already
+    /// validated in the past. While most should still validate successfully, transient
+    /// errors (e.g., network issues) may cause some to fail. In such cases, the
+    /// validation can be retried from the front end.
+    ///
+    /// For cases where a specific variant repeatedly fails validation, use
+    /// [`validate_variant`] instead, as it will return the specific error encountered.
+    ///
+    /// # Arguments
+    /// * `cohort_dto` — The current representation of the cohort
+    ///
+    /// # Returns
+    /// The updated [`CohortDto`] on success, or a [`ValidationErrors`] containing
+    /// details of all validation failures.
+    pub fn validate_all_variants(
+        &self,
+        mut cohort_dto: CohortDto) 
+    -> Result<CohortDto, ValidationErrors> {
+        let verrs = ValidationErrors::new();
+        for row in &cohort_dto.rows {
+            let dto = &row.gene_var_dto_list;
+            for gvb_dto in dto {
+                // allele 1
+                 let allele1_key = gvb_dto.get_key_allele1();
+                if gvb_dto.allele1_is_hgvs() {
+                    // only validate if we do not have previous validation results
+                    if ! cohort_dto.validated_hgvs_variants.contains_key(&allele1_key) { 
+                        let vv_dto = VariantValidationDto::hgvs_c(&gvb_dto.allele1, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
+                        let result = self.hgsv_validator.validate_hgvs(vv_dto);
+                        if let Ok(hgvs) = result {
+                            cohort_dto.validated_hgvs_variants.insert(allele1_key, hgvs);
+                        } 
+                        // We skip errors that may result from network issues, the user can try again
+                        // If there actually is an error in the HGVS, this can be detected by attempting to validate the specific variant
+                    }
+                } else if gvb_dto.allele1_is_present() {
+                    // must be sv
+                    if ! cohort_dto.validated_structural_variants.contains_key(&allele1_key) {
+                        let vv_dto = VariantValidationDto::sv(&gvb_dto.allele1, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
+                        let result =self.sv_validator.validate_sv(vv_dto);
+                        if let Ok(sv) = result {
+                            cohort_dto.validated_structural_variants.insert(allele1_key, sv);
+                        }
+                        
+                    }
+                }
+                if gvb_dto.allele2_is_present() {
+                    let allele2_key = gvb_dto.get_key_allele2();
+                    if gvb_dto.allele2_is_hgvs() {
+                        let vv_dto = VariantValidationDto::hgvs_c(&gvb_dto.allele2, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
+                        let result = self.hgsv_validator.validate_hgvs(vv_dto);
+                        if let Ok(hgvs) = result {
+                            cohort_dto.validated_hgvs_variants.insert(allele2_key, hgvs);
+                        } 
+                    } else if gvb_dto.allele2_is_present() {
+                        // must be sv
+                        if ! cohort_dto.validated_structural_variants.contains_key(&allele2_key) {
+                            let vv_dto = VariantValidationDto::sv(&gvb_dto.allele2, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
+                              let result =self.sv_validator.validate_sv(vv_dto);
+                            if let Ok(sv) = result {
+                                cohort_dto.validated_structural_variants.insert(allele2_key, sv);
+                            }
+                        }
+                    }
+                }
+            }      
         }
+         return Ok(cohort_dto)
     }
+       
 
 
 
@@ -383,15 +471,16 @@ impl PheTools {
     /// TODO, probably combine in the same command, and add a second command to write to disk
     pub fn validate_template(
         &self, 
-        cohort_dto: &TemplateDto) 
-    -> Result<PheToolsTemplate, Vec<String>> {
-        let template = PheToolsTemplate::from_template_dto(cohort_dto, self.hpo.clone())
+        cohort_dto: CohortDto) 
+    -> Result<CohortDtoBuilder, Vec<String>> {
+        /*let template = PheToolsTemplate::from_template_dto(cohort_dto, self.hpo.clone())
             .map_err(|verrs| verrs.errors())?;
-        Ok(template)
+        Ok(template)*/
+        Err(vec!["Need to implement QC of the CohortDto".to_ascii_lowercase()])
     }
 
-
-    pub fn get_default_cohort_dir(&self) -> Option<PathBuf> {
+    /// Get path to directory where the cohort is stored.
+    pub fn get_cohort_dir(&self) -> Option<PathBuf> {
         self.manager.as_ref().map(|dirman| dirman.get_cohort_dir())
     }
 
@@ -401,36 +490,28 @@ impl PheTools {
     /// TODO, probably combine in the same command, and add a second command to write to disk
     pub fn save_template(
         &mut self, 
-        cohort_dto: &TemplateDto) 
+        cohort_dto: CohortDto) 
     -> Result<(), Vec<String>> {
         let template = self.validate_template(cohort_dto)?;
-        self.template = Some(template);
+       panic!("TODO save template function");
         Ok(())
     }
 
+    /** Export phenopackets contained in the TemplateDto object passed from the front end (we consider
+     * that the frontend possesses the single source of truth, and always update the TemplateDto object in the
+     * backend). We first create a new PheToolsTemplate from the CohortDto object (because the single
+     * source of truth is regard to come from the front end).
+    ) */
     pub fn export_ppkt(
         &mut self,
-        cohort_dto: &TemplateDto,
+        cohort_dto: CohortDto,
         orcid: &str) 
     -> Result<Vec<Phenopacket>, String> {
+        // 1. Update PheToolsTemplate object according to DTO
         let template = self.validate_template(cohort_dto)
             .map_err(|_| "Could not validate template. Try again".to_string())?;
-        self.template = Some(template);
-        let template = match &self.template {
-        Some(template) => template,
-            None => {
-                return Err("Phenopacket Template not initialized".to_string());
-            },
-        };
-        let dir_manager = match self.manager.as_mut() {
-            Some(manager) => manager,
-            None => {
-                return Err("Variant Manager Template not initialized".to_string());
-            }
-        };
-        let hgvs_dict = dir_manager.get_hgvs_dict();
-        let structural_dict = dir_manager.get_structural_dict();
-        template.extract_phenopackets(hgvs_dict, structural_dict, orcid)
+        let ppkt_list = template.extract_phenopackets(orcid)?;
+        Ok(ppkt_list)
     }
 
     
@@ -450,10 +531,10 @@ impl PheTools {
     /// Write phenopackets to file that correspond to the current TemplateDto
     pub fn write_ppkt_list(
         &mut self,  
-        cohort_dto: TemplateDto, 
+        cohort_dto: CohortDto, 
         dir: PathBuf,
         orcid: String) -> Result<(), String> {
-        let ppkt_list: Vec<Phenopacket> = self.export_ppkt(&cohort_dto, &orcid)?;
+        let ppkt_list: Vec<Phenopacket> = self.export_ppkt(cohort_dto, &orcid)?;
         for ppkt in ppkt_list {
             let title = ppkt.id.clone() + ".json";
             let mut file_path = dir.clone();
@@ -481,27 +562,6 @@ impl PheTools {
 
 impl core::fmt::Display for PheTools {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {
-        match &self.template {
-            Some(tplt) => {
-                let gene_sym = "todo".to_string();
-                let hgnc = "todo".to_string();
-                let dis = "todo".to_string();
-                let ds_id = "todo".to_string();
-                let ppkt_n = tplt.phenopacket_count();
-                let hpo_v = "HPO: to-do update ontolius".to_string(); // TODO
-                write!(
-                    fmt,
-                    r#"
-{hpo_v}
-phenopackets: {ppkt_n}
-Gene: {gene_sym}
-HGNC: {hgnc}
-Disease: {dis}
-Disease id: {ds_id}
-"#
-                )
-            }
-            None => write!(fmt, "Phetype template not initialized"),
-        }
+         write!(fmt, "ToDo - Phetools Display")
     }
 }
