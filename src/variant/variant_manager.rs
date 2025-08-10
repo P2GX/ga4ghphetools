@@ -1,6 +1,6 @@
 
 use std::collections::HashMap;
-use crate::dto::template_dto::CohortDto;
+use crate::dto::cohort_dto::CohortDto;
 
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
@@ -41,7 +41,7 @@ impl VariantManager {
         match &vv_dto.validation_type {
             VariantValidationType::Hgvs => {
                 let hgvs = self.hgvs_validator.validate_hgvs(vv_dto)?;
-                cohort_dto.validated_hgvs_variants.insert(hgvs.variant_key(), hgvs);
+                cohort_dto.hgvs_variants.insert(hgvs.variant_key(), hgvs);
                 return Ok(cohort_dto);
             } 
             VariantValidationType::PreciseSv => {
@@ -54,7 +54,7 @@ impl VariantManager {
             | VariantValidationType::Ins 
             | VariantValidationType::Sv => {
                 let sv = self.structural_validator.validate_sv(vv_dto)?;
-                cohort_dto.validated_structural_variants.insert(sv.variant_key(), sv);
+                cohort_dto.structural_variants.insert(sv.variant_key(), sv);
                 return Ok(cohort_dto);
             }
         }

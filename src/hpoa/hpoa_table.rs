@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}};
 
 use chrono::Local;
 
-use crate::{dto::template_dto::{DiseaseDto, CohortDto}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::cohort_dto::{DiseaseDto, CohortDto}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
 
 

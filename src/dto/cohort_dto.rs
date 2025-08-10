@@ -260,8 +260,8 @@ pub struct CohortDto {
     pub hpo_headers: Vec<HeaderDupletDto>,
     /// The phenopackets (rows) in the current cohort
     pub rows: Vec<RowDto>,
-    pub validated_hgvs_variants: HashMap<String, HgvsVariant>,
-    pub validated_structural_variants: HashMap<String, StructuralVariant>,
+    pub hgvs_variants: HashMap<String, HgvsVariant>,
+    pub structural_variants: HashMap<String, StructuralVariant>,
 }
 
 impl CohortDto {
@@ -280,8 +280,8 @@ impl CohortDto {
             disease_gene_dto: dg_dto,
             hpo_headers, 
             rows,
-            validated_hgvs_variants: HashMap::new(),
-            validated_structural_variants: HashMap::new(),
+            hgvs_variants: HashMap::new(),
+            structural_variants: HashMap::new(),
         }
     }
 

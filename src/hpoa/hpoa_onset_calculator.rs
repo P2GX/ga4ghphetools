@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ontolius::term::simple::SimpleMinimalTerm;
 use regex::Regex;
 
-use crate::{dto::template_dto::CohortDto, hpo::age_util};
+use crate::{dto::cohort_dto::CohortDto, hpo::age_util};
 
 
 

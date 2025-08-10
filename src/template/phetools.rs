@@ -4,7 +4,7 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::template_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,CohortDto};
+use crate::dto::cohort_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,CohortDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantValidationDto;
 use crate::etl::etl_tools::EtlTools;
@@ -379,10 +379,10 @@ impl PheTools {
     ) -> Result<CohortDto, String> {
         if (vv_dto.is_hgvs()) {
             let hgvs = self.hgsv_validator.validate_hgvs(vv_dto)?;
-            cohort_dto.validated_hgvs_variants.insert(hgvs.variant_key(), hgvs);
+            cohort_dto.hgvs_variants.insert(hgvs.variant_key(), hgvs);
         } else if (vv_dto.is_sv()) {
             let sv = self.sv_validator.validate_sv(vv_dto)?;
-            cohort_dto.validated_structural_variants.insert(sv.variant_key(), sv);
+            cohort_dto.structural_variants.insert(sv.variant_key(), sv);
         }
 
         Ok(cohort_dto)
@@ -409,7 +409,7 @@ impl PheTools {
     pub fn validate_all_variants(
         &self,
         mut cohort_dto: CohortDto) 
-    -> Result<CohortDto, ValidationErrors> {
+    -> Result<CohortDto, Vec<String>> {
         let verrs = ValidationErrors::new();
         for row in &cohort_dto.rows {
             let dto = &row.gene_var_dto_list;
@@ -418,22 +418,22 @@ impl PheTools {
                  let allele1_key = gvb_dto.get_key_allele1();
                 if gvb_dto.allele1_is_hgvs() {
                     // only validate if we do not have previous validation results
-                    if ! cohort_dto.validated_hgvs_variants.contains_key(&allele1_key) { 
+                    if ! cohort_dto.hgvs_variants.contains_key(&allele1_key) { 
                         let vv_dto = VariantValidationDto::hgvs_c(&gvb_dto.allele1, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
                         let result = self.hgsv_validator.validate_hgvs(vv_dto);
                         if let Ok(hgvs) = result {
-                            cohort_dto.validated_hgvs_variants.insert(allele1_key, hgvs);
+                            cohort_dto.hgvs_variants.insert(allele1_key, hgvs);
                         } 
                         // We skip errors that may result from network issues, the user can try again
                         // If there actually is an error in the HGVS, this can be detected by attempting to validate the specific variant
                     }
                 } else if gvb_dto.allele1_is_present() {
                     // must be sv
-                    if ! cohort_dto.validated_structural_variants.contains_key(&allele1_key) {
+                    if ! cohort_dto.structural_variants.contains_key(&allele1_key) {
                         let vv_dto = VariantValidationDto::sv(&gvb_dto.allele1, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
                         let result =self.sv_validator.validate_sv(vv_dto);
                         if let Ok(sv) = result {
-                            cohort_dto.validated_structural_variants.insert(allele1_key, sv);
+                            cohort_dto.structural_variants.insert(allele1_key, sv);
                         }
                         
                     }
@@ -444,15 +444,15 @@ impl PheTools {
                         let vv_dto = VariantValidationDto::hgvs_c(&gvb_dto.allele2, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
                         let result = self.hgsv_validator.validate_hgvs(vv_dto);
                         if let Ok(hgvs) = result {
-                            cohort_dto.validated_hgvs_variants.insert(allele2_key, hgvs);
+                            cohort_dto.hgvs_variants.insert(allele2_key, hgvs);
                         } 
                     } else if gvb_dto.allele2_is_present() {
                         // must be sv
-                        if ! cohort_dto.validated_structural_variants.contains_key(&allele2_key) {
+                        if ! cohort_dto.structural_variants.contains_key(&allele2_key) {
                             let vv_dto = VariantValidationDto::sv(&gvb_dto.allele2, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
                               let result =self.sv_validator.validate_sv(vv_dto);
                             if let Ok(sv) = result {
-                                cohort_dto.validated_structural_variants.insert(allele2_key, sv);
+                                cohort_dto.structural_variants.insert(allele2_key, sv);
                             }
                         }
                     }

@@ -15,7 +15,7 @@ use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
 
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{HeaderDupletDto};
+use crate::dto::cohort_dto::{HeaderDupletDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;

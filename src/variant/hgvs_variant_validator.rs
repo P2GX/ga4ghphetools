@@ -75,6 +75,7 @@ impl HgvsVariantValidator {
             .ok_or_else(|| "Missing variant key".to_string())?;
 
         let var = &response[variant_key];
+        //println!("{}", serde_json::to_string_pretty(var).unwrap());
 
         let hgnc = var.get("gene_ids")
             .and_then(|ids| ids.get("hgnc_id"))
@@ -97,23 +98,14 @@ impl HgvsVariantValidator {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .ok_or_else(|| "Missing field: hgvs_transcript_variant".to_string())?;
+        // this field is like NM_000138.5:c.8242G>T - let's just take the first part
+        let transcript = hgvs_transcript_var.split(':').next().unwrap_or("");
+        println!("transcript: {transcript} hgvs var tr {hgvs_transcript_var}");
 
         let genomic_hgvs = assembly.get("hgvs_genomic_description")
             .and_then(|v| v.as_str())
             .map(str::to_string)
             .ok_or_else(|| "Missing field: hgvs_genomic_description".to_string())?;
-
-        let transcript = var.get("reference_sequence_records")
-            .and_then(|r| r.get("transcript"))
-            .and_then(|t| t.as_str())
-            .map(|t| {
-                if t.starts_with("https://www.ncbi.nlm.nih.gov/nuccore/") {
-                    t[37..].to_string()
-                } else {
-                    t.to_string()
-                }
-            })
-            .ok_or_else(|| "Missing field: transcript".to_string())?;
 
         let vcf = assembly.get("vcf")
             .ok_or_else(|| "Could not identify vcf element".to_string())?;
@@ -140,10 +132,9 @@ impl HgvsVariantValidator {
             vcf_var, 
             symbol,
             hgnc,
-            transcript,
-            hgvs_transcript_var,
+            vv_dto.variant_string,
+            transcript.to_string(),
             genomic_hgvs,
-            None,
         );
         Ok(hgvs_v)
     }

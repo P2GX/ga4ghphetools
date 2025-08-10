@@ -1,7 +1,7 @@
 use reqwest::blocking::get;
 use serde_json::Value;
 
-use crate::{dto::{template_dto::CohortDto, variant_dto::{VariantValidationDto}}, variant::structural_variant::{StructuralVariant, SvType}};
+use crate::{dto::{cohort_dto::CohortDto, variant_dto::{VariantValidationDto}}, variant::structural_variant::{StructuralVariant, SvType}};
 
 
 

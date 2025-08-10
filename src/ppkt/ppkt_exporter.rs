@@ -12,7 +12,7 @@ use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, E
 use phenopackets::schema::v2::Phenopacket;
 
 use regex::Regex;
-use crate::dto::template_dto::{CohortDto, GeneVariantBundleDto};
+use crate::dto::cohort_dto::{CohortDto, GeneVariantBundleDto};
 use crate::error::{Error, Result};
 
 use crate::variant::hgvs_variant::HgvsVariant;

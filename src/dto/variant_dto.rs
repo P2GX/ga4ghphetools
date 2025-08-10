@@ -27,7 +27,7 @@ pub struct VariantDto {
 
 /// The frontend will tell us what kind of variant is being sent to the backend for validation using this enumeration
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum VariantValidationType {
     /// Small variant represented as HGVS, must start with c. or n.
     Hgvs,
@@ -125,53 +125,6 @@ impl VariantValidationDto {
     }
 }
 
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HgvsVariantDto {
-    /// Genome assembly, e.g., hg38
-    assembly: String,
-    /// chromosome
-    chr: String,
-    /// position on the chromosome
-    position: u32,
-    /// VCF-style reference allele
-    ref_allele: String,
-    /// VCF-style alternate allele
-    alt_allele: String,
-    /// Symbol recommended by HGNC, e.g. FBN1
-    gene_symbol: String,
-     /// HUGO Gene Nomenclature Committee identifier, e.g., HGNC:123
-    hgnc_id: String,
-     /// An HGVS String (e.g., c.123T>G)
-    hgvs: String,
-    /// transcript of reference for the gene of interest (usually MANE) with version number, e.g. NM_000123.2 
-    transcript: String,
-    /// Genomic VCF-style variant
-    g_hgvs: String,
-    /// TODO, probably do not want this here
-    /// genotype: String,
-    /// Arbitrary identifier - TODO, we will try SYMBOL:TRANSCRIPT:hgvs
-    variant_id: String,
-    /// Have we validated this variant in the backend?
-    validated: bool
-}
-
-/*
-pub struct HgvsVariant {
-    assembly: String,
-    chr: String,
-    position: u32,
-    ref_allele: String,
-    alt_allele: String,
-    symbol: Option<String>,
-    hgnc_id: Option<String>,
-    hgvs: Option<String>,
-    transcript: Option<String>,
-    g_hgvs: Option<String>,
-    genotype: Option<String>,
-    variant_id: String,
-} */
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

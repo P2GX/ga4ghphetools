@@ -11,7 +11,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{hpo_term_dto::HpoTermDto, template_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, HeaderDupletDto, IndividualBundleDto, RowDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::ppkt_row::PpktRow, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, hgvs_variant_validator::HgvsVariantValidator, structural_validator::StructuralValidator, structural_variant::StructuralVariant}};
+use crate::{dto::{hpo_term_dto::HpoTermDto, cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, HeaderDupletDto, IndividualBundleDto, RowDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::ppkt_row::PpktRow, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, hgvs_variant_validator::HgvsVariantValidator, structural_validator::StructuralValidator, structural_variant::StructuralVariant}};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -542,7 +542,7 @@ impl CohortDtoBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{dto::template_dto::{DiseaseDto, GeneTranscriptDto}};
+    use crate::{dto::cohort_dto::{DiseaseDto, GeneTranscriptDto}};
     use ontolius::{io::OntologyLoaderBuilder};
   
     use super::*;

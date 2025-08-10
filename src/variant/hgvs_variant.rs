@@ -9,17 +9,26 @@ use crate::variant::vcf_var::VcfVar;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HgvsVariant {
+    /// Genome build, e.g., hg38
     assembly: String,
+    /// Chromosome, e.g., "17"
     chr: String,
+    /// Position on the chromosome
     position: u32,
+    /// Reference allele
     ref_allele: String,
+    /// Alternate allele
     alt_allele: String,
+    /// Gene symbol, e.g., FBN1
     symbol: String,
+    /// HUGO Gene Nomenclature Committee identifier, e.g., HGNC:3603
     hgnc_id: String,
+    /// HGVS Nomenclature, e.g., c.8242G>T
     hgvs: String,
+    /// Transcript, e.g., NM_000138.5
     transcript: String,
+    /// Genomic HGVS nomenclature, e.g., NC_000015.10:g.48411364C>A
     g_hgvs: String,
-    variant_id: String,
 }
 
 impl HgvsVariant {
@@ -31,21 +40,20 @@ impl HgvsVariant {
         hgvs: String,
         transcript: String,
         g_hgvs: String,
-        variant_id: Option<String>,
     ) -> Self {
         let chr = vcf_var.chrom();
         let pos = vcf_var.pos();
         let ref_allele = vcf_var.ref_allele();
         let alt_allele = vcf_var.alt_allele();
 
-        let variant_id = match variant_id {
+       /*  let variant_id = match variant_id {
             Some(id) => id,
             None => rand::rng()
                 .sample_iter(&Alphanumeric)
                 .take(25)
                 .map(char::from)
                 .collect()
-        };
+        };*/
         
         HgvsVariant {
             assembly,
@@ -58,7 +66,6 @@ impl HgvsVariant {
             hgvs,
             transcript,
             g_hgvs,
-            variant_id,
         }
     }
 
@@ -101,12 +108,6 @@ impl HgvsVariant {
     pub fn g_hgvs(&self) -> &str {
         self.g_hgvs.as_ref()
     }
- 
-
-    pub fn variant_id(&self) ->  &str {
-        self.variant_id.as_ref()
-    }
-
 
     /// returns a String key that can be used in HashMaps to unambiguously identify this variant
     pub fn variant_key(&self) -> String {
@@ -122,7 +123,6 @@ impl HgvsVariant {
 mod tests {
 
     use crate::{dto::variant_dto::VariantValidationDto, variant::hgvs_variant_validator::HgvsVariantValidator};
-    use super::*;
     use rstest::rstest;
 
     // test NM_000138.5(FBN1):c.8242G>T (p.Glu2748Ter)
@@ -146,9 +146,10 @@ mod tests {
         assert_eq!("A", hgvs_var.alt_allele());
         assert_eq!("FBN1", hgvs_var.symbol());
         assert_eq!("HGNC:3603", hgvs_var.hgnc_id());
-        assert_eq!("NM_000138.5:c.8242G>T", hgvs_var.transcript());
+        assert_eq!("NM_000138.5", hgvs_var.transcript());
         assert_eq!("NC_000015.10:g.48411364C>A", hgvs_var.g_hgvs());
-      
+        let expected_key = "c.8242G>T_FBN1_NM_000138.5";
+        assert_eq!(expected_key, hgvs_var.variant_key());
     }
 
 
