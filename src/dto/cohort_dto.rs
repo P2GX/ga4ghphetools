@@ -1,10 +1,14 @@
 use core::convert::From;
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
-use crate::template::pt_template::TemplateType;
+use crate::template::cohort_dto_builder::CohortType;
+use crate::variant::hgvs_variant::HgvsVariant;
+use crate::variant::structural_variant::StructuralVariant;
+
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,6 +75,43 @@ impl GeneVariantBundleDto {
             variant_comment: variant_comment.to_string() 
         }
     }
+
+    pub fn get_key_allele1(&self) -> String {
+        format!("{}_{}_{}", self.allele1, self.gene_symbol, self.transcript)
+    }
+
+    pub fn get_key_allele2(&self) -> String {
+        if self.allele2.is_empty() || self.allele2 == "na" {
+            "na".to_string()
+        } else {
+            format!("{}_{}_{}", self.allele2, self.gene_symbol, self.transcript)
+        }
+    }
+
+    pub fn allele1_is_hgvs(&self) -> bool {
+        self.allele1.starts_with("c.") || self.allele1.starts_with("n.")
+    }
+
+    pub fn allele2_is_hgvs(&self) -> bool {
+        self.allele2.starts_with("c.") || self.allele2.starts_with("n.")
+    }
+
+    pub fn allele1_is_present(&self) -> bool {
+        self.allele2 != "na"
+    }
+
+    pub fn allele1_is_sv(&self) -> bool {
+        self.allele1_is_present() && ! self.allele1_is_hgvs()
+    }
+
+    pub fn allele2_is_present(&self) -> bool {
+        self.allele2 != "na"
+    }
+
+    pub fn allele2_is_sv(&self) -> bool {
+        self.allele2_is_present() && ! self.allele2_is_hgvs()
+    }
+
 }
 
 
@@ -115,7 +156,7 @@ pub struct GeneTranscriptDto {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseGeneDto {
-    pub template_type: TemplateType,
+    pub template_type: CohortType,
     /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
     pub cohort_acronym: String,
     pub disease_dto_list: Vec<DiseaseDto>,
@@ -210,36 +251,46 @@ impl From<DupletItem> for HeaderDupletDto {
 /// There is a corresponding typescript DTO in the front-end
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TemplateDto {
+pub struct CohortDto {
     /// Mendelian, Melded, or Digenic
-    pub cohort_type: TemplateType,
+    pub cohort_type: CohortType,
     /// The diseases and genes in focus for the current cohort
     pub disease_gene_dto: DiseaseGeneDto,
     /// The HPO terms used to annotate the cohort
     pub hpo_headers: Vec<HeaderDupletDto>,
     /// The phenopackets (rows) in the current cohort
-    pub rows: Vec<RowDto>
+    pub rows: Vec<RowDto>,
+    pub hgvs_variants: HashMap<String, HgvsVariant>,
+    pub structural_variants: HashMap<String, StructuralVariant>,
 }
 
-impl TemplateDto {
+impl CohortDto {
+    /// Initialize a new TemplateDto for Mendelian cohorts. 
+    /// Lists for validated variants are generated that should be filled using
+    /// VariantValidator (for HGVS) and StructuralVariantValidator (for structural variants).
+    /// This function is only used for ingesting (legacy) Excel files, since we are migrating
+    /// to using the JSON representation of the TemplateDto as the serialization format.
+    /// TODO: remove this function once we have migrated all cohorts to the JSON format.
     pub fn mendelian(
             dg_dto: DiseaseGeneDto,
             hpo_headers: Vec<HeaderDupletDto>, 
             rows: Vec<RowDto>) -> Self {
         Self { 
-            cohort_type: TemplateType::Mendelian, 
+            cohort_type: CohortType::Mendelian, 
             disease_gene_dto: dg_dto,
             hpo_headers, 
-            rows 
+            rows,
+            hgvs_variants: HashMap::new(),
+            structural_variants: HashMap::new(),
         }
     }
 
-    pub fn template_type(&self) -> TemplateType {
+    pub fn template_type(&self) -> CohortType {
         self.cohort_type
     }
 
     pub fn is_mendelian(&self) -> bool {
-        self.template_type() == TemplateType::Mendelian
+        self.template_type() == CohortType::Mendelian
     }
 
 

@@ -1,6 +1,6 @@
 
 
-use crate::dto::template_dto::DiseaseDto;
+use crate::dto::cohort_dto::DiseaseDto;
 
 
 

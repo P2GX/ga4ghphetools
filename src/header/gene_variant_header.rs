@@ -1,4 +1,4 @@
-use crate::{dto::{template_dto::GeneVariantBundleDto, validation_errors::ValidationErrors}, header::duplet_item::DupletItem, template::gene_variant_bundle::GeneVariantBundle};
+use crate::{dto::{cohort_dto::GeneVariantBundleDto, validation_errors::ValidationErrors}, header::duplet_item::DupletItem, template::gene_variant_bundle::GeneVariantBundle};
 
 
 

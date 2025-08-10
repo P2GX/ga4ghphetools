@@ -1,72 +1,119 @@
-use ontolius::{term::{simple::SimpleMinimalTerm, MinimalTerm}, Identified, TermId};
+use ontolius::{term::simple::SimpleMinimalTerm, TermId};
+use phenopackets::schema::v2::core::OntologyClass;
 use rand::{distr::Alphanumeric, Rng};
 use serde::{Serialize, Deserialize};
-use std::{str::FromStr};
+use std::{fmt, str::FromStr};
 use once_cell::sync::Lazy;
-use crate::{dto::variant_dto::VariantDto};
+use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
 const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
 
-pub const DELETION: &str = "DEL";
-pub const TRANSLOCATION: &str = "TRANSL";
-pub const DUPLICATION: &str = "DUP";
-pub const INVSERSION: &str = "INV";
 
+/// The frontend will tell us what kind of variant is being sent to the backend for validation using this enumeration
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SvType {
+    /// chromosomal_deletion
+    Del ,
+    /// chromosomal_inversion
+    Inv,
+    /// chromosomal_translocation
+    Transl,
+    /// chromosomal_duplication
+    Dup, 
+    /// structural_variation, not specific subtype
+    Sv,
+}
 
+impl fmt::Display for SvType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            SvType::Del => "DEL",
+            SvType::Inv => "INV",
+            SvType::Transl => "TRANSL",
+            SvType::Dup => "DUP",
+            SvType::Sv => "SV",
+        };
+        write!(f, "{}", s)
+    }
+}
 
-static CHROMOSOMAL_STRUCTURE_VARIATION: Lazy<SimpleMinimalTerm> = Lazy::new(|| {
-    SimpleMinimalTerm::new(
-        TermId::from_str("SO:1000183").unwrap(),
-        "chromosome_structure_variation".to_string(),
-        vec![], 
-        false 
-    )
+impl FromStr for SvType {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_uppercase().as_str() {
+            "DEL" => Ok(SvType::Del),
+            "INV" => Ok(SvType::Inv),
+            "TRANSL" => Ok(SvType::Transl),
+            "DUP" => Ok(SvType::Dup),
+            "SV" => Ok(SvType::Sv),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<VariantValidationType> for SvType {
+    type Error = String;
+    fn try_from(vvt: VariantValidationType) -> Result<Self, Self::Error> {
+        match vvt {
+            VariantValidationType::Del => Ok(Self::Del),
+            VariantValidationType::Dup => Ok(Self::Dup),
+            VariantValidationType::Inv => Ok(Self::Inv),
+            VariantValidationType::Transl => Ok(Self::Transl),
+            VariantValidationType::Sv => Ok(Self::Sv),
+            VariantValidationType::Hgvs => Err("Cannot convert ValidationType HGVS into SV type".to_string()),
+            VariantValidationType::PreciseSv => Err("Cannot convert ValidationType PreciseSv into SV type".to_string()),
+        }
+    }
+}
+
+static CHROMOSOMAL_STRUCTURE_VARIATION: Lazy<OntologyClass> = Lazy::new(|| {
+    OntologyClass {
+        id: "SO:1000183".to_string(),
+        label: "chromosome_structure_variation".to_string(),
+    }
 });
 
-static CHROMOSOMAL_TRANSLOCATION: Lazy<SimpleMinimalTerm> = Lazy::new(|| {
-    SimpleMinimalTerm::new(
-        TermId::from_str("SO:1000044").unwrap(),
-        "chromosomal_translocation".to_string(),
-        vec![], 
-        false 
-    )
+static CHROMOSOMAL_TRANSLOCATION: Lazy<OntologyClass> = Lazy::new(|| {
+    OntologyClass{
+        id: "SO:1000044".to_string(),
+        label: "chromosomal_translocation".to_string(),
+    }
 });
 
-static CHROMOSOMAL_DELETION: Lazy<SimpleMinimalTerm> = Lazy::new(|| {
-    SimpleMinimalTerm::new(
-        TermId::from_str("SO:1000029").unwrap(),
-        "chromosomal_deletion".to_string(),
-        vec![], 
-        false 
-    )
+static CHROMOSOMAL_DELETION: Lazy<OntologyClass> = Lazy::new(|| {
+    OntologyClass {
+        id: "SO:1000029".to_string(),
+        label: "chromosomal_deletion".to_string(),
+    }
 });
 
-static CHROMOSOMAL_DUPLICATION: Lazy<SimpleMinimalTerm> = Lazy::new(|| {
-    SimpleMinimalTerm::new(
-        TermId::from_str("SO:1000037").unwrap(),
-        "chromosomal_duplication".to_string(),
-        vec![], 
-        false 
-    )
+static CHROMOSOMAL_DUPLICATION: Lazy<OntologyClass> = Lazy::new(|| {
+     OntologyClass {
+        id: "SO:1000037".to_string(),
+        label:"chromosomal_duplication".to_string(),
+     }
 });
 
-static CHROMOSOMAL_INVERSION: Lazy<SimpleMinimalTerm> = Lazy::new(|| {
-    SimpleMinimalTerm::new(
-        TermId::from_str("SO:1000030").unwrap(),
-        "chromosomal_inversion".to_string(),
-        vec![], 
-        false 
-    )
+static CHROMOSOMAL_INVERSION: Lazy<OntologyClass> = Lazy::new(|| {
+    OntologyClass{
+        id: "SO:1000030".to_string(),
+        label: "chromosomal_inversion".to_string(),
+    }
 });
 
-#[derive(Serialize, Deserialize, Clone)]
+/// Representation of a "symbolic" SV, such as DEL Ex3-5, that is without precise positions/definition
+/// This is common in the literature so we capture this using a label to represent the original description
+/// used in the publication, and additional specify the gene symbol, HGNS id of the gene deemed to be most affected
+/// by the SV, and the SV type.
+/// The identifier is provided by the export function to GHA4GH Phenopacket Schema
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct StructuralVariant {
-    variant_id: String,
     label: String,
     gene_symbol: String,
     hgnc_id: String,
-    so_id: String,
-    so_label: String,
-    genotype: Option<String>,
+    sv_type: SvType,
+    chromosome: String
 }
 
 impl StructuralVariant {
@@ -74,120 +121,104 @@ impl StructuralVariant {
         cell_contents: String, 
         gene_symbol: String, 
         gene_id: String, 
-        so_term: &SimpleMinimalTerm, 
-        variant_id: Option<String>) -> std::result::Result<Self, String> {
-        let variant_id = variant_id.unwrap_or_else(|| {
-            let rand_str: String = rand::rng()
-                .sample_iter(&Alphanumeric)
-                .take(25)
-                .map(char::from)
-                .collect();
-            format!("var_{}", rand_str)
-        });
-
+        sv_type: SvType, 
+        chromosome: String) 
+    -> std::result::Result<Self, String> {
         if gene_symbol.is_empty() {
             return Err(format!("Malformed structural variant {cell_contents}: Need to pass a valid gene symbol!"));
         }
-
         if gene_id.is_empty() {
             return Err(format!("Malformed structural variant {cell_contents}: Need to pass a valid HGNC gene id!"));
         }
-
         Ok(Self {
-            variant_id,
             label: cell_contents.trim().to_string(),
             gene_symbol,
             hgnc_id: gene_id,
-            so_id: so_term.identifier().to_string(),
-            so_label: so_term.name().to_string(),
-            genotype: None,
+            sv_type: sv_type,
+            chromosome
         })
     }
 
-
+    
 
     // Static Constructors for Specific Variants
     pub fn chromosomal_deletion(
         cell_contents: impl Into<String>, 
         gene_symbol: impl Into<String>, 
         gene_id: impl Into<String>, 
-        variant_id: Option<String>) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), &CHROMOSOMAL_DELETION, variant_id)
+        chrom: String) -> std::result::Result<Self, String> {
+        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Del, chrom)
     }
 
     pub fn chromosomal_duplication(
         cell_contents: impl Into<String>,  
         gene_symbol: impl Into<String>,  
         gene_id: impl Into<String>,  
-        variant_id: Option<String>) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), &CHROMOSOMAL_DUPLICATION, variant_id)
+        chrom: String) -> std::result::Result<Self, String> {
+        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Dup, chrom)
     }
 
     pub fn chromosomal_inversion(
         cell_contents: impl Into<String>,  
         gene_symbol: impl Into<String>,  
         gene_id: impl Into<String>,  
-        variant_id: Option<String>
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), &CHROMOSOMAL_INVERSION, variant_id)
+        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Inv, chrom)
     }
 
     pub fn chromosomal_translocation(
         cell_contents: impl Into<String>,  
         gene_symbol: impl Into<String>,  
         gene_id: impl Into<String>,  
-        variant_id: Option<String>
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), &CHROMOSOMAL_TRANSLOCATION, variant_id)
+        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Transl, chrom)
     }
 
     pub fn chromosomal_structure_variation(
         cell_contents: impl Into<String>,  
         gene_symbol: impl Into<String>,  
         gene_id: impl Into<String>,  
-        variant_id: Option<String>
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), &CHROMOSOMAL_STRUCTURE_VARIATION, variant_id)
+        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Sv, chrom)
     }
 
     pub fn code_as_chromosomal_structure_variation(
-        allele: &str,
-        dto: &VariantDto
+        vv_dto: VariantValidationDto,
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_structure_variation(allele, dto.gene_symbol(), dto.hgnc_id(), None)
+        Self::chromosomal_structure_variation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id,  chrom)
     }
 
 
     pub fn code_as_chromosomal_deletion(
-        allele: &str, 
-        dto: &VariantDto
+        vv_dto: VariantValidationDto,
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_deletion(allele, dto.gene_symbol(), dto.hgnc_id(), None)
+        Self::chromosomal_deletion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_inversion(
-        allele: &str, 
-        dto: &VariantDto
+        vv_dto: VariantValidationDto,
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_inversion(allele, dto.gene_symbol(), dto.hgnc_id(), None)
+        Self::chromosomal_inversion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_duplication(
-        allele: &str, 
-        dto: &VariantDto
+        vv_dto: VariantValidationDto,
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_duplication(allele, dto.gene_symbol(), dto.hgnc_id(), None)
+        Self::chromosomal_duplication(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_translocation(
-        allele: &str, 
-        dto: &VariantDto
+        vv_dto: VariantValidationDto,
+        chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_translocation(allele, dto.gene_symbol(), dto.hgnc_id(), None)
-    }
-
-    pub fn variant_id(&self) -> &str {
-        &self.variant_id
+        Self::chromosomal_translocation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
     }
 
     pub fn label(&self) -> &str {
@@ -202,17 +233,45 @@ impl StructuralVariant {
         &self.hgnc_id
     }
 
-    pub fn so_id(&self) -> &str {
-        &self.so_id
+    /// Return true iff the variant is X chromosomal
+    /// We use this to determine if the variant is hemizygous
+    pub fn is_x_chromosomal(&self) -> bool {
+        return self.chromosome.contains("X")
     }
 
-    pub fn so_label(&self) -> &str {
-        &self.so_label
+    pub fn get_sequence_ontology_term(&self) -> OntologyClass {
+        match &self.sv_type {
+            SvType::Del => CHROMOSOMAL_DELETION.clone(),
+            SvType::Inv => CHROMOSOMAL_INVERSION.clone(),
+            SvType::Transl => CHROMOSOMAL_TRANSLOCATION.clone(),
+            SvType::Dup => CHROMOSOMAL_DUPLICATION.clone(),
+            SvType::Sv => CHROMOSOMAL_STRUCTURE_VARIATION.clone(),
+        }
     }
 
-    pub fn genotype(&self) -> Option<&str> {
-        self.genotype.as_deref()
+    /* provide a key for the variant that we will use for the HashMap */
+    pub fn variant_key(&self) -> String {
+        let clean_label: String = self
+            .label
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
+            .collect();
+        format!("{}_{}_{}", self.gene_symbol, self.sv_type, clean_label )
+    } 
+}
+
+
+
+
+mod tests {
+    use crate::variant::structural_variant::StructuralVariant;
+
+    #[test]
+    pub fn test_variant_key() {
+        let sv = StructuralVariant::chromosomal_structure_variation("DEL Ex 4", "FBN1", "HGNC:123", "15".to_string()).unwrap();
+        let key = sv.variant_key();
+        assert_eq!("FBN1_SV_DEL_Ex_4", key);
     }
 
-    
+
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::{template_dto::GeneVariantBundleDto, validation_errors::ValidationErrors}, header::gene_variant_header::GeneVariantHeader};
+use crate::{dto::{cohort_dto::GeneVariantBundleDto, validation_errors::ValidationErrors}, header::gene_variant_header::GeneVariantHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<GeneVariantHeader>> = Lazy::new(|| {

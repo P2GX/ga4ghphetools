@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}};
 
 use chrono::Local;
 
-use crate::{dto::template_dto::{DiseaseDto, TemplateDto}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::cohort_dto::{DiseaseDto, CohortDto}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
 
 
@@ -14,7 +14,7 @@ pub struct HpoaTable {
 
 impl HpoaTable {
 
-    pub fn new(cohort: TemplateDto, biocurator: &str) -> Result<Self, String>{
+    pub fn new(cohort: CohortDto, biocurator: &str) -> Result<Self, String>{
         let todays_date = Local::now().format("%Y-%m-%d").to_string();
         if ! cohort.is_mendelian() {
             return Err(format!("Can only export Mendelian HPOA table, but this cohort is {:?}", 

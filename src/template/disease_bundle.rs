@@ -2,7 +2,7 @@ use core::{result::Result, todo};
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::{template_dto::{DiseaseDto, DiseaseGeneDto, TemplateDto}, validation_errors::ValidationErrors}, header::disease_header::DiseaseHeader, template::pt_template::TemplateType};
+use crate::{dto::{cohort_dto::{DiseaseDto, DiseaseGeneDto, CohortDto}, validation_errors::ValidationErrors}, header::disease_header::DiseaseHeader, template::cohort_dto_builder::CohortType};
 
 
 static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {
@@ -57,15 +57,15 @@ impl DiseaseBundle {
     }
 
 
-    pub fn from_cohort_dto(cohort_dto: &TemplateDto) -> Result<Vec<Self>, String> {
+    pub fn from_cohort_dto(cohort_dto: &CohortDto) -> Result<Vec<Self>, String> {
         match cohort_dto.template_type() {
-            TemplateType::Mendelian => {
+            CohortType::Mendelian => {
                 let disease_dto_list: Vec<DiseaseDto> = cohort_dto.get_disease_dto_list()?;
                 let disease_bundle_list = Self::from_dto_list(disease_dto_list);
                 Ok(disease_bundle_list)
         },
-            TemplateType::Melded => todo!(),
-            TemplateType::Digenic => todo!(),
+            CohortType::Melded => todo!(),
+            CohortType::Digenic => todo!(),
         }
     }
 

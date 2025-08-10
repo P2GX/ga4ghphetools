@@ -8,7 +8,7 @@ use std::str::FromStr;
 use lazy_static::lazy_static;
 use ontolius::TermId;
 
-use crate::dto::template_dto::{HeaderDupletDto};
+use crate::dto::cohort_dto::{HeaderDupletDto};
 use crate::error::{Error, Result};
 use crate::hpo::age_util;
 
@@ -109,7 +109,6 @@ impl  HpoTermDuplet {
 mod test {
    
 
-    use super::*;
    
 
 /*

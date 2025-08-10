@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::template_dto::{CellDto, DiseaseDto, GeneVariantBundleDto, IndividualBundleDto, RowDto, TemplateDto};
+use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
@@ -16,7 +16,7 @@ use crate::hpo::age_util::{self, check_hpo_table_cell};
 use crate::template::disease_bundle::{ DiseaseBundle};
 use crate::template::gene_variant_bundle::{ GeneVariantBundle};
 use crate::template::individual_bundle::IndividualBundle;
-use crate::template::pt_template::TemplateType;
+use crate::template::cohort_dto_builder::CohortType;
 
 use crate::template::header_duplet_row::{ HeaderDupletRow};
 
@@ -41,9 +41,9 @@ impl PpktRow {
         content: Vec<String>,
     ) -> std::result::Result<Self, ValidationErrors> {
         match header.template_type() {
-            crate::template::pt_template::TemplateType::Mendelian => Self::from_mendelian_row(header, content),
-            crate::template::pt_template::TemplateType::Melded => todo!(),
-            crate::template::pt_template::TemplateType::Digenic => todo!(),
+            crate::template::cohort_dto_builder::CohortType::Mendelian => Self::from_mendelian_row(header, content),
+            crate::template::cohort_dto_builder::CohortType::Melded => todo!(),
+            crate::template::cohort_dto_builder::CohortType::Digenic => todo!(),
         }
     }
 
@@ -87,8 +87,8 @@ impl PpktRow {
         individual_dto: IndividualBundleDto,
         gene_variant_list: Vec<GeneVariantBundleDto>,
         tid_to_value_map: HashMap<TermId, String>, 
-        cohort_dto: TemplateDto) -> std::result::Result<Self, String> {
-        if cohort_dto.cohort_type != TemplateType::Mendelian {
+        disease_gene_dto: DiseaseGeneDto) -> std::result::Result<Self, String> {
+        if disease_gene_dto.template_type != CohortType::Mendelian {
             panic!("from_map: Melded/Digenic not supported");
         }
         let mut items = Vec::with_capacity(header.hpo_count());
@@ -100,7 +100,6 @@ impl PpktRow {
          println!("from_dtos {}:l.{} individual dto {:?}", file!(), line!(), individual_dto);
         let ibundle = IndividualBundle::from_dto(individual_dto);
         println!("from_dtos {}:l.{} individual bndle {:?}", file!(), line!(), ibundle);
-        let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
         let disease_bundle_list = DiseaseBundle::from_disease_gene_dto(disease_gene_dto);
         let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 

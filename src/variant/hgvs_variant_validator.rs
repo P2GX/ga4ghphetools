@@ -4,13 +4,13 @@
 
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{dto::{ validation_errors::ValidationErrors, variant_dto::VariantDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::{VcfVar}}};
+use crate::{dto::variant_dto::{VariantDto, VariantValidationDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::VcfVar}};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
 const GENOME_ASSEMBLY_HG38: &str = "hg38";
 
-pub struct VariantValidator {
+pub struct HgvsVariantValidator {
     genome_assembly: String,
 }
 
@@ -29,7 +29,7 @@ fn get_variant_validator_url(
     api_url
 }
 
-impl VariantValidator {
+impl HgvsVariantValidator {
     
     pub fn hg38() -> Self {
         Self {
@@ -48,12 +48,13 @@ impl VariantValidator {
     /// 
     /// - `Ok(HgvsVariant)` - An object with information about the variant derived from VariantValidator
     /// - `Err(Error)` - An error if the API call fails (which may happen because of malformed input or network issues).
-    pub fn encode_hgvs(
+    pub fn validate_hgvs(
         &self, 
-        hgvs: &str, 
-        transcript: &str
+        vv_dto: VariantValidationDto
     ) -> Result<HgvsVariant, String> 
     {
+        let hgvs = &vv_dto.variant_string;
+        let transcript = &vv_dto.transcript;
         let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
         let response: Value = get(&url)
             .map_err(|e| format!("Could not map {hgvs}: {e}"))?
@@ -74,15 +75,18 @@ impl VariantValidator {
             .ok_or_else(|| "Missing variant key".to_string())?;
 
         let var = &response[variant_key];
+        //println!("{}", serde_json::to_string_pretty(var).unwrap());
 
         let hgnc = var.get("gene_ids")
             .and_then(|ids| ids.get("hgnc_id"))
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(|s| s.to_string())
+            .ok_or_else(|| "Missing hgnc_id".to_string())?;
 
         let symbol = var.get("gene_symbol")
             .and_then(|s| s.as_str())
-            .map(|s| s.to_string());
+            .map(|s| s.to_string())
+            .ok_or_else(|| "Missing gene_symbol".to_string())?;
 
         let assemblies = var.get("primary_assembly_loci")
             .ok_or_else(|| "Missing primary_assembly_loci".to_string())?;
@@ -92,22 +96,16 @@ impl VariantValidator {
 
         let hgvs_transcript_var = var.get("hgvs_transcript_variant")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(|s| s.to_string())
+            .ok_or_else(|| "Missing field: hgvs_transcript_variant".to_string())?;
+        // this field is like NM_000138.5:c.8242G>T - let's just take the first part
+        let transcript = hgvs_transcript_var.split(':').next().unwrap_or("");
+        println!("transcript: {transcript} hgvs var tr {hgvs_transcript_var}");
 
         let genomic_hgvs = assembly.get("hgvs_genomic_description")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-
-        let transcript = var.get("reference_sequence_records")
-            .and_then(|r| r.get("transcript"))
-            .and_then(|t| t.as_str())
-            .map(|t| {
-                if t.starts_with("https://www.ncbi.nlm.nih.gov/nuccore/") {
-                    t[37..].to_string()
-                } else {
-                    t.to_string()
-                }
-            });
+            .map(str::to_string)
+            .ok_or_else(|| "Missing field: hgvs_genomic_description".to_string())?;
 
         let vcf = assembly.get("vcf")
             .ok_or_else(|| "Could not identify vcf element".to_string())?;
@@ -134,10 +132,9 @@ impl VariantValidator {
             vcf_var, 
             symbol,
             hgnc,
-            transcript,
-            hgvs_transcript_var,
+            vv_dto.variant_string,
+            transcript.to_string(),
             genomic_hgvs,
-            None,
         );
         Ok(hgvs_v)
     }
@@ -171,12 +168,7 @@ impl VariantValidator {
         Ok(())
     }
 
-    pub fn validate_hgvs(
-        &self, 
-        variant_dto: &VariantDto
-    ) -> Result<HgvsVariant, String> {
-        self.encode_hgvs(variant_dto.variant_string(), variant_dto.transcript())
-    }
+  
 }
 
 
@@ -184,32 +176,53 @@ impl VariantValidator {
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
+
     use super::*;
 
-    #[test]
-    fn test_url()  {
-        // NM_000138.5(FBN1):c.8230C>T (p.Gln2744Ter)
+    // NM_000138.5(FBN1):c.8230C>T (p.Gln2744Ter)
+    #[fixture]
+    fn vvdto() -> VariantValidationDto {
+        VariantValidationDto::hgvs_c(
+            "c.8230C>T",
+            "NM_000138.5", 
+            "HGNC:3603", 
+            "FBN1")
+    }
+
+    /// Invalid version of the above with the wrong nucleotide (G instead of C) 
+    /// Designed to elicit an error from VariantValidator
+    #[fixture]
+    fn invalid_vvdto(mut vvdto: VariantValidationDto) -> VariantValidationDto {
+        vvdto.variant_string = "c.8230G>T".to_string();
+        vvdto
+    }
+
+    #[rstest]
+    fn test_url(
+        vvdto: VariantValidationDto
+    ){
         let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NM_000138.5%3Ac.8230C>T/NM_000138.5?content-type=application%2Fjson";
-        let my_url = get_variant_validator_url("hg38", "NM_000138.5", "c.8230C>T");
+        let my_url = get_variant_validator_url("hg38", &vvdto.transcript, &vvdto.variant_string);
         assert_eq!(expected, my_url);
     }
 
-    #[test]
+    #[rstest]
     #[ignore = "runs with API"]
-    fn test_variant_validator() {
-        let vvalidator = VariantValidator::hg38();
-        let json = vvalidator.encode_hgvs("c.8230C>T", "NM_000138.5");
+    fn test_variant_validator(vvdto: VariantValidationDto) {
+        let vvalidator = HgvsVariantValidator::hg38();
+        let json = vvalidator.validate_hgvs(vvdto);
         assert!(json.is_ok());
         let json = json.unwrap();
         println!("{:?}", json);
     }
 
-    #[test]
+    #[rstest]
     #[ignore = "runs with API"]
-    fn test_variant_validator_invalid() {
-        let vvalidator = VariantValidator::hg38();
+    fn test_variant_validator_invalid(invalid_vvdto: VariantValidationDto) {
+        let vvalidator = HgvsVariantValidator::hg38();
         // This is an invalid HGVS because the reference base should be C and not G
-        let result = vvalidator.encode_hgvs("c.8230G>T", "NM_000138.5");
+        let result = vvalidator.validate_hgvs(invalid_vvdto);
         assert!(result.is_err());
         if let Err(e) = result {
             assert_eq!("NM_000138.5:c.8230G>T: Variant reference (G) does not agree with reference sequence (C)", e);
