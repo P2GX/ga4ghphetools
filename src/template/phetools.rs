@@ -253,13 +253,12 @@ impl PheTools {
         hpo_id: &str,
         hpo_label: &str,
         cohort_dto: CohortDto) 
-    -> std::result::Result<CohortDto, Vec<String>> {
+    -> std::result::Result<CohortDto, String> {
         let mut updated_template = 
-            CohortDtoBuilder::from_cohort_dto(  &cohort_dto, self.hpo.clone())
-                .map_err(|verrs| verrs.errors())?;
+            CohortDtoBuilder::from_cohort_dto(  &cohort_dto, self.hpo.clone())?;
         updated_template.add_hpo_term_to_cohort(hpo_id, hpo_label)
-            .map_err(|verrs| verrs.errors().clone())?;
-        let template_dto = updated_template.get_template_dto().map_err(|e| vec![e.to_string()])?;
+            .map_err(|verrs| format!("{:?}", verrs.errors()))?;
+        let template_dto = updated_template.get_template_dto()?;
         Ok(template_dto)
     }
 
@@ -285,19 +284,18 @@ impl PheTools {
         hpo_annotations: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantBundleDto>,
         cohort_dto: CohortDto) 
-    -> Result<CohortDto, Vec<String>> {
+    -> Result<CohortDto, String> {
         let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
         let mut builder: CohortDtoBuilder = 
-            CohortDtoBuilder::from_cohort_dto( &cohort_dto, self.hpo.clone())
-                .map_err(|verrs| verrs.errors())?;
+            CohortDtoBuilder::from_cohort_dto( &cohort_dto, self.hpo.clone())?;
         builder.add_row_with_hpo_data(
             individual_dto, 
             hpo_annotations, 
             gene_variant_list, 
             disease_gene_dto)
-                .map_err(|verr| verr.errors().clone())?;
+            .map_err(|e| format!("{:?}", e.errors()))?;
 
-        let cohort_dto = builder.get_template_dto().map_err(|e| vec![e.to_string()])?;
+        let cohort_dto = builder.get_template_dto()?;
         Ok(cohort_dto)
     }
 
@@ -471,29 +469,14 @@ impl PheTools {
     pub fn validate_template(
         &self, 
         cohort_dto: CohortDto) 
-    -> Result<CohortDtoBuilder, Vec<String>> {
-        /*let template = PheToolsTemplate::from_template_dto(cohort_dto, self.hpo.clone())
-            .map_err(|verrs| verrs.errors())?;
-        Ok(template)*/
-        Err(vec!["Need to implement QC of the CohortDto".to_ascii_lowercase()])
+    -> Result<(), String> {
+        let builder = CohortDtoBuilder::from_cohort_dto(&cohort_dto, self.hpo.clone())?;
+        Ok(())
     }
 
     /// Get path to directory where the cohort is stored.
     pub fn get_cohort_dir(&self) -> Option<PathBuf> {
         self.manager.as_ref().map(|dirman| dirman.get_cohort_dir())
-    }
-
-    /// Check correctness of a TemplateDto that was sent from the front end.
-    /// This operation is performed to see if the edits made in the front end are valid.
-    /// If everything is OK, we can go ahead and save the template using another command.
-    /// TODO, probably combine in the same command, and add a second command to write to disk
-    pub fn save_template(
-        &mut self, 
-        cohort_dto: CohortDto) 
-    -> Result<(), Vec<String>> {
-        let template = self.validate_template(cohort_dto)?;
-       
-        Ok(())
     }
 
     /** Export phenopackets contained in the TemplateDto object passed from the front end (we consider
@@ -507,9 +490,8 @@ impl PheTools {
         orcid: &str) 
     -> Result<Vec<Phenopacket>, String> {
         // 1. Update PheToolsTemplate object according to DTO
-        let template = self.validate_template(cohort_dto.clone())
-            .map_err(|_| "Could not validate template. Try again".to_string())?;
-        let ppkt_list = template.extract_phenopackets(cohort_dto, orcid)?;
+       let builder = CohortDtoBuilder::from_cohort_dto(&cohort_dto, self.hpo.clone())?;
+        let ppkt_list = builder.extract_phenopackets(cohort_dto, orcid)?;
         Ok(ppkt_list)
     }
 

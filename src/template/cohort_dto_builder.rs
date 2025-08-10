@@ -138,11 +138,11 @@ impl CohortDtoBuilder {
     pub fn from_cohort_dto(
         template_dto: &CohortDto, 
         hpo: Arc<FullCsrOntology>) 
-    -> std::result::Result<Self, ValidationErrors> {
+    -> std::result::Result<Self, String> {
         let header_duplet_row = match template_dto.cohort_type {
             CohortType::Mendelian => HeaderDupletRow::new_mendelian_ppkt_from_dto(&template_dto.hpo_headers),
             other => {
-                return Err(ValidationErrors::from_string(format!("Only Mendelian implemented. We cannot yet handle '{:?}'", other)));
+                return Err(format!("Only Mendelian implemented. We cannot yet handle '{:?}'", other));
             }
         };
         let header_arc = Arc::new(header_duplet_row);
@@ -279,16 +279,20 @@ impl CohortDtoBuilder {
     /// This function can be used after we have converted a DTO to a PhetoolsTemplate
     /// to check for syntactic errors in all of the fields (corresponding to all of the columns of the template)
     /// It does not check for ontology errors, e.g., a term is excluded and a child of that term is observed
-    pub fn check_for_errors(&self) -> std::result::Result<(), ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
+    /// TODO - revise error handling
+    pub fn check_for_errors(&self) -> std::result::Result<(), String> {
+        
         for duplet in &self.header.get_hpo_duplets() {
-            verrs.push_result(self.check_duplet(duplet));
+            self.check_duplet(duplet)?;
         }
         for ppkt_row in &self.ppkt_rows {
-            verrs.push_verr_result(ppkt_row.check_for_errors());
+            if let Err(verr) = ppkt_row.check_for_errors() {
+                let errors = verr.errors();
+                return Err(errors[0].clone());
+            };
         }
 
-        verrs.ok()
+        Ok(())
     }
 
 
