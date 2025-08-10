@@ -37,7 +37,7 @@ impl VariantExporter {
    }
 
    pub fn to_ga4gh(&self, row: PpktRow, hgvs_list: Vec<HgvsVariant>, sv_list: Vec<StructuralVariant>) -> Vec<Interpretation> {
-    let mut allele_to_count_map: HashMap<String, usize> = HashMap::new();
+    println!("TODO to_ga4gh");
     /*for dto in &row.get_gene_var_dto_list() {
         *allele_to_count_map.entry(dto.get_key_allele1()).or_insert(0) += 1;
         if let Some(key) = dto.get_key_allele2() {

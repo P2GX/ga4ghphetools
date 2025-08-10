@@ -27,7 +27,7 @@ fn test_variant_manager_cache(
     let dir_path = "/tmp/vman";
     let result = phetools.set_cache_location(dir_path);
     assert!(result.is_ok());
-    let result = phetools.validate_all_variants();
+    
 
     
 

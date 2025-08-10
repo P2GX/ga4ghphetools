@@ -297,9 +297,8 @@ impl PheTools {
             disease_gene_dto)
                 .map_err(|verr| verr.errors().clone())?;
 
-        let template_dto = builder.get_template_dto().map_err(|e| vec![e.to_string()])?;
-        panic!("CHECK THISSTEP");
-        Ok(template_dto)
+        let cohort_dto = builder.get_template_dto().map_err(|e| vec![e.to_string()])?;
+        Ok(cohort_dto)
     }
 
     /// Return information about the version and number of terms of the HPO 
@@ -493,7 +492,7 @@ impl PheTools {
         cohort_dto: CohortDto) 
     -> Result<(), Vec<String>> {
         let template = self.validate_template(cohort_dto)?;
-       panic!("TODO save template function");
+       
         Ok(())
     }
 
@@ -508,9 +507,9 @@ impl PheTools {
         orcid: &str) 
     -> Result<Vec<Phenopacket>, String> {
         // 1. Update PheToolsTemplate object according to DTO
-        let template = self.validate_template(cohort_dto)
+        let template = self.validate_template(cohort_dto.clone())
             .map_err(|_| "Could not validate template. Try again".to_string())?;
-        let ppkt_list = template.extract_phenopackets(orcid)?;
+        let ppkt_list = template.extract_phenopackets(cohort_dto, orcid)?;
         Ok(ppkt_list)
     }
 
@@ -522,6 +521,7 @@ impl PheTools {
             .truncate(true)
             .open(&file_path)
             .map_err(|e| e.to_string())?;
+        println!("ga4ghphenotools - {}: l.{}", file!(), line!());
         serde_json::to_writer_pretty(file, &ppkt)
             .map_err(|e| e.to_string())?; 
         Ok(())

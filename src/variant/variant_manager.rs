@@ -51,7 +51,6 @@ impl VariantManager {
             | VariantValidationType::Inv 
             | VariantValidationType::Transl 
             | VariantValidationType::Dup
-            | VariantValidationType::Ins 
             | VariantValidationType::Sv => {
                 let sv = self.structural_validator.validate_sv(vv_dto)?;
                 cohort_dto.structural_variants.insert(sv.variant_key(), sv);

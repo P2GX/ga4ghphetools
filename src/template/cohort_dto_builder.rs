@@ -11,7 +11,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{hpo_term_dto::HpoTermDto, cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, HeaderDupletDto, IndividualBundleDto, RowDto}, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::ppkt_row::PpktRow, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, hgvs_variant_validator::HgvsVariantValidator, structural_validator::StructuralValidator, structural_variant::StructuralVariant}};
+use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, HeaderDupletDto, IndividualBundleDto, RowDto}, hpo_term_dto::HpoTermDto, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, hgvs_variant_validator::HgvsVariantValidator, structural_validator::StructuralValidator, structural_variant::StructuralVariant}};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -469,22 +469,18 @@ impl CohortDtoBuilder {
 
     pub fn extract_phenopackets(
         &self,
+        cohort_dto: CohortDto,
         orcid: &str) 
     -> std::result::Result<Vec<Phenopacket>, String> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
         let hpo_version = self.hpo.version();
-        /*
-        let ppkt_exporter = PpktExporter::new(hpo_version, orcid);
+        let ppkt_exporter = PpktExporter::new(hpo_version, orcid, cohort_dto);
         for row in &self.ppkt_rows {
-            let gvdto_list = row.get_gene_var_dto_list();
-            let hgvs_list = self.get_hgvs_variants(row, &hgvs_dict)
-            match ppkt_exporter.extract_phenopacket(row,  hgvs_dict,
-                structural_dict) {
+            match ppkt_exporter.extract_phenopacket(row) {
                     Ok(ppkt) =>  { ppkt_list.push(ppkt); },
                     Err(e) => { return Err(format!("Could not extract phenopacket: {}", e));},
                 }
         }
-         */
         Ok(ppkt_list)
     }
 

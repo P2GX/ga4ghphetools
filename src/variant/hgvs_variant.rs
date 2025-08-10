@@ -109,6 +109,10 @@ impl HgvsVariant {
         self.g_hgvs.as_ref()
     }
 
+    pub fn is_x_chromosomal(&self) -> bool {
+        return self.chr.contains("X");
+    }
+
     /// returns a String key that can be used in HashMaps to unambiguously identify this variant
     pub fn variant_key(&self) -> String {
         format!("{}_{}_{}", self.hgvs, self.symbol, self.transcript)

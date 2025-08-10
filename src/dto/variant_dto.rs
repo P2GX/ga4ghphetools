@@ -39,8 +39,6 @@ pub enum VariantValidationType {
     Transl,
     /// chromosomal_duplication
     Dup, 
-    /// chromosomal insertion (other than duplication)
-    Ins,
     /// structural_variation, not specific subtype
     Sv,
     /// structual variant with precise specifications (not implemented yet)
@@ -53,7 +51,6 @@ static IMPRECISE_SV_TYPE_SET: Lazy<HashSet<VariantValidationType>> = Lazy::new(|
     sv_set.insert(VariantValidationType::Inv);
     sv_set.insert(VariantValidationType::Dup);
     sv_set.insert(VariantValidationType::Transl);
-    sv_set.insert(VariantValidationType::Ins);
     sv_set.insert(VariantValidationType::Sv);
     sv_set
 });

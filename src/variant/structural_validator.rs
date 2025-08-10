@@ -44,7 +44,6 @@ impl StructuralValidator {
                 SvType::Inv => StructuralVariant::code_as_chromosomal_inversion(vv_dto, chrom),
                 SvType::Transl => StructuralVariant::code_as_chromosomal_translocation(vv_dto, chrom),
                 SvType::Dup => StructuralVariant::code_as_chromosomal_duplication(vv_dto, chrom),
-                SvType::Ins => StructuralVariant::code_as_chromosomal_insertion(vv_dto, chrom),
                 SvType::Sv => StructuralVariant::code_as_chromosomal_structure_variation(vv_dto, chrom)
             }
     }
