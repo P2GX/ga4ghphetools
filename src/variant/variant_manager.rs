@@ -2,14 +2,14 @@
 use std::collections::HashMap;
 use crate::dto::cohort_dto::CohortDto;
 
-use crate::dto::validation_errors::ValidationErrors;
+
 use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
-use crate::variant::hgvs_variant::HgvsVariant;
+use crate::dto::hgvs_variant::HgvsVariant;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::{dto::variant_dto::VariantDto, variant::hgvs_variant_validator::HgvsVariantValidator};
 
 
-use crate::variant::structural_variant::StructuralVariant;
+use crate::dto::structural_variant::StructuralVariant;
 
 type VariantCache = HashMap<String, HgvsVariant>;
 type StructuralCache = HashMap<String, StructuralVariant>;
@@ -40,7 +40,7 @@ impl VariantManager {
     -> Result<CohortDto, String> {
         match &vv_dto.validation_type {
             VariantValidationType::Hgvs => {
-                let hgvs = self.hgvs_validator.validate_hgvs(vv_dto)?;
+                let hgvs = self.hgvs_validator.validate(vv_dto)?;
                 cohort_dto.hgvs_variants.insert(hgvs.variant_key(), hgvs);
                 return Ok(cohort_dto);
             } 
@@ -52,7 +52,7 @@ impl VariantManager {
             | VariantValidationType::Transl 
             | VariantValidationType::Dup
             | VariantValidationType::Sv => {
-                let sv = self.structural_validator.validate_sv(vv_dto)?;
+                let sv = self.structural_validator.validate(vv_dto)?;
                 cohort_dto.structural_variants.insert(sv.variant_key(), sv);
                 return Ok(cohort_dto);
             }

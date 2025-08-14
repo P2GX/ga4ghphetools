@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::{cohort_dto::IndividualBundleDto, validation_errors::ValidationErrors}, header::individual_header::IndividualHeader};
+use crate::{dto::{cohort_dto::IndividualDto, validation_errors::ValidationErrors}, header::individual_header::IndividualHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<IndividualHeader>> = Lazy::new(|| {
@@ -50,7 +50,7 @@ impl IndividualBundle {
     pub fn from_row(
         row: &Vec<String>,
         start_idx: usize
-    ) -> std::result::Result<Self, ValidationErrors> {
+    ) -> std::result::Result<Self, String> {
         let  i = start_idx;
         let bundle = Self::new(&row[0], &row[1], &row[2], &row[3], &row[i], &row[i+1], &row[i+2], &row[i+3]);
         println!("from row - {:?}", bundle);
@@ -58,7 +58,7 @@ impl IndividualBundle {
         Ok(bundle)
     }
 
-    pub fn do_qc(&self) -> Result<(), ValidationErrors> {
+    pub fn do_qc(&self) -> Result<(), String> {
         self.header.qc_bundle(self)
     }
 
@@ -94,7 +94,7 @@ impl IndividualBundle {
         &self.sex
     }
 
-    pub fn from_dto(dto: IndividualBundleDto) -> Self {
+    pub fn from_dto(dto: IndividualDto) -> Self {
         Self { 
             header: SHARED_HEADER.clone(), 
             pmid: dto.pmid, 

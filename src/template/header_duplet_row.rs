@@ -21,7 +21,7 @@ use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::individual_header::IndividualHeader;
-use crate::hpo::hpo_util::HpoUtil;
+use crate::hpo::hpo_util::{self, HpoUtil};
 use crate::template::cohort_dto_builder::CohortType;
 
 const NOT_AVAILABLE: &str = "na";
@@ -83,7 +83,8 @@ impl HeaderDupletRow {
     pub fn mendelian(
         matrix: &Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
-    ) -> std::result::Result<Self, ValidationErrors> {
+        fix_errors: bool
+    ) -> std::result::Result<Self, String> {
         Self::qc_matrix_dimensions(matrix)?;
         // first Q/C the constant part of the Mendelian header
         let iheader = IndividualHeader::from_matrix(matrix, MENDELIAN_DEMOGRAPHIC_IDX)?;
@@ -98,9 +99,8 @@ impl HeaderDupletRow {
         }
         Self::check_separator(matrix)?;
         let hpo_util = HpoUtil::new(hpo.clone());
-        //hpo_util.check_hpo_duplets(&hpo_duplet_list)?;
-        let hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list)?;
-        
+        if fix_errors {}
+        let hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list, fix_errors)?;
         Ok(Self { 
             individual_header: iheader, 
             disease_header_list: vec![DiseaseHeader::new()], 
@@ -111,36 +111,35 @@ impl HeaderDupletRow {
     }
 
 
-    fn check_separator(matrix: &Vec<Vec<String>>) -> std::result::Result<(), ValidationErrors> {
-        let mut verror = ValidationErrors::new();
+    fn check_separator(matrix: &Vec<Vec<String>>) -> std::result::Result<(), String> {
         let h1 = &matrix[0][16];
         let h2 = &matrix[1][16];
         if h1 != "HPO" {
-            verror.push_str(format!("Row 0, column 16: Expected 'HPO' but got '{h1}'"));
+            return Err(format!("Row 0, column 16: Expected 'HPO' but got '{h1}'"));
         } else if h2 != "na" {
-            verror.push_str(format!("Row 1, column 16: Expected 'na' but got '{h2}'"));
+            return Err(format!("Row 1, column 16: Expected 'na' but got '{h2}'"));
         } 
-        verror.ok()
+        Ok(())
     }
 
 
-    fn qc_matrix_dimensions(matrix: &Vec<Vec<String>>) -> std::result::Result<(), ValidationErrors> {
+    fn qc_matrix_dimensions(matrix: &Vec<Vec<String>>) -> std::result::Result<(), String> {
         let n_rows = matrix.len();
-        let mut verr = ValidationErrors::new();
+
         if n_rows < 3 {
-            verr.push_str(format!("Empty matrix - must have two header rows and at least one data row but had {}", n_rows));
+            return Err(format!("Empty matrix - must have two header rows and at least one data row but had {}", n_rows));
         }
         let n_cols = matrix[0].len();
         if n_cols < MENDELIAN_HPO_IDX + 1 {
-            verr.push_str(format!("Incomplete matrix with {} columns, but at least {} required.", n_cols, MENDELIAN_HPO_IDX+1));
+            return Err(format!("Incomplete matrix with {} columns, but at least {} required.", n_cols, MENDELIAN_HPO_IDX+1));
         }
         for (i, row) in matrix.iter().enumerate() {
             let cols = row.len();
             if cols != n_cols {
-                verr.push_str(format!("First row has {n_cols} columns but row {i} has {cols}"))
+                return Err(format!("First row has {n_cols} columns but row {i} has {cols}"))
             }
         }
-        verr.ok()
+        Ok(())
     }
 
        /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not

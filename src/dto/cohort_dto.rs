@@ -2,17 +2,18 @@ use core::convert::From;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use crate::dto::hgvs_variant::HgvsVariant;
+use crate::dto::structural_variant::StructuralVariant;
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
 use crate::template::cohort_dto_builder::CohortType;
-use crate::variant::hgvs_variant::HgvsVariant;
-use crate::variant::structural_variant::StructuralVariant;
+
 
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IndividualBundleDto {
+pub struct IndividualDto {
     pub pmid: String,
     pub title: String,
     pub individual_id: String,
@@ -23,7 +24,7 @@ pub struct IndividualBundleDto {
     pub sex: String
 }
 
-impl IndividualBundleDto {
+impl IndividualDto {
     pub fn new(
         pmid: &str,
         title: &str,
@@ -46,10 +47,13 @@ impl IndividualBundleDto {
     }
 }
 
-
+/// This structure contains information about the 
+/// variants found in an individual for one specific gene.
+/// The full information about the variants needed to create phenopackets is stored in the
+/// HashMaps 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GeneVariantBundleDto {
+pub struct GeneVariantDto {
     pub hgnc_id: String,
     pub gene_symbol: String,
     pub transcript: String,
@@ -59,7 +63,7 @@ pub struct GeneVariantBundleDto {
 }
 
 
-impl GeneVariantBundleDto {
+impl GeneVariantDto {
     pub fn new(hgnc_id: &str,
                 gene_symbol: &str,
                 transcript: &str,
@@ -176,7 +180,7 @@ pub struct DiseaseGeneDto {
 #[serde(rename_all = "camelCase")]
 pub struct CaseBundleDto {
     pub diseases: Vec<DiseaseDto>, // 1 or 2 depending on template
-    pub gene_vars: Vec<GeneVariantBundleDto>, // 1 or 2 depending on template
+    pub gene_vars: Vec<GeneVariantDto>, // 1 or 2 depending on template
 }
 
 
@@ -198,9 +202,9 @@ impl CellDto {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowDto {
-    pub individual_dto: IndividualBundleDto,
+    pub individual_dto: IndividualDto,
     pub disease_dto_list: Vec<DiseaseDto>,
-    pub gene_var_dto_list: Vec<GeneVariantBundleDto>,
+    pub gene_var_dto_list: Vec<GeneVariantDto>,
     pub hpo_data: Vec<CellDto>
 }
 

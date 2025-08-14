@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::{cohort_dto::GeneVariantBundleDto, validation_errors::ValidationErrors}, header::gene_variant_header::GeneVariantHeader};
+use crate::{dto::{cohort_dto::GeneVariantDto, validation_errors::ValidationErrors}, header::gene_variant_header::GeneVariantHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<GeneVariantHeader>> = Lazy::new(|| {
@@ -44,23 +44,23 @@ impl GeneVariantBundle {
     pub fn from_row(
         row: &Vec<String>,
         start_idx: usize
-    ) -> std::result::Result<Self, ValidationErrors> {
+    ) -> std::result::Result<Self, String> {
         let i = start_idx;
         let bundle = Self::new(&row[i], &row[i+1],&row[i+2],&row[i+3],&row[i+4],&row[i+5]);
         let _ = bundle.do_qc()?;
         Ok(bundle)
     }
 
-    pub fn do_qc(&self) -> Result<(), ValidationErrors> {
+    pub fn do_qc(&self) -> Result<(), String> {
         self.header.qc_bundle(self)?;
         Ok(())
     }
 
-    pub fn to_dto(&self) -> GeneVariantBundleDto {
-        GeneVariantBundleDto:: new(self.hgnc_id(), self.gene_symbol(), self.transcript(), self.allele1(), self.allele2(), self.variant_comment())
+    pub fn to_dto(&self) -> GeneVariantDto {
+        GeneVariantDto:: new(self.hgnc_id(), self.gene_symbol(), self.transcript(), self.allele1(), self.allele2(), self.variant_comment())
     }
 
-    pub fn from_dto(dto: GeneVariantBundleDto) -> Self {
+    pub fn from_dto(dto: GeneVariantDto) -> Self {
         Self { 
             header: SHARED_HEADER.clone(), 
             hgnc_id: dto.hgnc_id, 
@@ -72,7 +72,7 @@ impl GeneVariantBundle {
         }
     }
 
-    pub fn from_dto_list(dto_list: Vec<GeneVariantBundleDto>) -> Vec<Self> {
+    pub fn from_dto_list(dto_list: Vec<GeneVariantDto>) -> Vec<Self> {
         dto_list.into_iter()
             .map(Self::from_dto)
             .collect()

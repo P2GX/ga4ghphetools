@@ -11,7 +11,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantBundleDto, HeaderDupletDto, IndividualBundleDto, RowDto}, hpo_term_dto::HpoTermDto, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::{hgvs_variant::HgvsVariant, hgvs_variant_validator::HgvsVariantValidator, structural_validator::StructuralValidator, structural_variant::StructuralVariant}};
+use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantDto, HeaderDupletDto, IndividualDto, RowDto}, hpo_term_dto::HpoTermDto, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -229,23 +229,18 @@ impl CohortDtoBuilder {
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
         fix_errors: bool
-    ) -> std::result::Result<Self, ValidationErrors> {
-        let verrs = ValidationErrors::new();
-        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone())?;
-
+    ) -> std::result::Result<Self, String> {
+        let fix_errors = false;
+        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
+        println!("{:?}", matrix);
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
         let mut ppt_rows: Vec<PpktRow> = Vec::new();
-        let dg_dto = Self::get_disease_dto_from_excel(&matrix)
-            .map_err(|e| ValidationErrors::from_one_err(e))?;
+        let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
         for row in matrix.into_iter().skip(HEADER_ROWS) {
             let hdr_clone = hdr_arc.clone();
             let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
             ppt_rows.push(ppkt_row);
-        }
-        
-        if verrs.has_error() {
-            return Err(verrs);
         }
         Ok(Self { 
                 header: hdr_arc, 
@@ -279,17 +274,14 @@ impl CohortDtoBuilder {
     /// This function can be used after we have converted a DTO to a PhetoolsTemplate
     /// to check for syntactic errors in all of the fields (corresponding to all of the columns of the template)
     /// It does not check for ontology errors, e.g., a term is excluded and a child of that term is observed
-    /// TODO - revise error handling
+    /// Returns the first error encountered or Ok.
     pub fn check_for_errors(&self) -> std::result::Result<(), String> {
         
         for duplet in &self.header.get_hpo_duplets() {
             self.check_duplet(duplet)?;
         }
         for ppkt_row in &self.ppkt_rows {
-            if let Err(verr) = ppkt_row.check_for_errors() {
-                let errors = verr.errors();
-                return Err(errors[0].clone());
-            };
+            ppkt_row.check_for_errors()?;
         }
 
         Ok(())
@@ -352,9 +344,9 @@ impl CohortDtoBuilder {
     /// in the list of items but present in the columns of the previous matrix will be set to "na"
     pub fn add_row_with_hpo_data(
         &mut self,
-        individual_dto: IndividualBundleDto,
+        individual_dto: IndividualDto,
         hpo_dto_items: Vec<HpoTermDto>,
-        gene_variant_list: Vec<GeneVariantBundleDto>,
+        gene_variant_list: Vec<GeneVariantDto>,
         disease_gene_dto: DiseaseGeneDto
     ) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
@@ -632,19 +624,18 @@ mod test {
     }
 
 
+    /// The second HPO entry is Hallux valgus HP:0001822
+    /// The third is Short 1st metacarpal HP:0010034
+    /// We replace the entry in column 19
     #[rstest]
     fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
         // "Hallux valgus" has extra white space
-        original_matrix[0][19] = "Hallux  valgus".to_string(); 
+        original_matrix[0][20] = "Hallux  valgus".to_string(); 
         let factory = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
         assert!(&factory.is_err());
-        assert!(matches!(&factory, Err(ValidationErrors { .. })));
-        let validation_errs = factory.err().unwrap();
-        assert!(validation_errs.has_error());
-        let errors = validation_errs.errors();
-        assert_eq!(1, errors.len());
-        let err_msg = &errors[0];
-        let expected = "Expected label 'Short 1st metacarpal' but got 'Hallux  valgus' for TermId 'HP:0010034'";
+        assert!(matches!(&factory, Err(String { .. })));
+        let err_msg = factory.err().unwrap();
+        let expected = "HP:0011987: expected 'Ectopic ossification in muscle tissue' but got 'Hallux  valgus'";
         assert_eq!(expected, err_msg);
     }
 
@@ -684,11 +675,8 @@ mod test {
             println!("{}{} {}", idx, label, expected_label);
         }
         assert!(&result.is_err());
-        assert!(matches!(&result, Err(ValidationErrors { .. })));
-        let verr = result.err().unwrap();
-        assert!(verr.has_error());
-        let errors = verr.errors();
-        let err_msg = errors[0].clone();
+        assert!(matches!(&result, Err(String { .. })));
+        let err_msg = result.err().unwrap();
         let expected = format!("Row 0, column {}: Expected '{}' but got '{}'", 
             idx, expected_label, label);
         assert_eq!(expected, err_msg); 
@@ -730,23 +718,13 @@ mod test {
         hpo: Arc<FullCsrOntology>, 
         #[case] idx: usize, 
         #[case] entry: &str,
-        #[case] error_msg: &str) 
+        #[case] expected_error_msg: &str) 
     {
         original_matrix[2][idx] = entry.to_string();
         let result = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
         assert!(result.is_err());
-        let verr = result.err().unwrap();
-        for e in verr.errors() {
-            println!("{}", e);
-        }
-    
-       /*  let templates = factory.get_templates().unwrap();
-        assert_eq!(1, templates.len());
-        let itemplate = &templates[0];
-        let result = itemplate.qc_check();
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(error_msg, err.to_string());*/
+        let err = result.err().unwrap();
+        assert_eq!(expected_error_msg, err);
     }
 
 

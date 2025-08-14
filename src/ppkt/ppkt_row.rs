@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto, RowDto};
+use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
@@ -39,30 +39,29 @@ impl PpktRow {
     pub fn from_row(
         header: Arc<HeaderDupletRow>,
         content: Vec<String>,
-    ) -> std::result::Result<Self, ValidationErrors> {
+    ) -> std::result::Result<Self, String> {
         match header.template_type() {
             crate::template::cohort_dto_builder::CohortType::Mendelian => Self::from_mendelian_row(header, content),
-            crate::template::cohort_dto_builder::CohortType::Melded => todo!(),
-            crate::template::cohort_dto_builder::CohortType::Digenic => todo!(),
+            crate::template::cohort_dto_builder::CohortType::Melded => panic!("No legacy row is Melded (this option is never true)"),
+            crate::template::cohort_dto_builder::CohortType::Digenic => panic!("No legacy row is Digenic (this option is never true)"),
         }
     }
 
+    /// Create a Ppkt obkect from a row of string values. This is part of the ETL pipeline for the legacy Excel files
+    /// TODO: remove once legacy files are cleaned up.
     pub fn from_mendelian_row(
         header: Arc<HeaderDupletRow>,
         content: Vec<String>
-    ) -> std::result::Result<Self, ValidationErrors> {
+    ) -> std::result::Result<Self, String> {
         let ibundle = IndividualBundle::from_row(&content, DEMOGRAPHIC_IDX)?;
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
         let mut verrs = ValidationErrors::new();
         let mut hpo_content: Vec<String> = Vec::new();
         for item in content.iter().skip(17) {
-            let cell = if item.trim().is_empty() { "na" } else { item }; // TODO -- remove once old templates have been restructured
-            verrs.push_result(age_util::check_hpo_table_cell(&item));
+            let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency
+            age_util::check_hpo_table_cell(&item)?;
             hpo_content.push(item.clone());
-        }
-        if verrs.has_error() {
-            return Err(verrs);
         }
         Ok(Self { header: header.clone(), 
             individual_bundle: ibundle, 
@@ -84,8 +83,8 @@ impl PpktRow {
     /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
     pub fn from_dtos(
         header: Arc<HeaderDupletRow>, 
-        individual_dto: IndividualBundleDto,
-        gene_variant_list: Vec<GeneVariantBundleDto>,
+        individual_dto: IndividualDto,
+        gene_variant_list: Vec<GeneVariantDto>,
         tid_to_value_map: HashMap<TermId, String>, 
         disease_gene_dto: DiseaseGeneDto) -> std::result::Result<Self, String> {
         if disease_gene_dto.template_type != CohortType::Mendelian {
@@ -124,9 +123,9 @@ impl PpktRow {
         }
     }
 
-    pub fn get_individual_dto(&self) -> IndividualBundleDto {
+    pub fn get_individual_dto(&self) -> IndividualDto {
         let ibdl = &self.individual_bundle;
-        IndividualBundleDto::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment(),
+        IndividualDto::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment(),
             ibdl.age_of_onset(), ibdl.age_at_last_encounter(), ibdl.deceased(), ibdl.sex())
     }
 
@@ -138,8 +137,8 @@ impl PpktRow {
         dto_list
     }
 
-    pub fn get_gene_var_dto_list(&self) -> Vec<GeneVariantBundleDto> {
-        let mut gbdto_list: Vec<GeneVariantBundleDto> = Vec::new();
+    pub fn get_gene_var_dto_list(&self) -> Vec<GeneVariantDto> {
+        let mut gbdto_list: Vec<GeneVariantDto> = Vec::new();
         for gvb in &self.gene_var_bundle_list{
             gbdto_list.push(gvb.to_dto());
         }
@@ -162,7 +161,7 @@ impl PpktRow {
     pub fn mendelian_from_dto(
         &self,
         header_duplet_row: Arc<HeaderDupletRow>,
-        individual_dto: IndividualBundleDto,
+        individual_dto: IndividualDto,
         annotations: Vec<HpoTermDto>,
         existing_annotation_map:HashMap<TermId, String>) 
     -> std::result::Result<Self, ValidationErrors> 
@@ -187,20 +186,18 @@ impl PpktRow {
     }
 
     /// This function checks the current PpktRow for syntactical errors
-    pub fn check_for_errors(&self) -> std::result::Result<(), ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
-        verrs.push_verr_result(self.individual_bundle.do_qc());
+    pub fn check_for_errors(&self) -> std::result::Result<(), String> {
+        self.individual_bundle.do_qc()?;
         for db in &self.disease_bundle_list {
-            verrs.push_verr_result(db.do_qc());
+            db.do_qc()?;
         }
         for gvb in &self.gene_var_bundle_list {
-            verrs.push_verr_result(gvb.do_qc());
+            gvb.do_qc()?;
         }
         for item in &self.hpo_content {
-            verrs.push_result(check_hpo_table_cell(item));
+            check_hpo_table_cell(item)?;
         }
-
-        verrs.ok()
+        Ok(())
     }
 
     /// Update current HPO values according to a new header.

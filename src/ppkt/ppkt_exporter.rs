@@ -1,11 +1,7 @@
 //! Module to export GA4GH Phenopackets from the information in the template.
 
-use std::collections::HashMap;
 
-use ontolius::term::simple::SimpleMinimalTerm;
-use ontolius::term::MinimalTerm;
 use phenopacket_tools::builders::time_elements::time_element_from_str;
-use phenopacket_tools::constants::allelic_state;
 use phenopackets::ga4gh::vrsatile::v1::{Expression, GeneDescriptor, MoleculeContext, VariationDescriptor, VcfRecord};
 use phenopackets::schema::v2::core::genomic_interpretation::{Call, InterpretationStatus};
 use phenopackets::schema::v2::core::interpretation::ProgressStatus;
@@ -15,11 +11,11 @@ use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, E
 use phenopackets::schema::v2::Phenopacket;
 
 use regex::Regex;
-use crate::dto::cohort_dto::{CohortDto, GeneVariantBundleDto};
+use crate::dto::cohort_dto::{CohortDto, GeneVariantDto};
 use crate::error::{Error, Result};
 
-use crate::variant::hgvs_variant::HgvsVariant;
-use crate::variant::structural_variant::StructuralVariant;
+use crate::dto::hgvs_variant::HgvsVariant;
+use crate::dto::structural_variant::StructuralVariant;
 use crate::variant::variant_util::{self, generate_id};
 use phenopacket_tools;
 use super::ppkt_row::PpktRow;
@@ -227,7 +223,7 @@ impl PpktExporter {
 
 
     fn get_sv_variant_interpretation(
-        gvb: &GeneVariantBundleDto, 
+        gvb: &GeneVariantDto, 
         allele: &str,
         sv: &StructuralVariant,
         biallelic: bool
@@ -288,7 +284,7 @@ impl PpktExporter {
     }
       
     fn get_hgvs_variant_interpretation(
-            gvb: &GeneVariantBundleDto, 
+            gvb: &GeneVariantDto, 
             allele: &str,
             hgvs: &HgvsVariant,
             biallelic: bool) 
@@ -356,7 +352,7 @@ impl PpktExporter {
     /// TODO refactor to make logic clearer
     fn get_variant_interpretation_list(
         &self,
-        gvb: &GeneVariantBundleDto) 
+        gvb: &GeneVariantDto) 
     -> Vec<VariantInterpretation> {
         let mut v_interp_list: Vec<VariantInterpretation> = Vec::new();
         if gvb.allele1 == "na" {

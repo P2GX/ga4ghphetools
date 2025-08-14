@@ -34,14 +34,14 @@ impl DiseaseBundle {
     pub fn from_row(
         row: &Vec<String>,
         start_idx: usize
-    ) -> std::result::Result<Self, ValidationErrors> {
+    ) -> std::result::Result<Self, String> {
         let i = start_idx;
         let bundle = Self::new(&row[i], &row[i+1]);
-        let _ = bundle.do_qc()?;
+        bundle.do_qc()?;
         Ok(bundle)
     }
 
-    pub fn do_qc(&self) -> Result<(), ValidationErrors> {
+    pub fn do_qc(&self) -> Result<(), String> {
         self.header.qc_bundle(self)
     }
 

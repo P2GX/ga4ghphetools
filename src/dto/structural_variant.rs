@@ -109,10 +109,17 @@ static CHROMOSOMAL_INVERSION: Lazy<OntologyClass> = Lazy::new(|| {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct StructuralVariant {
+    /// An unstructured description of the SV, e.g., DEL Ex5-7 (taken from original publication)
     label: String,
+    /// HGNC-approvated symbol of the gene affected or deemed most affected by the SV
     gene_symbol: String,
+    /// Transcript of reference for the gene
+    transcript: String,
+    /// HGNC identifier of the gene of reference
     hgnc_id: String,
+    /// Category of structural variant
     sv_type: SvType,
+    /// Chromosome on which the gene is located
     chromosome: String
 }
 
@@ -120,6 +127,7 @@ impl StructuralVariant {
     pub fn new(
         cell_contents: String, 
         gene_symbol: String, 
+        transcript: String,
         gene_id: String, 
         sv_type: SvType, 
         chromosome: String) 
@@ -133,6 +141,7 @@ impl StructuralVariant {
         Ok(Self {
             label: cell_contents.trim().to_string(),
             gene_symbol,
+            transcript,
             hgnc_id: gene_id,
             sv_type: sv_type,
             chromosome
@@ -145,51 +154,56 @@ impl StructuralVariant {
     pub fn chromosomal_deletion(
         cell_contents: impl Into<String>, 
         gene_symbol: impl Into<String>, 
+        transcript: impl Into<String>,
         gene_id: impl Into<String>, 
         chrom: String) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Del, chrom)
+        Self::new(cell_contents.into(), gene_symbol.into(), transcript.into(), gene_id.into(), SvType::Del, chrom)
     }
 
     pub fn chromosomal_duplication(
         cell_contents: impl Into<String>,  
-        gene_symbol: impl Into<String>,  
+        gene_symbol: impl Into<String>, 
+        transcript: impl Into<String>, 
         gene_id: impl Into<String>,  
         chrom: String) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Dup, chrom)
+        Self::new(cell_contents.into(), gene_symbol.into(), transcript.into(), gene_id.into(), SvType::Dup, chrom)
     }
 
     pub fn chromosomal_inversion(
         cell_contents: impl Into<String>,  
         gene_symbol: impl Into<String>,  
+        transcript: impl Into<String>,
         gene_id: impl Into<String>,  
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Inv, chrom)
+        Self::new(cell_contents.into(), gene_symbol.into(), transcript.into(), gene_id.into(), SvType::Inv, chrom)
     }
 
     pub fn chromosomal_translocation(
         cell_contents: impl Into<String>,  
-        gene_symbol: impl Into<String>,  
+        gene_symbol: impl Into<String>, 
+        transcript: impl Into<String>, 
         gene_id: impl Into<String>,  
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Transl, chrom)
+        Self::new(cell_contents.into(), gene_symbol.into(), transcript.into(), gene_id.into(), SvType::Transl, chrom)
     }
 
     pub fn chromosomal_structure_variation(
         cell_contents: impl Into<String>,  
-        gene_symbol: impl Into<String>,  
+        gene_symbol: impl Into<String>, 
+        transcript: impl Into<String>, 
         gene_id: impl Into<String>,  
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::new(cell_contents.into(), gene_symbol.into(), gene_id.into(), SvType::Sv, chrom)
+        Self::new(cell_contents.into(), gene_symbol.into(), transcript.into(), gene_id.into(), SvType::Sv, chrom)
     }
 
     pub fn code_as_chromosomal_structure_variation(
         vv_dto: VariantValidationDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_structure_variation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id,  chrom)
+        Self::chromosomal_structure_variation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id,  chrom)
     }
 
 
@@ -197,28 +211,28 @@ impl StructuralVariant {
         vv_dto: VariantValidationDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_deletion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
+        Self::chromosomal_deletion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_inversion(
         vv_dto: VariantValidationDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_inversion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
+        Self::chromosomal_inversion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_duplication(
         vv_dto: VariantValidationDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_duplication(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
+        Self::chromosomal_duplication(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_translocation(
         vv_dto: VariantValidationDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
-        Self::chromosomal_translocation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.hgnc_id, chrom)
+        Self::chromosomal_translocation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)
     }
 
     pub fn label(&self) -> &str {
@@ -227,6 +241,10 @@ impl StructuralVariant {
 
     pub fn gene_symbol(&self) -> &str {
         &self.gene_symbol
+    }
+
+    pub fn transcript(&self) -> &str {
+        &self.transcript
     }
 
     pub fn hgnc_id(&self) -> &str {
@@ -264,11 +282,11 @@ impl StructuralVariant {
 
 
 mod tests {
-    use crate::variant::structural_variant::StructuralVariant;
+    use crate::dto::structural_variant::StructuralVariant;
 
     #[test]
     pub fn test_variant_key() {
-        let sv = StructuralVariant::chromosomal_structure_variation("DEL Ex 4", "FBN1", "HGNC:123", "15".to_string()).unwrap();
+        let sv = StructuralVariant::chromosomal_structure_variation("DEL Ex 4", "FBN1","NM_000138.5", "HGNC:123", "15".to_string()).unwrap();
         let key = sv.variant_key();
         assert_eq!("FBN1_SV_DEL_Ex_4", key);
     }

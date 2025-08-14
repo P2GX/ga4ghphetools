@@ -4,7 +4,9 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::cohort_dto::{DiseaseGeneDto, GeneVariantBundleDto, IndividualBundleDto,CohortDto};
+use crate::dto::cohort_dto::{DiseaseGeneDto, GeneVariantDto, IndividualDto,CohortDto};
+use crate::dto::hgvs_variant::HgvsVariant;
+use crate::dto::structural_variant::StructuralVariant;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantValidationDto;
 use crate::etl::etl_tools::EtlTools;
@@ -44,7 +46,7 @@ pub struct PheTools {
     /// Manager to validate and cache variants
     manager: Option<DirManager>, 
     etl_tools: Option<EtlTools>,
-    hgsv_validator: HgvsVariantValidator,
+    hgvs_validator: HgvsVariantValidator,
     sv_validator: StructuralValidator
 }
 
@@ -75,7 +77,7 @@ impl PheTools {
             cohort: None,
             manager: None,
             etl_tools: None,
-            hgsv_validator: HgvsVariantValidator::hg38(),
+            hgvs_validator: HgvsVariantValidator::hg38(),
             sv_validator: StructuralValidator::hg38()
         }
     }
@@ -183,20 +185,11 @@ impl PheTools {
         &mut self, 
         matrix: Vec<Vec<String>>,
         fix_errors: bool
-    ) -> Result<CohortDto, Vec<String>> 
+    ) -> Result<CohortDto, String> 
     {
         let hpo_arc = self.hpo.clone();
-        match CohortDtoBuilder::from_mendelian_template(matrix, hpo_arc, fix_errors) {
-            Ok(ppt) => {
-                match ppt.get_template_dto() {
-                    Ok(dto) => {
-                        Ok(dto)
-                    } 
-                    Err(e) => Err(vec![e.to_string()]),
-                }
-            },
-            Err(verrs) => { Err(verrs.errors())}
-        }
+        let builder = CohortDtoBuilder::from_mendelian_template(matrix, hpo_arc, fix_errors)?;
+        builder.get_template_dto()
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
@@ -204,10 +197,9 @@ impl PheTools {
     /// TODO delete this method once we have converted all of the existing Excel templates.
     fn excel_template_to_matrix(
         phetools_template_path: &str,
-    ) -> Result<Vec<Vec<String>>, Vec<String>> 
+    ) -> Result<Vec<Vec<String>>, String> 
     {
         excel::read_excel_to_dataframe(phetools_template_path)
-            .map_err(|e| vec![e.to_string()])
     }
 
     /// Load an Excel file representing the entire PheTools template
@@ -218,7 +210,7 @@ impl PheTools {
         &mut self,
         phetools_template_path: &str,
         fix_errors: bool
-    ) -> Result<CohortDto, Vec<String>> {
+    ) -> Result<CohortDto, String> {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
         self.load_matrix(matrix, fix_errors)
     }
@@ -280,9 +272,9 @@ impl PheTools {
     /// # Returns updated cohort DTO if successful, otherwise list of strings representing errors
     pub fn add_new_row_to_cohort(
         &mut self,
-        individual_dto: IndividualBundleDto, 
+        individual_dto: IndividualDto, 
         hpo_annotations: Vec<HpoTermDto>,
-        gene_variant_list: Vec<GeneVariantBundleDto>,
+        gene_variant_list: Vec<GeneVariantDto>,
         cohort_dto: CohortDto) 
     -> Result<CohortDto, String> {
         let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
@@ -349,41 +341,30 @@ impl PheTools {
         Ok(())
     }
 
-    
-    /// Validates a single variant against the appropriate validator (HGVS or SV),
-    /// updating the given [`CohortDto`] with the result.
-    ///
-    /// This function delegates to either:
-    /// - `hgsv_validator.validate_hgvs` if the variant is in HGVS format
-    /// - `sv_validator.validate_sv` if it is a structural variant (SV)
-    ///
-    /// The validated variant is inserted into the corresponding map inside the [`CohortDto`]
-    /// (either `validated_hgvs_variants` or `validated_structural_variants`) keyed by its
-    /// [`variant_key`](Variant::variant_key).
-    ///
-    /// Returns the updated [`CohortDto`] on success, or a `String` error message on failure.
-    ///
+
+    /// Validates an HGVS variant, 
     /// # Arguments
     /// * `vv_dto` — Data transfer object containing the variant to validate
-    /// * `cohort_dto` — The cohort to update with the validated variant
-    ///
-    /// # See also
-    /// - [`validate_all_variants`] — for validating *all* variants in a cohort at once
-    pub fn validate_variant(
-        &mut self,
-        vv_dto: VariantValidationDto,
-        mut cohort_dto: CohortDto
-    ) -> Result<CohortDto, String> {
-        if (vv_dto.is_hgvs()) {
-            let hgvs = self.hgsv_validator.validate_hgvs(vv_dto)?;
-            cohort_dto.hgvs_variants.insert(hgvs.variant_key(), hgvs);
-        } else if (vv_dto.is_sv()) {
-            let sv = self.sv_validator.validate_sv(vv_dto)?;
-            cohort_dto.structural_variants.insert(sv.variant_key(), sv);
+    /// # Returns
+    /// - corresponding full HgvsVariant object, with information derived from VariantValidator
+    pub fn validate_hgvs_variant(
+        &self,
+        vv_dto: VariantValidationDto
+    ) -> Result<HgvsVariant, String> {
+        if ! vv_dto.is_hgvs() {
+            return Err(format!("Attempt to HGVS-validate non-HGVS variant: {:?}", vv_dto));
         }
+        self.hgvs_validator.validate(vv_dto)
+    }
 
-        Ok(cohort_dto)
-       
+     pub fn validate_structural_variant(
+        &self,
+        vv_dto: VariantValidationDto
+    ) -> Result<StructuralVariant, String> {
+        if ! vv_dto.is_sv() {
+            return Err(format!("Attempt to SV-validate non-SV variant: {:?}", vv_dto));
+        }
+        self.sv_validator.validate(vv_dto)
     }
 
     /// Validates all variants in the given [`CohortDto`] that originate from
@@ -417,7 +398,7 @@ impl PheTools {
                     // only validate if we do not have previous validation results
                     if ! cohort_dto.hgvs_variants.contains_key(&allele1_key) { 
                         let vv_dto = VariantValidationDto::hgvs_c(&gvb_dto.allele1, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
-                        let result = self.hgsv_validator.validate_hgvs(vv_dto);
+                        let result = self.hgvs_validator.validate(vv_dto);
                         if let Ok(hgvs) = result {
                             cohort_dto.hgvs_variants.insert(allele1_key, hgvs);
                         } 
@@ -428,7 +409,7 @@ impl PheTools {
                     // must be sv
                     if ! cohort_dto.structural_variants.contains_key(&allele1_key) {
                         let vv_dto = VariantValidationDto::sv(&gvb_dto.allele1, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
-                        let result =self.sv_validator.validate_sv(vv_dto);
+                        let result =self.sv_validator.validate(vv_dto);
                         if let Ok(sv) = result {
                             cohort_dto.structural_variants.insert(allele1_key, sv);
                         }
@@ -439,7 +420,7 @@ impl PheTools {
                     let allele2_key = gvb_dto.get_key_allele2();
                     if gvb_dto.allele2_is_hgvs() {
                         let vv_dto = VariantValidationDto::hgvs_c(&gvb_dto.allele2, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
-                        let result = self.hgsv_validator.validate_hgvs(vv_dto);
+                        let result = self.hgvs_validator.validate(vv_dto);
                         if let Ok(hgvs) = result {
                             cohort_dto.hgvs_variants.insert(allele2_key, hgvs);
                         } 
@@ -447,7 +428,7 @@ impl PheTools {
                         // must be sv
                         if ! cohort_dto.structural_variants.contains_key(&allele2_key) {
                             let vv_dto = VariantValidationDto::sv(&gvb_dto.allele2, &gvb_dto.transcript, &gvb_dto.hgnc_id, &gvb_dto.gene_symbol);
-                              let result =self.sv_validator.validate_sv(vv_dto);
+                              let result =self.sv_validator.validate(vv_dto);
                             if let Ok(sv) = result {
                                 cohort_dto.structural_variants.insert(allele2_key, sv);
                             }

@@ -1,7 +1,7 @@
 use reqwest::blocking::get;
 use serde_json::Value;
 
-use crate::{dto::{cohort_dto::CohortDto, variant_dto::{VariantValidationDto}}, variant::structural_variant::{StructuralVariant, SvType}};
+use crate::{dto::variant_dto::VariantValidationDto, dto::structural_variant::{StructuralVariant, SvType}};
 
 
 
@@ -32,13 +32,25 @@ impl StructuralValidator {
         }
     }
 
+    /// We only allow valid ASCII symbols in the labels for the structural variants.
+   fn check_ascii(s: &str) -> Result<(), String> {
+        for (i, c) in s.char_indices() {
+            if !c.is_ascii() {
+                return Err(format!("'{}': Non-ASCII character '{}' at index {}", s, c, i));
+            }
+        }
+        Ok(())
+    }
+
     /// Validate a structural variant (symbolic, non-precise)
     /// If successful, add the StructuralVariant object to the cohort_dto, otherwise return an error
     /// Calling code should update the cohort dto in the front end if successful
-    pub fn validate_sv(&self,  vv_dto: VariantValidationDto) ->
+    pub fn validate(&self,  vv_dto: VariantValidationDto) ->
+     
         Result<StructuralVariant, String> {
             let chrom = self.get_chromosome_from_vv(&vv_dto.gene_symbol)?;
             let sv_type: SvType = vv_dto.validation_type.try_into()?;
+            Self::check_ascii(&vv_dto.variant_string)?;
             match sv_type {
                 SvType::Del => StructuralVariant::code_as_chromosomal_deletion(vv_dto, chrom),
                 SvType::Inv => StructuralVariant::code_as_chromosomal_inversion(vv_dto, chrom),
@@ -92,7 +104,6 @@ impl StructuralValidator {
 
 #[cfg(test)]
 mod tests {
-    use clap::builder::Str;
     use rstest::{fixture, rstest};
 
     use crate::dto::variant_dto::{VariantValidationType};
@@ -103,7 +114,7 @@ mod tests {
     #[fixture]
     fn valid_sv1() -> VariantValidationDto {
         VariantValidationDto{ 
-            variant_string:"arr 16q24.3 DEL89,754,790 −89,757,400".to_string(), 
+            variant_string:"arr 16q24.3 DEL89,754,790-89,757,400".to_string(), 
             transcript: "NM_052988.5".to_string(), 
             hgnc_id: "HGNC:1770".to_string(), 
             gene_symbol: "CDK10".to_string(), 
@@ -124,22 +135,24 @@ mod tests {
 
    
     #[rstest]
+    #[ignore = "API call"]
     fn test_valid_sv()  {
         let dto = valid_sv1();
         let validator = StructuralValidator::hg38();
-        let result = validator.validate_sv(dto);
+        let result = validator.validate(dto);
         assert!(result.is_ok());
     }
 
 
     #[rstest]
+    #[ignore = "API call"]
     fn test_invalid_sv()  {
         let dto = invalid_sv1();
         let validator = StructuralValidator::hg38();
-        let result = validator.validate_sv(dto);
+        let result = validator.validate(dto);
         assert!(result.is_err());
         let msg = result.err().unwrap();
-        let expected = "Variant string arr 16q24.3 DEL89,754,790 −89,757,400 contains non-ASCII character";
+        let expected = "'arr 16q24.3 DEL89,754,790 −89,757,400': Non-ASCII character '−' at index 26";
         assert_eq!(expected, msg);
     }
 

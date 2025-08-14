@@ -1,5 +1,5 @@
 
-use std::{collections::HashMap, fs, path::{Path, PathBuf}};
+use std::{fs, path::{Path, PathBuf}};
 
 pub struct DirManager {
     /// Path to the directory where we store the various files for the project (e.g., FBN1 for the FBN1 cohort)

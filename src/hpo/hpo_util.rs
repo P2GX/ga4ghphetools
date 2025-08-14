@@ -4,12 +4,14 @@ use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::error::{Error, Result};
 use crate::header::hpo_term_duplet::HpoTermDuplet;
+use chrono::format::format_item;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::term::MinimalTerm;
 use ontolius::TermId;
 use std::collections::HashMap;
+use std::fmt::format;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -123,25 +125,25 @@ impl HpoUtil {
     /// This will automatically update term labels if they have changed
     /// This function is only used for the legacy Excel files and we will
     /// need a better solution for the new JSON templates
+    /// update_labels: if true, automatically update outdated labels. Otherwise, throw an error if a label does not match.
     pub fn update_hpo_duplets(
         &self,
         hpo_duplets: &Vec<HpoTermDuplet>,
-    ) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {
+        update_labels: bool
+    ) -> std::result::Result<Vec<HpoTermDuplet>, String> {
         let mut updated_duplets = vec![];
-        let verrs = ValidationErrors::new();
         for duplet in hpo_duplets {
-            let tid = TermId::from_str(&duplet.row2()).unwrap_or_else(|_| {
-                // If this happens, then we need to revise the Excel file
-                // It is not possible to recover from this error
-                panic!("Failed to parse TermId from row2: {}", duplet.row2())
-            });
+            let tid = match  TermId::from_str(&duplet.row2()) {
+                Ok(tid) => tid,
+                Err(e) => { return Err(format!("Failed to parse TermId from row2: {}", duplet.row2())); },
+            };
             if let Some(term) = self.hpo.term_by_id(&tid) {
+                if term.name() != duplet.row1() {
+                    return Err(format!("{}: expected '{}' but got '{}'", duplet.row2(), term.name(), duplet.row1()));
+                }
                 updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
             } else {
-                let verrs = ValidationErrors::from_one_err(
-                    format!("No HPO Term found for '{}'", &tid)
-                );
-                return Err(verrs);
+                return Err(format!("No HPO Term found for '{}'", &tid));
             }
         }
         Ok(updated_duplets)

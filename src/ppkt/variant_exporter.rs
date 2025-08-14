@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 
 use phenopackets::schema::v2::core::Interpretation;
 
-use crate::{ppkt::ppkt_row::PpktRow, variant::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
+use crate::{ppkt::ppkt_row::PpktRow, dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
 
 /*
  let variant_id = variant_id.unwrap_or_else(|| {

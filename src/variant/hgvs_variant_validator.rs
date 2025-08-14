@@ -4,7 +4,7 @@
 
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{dto::variant_dto::{VariantDto, VariantValidationDto}, variant::{hgvs_variant::HgvsVariant, vcf_var::VcfVar}};
+use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantValidationDto}, variant::vcf_var::VcfVar};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
@@ -48,7 +48,7 @@ impl HgvsVariantValidator {
     /// 
     /// - `Ok(HgvsVariant)` - An object with information about the variant derived from VariantValidator
     /// - `Err(Error)` - An error if the API call fails (which may happen because of malformed input or network issues).
-    pub fn validate_hgvs(
+    pub fn validate(
         &self, 
         vv_dto: VariantValidationDto
     ) -> Result<HgvsVariant, String> 
@@ -211,7 +211,7 @@ mod tests {
     #[ignore = "runs with API"]
     fn test_variant_validator(vvdto: VariantValidationDto) {
         let vvalidator = HgvsVariantValidator::hg38();
-        let json = vvalidator.validate_hgvs(vvdto);
+        let json = vvalidator.validate(vvdto);
         assert!(json.is_ok());
         let json = json.unwrap();
         println!("{:?}", json);
@@ -222,7 +222,7 @@ mod tests {
     fn test_variant_validator_invalid(invalid_vvdto: VariantValidationDto) {
         let vvalidator = HgvsVariantValidator::hg38();
         // This is an invalid HGVS because the reference base should be C and not G
-        let result = vvalidator.validate_hgvs(invalid_vvdto);
+        let result = vvalidator.validate(invalid_vvdto);
         assert!(result.is_err());
         if let Err(e) = result {
             assert_eq!("NM_000138.5:c.8230G>T: Variant reference (G) does not agree with reference sequence (C)", e);
