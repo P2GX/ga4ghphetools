@@ -287,8 +287,12 @@ impl PheTools {
             disease_gene_dto)
             .map_err(|e| format!("{:?}", e.errors()))?;
 
-        let cohort_dto = builder.get_template_dto()?;
-        Ok(cohort_dto)
+        let mut updated_cohort_dto = builder.get_template_dto()?;
+        // The above code updates the rows but does not add the Variant HashMaps.
+        // These were added in the front and can be simply copied into the new DTO
+        updated_cohort_dto.structural_variants = cohort_dto.structural_variants;
+        updated_cohort_dto.hgvs_variants = cohort_dto.hgvs_variants;
+        Ok(updated_cohort_dto)
     }
 
     /// Return information about the version and number of terms of the HPO 
