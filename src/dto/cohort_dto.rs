@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
-use crate::dto::structural_variant::{StructuralVariant, SvType};
+use crate::dto::structural_variant::{self, StructuralVariant, SvType};
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
@@ -101,7 +101,7 @@ impl GeneVariantDto {
     }
 
     pub fn allele1_is_present(&self) -> bool {
-        self.allele2 != "na"
+        self.allele1 != "na"
     }
 
     pub fn allele1_is_sv(&self) -> bool {
@@ -210,27 +210,11 @@ pub struct RowDto {
 }
 
 impl RowDto {
-    pub fn from_ppkt_row(ppkt_row: &PpktRow) -> Self {
+    pub fn from_ppkt_row(ppkt_row: &PpktRow, allele_key_list: Vec<String>) -> Self {
         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
-        for gv_dto in ppkt_row.get_gene_var_dto_list() {
-            if ! gv_dto.allele1_is_present() {
-                panic!("Allele1 is missing, this should never happen");
-            }
-            match gv_dto.allele1_is_hgvs() {
-                true => {
-                    let hgvs_key = HgvsVariant::generate_variant_key(&gv_dto.hgnc_id, &gv_dto.gene_symbol, &gv_dto.transcript);
-                    *allele_count_map.entry(hgvs_key).or_insert(0) += 1;
-                },
-                false => {
-                    // must be SV. TODO
-                    /*
-                    let sv_type = SvType::try_from(gv_dto.)
-                    let sv_key = StructuralVariant::generate_variant_key(&gv_dto.allele1, &gv_dto.gene_symbol, &gv_dto.transcript)
-                     */
-                },
-            }
-            // TODO CHECK FOR ALLELE2
-        }
+        for allele in allele_key_list {
+            *allele_count_map.entry(allele).or_insert(0) += 1;
+        };
         Self { individual_dto: ppkt_row.get_individual_dto(), 
             disease_dto_list: ppkt_row.get_disease_dto_list(), 
             allele_count_map, 
@@ -307,6 +291,23 @@ impl CohortDto {
             rows,
             hgvs_variants: HashMap::new(),
             structural_variants: HashMap::new(),
+        }
+    }
+
+    pub fn mendelian_with_variants(
+            dg_dto: DiseaseGeneDto,
+            hpo_headers: Vec<HeaderDupletDto>, 
+            rows: Vec<RowDto>,
+            hgvs_variants: HashMap<String, HgvsVariant>,
+            structural_variants: HashMap<String, StructuralVariant>
+        ) -> Self {
+        Self { 
+            cohort_type: CohortType::Mendelian, 
+            disease_gene_dto: dg_dto,
+            hpo_headers, 
+            rows,
+            hgvs_variants,
+            structural_variants,
         }
     }
 

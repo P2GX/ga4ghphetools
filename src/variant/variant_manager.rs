@@ -15,12 +15,12 @@
 //! variants, so we add them here to the struct.
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::thread;
+use std::{mem, thread};
 use std::time::Duration;
 use ontolius::io::OntologyLoaderBuilder;
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::dto::cohort_dto::CohortDto;
+use crate::dto::cohort_dto::{CohortDto, GeneTranscriptDto};
 
 
 use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
@@ -37,18 +37,18 @@ use crate::dto::structural_variant::{StructuralVariant, SvType};
 
 
 
-/// This struct validates variants sent from the front end. It evaluates either HGVS or symbolic (imprecise)
-/// structural variants. If a variant is validated, then the CohortTemplate is sent back to the front end
-/// with the new variant structure, otherwise errors are returned
 pub struct VariantManager {
     hgvs_validator: HgvsVariantValidator,
     structural_validator: StructuralValidator,
+    /// Gene symbol for the variants we are validating
     gene_symbol: String,
+    /// HUGO Gene Nomenclature Committee (HGNS) identifier for the above gene
     hgnc_id: String,
+    /// Transcript of reference for theabove gene
     transcript: String,
-    unvalidated_hgvs: HashSet<String>,
-    unvalidated_sv: HashSet<String>,
+    /// HGVS Variants that could be validated. The key is the original allele denomination (e.g., c.1234A>T), not the variantKey
     validated_hgvs: HashMap<String, HgvsVariant>,
+    /// HGStructural Variants that could be validated. The key is the original allele denomination (e.g., DEL Ex 5), not the variantKey
     validated_sv: HashMap<String, StructuralVariant>
 }
 
@@ -63,11 +63,13 @@ impl VariantManager {
             gene_symbol: symbol.to_string(),
             hgnc_id: hgnc.to_string(),
             transcript: transcript.to_string(),
-            unvalidated_hgvs: HashSet::new(),
-            unvalidated_sv: HashSet::new(),
             validated_hgvs: HashMap::new(),
             validated_sv: HashMap::new(),
         }
+    }
+
+    pub fn from_gene_transcript_dto(dto: &GeneTranscriptDto) -> Self {
+        Self::new(&dto.gene_symbol, &dto.hgnc_id, &dto.transcript)
     }
 
 
@@ -105,14 +107,14 @@ impl VariantManager {
     /// be no Variant in the HashMaps of the CohortDto); in this case, the user will need to manually edit the
     /// unvalidated variant and validate it from the GUI. This step will be needed both for transforming the
     /// legacy Excel templates and also moving forward for important external supplemental tables.
-    pub fn get_variant_key(&self, allele: &str) -> String {
+    pub fn get_variant_key(&self, allele: &str) -> Option<String> {
         if let Some(hgvs) = self.validated_hgvs.get(allele) {
-            return hgvs.variant_key();
+            return Some(hgvs.variant_key());
         }
         if let Some(sv) = self.validated_sv.get(allele) {
-            return sv.variant_key().to_string();
+            return Some(sv.variant_key().to_string());
         }
-        "na".to_string()
+        None
     }
 
 
@@ -131,6 +133,7 @@ impl VariantManager {
                 continue;
             }
             if let Ok(hgvs) = self.hgvs_validator.validate(vv_dto) {
+                println!("Validated {}:{:?}", variant_key, hgvs);
                 self.validated_hgvs.insert(variant_key, hgvs.clone());
                 n_valid += 1;
             } else {
@@ -315,8 +318,14 @@ impl VariantManager {
         Err("refactoring".to_ascii_lowercase())
     }
 
-
-
+    /// Take ownership of the map of validated HGVS variants (map is replaced with empty map in the struct)
+    pub fn hgvs_map(&mut self) -> HashMap<String, HgvsVariant> {
+         mem::take(&mut self.validated_hgvs)
+    }
+    /// Take ownership of the map of validated Structural variants
+     pub fn sv_map(&mut self) -> HashMap<String, StructuralVariant> {
+         mem::take(&mut self.validated_sv)
+    }
 
 
 }
@@ -333,6 +342,7 @@ mod tests {
     #[rstest]
     fn test_check_all_vars() {
         let template = "/Users/robin/GIT/phenopacket-store/notebooks/ATP6V0C/input/ATP6V0C_EPEO3_individuals.xlsx";
+        let matrix = excel::read_excel_to_dataframe(template).unwrap();
         let mut vmanager = VariantManager::new( "ATP6V0C","HGNC:855", "NM_001694.4");
         vmanager.from_path(template).unwrap();
         

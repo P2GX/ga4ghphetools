@@ -3,6 +3,7 @@
 //! The struct that creates and edits the [`CohortDto`] object that we use
 //! to store information about the Cohort.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
+use clap::builder::Str;
 use ontolius::{
     ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
     term::{simple::{SimpleMinimalTerm}, MinimalTerm},
@@ -11,7 +12,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantDto, HeaderDupletDto, IndividualDto, RowDto}, hpo_term_dto::HpoTermDto, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
+use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDto, structural_variant::StructuralVariant, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -233,7 +234,6 @@ impl CohortDtoBuilder {
     ) -> std::result::Result<Self, String> {
         let fix_errors = false;
         let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
-        println!("{:?}", matrix);
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
         let mut ppt_rows: Vec<PpktRow> = Vec::new();
@@ -251,6 +251,73 @@ impl CohortDtoBuilder {
                 ppkt_rows: ppt_rows,
             })
 
+    }
+
+
+    fn get_allele_set(ppkt_rows: & Vec<PpktRow>) -> HashSet<String> {
+        let mut alleles = HashSet::new();
+        for row in ppkt_rows {
+            for gvd in row.get_gene_var_dto_list() {
+                if gvd.allele1_is_present() {
+                    alleles.insert(gvd.allele1.clone());
+                }
+                if gvd.allele2_is_present() {
+                    alleles.insert(gvd.allele2.clone());
+                }
+            }
+        }
+        alleles
+    }
+
+    pub fn dto_from_mendelian_template(
+        matrix: Vec<Vec<String>>,
+        hpo: Arc<FullCsrOntology>,
+        fix_errors: bool
+    ) -> std::result::Result<CohortDto, String> {
+        let fix_errors = false;
+        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
+        const HEADER_ROWS: usize = 2; // first two rows of template are header
+        let hdr_arc = Arc::new(header);
+        let mut ppt_rows: Vec<PpktRow> = Vec::new();
+        let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
+        for row in matrix.into_iter().skip(HEADER_ROWS) {
+            let hdr_clone = hdr_arc.clone();
+            let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
+            ppt_rows.push(ppkt_row);
+        }
+        let allele_set = Self::get_allele_set(&ppt_rows);
+        /// We must be Mendelian, check that we only have one gene
+        if dg_dto.gene_transcript_dto_list.len() != 1 {
+            return Err(format!("Expecting exactly one GeneTranscriptDto (Mendelian) but got {}", dg_dto.gene_transcript_dto_list.len()));
+        }
+        let gt_dto = dg_dto.gene_transcript_dto_list.first().unwrap(); // We know here we have exactly one list entry, safe to unwrap
+        let vmanager = VariantManager::from_gene_transcript_dto(gt_dto);
+        let mut row_dto_list: Vec<RowDto> = Vec::new();
+        for ppkt_row in ppt_rows {
+            let mut allele_key_list: Vec<String> = Vec::new();
+            for gv_dto in ppkt_row.get_gene_var_dto_list() {
+                if let Some(a1) = vmanager.get_variant_key(&gv_dto.allele1) {
+                    allele_key_list.push(a1);
+                }
+                if let Some(a2) = vmanager.get_variant_key(&gv_dto.allele2) {
+                    allele_key_list.push(a2);
+                }
+            }
+            
+            let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
+            row_dto_list.push(row_dto);
+        }
+
+        let cohort_dto = CohortDto::mendelian_with_variants(
+            dg_dto, 
+            hpo_headers, 
+            row_dto_list,
+            vmanager.hgvs_map(), 
+            vmanager.sv_map(), 
+        );
+
+        Ok(cohort_dto)
+                
     }
 
     fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), String> {
