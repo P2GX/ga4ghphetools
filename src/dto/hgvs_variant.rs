@@ -52,7 +52,7 @@ impl HgvsVariant {
         let pos = vcf_var.pos();
         let ref_allele = vcf_var.ref_allele();
         let alt_allele = vcf_var.alt_allele();
-        let v_key = Self::create_variant_key(&hgvs, &symbol, &transcript);
+        let v_key = Self::generate_variant_key(&hgvs, &symbol, &transcript);
         
         HgvsVariant {
             assembly,
@@ -123,7 +123,7 @@ impl HgvsVariant {
     /// non-alphanumerical characters (we allow underscore)
     /// For example, we would get c8242GtoT_FBN1_NM_000138v5
     /// from c.8242G>T, FBN1, and NM_000138.5
-    pub fn create_variant_key(hgvs: &str, symbol: &str, transcript: &str) -> String {
+    pub fn generate_variant_key(hgvs: &str, symbol: &str, transcript: &str) -> String {
         let mut hgvs_norm = hgvs
             .replace("c.", "c")
             .replace('>', "to");

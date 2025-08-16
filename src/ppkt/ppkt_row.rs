@@ -108,7 +108,7 @@ impl PpktRow {
         })
     }
 
-
+/* 
     pub fn from_dto(dto: &RowDto, header: Arc<HeaderDupletRow>) -> Self {
         let hpo_content = dto.hpo_data.iter()
             .map(|c|c.value.clone())
@@ -120,7 +120,7 @@ impl PpktRow {
             gene_var_bundle_list: GeneVariantBundle::from_dto_list(dto.gene_var_dto_list.clone()), 
             hpo_content
         }
-    }
+    }*/
 
     pub fn get_individual_dto(&self) -> IndividualDto {
         let ibdl = &self.individual_bundle;

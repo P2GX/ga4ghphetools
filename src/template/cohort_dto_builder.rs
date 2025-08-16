@@ -135,6 +135,7 @@ impl CohortDtoBuilder {
         } 
     }
 
+    /* 
     pub fn from_cohort_dto(
         template_dto: &CohortDto, 
         hpo: Arc<FullCsrOntology>) 
@@ -161,7 +162,7 @@ impl CohortDtoBuilder {
 
         template.check_for_errors()?;
         Ok(template)
-    }
+    }*/
 
 
 
@@ -173,7 +174,7 @@ impl CohortDtoBuilder {
     ///    (12) "age_of_onset", (13)"age_at_last_encounter", (14)  "deceased", (15) "sex", (16) "HPO", 
     /// The columns with asterisk are what we need
     /// Note: This function should be deleted after the Excel files have been converted.
-    fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseGeneDto, String> {
+    pub fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseGeneDto, String> {
         let rows: Vec<&Vec<String>> = matrix.iter().skip(2).collect();
         if rows.is_empty() {
             return Err("Could not extract DTO because less than three rows found".to_string());
