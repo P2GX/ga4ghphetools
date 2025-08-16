@@ -11,8 +11,7 @@ use crate::{dto::variant_dto::VariantDto, variant::hgvs_variant_validator::HgvsV
 
 use crate::dto::structural_variant::StructuralVariant;
 
-type VariantCache = HashMap<String, HgvsVariant>;
-type StructuralCache = HashMap<String, StructuralVariant>;
+
 
 /// This struct validates variants sent from the front end. It evaluates either HGVS or symbolic (imprecise)
 /// structural variants. If a variant is validated, then the CohortTemplate is sent back to the front end

@@ -21,7 +21,7 @@ use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::individual_header::IndividualHeader;
-use crate::hpo::hpo_util::{self, HpoUtil};
+use crate::hpo::hpo_util::{HpoUtil};
 use crate::template::cohort_dto_builder::CohortType;
 
 const NOT_AVAILABLE: &str = "na";

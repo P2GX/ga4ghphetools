@@ -4,7 +4,6 @@ pub mod excel;
 pub mod gene_variant_bundle;
 pub mod header_duplet_row;
 pub mod individual_bundle;
-pub mod operations;
 pub mod phetools;
 pub mod cohort_dto_builder;
 

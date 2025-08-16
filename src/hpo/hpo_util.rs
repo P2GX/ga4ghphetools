@@ -4,14 +4,12 @@ use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::error::{Error, Result};
 use crate::header::hpo_term_duplet::HpoTermDuplet;
-use chrono::format::format_item;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::term::MinimalTerm;
 use ontolius::TermId;
 use std::collections::HashMap;
-use std::fmt::format;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -58,7 +56,7 @@ impl HpoUtil {
         }
     }
 
-
+/* TODO, do we still need this?
     pub fn simple_terms_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Result<Vec<SimpleTerm>> {
         let mut simple_terms = vec![];
         for hpo_dto in hpo_dto_list {
@@ -70,7 +68,7 @@ impl HpoUtil {
             }
         }
         Ok(simple_terms)
-    }
+    }*/
 
     /// Check the validity of the HPO TermId/label pairs in the DTO objects and return corresponding HpoTermDuplet list
     pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {

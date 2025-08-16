@@ -6,7 +6,7 @@
 use crate::dto::etl_dto::ColumnTableDto;
 use crate::dto::cohort_dto::{DiseaseGeneDto, GeneVariantDto, IndividualDto,CohortDto};
 use crate::dto::hgvs_variant::HgvsVariant;
-use crate::dto::structural_variant::StructuralVariant;
+use crate::dto::structural_variant::{StructuralVariant, SvType};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantValidationDto;
 use crate::etl::etl_tools::EtlTools;
@@ -346,27 +346,45 @@ impl PheTools {
     }
 
 
-    /// Validates an HGVS variant, 
+    /// Validates an HGVS variant using the VariantValidator API
+    /// First we check if we already have information about the variant in 
+    /// our CohortDto, which contains a HashMap of previously validated variants.
     /// # Arguments
     /// * `vv_dto` — Data transfer object containing the variant to validate
     /// # Returns
     /// - corresponding full HgvsVariant object, with information derived from VariantValidator
     pub fn validate_hgvs_variant(
         &self,
-        vv_dto: VariantValidationDto
+        vv_dto: VariantValidationDto,
+        cohort_dto: CohortDto
     ) -> Result<HgvsVariant, String> {
         if ! vv_dto.is_hgvs() {
             return Err(format!("Attempt to HGVS-validate non-HGVS variant: {:?}", vv_dto));
         }
+        let hgvs_key = HgvsVariant::create_variant_key(&vv_dto.variant_string, &vv_dto.gene_symbol, &vv_dto.transcript);
+        if let Some(hgvs_var) = cohort_dto.hgvs_variants.get(&hgvs_key) {
+            return Ok(hgvs_var.clone());
+        }
         self.hgvs_validator.validate(vv_dto)
     }
 
+    /// Validates a structural variant
+    /// First we check if we already have information about the variant in 
+    /// our CohortDto, which contains a HashMap of previously validated variants.
+    /// If we do not find it, we use VariantValidator to check the 
+    /// chromosome of the variant (we need this information to determine the proper genotype)
      pub fn validate_structural_variant(
         &self,
-        vv_dto: VariantValidationDto
+        vv_dto: VariantValidationDto,
+        cohort_dto: CohortDto
     ) -> Result<StructuralVariant, String> {
         if ! vv_dto.is_sv() {
             return Err(format!("Attempt to SV-validate non-SV variant: {:?}", vv_dto));
+        }
+        let sv_type: SvType = SvType::try_from(vv_dto.validation_type)?;
+        let sv_key = StructuralVariant::generate_variant_key(&vv_dto.variant_string, &vv_dto.gene_symbol, sv_type);
+        if let Some(sv) = cohort_dto.structural_variants.get(&sv_key) {
+            return Ok(sv.clone())
         }
         self.sv_validator.validate(vv_dto)
     }

@@ -12,7 +12,7 @@ use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
 
 /// The frontend will tell us what kind of variant is being sent to the backend for validation using this enumeration
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum SvType {
     /// chromosomal_deletion
     Del ,

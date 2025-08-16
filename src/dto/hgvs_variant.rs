@@ -123,7 +123,7 @@ impl HgvsVariant {
     /// non-alphanumerical characters (we allow underscore)
     /// For example, we would get c8242GtoT_FBN1_NM_000138v5
     /// from c.8242G>T, FBN1, and NM_000138.5
-    fn create_variant_key(hgvs: &str, symbol: &str, transcript: &str) -> String {
+    pub fn create_variant_key(hgvs: &str, symbol: &str, transcript: &str) -> String {
         let mut hgvs_norm = hgvs
             .replace("c.", "c")
             .replace('>', "to");
