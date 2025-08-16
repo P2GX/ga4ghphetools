@@ -53,16 +53,11 @@ impl VariantManager {
             | VariantValidationType::Dup
             | VariantValidationType::Sv => {
                 let sv = self.structural_validator.validate(vv_dto)?;
-                cohort_dto.structural_variants.insert(sv.variant_key(), sv);
+                cohort_dto.structural_variants.insert(sv.variant_key().to_string(), sv);
                 return Ok(cohort_dto);
             }
         }
     }
-
-    
-
-
-   
 
     /// Extract a list of the variant DTOs sorted such that the HGVS variants come first and are sorted
     /// by gene symbol and then alphanumerbetically by HGVS nomenclature

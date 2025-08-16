@@ -1,6 +1,9 @@
-// src/variant/hgvs_variant.rs
+//! HgvsVariant
+//! A data transfer object to represent all of the information we
+//! need about a Variant to represent it in a GA4GH Phenopacket
+//! The information in our implementation is taken from the wonderful
+//! VariantValidator API.
 
-use rand::{self, distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 
 
@@ -29,6 +32,10 @@ pub struct HgvsVariant {
     transcript: String,
     /// Genomic HGVS nomenclature, e.g., NC_000015.10:g.48411364C>A
     g_hgvs: String,
+    /// Key to specify this variant in the HGVS HashMap of the CohortDto
+    /// In our implementation for PubMed curation we will also use the key as the variant_id
+    /// to export to phenopacket
+    variant_key: String 
 }
 
 impl HgvsVariant {
@@ -45,15 +52,7 @@ impl HgvsVariant {
         let pos = vcf_var.pos();
         let ref_allele = vcf_var.ref_allele();
         let alt_allele = vcf_var.alt_allele();
-
-       /*  let variant_id = match variant_id {
-            Some(id) => id,
-            None => rand::rng()
-                .sample_iter(&Alphanumeric)
-                .take(25)
-                .map(char::from)
-                .collect()
-        };*/
+        let v_key = Self::create_variant_key(&hgvs, &symbol, &transcript);
         
         HgvsVariant {
             assembly,
@@ -66,6 +65,7 @@ impl HgvsVariant {
             hgvs,
             transcript,
             g_hgvs,
+            variant_key: v_key
         }
     }
 
@@ -117,7 +117,25 @@ impl HgvsVariant {
     pub fn variant_key(&self) -> String {
         format!("{}_{}_{}", self.hgvs, self.symbol, self.transcript)
     }
+    
+    /// Create a key to use in our HashMap. It will also be serialized to JSON 
+    /// and for for maximal safety/portability, we transform or remove
+    /// non-alphanumerical characters (we allow underscore)
+    /// For example, we would get c8242GtoT_FBN1_NM_000138v5
+    /// from c.8242G>T, FBN1, and NM_000138.5
+    fn create_variant_key(hgvs: &str, symbol: &str, transcript: &str) -> String {
+        let mut hgvs_norm = hgvs
+            .replace("c.", "c")
+            .replace('>', "to");
+        hgvs_norm = hgvs_norm
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
+            .collect();
 
+        let transcript_norm = transcript.replace('.', "v");
+
+        format!("{}_{}_{}", hgvs_norm, symbol, transcript_norm)
+    }
 }
 
 
@@ -152,7 +170,7 @@ mod tests {
         assert_eq!("HGNC:3603", hgvs_var.hgnc_id());
         assert_eq!("NM_000138.5", hgvs_var.transcript());
         assert_eq!("NC_000015.10:g.48411364C>A", hgvs_var.g_hgvs());
-        let expected_key = "c.8242G>T_FBN1_NM_000138.5";
+        let expected_key = "c8242GtoT_FBN1_NM_000138v5";
         assert_eq!(expected_key, hgvs_var.variant_key());
     }
 

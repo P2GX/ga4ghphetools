@@ -56,7 +56,6 @@ impl PpktRow {
         let ibundle = IndividualBundle::from_row(&content, DEMOGRAPHIC_IDX)?;
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
-        let mut verrs = ValidationErrors::new();
         let mut hpo_content: Vec<String> = Vec::new();
         for item in content.iter().skip(17) {
             let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency

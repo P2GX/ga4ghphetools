@@ -132,6 +132,7 @@ pub struct StructuralVariantDto {
     hgnc_id: String,
     so_id: String,
     so_label: String,
+    variant_key: String,
 }
 
 impl VariantDto {

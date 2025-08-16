@@ -1,15 +1,17 @@
-use ontolius::{term::simple::SimpleMinimalTerm, TermId};
+//! StructuralVariant
+//! Representation of a "symbolic structural variant", e.g., DEL Ex 5-6, in a specified gene.
+//! This representation is common in the Human Genetics literature. It will be preferable
+//! to capture more precise information when possible.
+
 use phenopackets::schema::v2::core::OntologyClass;
-use rand::{distr::Alphanumeric, Rng};
 use serde::{Serialize, Deserialize};
 use std::{fmt, str::FromStr};
 use once_cell::sync::Lazy;
 use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
-const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
 
 
 /// The frontend will tell us what kind of variant is being sent to the backend for validation using this enumeration
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SvType {
     /// chromosomal_deletion
@@ -120,7 +122,10 @@ pub struct StructuralVariant {
     /// Category of structural variant
     sv_type: SvType,
     /// Chromosome on which the gene is located
-    chromosome: String
+    chromosome: String,
+    /// Key used to specify variant in HashMap. We will additionally use the key
+    /// as the variant ID when exporting to GA4GH phenopacket.
+    variant_key: String,
 }
 
 impl StructuralVariant {
@@ -130,7 +135,8 @@ impl StructuralVariant {
         transcript: String,
         gene_id: String, 
         sv_type: SvType, 
-        chromosome: String) 
+        chromosome: String,
+        ) 
     -> std::result::Result<Self, String> {
         if gene_symbol.is_empty() {
             return Err(format!("Malformed structural variant {cell_contents}: Need to pass a valid gene symbol!"));
@@ -138,17 +144,27 @@ impl StructuralVariant {
         if gene_id.is_empty() {
             return Err(format!("Malformed structural variant {cell_contents}: Need to pass a valid HGNC gene id!"));
         }
+        let label: String = cell_contents
+            .trim()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
+            .collect();
+        let v_key = Self::generate_variant_key(&label, &gene_symbol, sv_type);
         Ok(Self {
-            label: cell_contents.trim().to_string(),
+            label: label,
             gene_symbol,
             transcript,
             hgnc_id: gene_id,
             sv_type: sv_type,
-            chromosome
+            chromosome,
+            variant_key: v_key
         })
     }
 
-    
+     /* provide a key for the variant that we will use for the HashMap */
+    pub fn generate_variant_key(label: &str, symbol: &str, sv_type: SvType) -> String {
+        format!("{}_{}_{}", symbol, sv_type, label )
+    } 
 
     // Static Constructors for Specific Variants
     pub fn chromosomal_deletion(
@@ -251,6 +267,10 @@ impl StructuralVariant {
         &self.hgnc_id
     }
 
+    pub fn variant_key(&self) -> &str {
+        &self.variant_key
+    }
+
     /// Return true iff the variant is X chromosomal
     /// We use this to determine if the variant is hemizygous
     pub fn is_x_chromosomal(&self) -> bool {
@@ -267,15 +287,7 @@ impl StructuralVariant {
         }
     }
 
-    /* provide a key for the variant that we will use for the HashMap */
-    pub fn variant_key(&self) -> String {
-        let clean_label: String = self
-            .label
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect();
-        format!("{}_{}_{}", self.gene_symbol, self.sv_type, clean_label )
-    } 
+   
 }
 
 
@@ -287,8 +299,7 @@ mod tests {
     #[test]
     pub fn test_variant_key() {
         let sv = StructuralVariant::chromosomal_structure_variation("DEL Ex 4", "FBN1","NM_000138.5", "HGNC:123", "15".to_string()).unwrap();
-        let key = sv.variant_key();
-        assert_eq!("FBN1_SV_DEL_Ex_4", key);
+        assert_eq!("FBN1_SV_DEL_Ex_4", sv.variant_key);
     }
 
 
