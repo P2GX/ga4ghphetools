@@ -10,13 +10,13 @@ use phenopackets::schema::v2::core::vital_status::Status;
 use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, ExternalReference, GenomicInterpretation, Individual, Interpretation, MetaData, PhenotypicFeature, Sex, TherapeuticActionability, VariantInterpretation, VitalStatus};
 use phenopackets::schema::v2::Phenopacket;
 
+use rand::Rng;
 use regex::Regex;
 use crate::dto::cohort_dto::{CohortDto, GeneVariantDto};
 use crate::error::{Error, Result};
 
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
-use crate::variant::variant_util::{self, generate_id};
 use phenopacket_tools;
 use super::ppkt_row::PpktRow;
 use phenopacket_tools::builders::builder::Builder;
@@ -241,7 +241,7 @@ impl PpktExporter {
         let allelic_state = Self::get_allele_term(biallelic, sv.is_x_chromosomal());
         
         let vdesc = VariationDescriptor {
-            id: variant_util::generate_id(),
+            id: sv.variant_key().to_string(),
             variation: None,
             label: sv.label().to_string(),
             description: String::default(),
@@ -324,7 +324,7 @@ impl PpktExporter {
          
         let allelic_state = Self::get_allele_term(biallelic, hgvs.is_x_chromosomal());
         let vdesc = VariationDescriptor{ 
-            id: variant_util::generate_id(), 
+            id: hgvs.variant_key().to_string(), 
             variation: None, 
             label: String::default(), 
             description: String::default(), 
@@ -371,7 +371,14 @@ impl PpktExporter {
         v_interp_list
     }
     
-    
+    /// Generate a random identifier (used in this struct for Interpretation objects).
+    pub fn generate_id() -> String {
+        rand::rng()
+            .sample_iter(&rand::distr::Alphanumeric)
+            .take(24)
+            .map(char::from)
+            .collect()
+    }
     
     pub fn get_interpretation_list(
         &self, 
@@ -413,7 +420,7 @@ impl PpktExporter {
             genomic_interpretations: g_interpretations,
         };
         let i = Interpretation{
-            id: generate_id(),
+            id: Self::generate_id(),
             progress_status: ProgressStatus::Solved.into(),
             diagnosis: Some(diagnosis),
             summary: String::default(),

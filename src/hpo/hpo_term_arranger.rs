@@ -5,7 +5,6 @@
 //! Objects of this class are created to perform a DSF to find a good way of arranging HPO term columns
 //! We do not need to take ownership of the ontology, therefore indicate explicit lifetime
 use std::{collections::HashSet, str::FromStr, sync::Arc};
-use crate::{dto::validation_errors::ValidationErrors};
 
 use ontolius::{
     common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::{simple::SimpleTerm}, TermId
@@ -102,9 +101,8 @@ impl HpoTermArranger {
 
 
     pub fn arrange_terms(&mut self, hpo_terms_for_curation: &Vec<TermId>)
-    -> std::result::Result<Vec<SimpleTerm>, ValidationErrors> {
+    -> std::result::Result<Vec<SimpleTerm>, String> {
         let arranged_tids = self.arrange_term_ids(hpo_terms_for_curation);
-        let mut verrs = ValidationErrors::new();
         let mut arranged_terms: Vec<SimpleTerm> = Vec::new();
         for tid in arranged_tids {
             match self.hpo.term_by_id(&tid) {
@@ -112,15 +110,11 @@ impl HpoTermArranger {
                     arranged_terms.push(term.clone());
                 },
                 None => {
-                    verrs.push_str(format!("arrange_terms, could not find {}", &tid));
+                    return Err(format!("arrange_terms, could not find {}", &tid));
                 }
             }
         }
-        if verrs.has_error() {
-            Err(verrs)
-        } else {
-            Ok(arranged_terms)
-        }
+        Ok(arranged_terms)
     }
 
 }

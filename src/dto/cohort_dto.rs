@@ -1,6 +1,8 @@
 use core::convert::From;
 use std::collections::HashMap;
+use std::str::FromStr;
 
+use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
@@ -101,7 +103,7 @@ impl GeneVariantDto {
     }
 
     pub fn allele1_is_present(&self) -> bool {
-        self.allele2 != "na"
+        self.allele1 != "na"
     }
 
     pub fn allele1_is_sv(&self) -> bool {
@@ -168,24 +170,6 @@ pub struct DiseaseGeneDto {
 }
 
 
-
-
-
-/// For Melded Phenotypes, there are two diseases, and two gene/variant bundles.
-/// Their order does not matter in the GA4GH phenopacket. By convention, we will 
-/// enforce that they have the same order.
-/// For digenic, there is one disease and there are two gene/variant bundles.
-/// For Mendelian, there is one disease and one gene/variant bundle.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CaseBundleDto {
-    pub diseases: Vec<DiseaseDto>, // 1 or 2 depending on template
-    pub gene_vars: Vec<GeneVariantDto>, // 1 or 2 depending on template
-}
-
-
-
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CellDto {
@@ -196,6 +180,10 @@ impl CellDto {
     pub fn new(val: impl Into<String>) -> Self {
         Self { value: val.into() }
     }
+
+    pub fn na() -> Self {
+        Self { value: "na".to_string() }
+    }
 }
 
 
@@ -204,15 +192,20 @@ impl CellDto {
 pub struct RowDto {
     pub individual_dto: IndividualDto,
     pub disease_dto_list: Vec<DiseaseDto>,
-    pub gene_var_dto_list: Vec<GeneVariantDto>,
+    //pub gene_var_dto_list: Vec<GeneVariantDto>,
+    pub allele_count_map: HashMap<String, usize>,
     pub hpo_data: Vec<CellDto>
 }
 
 impl RowDto {
-    pub fn from_ppkt_row(ppkt_row: &PpktRow) -> Self {
+    pub fn from_ppkt_row(ppkt_row: &PpktRow, allele_key_list: Vec<String>) -> Self {
+        let mut allele_count_map: HashMap<String, usize> = HashMap::new();
+        for allele in allele_key_list {
+            *allele_count_map.entry(allele).or_insert(0) += 1;
+        };
         Self { individual_dto: ppkt_row.get_individual_dto(), 
             disease_dto_list: ppkt_row.get_disease_dto_list(), 
-            gene_var_dto_list: ppkt_row.get_gene_var_dto_list(), 
+            allele_count_map, 
             hpo_data: ppkt_row.get_hpo_value_list()
         }
     }
@@ -240,6 +233,14 @@ impl HeaderDupletDto {
     pub fn to_hpo_duplet(&self) -> HpoTermDuplet {
         HpoTermDuplet::new(self.h1.clone(), self.h2.clone())
     }
+
+    pub fn to_term_id(&self) -> Result<TermId, String> {
+        match TermId::from_str(&self.h2) {
+            Ok(tid) => Ok(tid),
+            Err(_) => Err(format!("Could not create TermId from DTO {:?}", self)),
+        }
+    }
+
 }
 /// convert from DupletItem using into()
 impl From<DupletItem> for HeaderDupletDto {
@@ -286,6 +287,23 @@ impl CohortDto {
             rows,
             hgvs_variants: HashMap::new(),
             structural_variants: HashMap::new(),
+        }
+    }
+
+    pub fn mendelian_with_variants(
+            dg_dto: DiseaseGeneDto,
+            hpo_headers: Vec<HeaderDupletDto>, 
+            rows: Vec<RowDto>,
+            hgvs_variants: HashMap<String, HgvsVariant>,
+            structural_variants: HashMap<String, StructuralVariant>
+        ) -> Self {
+        Self { 
+            cohort_type: CohortType::Mendelian, 
+            disease_gene_dto: dg_dto,
+            hpo_headers, 
+            rows,
+            hgvs_variants,
+            structural_variants,
         }
     }
 

@@ -241,20 +241,15 @@ impl HeaderDupletRow {
         }       
     }
     
-    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
+    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, String> {();
         let mut term_id_list: Vec<TermId> = Vec::with_capacity(self.hpo_duplets.len());
         for duplet in &self.hpo_duplets {
             match  TermId::from_str(&duplet.row2()) {
                 Ok(tid) => { term_id_list.push(tid);},
-                Err(_) => { verrs.push_str(format!("Could not parse {:?}", duplet));},
+                Err(_) => { return Err(format!("Could not parse {:?}", duplet));},
             }
         }
-        if verrs.has_error() {
-            Err(verrs)
-        } else {
-            Ok(term_id_list)
-        }
+        Ok(term_id_list)
     }
 
     pub fn get_hpo_duplets(&self) -> Vec<HpoTermDuplet> {

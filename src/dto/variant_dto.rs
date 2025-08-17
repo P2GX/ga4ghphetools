@@ -99,13 +99,13 @@ impl VariantValidationDto {
     /// specify a specific kind of SV. We are not able to do this automatically from the
     /// legacy excel files. TODO: This should be removed once we have processed the legacy excel files.
     pub fn sv(
-        hgvs: &str, 
+        label: &str, 
         transcript: &str,
         hgnc: &str,
         symbol: &str
     ) -> Self {
         Self { 
-            variant_string: hgvs.to_string(), 
+            variant_string: label.to_string(), 
             transcript: transcript.to_string(), 
             hgnc_id: hgnc.to_string(), 
             gene_symbol: symbol.to_string(), 

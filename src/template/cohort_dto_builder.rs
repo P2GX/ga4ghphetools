@@ -1,17 +1,19 @@
 //! CohortDtoBuilder
 //!
 //! The struct that creates and edits the [`CohortDto`] object that we use
-//! to store information about the Cohort.
+//! to store information about the Cohort. It uses the PPKtRow object as an intermediate stage in ETL 
+//! for each row of the legacy template to be ingested. This class can be simplified
+//! after we are finished refactoring the legacy files.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
     ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
-    term::{simple::{SimpleMinimalTerm}, MinimalTerm},
+    term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
     Identified, TermId,
 };
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, GeneVariantDto, HeaderDupletDto, IndividualDto, RowDto}, hpo_term_dto::HpoTermDto, validation_errors::ValidationErrors}, error::{Error, Result}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}};
+use crate::{dto::{cohort_dto::{CellDto, CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDto, structural_variant::StructuralVariant}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -40,17 +42,25 @@ impl FromStr for CohortType {
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
 pub struct CohortDtoBuilder {
-    header: Arc<HeaderDupletRow>,
     cohort_type: CohortType,
     /// Data structure used to seed new entries in the template (info re: gene[s], disease[s])
     disease_gene_dto: DiseaseGeneDto,
      /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
-     /// One row for each individual (phenopacket) in the cohort
-    ppkt_rows: Vec<PpktRow>,
 }
 
 impl CohortDtoBuilder {
+
+    pub fn new(
+        cohort_type: CohortType,
+        disease_gene_dto: DiseaseGeneDto,
+        hpo: Arc<FullCsrOntology>
+    ) -> Self {
+        Self { cohort_type, disease_gene_dto, hpo}
+    }
+
+
+
     /// Create the initial pyphetools template using HPO seed terms
     pub fn create_pyphetools_template_mendelian(
         hpo_term_ids: Vec<TermId>,
@@ -70,17 +80,6 @@ impl CohortDtoBuilder {
                 }
             }
         }
-       /*  let header_dup_row = HeaderDupletRow::from_hpo_duplets(hp_header_duplet_list, CohortType::Mendelian);*/
-        //let hdr_arc = Arc::new(header_dup_row);
- 
-        /*let builder = Self {
-            header: hdr_arc,
-            cohort_type: CohortType::Mendelian,
-            disease_gene_dto,
-            hpo: hpo.clone(),
-            ppkt_rows: vec![],
-        };
-*/
         let hpo_headers: Vec<HeaderDupletDto> = hp_header_duplet_list.iter()
             .map(|hpo_duplet| hpo_duplet.to_header_dto())
             .collect();
@@ -89,24 +88,281 @@ impl CohortDtoBuilder {
 
    
 
-  
-    
-
-    pub fn get_template_dto(&self) -> std::result::Result<CohortDto, String> {
-        let header_dto = self.header.get_hpo_header_dtos();
-        let row_dto_list: Vec<RowDto> = self.ppkt_rows
+  /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
+    /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
+    /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
+    /* 
+    pub fn update_old( term_list: &Vec<HeaderDupletDto>) -> Self {
+        let updated_hpo_duplets: Vec<HpoTermDuplet> = term_list
             .iter()
-            .map(RowDto::from_ppkt_row)
+            .map(|term| HeaderDupletDto::new(term.name(), &term.identifier().to_string()))
             .collect();
-        Ok(CohortDto::mendelian(self.disease_gene_dto.clone(), header_dto, row_dto_list, ))
+        Self {
+            individual_header: self.individual_header.clone(),
+            disease_header_list: self.disease_header_list.clone(),
+            gene_variant_header_list: self.gene_variant_header_list.clone(),
+            hpo_duplets: updated_hpo_duplets,
+            cohort_type: self.cohort_type,
+        }       
+    }
+ */
+
+    fn get_existing_hpos_from_cohort(
+        cohort_dto: &CohortDto
+    ) -> Result<Vec<TermId>, String> {
+        let mut tid_list: Vec<TermId> = Vec::new();
+        for hdd in &cohort_dto.hpo_headers {
+            match TermId::from_str(&hdd.h2) {
+                Ok(tid) => tid_list.push(tid),
+                Err(e) => { return Err(format!("Could not extract TermIf from {:?}", hdd)); }
+            }
+        }
+        Ok(tid_list)
     }
 
-   
 
-    /// Get a list of all HPO identifiers currently in the template
-    pub fn get_hpo_term_ids(&self) -> std::result::Result<Vec<TermId>, Vec<String>> {
-        self.header.get_hpo_id_list().map_err(|verr|verr.errors().clone())
+    pub fn get_updated_header_dto_list(arranged_terms: &Vec<SimpleTerm>) 
+    -> Vec<HeaderDupletDto> {
+        let mut dto_list: Vec<HeaderDupletDto> = Vec::new();
+        for st in arranged_terms {
+            let dto = HeaderDupletDto{
+                h1: st.name().to_string(),
+                h2: st.identifier().to_string()
+            };
+            dto_list.push(dto);
+        }
+        dto_list
     }
+
+    pub fn get_previous_hpo_id_list(cohort_dto: &CohortDto) -> Result<Vec<TermId>, String> {
+        let mut previous_tid_list: Vec<TermId> = Vec::new();
+        for hdd in &cohort_dto.hpo_headers {
+            match hdd.to_term_id() {
+                Ok(tid) => previous_tid_list.push(tid),
+                Err(_) => { return Err(format!("Could not extract TermId from {:?}", hdd));},
+            }
+        }
+        Ok(previous_tid_list)
+    }
+
+    /// We have a CohortDto and want to add new data to create a new row.
+    /// We need to integrate the HPO annotations contained in hpo_annotations (which has HPO term id, label, and cell value)
+    /// with the existing annoations, which potentially means that we need to rearrange the order of the
+    /// HPO terms if we add new HPO terms (We keep DFO order). 
+    /// We also assume that the front end has already validated the new Variants (that the corresponding objects are contained
+    /// in the HashMaps of CohortDto), and that we are getting the corresponding variant keys.
+     pub fn add_new_row_to_cohort(
+        &mut self,
+        individual_dto: IndividualDto, 
+        hpo_annotations: Vec<HpoTermDto>,
+        variant_key_list: Vec<String>,
+        cohort_dto: CohortDto) 
+    -> Result<CohortDto, String> {
+        let hpo_util = HpoUtil::new(self.hpo.clone());
+        // === STEP 1: Extract all HPO TIDs from DTO and classify ===
+        let dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_annotations)?;
+        let mut term_id_set_new: HashSet<TermId>  = dto_map.keys().cloned().collect();
+        let term_id_list_existing = Self::get_existing_hpos_from_cohort(&cohort_dto)?;
+        term_id_set_new.extend(term_id_list_existing); 
+         // === STEP 2: Arrange TIDs before borrowing template mutably ===
+        let all_tids: Vec<TermId> = term_id_set_new.into_iter().collect();
+        let mut term_arranger = HpoTermArranger::new(self.hpo.clone());
+        let arranged_terms = term_arranger.arrange_terms(&all_tids)?;
+         // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms set to "na"
+        // 3a. transform the simple terms to HeaderDupletDto objects
+        let updated_header_duplet_dto_list = Self::get_updated_header_dto_list(&arranged_terms);
+        
+        // 3b. Update the existing PpktRow objects
+        let mut updated_row_dto_list: Vec<RowDto> = Vec::new();
+        let mut term_id_map: HashMap<TermId, String> = HashMap::new();
+        // Make a map and add "na" as the default value for all terms
+        for term in &arranged_terms {
+            term_id_map.insert(term.identifier().clone(), "na".to_string());
+        }
+        let previous_hpo_id_list = Self::get_previous_hpo_id_list(&cohort_dto)?;
+        for row in cohort_dto.rows {
+            // make a copy of the default map and add the actual values for terms for which we have data
+            let mut tid_map = term_id_map.clone();
+            match Self::update_row_dto(row, &tid_map, &arranged_terms, &previous_hpo_id_list) {
+                Ok(updated_row) => {updated_row_dto_list.push(updated_row);},
+                Err(err) => { return Err(err); },
+            }
+        }
+        // Now add the new RowDto object
+        // 1. get map with TermId and Value (e.g., observed) for the new terms
+        let mut tid_to_value_map: HashMap<TermId, String> = HashMap::new();
+        for dto in   hpo_annotations {
+            match dto.ontolius_term_id() {
+                Ok(tid) => { tid_to_value_map.insert(tid, dto.entry().to_string()); },
+                Err(_) => { return Err(format!("Could not create TermId from {:?}", &dto)); },
+            }
+        }
+      
+        let novel_row = Self::new_row_dto(
+            &updated_header_duplet_dto_list, 
+            individual_dto, 
+            variant_key_list, 
+            tid_to_value_map, 
+            cohort_dto.disease_gene_dto.clone())?;
+            
+        updated_row_dto_list.push(novel_row);
+        
+        let updated_cohort_dto = CohortDto{
+            cohort_type: cohort_dto.cohort_type,
+            disease_gene_dto: cohort_dto.disease_gene_dto,
+            hpo_headers: updated_header_duplet_dto_list,
+            rows: updated_row_dto_list,
+            hgvs_variants: cohort_dto.hgvs_variants,
+            structural_variants: cohort_dto.structural_variants,
+        };
+        Ok(updated_cohort_dto)
+        
+       
+    }
+
+    fn update_row_dto(
+        row: RowDto, 
+        tid_to_value_map: &HashMap<TermId, String>,
+        updated_header: &Vec<SimpleTerm>,
+        previous_hpo_id_list: &[TermId]
+    ) -> Result<RowDto, String> {
+         // update the tid map with the existing  values
+       // let previous_hpo_id_list = row.
+       // let previous_hpo_id_list = updated_header.get_hpo_id_list()?;
+        let hpo_cell_content_list = row.hpo_data.clone();
+        
+    /*     if previous_hpo_id_list.len() != hpo_cell_content_list.len() {
+            return Err(format!("Mismatched lengths between HPO ID list from header ({}) and HPO content from row ({})",
+                previous_hpo_id_list.len(), hpo_cell_content_list.len())); 
+        }*/
+        //let updated_hpo_id_list = updated_header.get_hpo_id_list()?;
+        let updated_tid_list: Vec<TermId> = updated_header.iter().map(|st| st.identifier().clone()).collect();
+        let reordering_indices = Self::get_update_vector(&previous_hpo_id_list, &updated_tid_list);
+
+        let updated_hpo = Self::reorder_or_fill_na(&hpo_cell_content_list, 
+        &reordering_indices,
+        updated_header.len());
+        Ok(RowDto {
+            individual_dto: row.individual_dto,
+            disease_dto_list: row.disease_dto_list,
+            allele_count_map: row.allele_count_map,
+            hpo_data: updated_hpo,
+        })
+    }
+
+
+    /// Create a new RowDto. This is used when we create a row (phenopacket) with terms that
+    /// may not be included in the previous phenopackets and which may not have values for all of the
+    /// terms in the previous phenopackets. 
+    /// Note that we assume the variants have been previously validated; we get the corresponding variant_keys as a list,
+    /// one for each allele found in the individual (thus, we may get two identical alleles for homozygosity).
+    ///  # Arguments
+    ///
+    /// * `header` - Header with all HPO terms in previous cohort and new phenopacket, ordered by DFS
+    /// * `individual_dto` - DTO with demographic information about the new individual
+    /// * `variant_key_list` - List of variant keys (one per allele) for this individual
+    /// * `tid_to_value_map` - this has values (e.g., observed, na, P32Y2M) for which we have information in the new phenopacket
+    /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
+    fn new_row_dto(
+        header_dto_list:  &Vec<HeaderDupletDto>, 
+        individual_dto: IndividualDto,
+        variant_key_list: Vec<String>,
+        tid_to_value_map: HashMap<TermId, String>, 
+        disease_gene_dto: DiseaseGeneDto
+    ) -> std::result::Result<RowDto, String> {
+        if disease_gene_dto.template_type != CohortType::Mendelian {
+            panic!("from_map: Melded/Digenic not supported");
+        }
+        // Create a list of CellDto objects that matches the new order of HPO headers
+        let mut hpo_cell_list: Vec<CellDto> = Vec::with_capacity(header_dto_list.len());
+        for hduplet in header_dto_list {
+            let tid = hduplet.to_term_id()?;
+            let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
+            hpo_cell_list.push(CellDto { value });
+        }
+        if disease_gene_dto.gene_transcript_dto_list.len() != 1 {
+            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", disease_gene_dto.gene_transcript_dto_list.len()));
+        }
+        // Could the alleles
+        let mut allele_count_map: HashMap<String, usize> = HashMap::new();
+        for allele in variant_key_list {
+            *allele_count_map.entry(allele).or_insert(0) += 1;
+        }
+       let novel_row_dto = RowDto{
+            individual_dto,
+            disease_dto_list: disease_gene_dto.disease_dto_list.clone(),
+            allele_count_map,
+            hpo_data: hpo_cell_list,
+        };
+        Ok(novel_row_dto)
+    }
+
+     /// Given a previous list of `TermId`s and an updated list, this function
+    /// returns a vector of indices representing where each element of the
+    /// `previous_hpo_list` now appears in the `updated_hpo_list`.
+    ///
+    /// This is useful for tracking how terms from an earlier template are
+    /// rearranged after updating the template (e.g., after inserting or reordering terms).
+    /// The returned vector can be used to remap associated data (e.g., column values)
+    /// to their new positions.
+    ///
+    /// # Arguments
+    /// - `previous_hpo_list`: The list of HPO term IDs before the update.
+    /// - `updated_hpo_list`: The reordered or expanded list of HPO term IDs after the update.
+    ///                       It must contain all terms from `previous_hpo_list`.
+    ///
+    /// # Returns
+    /// A `Vec<usize>` where each element `i` gives the index in `updated_hpo_list`
+    /// of the `i`-th term in `previous_hpo_list`.
+    ///
+    /// # Panics
+    /// This function will panic if any term from `previous_hpo_list` is not found in `updated_hpo_list`.
+    ///
+    pub fn get_update_vector(
+        previous_hpo_list: &[TermId],
+        updated_hpo_list: &[TermId])
+    -> Vec<usize> {
+        let id_to_new_index: HashMap<TermId, usize> = updated_hpo_list
+            .iter()
+            .enumerate()
+            .map(|(i, tid)| (tid.clone(), i))
+            .collect();
+        let new_indices: Vec<usize> = previous_hpo_list
+            .iter()
+            .map(|tid| id_to_new_index[tid])
+            .collect();
+        new_indices
+    }
+
+    /// Given the old values and a mapping from old indices to new indices,
+    /// return a new vector of the size of the updated list, where each element
+    /// from the original list is moved to its new index, and all other positions
+    /// are filled with `"na"`.
+    ///
+    /// # Arguments
+    /// - `old_values`: The values associated with the old HPO list (same order).
+    /// - `old_to_new_indices`: A vector where `old_to_new_indices[i]` gives the
+    ///                         index in the new list where the `i`th old value should go.
+    /// - `new_size`: The size of the new list (typically, `updated_hpo_list.len()`).
+    ///
+    /// # Returns
+    /// A `Vec<String>` of length `new_size` where old values are in their new positions,
+    /// and new (missing) entries are `"na"`.
+    fn reorder_or_fill_na(
+        old_values: &[CellDto],
+        old_to_new_indices: &[usize],
+        new_size: usize,
+    ) -> Vec<CellDto> {
+        let mut new_values = vec![CellDto::na(); new_size];
+
+        for (old_idx, &new_idx) in old_to_new_indices.iter().enumerate() {
+            new_values[new_idx] = old_values[old_idx].clone();
+        }
+
+        new_values
+    }
+
+
 
     pub fn create_pyphetools_template(
         template_type: CohortType,
@@ -135,36 +391,7 @@ impl CohortDtoBuilder {
         } 
     }
 
-    pub fn from_cohort_dto(
-        template_dto: &CohortDto, 
-        hpo: Arc<FullCsrOntology>) 
-    -> std::result::Result<Self, String> {
-        let header_duplet_row = match template_dto.cohort_type {
-            CohortType::Mendelian => HeaderDupletRow::new_mendelian_ppkt_from_dto(&template_dto.hpo_headers),
-            other => {
-                return Err(format!("Only Mendelian implemented. We cannot yet handle '{:?}'", other));
-            }
-        };
-        let header_arc = Arc::new(header_duplet_row);
-        let mut ppkt_rows: Vec<PpktRow> = Vec::new();
-        for row_dto in &template_dto.rows {
-            let ppkt_row = PpktRow::from_dto(row_dto, header_arc.clone());
-            ppkt_rows.push(ppkt_row);
-        }
-        let template = CohortDtoBuilder {
-            header: header_arc.clone(),
-            disease_gene_dto: template_dto.disease_gene_dto.clone(),
-            hpo,
-            ppkt_rows,
-            cohort_type: CohortType::Mendelian,
-        };
-
-        template.check_for_errors()?;
-        Ok(template)
-    }
-
-
-
+   
     /// We are extract a DiseaseGeneDto from the Excel files (version 1), all of which are
     /// Mendelian. We know the columns are
     /// (0) "PMID", (1) "title", (2) "individual_id", (3)"comment", 
@@ -173,7 +400,7 @@ impl CohortDtoBuilder {
     ///    (12) "age_of_onset", (13)"age_at_last_encounter", (14)  "deceased", (15) "sex", (16) "HPO", 
     /// The columns with asterisk are what we need
     /// Note: This function should be deleted after the Excel files have been converted.
-    fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseGeneDto, String> {
+    pub fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseGeneDto, String> {
         let rows: Vec<&Vec<String>> = matrix.iter().skip(2).collect();
         if rows.is_empty() {
             return Err("Could not extract DTO because less than three rows found".to_string());
@@ -225,6 +452,7 @@ impl CohortDtoBuilder {
     /// * `matrix` - A 2D vector representing Excel data as rows and columns of string values
     /// * `hpo` - Shared reference to the Human Phenotype Ontology for validation and processing
     /// * `fix_errors` - Whether to attempt automatic correction of validation errors during processing
+   /*
     pub fn from_mendelian_template(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
@@ -232,7 +460,6 @@ impl CohortDtoBuilder {
     ) -> std::result::Result<Self, String> {
         let fix_errors = false;
         let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
-        println!("{:?}", matrix);
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
         let mut ppt_rows: Vec<PpktRow> = Vec::new();
@@ -242,14 +469,111 @@ impl CohortDtoBuilder {
             let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
             ppt_rows.push(ppkt_row);
         }
-        Ok(Self { 
-                header: hdr_arc, 
-                cohort_type: CohortType::Mendelian,
-                disease_gene_dto: dg_dto,
-                hpo: hpo.clone(),
-                ppkt_rows: ppt_rows,
-            })
+        panic!("Needs refactor/deletion from mendelian template");
+       
 
+    }
+ */
+
+    fn get_allele_set(ppkt_rows: & Vec<PpktRow>) -> HashSet<String> {
+        let mut alleles = HashSet::new();
+        for row in ppkt_rows {
+            for gvd in row.get_gene_var_dto_list() {
+                if gvd.allele1_is_present() {
+                    alleles.insert(gvd.allele1.clone());
+                }
+                if gvd.allele2_is_present() {
+                    alleles.insert(gvd.allele2.clone());
+                }
+            }
+        }
+        alleles
+    }
+
+
+
+    fn row_dto_from_values(
+        header_dupler_row: Arc<HeaderDupletRow>,
+        cell_values: Vec<String>
+    ) -> Result<RowDto, String> {
+
+
+        Err("c".to_ascii_lowercase())
+    }
+
+
+    /// Builds a DTO from a Mendelian template matrix. The function calls VariantValidator to get info about all variants.
+    ///
+    /// # Arguments
+    ///
+    /// * `matrix` - A 2D vector of strings representing the Mendelian template (extracted from Excel template file).
+    /// * `hpo` - Shared reference to the HPO ontology.
+    /// * `fix_errors` - Whether to update HPO labels automatically.
+    ///
+    /// # Returns
+    ///
+    /// A CohortDto constructed from the given legacy Excel template.
+    pub fn dto_from_mendelian_template(
+        matrix: Vec<Vec<String>>,
+        hpo: Arc<FullCsrOntology>,
+        fix_errors: bool
+    ) -> std::result::Result<CohortDto, String> {
+        let fix_errors = false;
+        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
+        const HEADER_ROWS: usize = 2; // first two rows of template are header
+        let hdr_arc = Arc::new(header);
+        let ppt_rows: Vec<PpktRow> = Vec::new();
+        let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
+        let vmanager = VariantManager::from_mendelian_matrix(&matrix)?;
+        let mut row_dto_list: Vec<RowDto> = Vec::new();
+         for row in matrix.into_iter().skip(HEADER_ROWS) {
+            let hdr_clone = hdr_arc.clone();
+            let ppkt_row = PpktRow::from_mendelian_row(hdr_clone, row)?;
+            let mut allele_key_list = vec![]; // TODO
+            for gv_dto in ppkt_row.get_gene_var_dto_list() {
+                if gv_dto.allele1_is_present() {
+                    allele_key_list.push(gv_dto.allele1.clone());
+                }
+                if gv_dto.allele2_is_present() {
+                    allele_key_list.push(gv_dto.allele2);
+                }
+            }
+            let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
+            row_dto_list.push(row_dto);
+        }
+
+        let allele_set = Self::get_allele_set(&ppt_rows);
+        // We must be Mendelian, check that we only have one gene
+        if dg_dto.gene_transcript_dto_list.len() != 1 {
+            return Err(format!("Expecting exactly one GeneTranscriptDto (Mendelian) but got {}", dg_dto.gene_transcript_dto_list.len()));
+        }
+        let gt_dto = dg_dto.gene_transcript_dto_list.first().unwrap(); // We know here we have exactly one list entry, safe to unwrap
+        let mut vmanager = VariantManager::from_gene_transcript_dto(gt_dto);
+        let mut row_dto_list: Vec<RowDto> = Vec::new();
+        for ppkt_row in ppt_rows {
+            let mut allele_key_list: Vec<String> = Vec::new();
+            for gv_dto in ppkt_row.get_gene_var_dto_list() {
+                if let Some(a1) = vmanager.get_variant_key(&gv_dto.allele1) {
+                    allele_key_list.push(a1);
+                }
+                if let Some(a2) = vmanager.get_variant_key(&gv_dto.allele2) {
+                    allele_key_list.push(a2);
+                }
+            }
+            let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
+       
+            row_dto_list.push(row_dto);
+        }
+        let header_duplet_list = hdr_arc.get_hpo_header_dtos();
+        
+        let cohort_dto = CohortDto::mendelian_with_variants(
+            dg_dto, 
+            header_duplet_list, 
+            row_dto_list,
+            vmanager.hgvs_map(), 
+            vmanager.sv_map(), 
+        );
+        Ok(cohort_dto)
     }
 
     fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), String> {
@@ -271,22 +595,7 @@ impl CohortDtoBuilder {
         Ok(())
     }
 
-    /// This function can be used after we have converted a DTO to a PhetoolsTemplate
-    /// to check for syntactic errors in all of the fields (corresponding to all of the columns of the template)
-    /// It does not check for ontology errors, e.g., a term is excluded and a child of that term is observed
-    /// Returns the first error encountered or Ok.
-    pub fn check_for_errors(&self) -> std::result::Result<(), String> {
-        
-        for duplet in &self.header.get_hpo_duplets() {
-            self.check_duplet(duplet)?;
-        }
-        for ppkt_row in &self.ppkt_rows {
-            ppkt_row.check_for_errors()?;
-        }
-
-        Ok(())
-    }
-
+   
 
     /// Validate the current template
     ///
@@ -294,7 +603,7 @@ impl CohortDtoBuilder {
     ///
     /// - a vector of errors (can be empty)
     ///
-    pub fn qc_check(&self) -> Result<()> {
+    pub fn qc_check(&self) -> Result<(), String> {
 
         Ok(())
     }
@@ -303,22 +612,8 @@ impl CohortDtoBuilder {
         self.cohort_type == CohortType::Mendelian
     }
 
-    pub fn phenopacket_count(&self) -> usize {
-        self.ppkt_rows.len()
-    }
 
 
-
-    /// Delete a row. We expect this to come from a GUI where the rows include
-    /// the headers (two rows) and adjust here. TODO - Consider
-    /// adjusting the count in the GUI
-    pub fn delete_row(&mut self, row: usize) -> Result<()> {
-        if row > self.ppkt_rows.len() {
-            return Err(Error::TemplateError { msg: format!("Attempt to delete row {row} but there are only {} rows", self.ppkt_rows.len()) });
-        }
-        self.ppkt_rows.remove(row);
-        Ok(())
-    }
 
     pub fn get_variant_dto_list(&self) {
         
@@ -342,14 +637,13 @@ impl CohortDtoBuilder {
     /// - Client code should retrieve HpoTermDto objects using the function [`Self::get_hpo_term_dto`]. This function will
     /// additionally rearrange the order of the HPO columns to keep them in "ideal" (DFS) order. Cells for HPO terms (columns) not included
     /// in the list of items but present in the columns of the previous matrix will be set to "na"
-    pub fn add_row_with_hpo_data(
+   /*  pub fn add_row_with_hpo_data(
         &mut self,
         individual_dto: IndividualDto,
         hpo_dto_items: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantDto>,
         disease_gene_dto: DiseaseGeneDto
-    ) -> std::result::Result<(), ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
+    ) -> std::result::Result<(), String> {
         let hpo_util = HpoUtil::new(self.hpo.clone());
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
         let dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
@@ -401,16 +695,9 @@ impl CohortDtoBuilder {
          println!("{}{} -- ppkt rows n={}\n\n",file!(), line!(), self.ppkt_rows.len());
         
         verrs.ok()
-    }
+    }*/
 
-     /// get the total number of rows (which is 2 for the header plus the number of phenopacket rows)
-    pub fn n_rows(&self) -> usize {
-        2 + self.ppkt_rows.len()
-    }
-
-    pub fn n_columns(&self) -> usize {
-        self.header.n_columns()
-    }
+    
 
     fn get_hgvs_variants(
         &self,
@@ -471,35 +758,27 @@ impl CohortDtoBuilder {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
         let hpo_version = self.hpo.version();
         let ppkt_exporter = PpktExporter::new(hpo_version, orcid, cohort_dto);
-        for row in &self.ppkt_rows {
-            match ppkt_exporter.extract_phenopacket(row) {
-                    Ok(ppkt) =>  { ppkt_list.push(ppkt); },
-                    Err(e) => { return Err(format!("Could not extract phenopacket: {}", e));},
-                }
-        }
-        Ok(ppkt_list)
+        panic!("Needs refactor - extract_phenopackets");
+        //Ok(ppkt_list)
     }
 
 
-    
+    /* 
     pub fn add_hpo_term_to_cohort(
         &mut self,
         hpo_id: &str,
         hpo_label: &str) 
-    -> std::result::Result<(), ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
+    -> std::result::Result<(), String> {
         let tid = TermId::from_str(hpo_id)
-                .map_err(|_| ValidationErrors::from_one_err(
-                format!("Could not arrange terms: {}\n", hpo_id)))?;
+                .map_err(|_| format!("Could not arrange terms: {}\n", hpo_id))?;
         let term = self.hpo
             .term_by_id(&tid)
-            .ok_or_else(|| ValidationErrors::from_one_err(
-                format!("could not retrieve HPO term for '{hpo_id}'")))?;
+            .ok_or_else(|| format!("could not retrieve HPO term for '{hpo_id}'"))?;
         // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
         let hpo_util = HpoUtil::new(self.hpo.clone());
         let mut all_tids = self.header.get_hpo_id_list()?;
         if all_tids.contains(&tid) {
-            return Err(ValidationErrors::from_one_err(format!("Not allowed to add term {} because it already is present", &tid)));
+            return Err(format!("Not allowed to add term {} because it already is present", &tid));
         }
         all_tids.push(tid);
         let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
@@ -513,22 +792,15 @@ impl CohortDtoBuilder {
         let updated_hdr_arc = Arc::new(update_hdr);
         let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
         for ppkt in &self.ppkt_rows {
-            let result = ppkt.update_header(updated_hdr_arc.clone());
-            if let Err(e) = result {
-                verrs.add_errors(e.errors());
-            } else {
-                let new_ppkt = result.unwrap();
-                updated_ppkt_rows.push(new_ppkt);
-            }
+            match ppkt.update_header(updated_hdr_arc.clone()) {
+                Ok(new_ppkt) => {     updated_ppkt_rows.push(new_ppkt); },
+                Err(e) => { return Err(e);},
+            } 
         }
-        if verrs.has_error() {
-            Err(verrs)
-        } else {
-            self.header = updated_hdr_arc.clone();
-            self.ppkt_rows = updated_ppkt_rows;
-            Ok(())
-        }
-    }
+        self.header = updated_hdr_arc.clone();
+        self.ppkt_rows = updated_ppkt_rows;
+        Ok(())
+    }*/
 }
 
 
@@ -619,11 +891,11 @@ mod test {
     fn test_factory_valid_input(
         original_matrix: Vec<Vec<String>>, 
         hpo: Arc<FullCsrOntology>) {
-        let factory = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
-        assert!(factory.is_ok());
+       // let factory = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
+       // assert!(factory.is_ok());
     }
 
-
+/*
     /// The second HPO entry is Hallux valgus HP:0001822
     /// The third is Short 1st metacarpal HP:0010034
     /// We replace the entry in column 19
@@ -638,9 +910,9 @@ mod test {
         let expected = "HP:0011987: expected 'Ectopic ossification in muscle tissue' but got 'Hallux  valgus'";
         assert_eq!(expected, err_msg);
     }
+ */
 
-
-
+/* TODO refactor test
     /// Test that we detect errors in labels of headings
     #[rstest]
     #[case(0, "PMI", "PMID")]
@@ -727,6 +999,6 @@ mod test {
         // TODO revise error strings, but let's do this as needed.
         //assert_eq!(expected_error_msg, err.to_string());
     }
-
+ */
 
 }
