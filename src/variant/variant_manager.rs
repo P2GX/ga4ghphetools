@@ -231,6 +231,54 @@ impl VariantManager {
  */
 
 
+    /// Columns 6,7,8 "HGNC_id",	"gene_symbol", 
+    ///    "transcript"
+    pub fn from_mendelian_matrix(matrix: &Vec<Vec<String>>) -> Result<Self, String> {
+        let hgnc_id_index = 6 as usize;
+        let gene_symbol_index = 7 as usize;
+        let transcript_index = 8 as usize;
+        let allele1_idx = 9 as usize;
+        let allele2_idx = 10 as usize;
+        if matrix.len() < 3 {
+            return Err(format!("Error: Mendelian matrix with too few rows: {}", matrix.len()));
+        } 
+        let row0 = matrix.get(0).unwrap(); // we know we have thie first row
+        if row0.len() < 11 {
+            return Err(format!("First matrix row too short: {} fields", row0.len()));
+        }
+        if row0[hgnc_id_index] != "hgnc_id" {
+            return Err(format!("Expected 'hgnc_id' at index {} but got {}", hgnc_id_index, row0[hgnc_id_index] ));
+        }
+         if row0[gene_symbol_index] != "gene_symbol" {
+            return Err(format!("Expected 'gene_symbol' at index {} but got {}", gene_symbol_index, row0[gene_symbol_index] ));
+        }
+        if row0[transcript_index] != "transcript" {
+            return Err(format!("Expected 'transcript' at index {} but got {}", transcript_index, row0[transcript_index] ));
+        }
+        // get the information from the third row
+        let row2 = matrix.get(2).unwrap();
+        let hgnc = &row2[hgnc_id_index];
+        let symbol = &row2[gene_symbol_index];
+        let transcript = &row2[transcript_index];
+        let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
+        // extract all allele strings
+        let mut allele_set: HashSet<String> = HashSet::new();
+        let HEADER_ROWS = 2;
+        for row in matrix.into_iter().skip(HEADER_ROWS) {
+            let a1 = row[allele1_idx].clone();
+            let a2 = row[allele2_idx].clone();
+            if a1 != "na" {
+                allele_set.insert(a1);
+            }
+            if a2 != "na" {
+                allele_set.insert(a2);
+            }
+        }
+        vmanager.validate_all_variants(&allele_set)?;
+        Ok(vmanager)
+    }
+
+
     
     /// Take ownership of the map of validated HGVS variants (map is replaced with empty map in the struct)
     pub fn hgvs_map(&mut self) -> HashMap<String, HgvsVariant> {

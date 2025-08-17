@@ -450,6 +450,7 @@ impl CohortDtoBuilder {
     /// * `matrix` - A 2D vector representing Excel data as rows and columns of string values
     /// * `hpo` - Shared reference to the Human Phenotype Ontology for validation and processing
     /// * `fix_errors` - Whether to attempt automatic correction of validation errors during processing
+   /*
     pub fn from_mendelian_template(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
@@ -470,7 +471,7 @@ impl CohortDtoBuilder {
        
 
     }
-
+ */
 
     fn get_allele_set(ppkt_rows: & Vec<PpktRow>) -> HashSet<String> {
         let mut alleles = HashSet::new();
@@ -485,6 +486,17 @@ impl CohortDtoBuilder {
             }
         }
         alleles
+    }
+
+
+
+    fn row_dto_from_values(
+        header_dupler_row: Arc<HeaderDupletRow>,
+        cell_values: Vec<String>
+    ) -> Result<RowDto, String> {
+
+
+        Err("c".to_ascii_lowercase())
     }
 
 
@@ -508,13 +520,26 @@ impl CohortDtoBuilder {
         let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
-        let mut ppt_rows: Vec<PpktRow> = Vec::new();
+        let ppt_rows: Vec<PpktRow> = Vec::new();
         let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
-        for row in matrix.into_iter().skip(HEADER_ROWS) {
+        let vmanager = VariantManager::from_mendelian_matrix(&matrix)?;
+        let mut row_dto_list: Vec<RowDto> = Vec::new();
+         for row in matrix.into_iter().skip(HEADER_ROWS) {
             let hdr_clone = hdr_arc.clone();
-            let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
-            ppt_rows.push(ppkt_row);
+            let ppkt_row = PpktRow::from_mendelian_row(hdr_clone, row)?;
+            let mut allele_key_list = vec![]; // TODO
+            for gv_dto in ppkt_row.get_gene_var_dto_list() {
+                if gv_dto.allele1_is_present() {
+                    allele_key_list.push(gv_dto.allele1.clone());
+                }
+                if gv_dto.allele2_is_present() {
+                    allele_key_list.push(gv_dto.allele2);
+                }
+            }
+            let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
+            row_dto_list.push(row_dto);
         }
+
         let allele_set = Self::get_allele_set(&ppt_rows);
         // We must be Mendelian, check that we only have one gene
         if dg_dto.gene_transcript_dto_list.len() != 1 {
@@ -534,6 +559,7 @@ impl CohortDtoBuilder {
                 }
             }
             let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
+       
             row_dto_list.push(row_dto);
         }
         let header_duplet_list = hdr_arc.get_hpo_header_dtos();

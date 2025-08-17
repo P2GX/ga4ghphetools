@@ -6,7 +6,6 @@ use crate::error::{Error, Result};
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
-use ontolius::term::simple::SimpleTerm;
 use ontolius::term::MinimalTerm;
 use ontolius::TermId;
 use std::collections::HashMap;

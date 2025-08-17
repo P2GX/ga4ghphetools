@@ -6,8 +6,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use ontolius::TermId;
+use serde_json::to_string;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
+use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto, RowDto};
 use crate::dto::validation_errors::ValidationErrors;
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
@@ -108,7 +109,7 @@ impl PpktRow {
         })
     }
 
-/* 
+/*
     pub fn from_dto(dto: &RowDto, header: Arc<HeaderDupletRow>) -> Self {
         let hpo_content = dto.hpo_data.iter()
             .map(|c|c.value.clone())
@@ -120,7 +121,7 @@ impl PpktRow {
             gene_var_bundle_list: GeneVariantBundle::from_dto_list(dto.gene_var_dto_list.clone()), 
             hpo_content
         }
-    }*/
+    } */
 
     pub fn get_individual_dto(&self) -> IndividualDto {
         let ibdl = &self.individual_bundle;
@@ -302,8 +303,7 @@ impl PpktRow {
         let previous_hpo_id_list = self.header.get_hpo_id_list()?;
         let hpo_cell_content_list = self.hpo_content.clone();
         if previous_hpo_id_list.len() != hpo_cell_content_list.len() {
-            return Err(format!("Mismatched lengths between HPO ID list ({}) and HPO content ({})",
-                previous_hpo_id_list.len(), hpo_cell_content_list.len()));
+            return Err("Mismatched lengths between HPO ID list and HPO content".to_string()); 
         }
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
         let reordering_indices = Self::get_update_vector(&previous_hpo_id_list, &updated_hpo_id_list);
@@ -434,4 +434,3 @@ mod test {
 
 
 }
-

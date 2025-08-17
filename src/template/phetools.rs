@@ -4,7 +4,7 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::cohort_dto::{DiseaseGeneDto, GeneVariantDto, IndividualDto,CohortDto};
+use crate::dto::cohort_dto::{DiseaseGeneDto, IndividualDto,CohortDto};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
 use crate::dto::variant_dto::VariantValidationDto;
