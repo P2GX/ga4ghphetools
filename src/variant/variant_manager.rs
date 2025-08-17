@@ -14,23 +14,16 @@
 //! Note that we know there is exactly one gene symbol, HGNC id, and transcript for all of our legacy 
 //! variants, so we add them here to the struct.
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use std::{mem, thread};
 use std::time::Duration;
-use ontolius::io::OntologyLoaderBuilder;
-use ontolius::ontology::csr::FullCsrOntology;
 
 use crate::dto::cohort_dto::{CohortDto, GeneTranscriptDto};
 
 
 use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
 use crate::dto::hgvs_variant::HgvsVariant;
-use crate::ppkt::ppkt_row::PpktRow;
-use crate::template::cohort_dto_builder::CohortDtoBuilder;
-use crate::template::excel;
-use crate::template::header_duplet_row::HeaderDupletRow;
 use crate::variant::structural_validator::StructuralValidator;
-use crate::{dto::variant_dto::VariantDto, variant::hgvs_variant_validator::HgvsVariantValidator};
+use crate::{variant::hgvs_variant_validator::HgvsVariantValidator};
 
 
 use crate::dto::structural_variant::{StructuralVariant, SvType};
@@ -56,6 +49,7 @@ pub struct VariantManager {
 
 
 impl VariantManager {
+    /// Construct a VariantManager object for a specific gene/HGNC/transcript
     pub fn new(symbol: &str, hgnc: &str, transcript: &str) -> Self {
         Self {
             hgvs_validator: HgvsVariantValidator::hg38(),
@@ -68,30 +62,25 @@ impl VariantManager {
         }
     }
 
+    /// Construct a VariantManager object for a specific gene/HGNC/transcript
     pub fn from_gene_transcript_dto(dto: &GeneTranscriptDto) -> Self {
         Self::new(&dto.gene_symbol, &dto.hgnc_id, &dto.transcript)
     }
 
-
-    pub fn excel_template_to_matrix(
-        phetools_template_path: &str,
-    ) -> Result<Vec<Vec<String>>, String> 
-    {
-        excel::read_excel_to_dataframe(phetools_template_path)
-    }
-
+    /// Perform up to 4 rounds of validation using the VariantValidator API
+    /// For each round, increase the latency between network calls
     pub fn validate_all_variants(&mut self, all_alleles: &HashSet<String>) -> Result<(), String>{
         let n_alleles = all_alleles.len();
         let mut attempts = 0;
         let max_attempts = 4;
-        let mut latency = 1 as u64; // time to wait between API calls
+        let mut latency = 250 as u64; // time in milliseconds to wait between API calls
         let mut n_validated = 0;
         while n_validated < n_alleles && attempts < max_attempts {
             n_validated = 0;
             let validated_hgvs = self.validate_all_hgvs_variants(all_alleles, latency);
             let validated_sv = self.validate_all_sv(all_alleles, latency);
             n_validated = validated_hgvs + validated_sv;
-            latency += 1;
+            latency += 250;
             attempts += 1;
             println!("Round {}: validated: {} (HGVS: {}, SV: {})", attempts, n_validated, validated_hgvs, validated_sv);
         }
@@ -117,7 +106,7 @@ impl VariantManager {
         None
     }
 
-
+    /// Completely analogous to validate_all_sv, see there for documentation
     pub fn validate_all_hgvs_variants(&mut self, variants: &HashSet<String>, latency: u64) -> usize {
         let mut n_valid = 0 as usize;
         for v in variants {
@@ -139,13 +128,28 @@ impl VariantManager {
             } else {
                 eprint!("Could not validate {v}/{variant_key}");
             }
-            // sleep to try to avoid network issues; we have a lot of time, so let's sleep for 2 seconds!
-            thread::sleep(Duration::from_secs(latency));
+            // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
+            thread::sleep(Duration::from_millis(latency));
         }
         n_valid
     }
 
 
+    /// Validates all structural variants in the given set.
+    ///
+    /// # Arguments
+    ///
+    /// * `variants` - A set of variant strings (`String`) to validate (allele strings, e.g., c.123A>C or DEL Ex 5).
+    /// * `latency` - A latency value (in seconds?) that controls how long to wait between VariantValidator calls
+    ///
+    /// # Returns
+    ///
+    /// The number of successfully validated variants.
+    ///
+    /// # Errors
+    ///
+    /// Errors are silently skipped under the assumption they may be network errors and this function can 
+    /// be called multiple times to get all variants (one a variant string is validated, it is skipped in this function)
     pub fn validate_all_sv(&mut self, variants: &HashSet<String>,  latency: u64) -> usize {
         let mut n_valid = 0 as usize;
          for v in variants {
@@ -170,13 +174,13 @@ impl VariantManager {
             }
             // sleep to try to avoid network issues; we have a lot of time, so let's sleep for 2 seconds!
             thread::sleep(Duration::from_secs(latency));
-
          }
-
         n_valid
     }
 
 
+    /// Validate a single variant (either HGVS or structural)
+    /// Precise SV not yet implemented.
     pub fn validate_variant(
         &self, 
         vv_dto: VariantValidationDto, 
@@ -227,97 +231,7 @@ impl VariantManager {
  */
 
 
-    pub fn get_allele_set(ppt_rows: &Vec<PpktRow>) -> HashSet<String> {
-       let mut allele_set = HashSet::new();
-        for row in ppt_rows {
-            for gv in  row.get_gene_var_dto_list() {
-                if !gv.allele1_is_present() {
-                    allele_set.insert(gv.allele1.clone());
-                }
-                if gv.allele2_is_present() {
-                    allele_set.insert(gv.allele2);
-                }
-            }
-        }
-        allele_set
-    }
-
-     pub fn from_mendelian_template_test(
-        &mut self,
-        matrix: Vec<Vec<String>>,
-        hpo: Arc<FullCsrOntology>,
-    ) -> std::result::Result<(), String> {
-        let fix_errors = true;
-        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
-        //println!("{:?}", matrix);
-        const HEADER_ROWS: usize = 2; // first two rows of template are header
-        let hdr_arc = Arc::new(header);
-        let mut ppt_rows: Vec<PpktRow> = Vec::new();
-        let dg_dto = CohortDtoBuilder::get_disease_dto_from_excel(&matrix)?;
-        for row in matrix.into_iter().skip(HEADER_ROWS) {
-            let hdr_clone = hdr_arc.clone();
-            let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
-            ppt_rows.push(ppkt_row);
-        }
-        println!("We got {} ppklt rows", ppt_rows.len());
-        let allele_set = Self::get_allele_set(&ppt_rows);
-        self.validate_all_variants(&allele_set);
-        Ok(())
-    }
-
-    pub fn from_path(&mut self, tpl_path: &str)-> std::result::Result<(), String> {
-        let matrix = Self::excel_template_to_matrix(tpl_path)?;
-        let hp_json = "/Users/robin/data/hpo/hp.json";
-        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
-            let ontology: FullCsrOntology = loader
-                            .load_from_path(hp_json)
-                            .expect("Could not load {file_path}");
-        let hpo = Arc::new(ontology);
-        self.from_mendelian_template_test(matrix, hpo)?;
-        Ok(())
-    }
-
-
-    pub fn validate_variant_dto_list(&mut self, variant_dto_list: Vec<VariantDto>) -> Result<Vec<VariantDto>, String> {
-       /*  let mut evaluated_dto_list: Vec<VariantDto> = Vec::with_capacity(variant_dto_list.len());
-        for dto in variant_dto_list {
-            let variant = dto.variant_string();
-            if dto.is_structural() {
-                if self.structural_cache.contains_key(variant ) {
-                    evaluated_dto_list.push(dto.clone_validated());
-                } else {
-                    match self.structural_validator.validate_sv(&dto) {
-                        Ok(sv) => {
-                            self.structural_cache.insert(variant.to_string(), sv);
-                            evaluated_dto_list.push(dto.clone_validated());
-                        },
-                        Err(e) => {
-                            evaluated_dto_list.push(dto.clone_unvalidated());
-                        },
-                    }
-                }
-            } else if self.hgvs_cache.contains_key(variant) {
-                evaluated_dto_list.push(dto.clone_validated());
-            } else {
-                match self.validator.validate_hgvs(&dto) {
-                    Ok(hgvs) => {
-                        self.hgvs_cache.insert(variant.to_string(), hgvs);
-                        evaluated_dto_list.push(dto.clone_validated());
-                    },
-                    Err(e) => {
-                        evaluated_dto_list.push(dto.clone_unvalidated());
-                    },
-                }
-            }
-        }
-        // write variants to cache.
-        self.save_hgvs()?;
-        self.save_structural()?; 
-        VariantDto::sort_variant_dtos(&mut evaluated_dto_list);
-        Ok(evaluated_dto_list)*/
-        Err("refactoring".to_ascii_lowercase())
-    }
-
+    
     /// Take ownership of the map of validated HGVS variants (map is replaced with empty map in the struct)
     pub fn hgvs_map(&mut self) -> HashMap<String, HgvsVariant> {
          mem::take(&mut self.validated_hgvs)
@@ -338,7 +252,7 @@ mod tests {
 
     use super::*;
 
-    /// 	ATP6V0C	
+    /*
     #[rstest]
     fn test_check_all_vars() {
         let template = "/Users/robin/GIT/phenopacket-store/notebooks/ATP6V0C/input/ATP6V0C_EPEO3_individuals.xlsx";
@@ -346,6 +260,6 @@ mod tests {
         let mut vmanager = VariantManager::new( "ATP6V0C","HGNC:855", "NM_001694.4");
         vmanager.from_path(template).unwrap();
         
-    }
+    }*/
 
 }

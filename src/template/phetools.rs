@@ -7,7 +7,6 @@ use crate::dto::etl_dto::ColumnTableDto;
 use crate::dto::cohort_dto::{DiseaseGeneDto, GeneVariantDto, IndividualDto,CohortDto};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
-use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::variant_dto::VariantValidationDto;
 use crate::etl::etl_tools::EtlTools;
 use crate::persistence::dir_manager::DirManager;
@@ -104,7 +103,7 @@ impl PheTools {
     /// - `Err(String)` - An error if template generation fails.
     ///
     /// # TODO - implement Melded/Digenic
-    pub fn create_pyphetools_template_from_seeds(
+    pub fn create_cohort_dto_from_seeds(
         &mut self,
         template_type: CohortType,
         disease_gene_dto: DiseaseGeneDto,
@@ -159,37 +158,18 @@ impl PheTools {
         Ok(())
     }
 
-    /// Return a Data Transfer Object to display the entire phenopacket cohort (template)
-    /// This function is called when the user opens a new template. It
-    /// opens the file, creates a DTO, and sets up the directory/variant managers
-    /// TODO deprecate, we do not want to get the template from the backend object
-    /// except if we have just opened a file
-    /*
-    pub fn get_template_dto(&self) -> Result<CohortDto, String> {
-        match &self.template {
-            Some(template) => {
-                let dto = template.get_template_dto().map_err(|e| e.to_string())?;
-                Ok(dto)
-            }
-            None => {
-                Err("Template is not initialized".to_string())
-            }
-        }
-    }
- */
-
-
-
     /// Load a two dimensional String matrix representing the entire PheTools template
+    /// # Arguments
+    ///
+    /// * `matrix` - A 2D vector of strings representing the Mendelian template (extracted from Excel template file).
+    /// * `fix_errors` - Whether to update HPO labels automatically.
     pub fn load_matrix(
         &mut self, 
         matrix: Vec<Vec<String>>,
         fix_errors: bool
-    ) -> Result<CohortDto, String> 
-    {
+    ) -> Result<CohortDto, String> {
         let hpo_arc = self.hpo.clone();
-        let builder = CohortDtoBuilder::from_mendelian_template(matrix, hpo_arc, fix_errors)?;
-        builder.get_template_dto()
+        CohortDtoBuilder::dto_from_mendelian_template(matrix, hpo_arc, fix_errors)
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
@@ -202,10 +182,12 @@ impl PheTools {
         excel::read_excel_to_dataframe(phetools_template_path)
     }
 
-    /// Load an Excel file representing the entire PheTools template
-    /// Arguments
-    /// - `template_path` - path to excel file with Phetools cohort template
-    /// - `fix_errors` - if true, atempt to fix easily fixable errors
+    /// Load an Excel file representing a legacy Pyphentools template (Mendelian).
+    /// This function can be removed once we have transformed all legacy templates.
+    /// # Arguments
+    ///
+    /// * `template_path` - path to excel file with Phetools cohort template
+    /// * `fix_errors` - Whether to update HPO labels automatically.
     pub fn load_excel_template(
         &mut self,
         phetools_template_path: &str,
@@ -215,11 +197,11 @@ impl PheTools {
         self.load_matrix(matrix, fix_errors)
     }
 
-    /// Here we load a JSON file that represents a partially finished
-    /// transformation of an external template file (work in progress)
+    /// Todo: update documentation
     pub fn set_external_template_dto(
         &mut self,
-        dto: &ColumnTableDto) -> Result<(), String> {
+        dto: &ColumnTableDto
+    ) -> Result<(), String> {
         let etl = EtlTools::from_dto(self.hpo.clone(), dto);
         self.etl_tools = Some(etl);
         Ok(())
@@ -277,26 +259,12 @@ impl PheTools {
         &mut self,
         individual_dto: IndividualDto, 
         hpo_annotations: Vec<HpoTermDto>,
-        gene_variant_list: Vec<GeneVariantDto>,
+        variant_key_list: Vec<String>,
         cohort_dto: CohortDto) 
     -> Result<CohortDto, String> {
         let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
-       /* let mut builder: CohortDtoBuilder = 
-            CohortDtoBuilder::from_cohort_dto( &cohort_dto, self.hpo.clone())?;
-        builder.add_row_with_hpo_data(
-            individual_dto, 
-            hpo_annotations, 
-            gene_variant_list, 
-            disease_gene_dto)
-            .map_err(|e| format!("{:?}", e.errors()))?;
-
-        let mut updated_cohort_dto = builder.get_template_dto()?;
-        // The above code updates the rows but does not add the Variant HashMaps.
-        // These were added in the front and can be simply copied into the new DTO
-        updated_cohort_dto.structural_variants = cohort_dto.structural_variants;
-        updated_cohort_dto.hgvs_variants = cohort_dto.hgvs_variants;
-         */
-         Err("add_new_row_to_cohort- Needs refactor".to_string())
+        let mut builder = CohortDtoBuilder::new(CohortType::Mendelian, disease_gene_dto, self.hpo.clone());
+        builder.add_new_row_to_cohort(individual_dto, hpo_annotations, variant_key_list, cohort_dto)
     }
 
     /// Return information about the version and number of terms of the HPO 

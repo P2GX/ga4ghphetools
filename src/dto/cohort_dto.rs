@@ -1,9 +1,11 @@
 use core::convert::From;
 use std::collections::HashMap;
+use std::str::FromStr;
 
+use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
-use crate::dto::structural_variant::{self, StructuralVariant, SvType};
+use crate::dto::structural_variant::StructuralVariant;
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
@@ -168,24 +170,6 @@ pub struct DiseaseGeneDto {
 }
 
 
-
-
-
-/// For Melded Phenotypes, there are two diseases, and two gene/variant bundles.
-/// Their order does not matter in the GA4GH phenopacket. By convention, we will 
-/// enforce that they have the same order.
-/// For digenic, there is one disease and there are two gene/variant bundles.
-/// For Mendelian, there is one disease and one gene/variant bundle.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CaseBundleDto {
-    pub diseases: Vec<DiseaseDto>, // 1 or 2 depending on template
-    pub gene_vars: Vec<GeneVariantDto>, // 1 or 2 depending on template
-}
-
-
-
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CellDto {
@@ -195,6 +179,10 @@ pub struct CellDto {
 impl CellDto {
     pub fn new(val: impl Into<String>) -> Self {
         Self { value: val.into() }
+    }
+
+    pub fn na() -> Self {
+        Self { value: "na".to_string() }
     }
 }
 
@@ -245,6 +233,14 @@ impl HeaderDupletDto {
     pub fn to_hpo_duplet(&self) -> HpoTermDuplet {
         HpoTermDuplet::new(self.h1.clone(), self.h2.clone())
     }
+
+    pub fn to_term_id(&self) -> Result<TermId, String> {
+        match TermId::from_str(&self.h2) {
+            Ok(tid) => Ok(tid),
+            Err(_) => Err(format!("Could not create TermId from DTO {:?}", self)),
+        }
+    }
+
 }
 /// convert from DupletItem using into()
 impl From<DupletItem> for HeaderDupletDto {

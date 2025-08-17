@@ -37,23 +37,18 @@ impl HpoUtil {
     pub fn term_label_map_from_dto_list(
         &self, 
         hpo_dto_list: &Vec<HpoTermDto>
-    ) -> std::result::Result<HashMap<TermId, String>, ValidationErrors> {
+    ) -> std::result::Result<HashMap<TermId, String>, String> {
         let mut dto_map: HashMap<TermId, String> = HashMap::new();
-        let mut verrs = ValidationErrors::new();
         for dto in hpo_dto_list {
             let result =  TermId::from_str(dto.term_id());
             match result {
                 Ok(term_id) => {dto_map.insert(term_id.clone(), dto.label().clone());},
                 Err(_) => {
-                    verrs.push_str(format!("Could not map termId: '{}'", dto.term_id()));
+                    return Err(format!("Could not map termId: '{}'", dto.term_id()));
                 },
             } 
         }
-        if verrs.has_error() {
-            Err(verrs)
-        } else {
-            Ok(dto_map)
-        }
+        Ok(dto_map)
     }
 
 /* TODO, do we still need this?

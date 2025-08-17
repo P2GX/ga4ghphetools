@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto, RowDto};
+use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
 use crate::dto::validation_errors::ValidationErrors;
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
@@ -205,15 +205,10 @@ impl PpktRow {
     pub fn update_header(
         &self, 
         updated_hdr: Arc<HeaderDupletRow>
-    ) -> std::result::Result<Self, ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
+    ) -> std::result::Result<Self, String> {
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
         let previous_header = &self.header;
-        let hpo_map = previous_header.get_hpo_content_map(&self.hpo_content);
-        let hpo_map = hpo_map.map_err(|e|{
-            verrs.push_str(e);
-            verrs // only propagated if error occurs
-        })?;
+        let hpo_map = previous_header.get_hpo_content_map(&self.hpo_content)?;
         let mut content = Vec::new();
         for tid in updated_hpo_id_list {
             let item: String = hpo_map
@@ -302,14 +297,13 @@ impl PpktRow {
         &self, 
         tid_map: &mut HashMap<TermId, String>, 
         updated_hdr: Arc<HeaderDupletRow>) 
-    -> std::result::Result<Self, ValidationErrors> {
+    -> std::result::Result<Self, String> {
         // update the tid map with the existing  values
-        let mut verr = ValidationErrors::new();
         let previous_hpo_id_list = self.header.get_hpo_id_list()?;
         let hpo_cell_content_list = self.hpo_content.clone();
         if previous_hpo_id_list.len() != hpo_cell_content_list.len() {
-            verr.push_str("Mismatched lengths between HPO ID list and HPO content");
-            return Err(verr); // not recoverable
+            return Err(format!("Mismatched lengths between HPO ID list ({}) and HPO content ({})",
+                previous_hpo_id_list.len(), hpo_cell_content_list.len()));
         }
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
         let reordering_indices = Self::get_update_vector(&previous_hpo_id_list, &updated_hpo_id_list);
