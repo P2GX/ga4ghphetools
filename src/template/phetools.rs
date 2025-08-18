@@ -163,13 +163,15 @@ impl PheTools {
     ///
     /// * `matrix` - A 2D vector of strings representing the Mendelian template (extracted from Excel template file).
     /// * `fix_errors` - Whether to update HPO labels automatically.
-    pub fn load_matrix(
+    pub fn load_matrix<F>(
         &mut self, 
         matrix: Vec<Vec<String>>,
-        fix_errors: bool
-    ) -> Result<CohortDto, String> {
+        fix_errors: bool,
+        progress_cb: F
+    ) -> Result<CohortDto, String> 
+        where F: FnMut(u32,u32),{
         let hpo_arc = self.hpo.clone();
-        CohortDtoBuilder::dto_from_mendelian_template(matrix, hpo_arc, fix_errors)
+        CohortDtoBuilder::dto_from_mendelian_template(matrix, hpo_arc, fix_errors, progress_cb)
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
@@ -188,13 +190,15 @@ impl PheTools {
     ///
     /// * `template_path` - path to excel file with Phetools cohort template
     /// * `fix_errors` - Whether to update HPO labels automatically.
-    pub fn load_excel_template(
+    pub fn load_excel_template<F>(
         &mut self,
         phetools_template_path: &str,
-        fix_errors: bool
-    ) -> Result<CohortDto, String> {
+        fix_errors: bool,
+        progress_cb: F
+    ) -> Result<CohortDto, String> 
+    where F: FnMut(u32,u32) {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
-        self.load_matrix(matrix, fix_errors)
+        self.load_matrix(matrix, fix_errors, progress_cb)
     }
 
     /// Todo: update documentation
@@ -381,7 +385,7 @@ impl PheTools {
     /// TODO --REMOVE ME
     pub fn validate_all_variants(
         &self,
-        mut cohort_dto: CohortDto) 
+        cohort_dto: CohortDto) 
     -> Result<CohortDto, String> {
         
         Err(format!("validate_all_variants -- needs refactor"))

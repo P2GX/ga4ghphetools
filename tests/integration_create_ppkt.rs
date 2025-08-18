@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
 use ga4ghphetools::PheTools;
+use polars::prelude::null;
 use rstest::rstest;
 use common::hpo;
 
@@ -20,7 +21,9 @@ fn create_ppkt_1(
     let mut phetools = PheTools::new(hpo);
     assert_eq!(3, one_case_matrix.len()); // original matrix has headers and four data rows
     let original_matrix = one_case_matrix.clone();
-    let res = phetools.load_matrix(one_case_matrix, false);
+    let res = phetools.load_matrix(one_case_matrix, false, |p,q|{
+        // no progress bar for test.
+    });
     assert!(res.is_ok());
     let hpo_version = "2025-05-31";
     /*
@@ -31,4 +34,27 @@ fn create_ppkt_1(
     assert_eq!("PMID29198722pArg913TerAffectedIndividual1", &ppkt.id);
      */
     //println!("{:?}", ppkt);
+}
+
+
+#[rstest]
+fn create_cohort_dto(
+    one_case_matrix: Vec<Vec<String>>, 
+    hpo: Arc<FullCsrOntology>,
+) {
+     let mut phetools = PheTools::new(hpo);
+    println!("Created phetools");
+    let template_path = "/Users/robin/GIT/phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx";
+    match phetools.load_excel_template(template_path, false, |p,q|{
+        println!("{}/ {} variants validated", p, q);}) {
+        Ok(template) => {
+            println!("[INFO] No errors identified for {:?}", template);
+            assert!(true);
+        }
+        Err(e) => {
+            println!("[ERROR] {:?}", e);
+            return;
+        }
+    }
+
 }

@@ -39,6 +39,8 @@ pub struct VariantManager {
     hgnc_id: String,
     /// Transcript of reference for theabove gene
     transcript: String,
+    /// Set of all allele strings (e.g., c.123A>T or DEL Ex 5)
+    allele_set: HashSet<String>,
     /// HGVS Variants that could be validated. The key is the original allele denomination (e.g., c.1234A>T), not the variantKey
     validated_hgvs: HashMap<String, HgvsVariant>,
     /// HGStructural Variants that could be validated. The key is the original allele denomination (e.g., DEL Ex 5), not the variantKey
@@ -57,6 +59,7 @@ impl VariantManager {
             gene_symbol: symbol.to_string(),
             hgnc_id: hgnc.to_string(),
             transcript: transcript.to_string(),
+            allele_set: HashSet::new(),
             validated_hgvs: HashMap::new(),
             validated_sv: HashMap::new(),
         }
@@ -69,21 +72,36 @@ impl VariantManager {
 
     /// Perform up to 4 rounds of validation using the VariantValidator API
     /// For each round, increase the latency between network calls
-    pub fn validate_all_variants(&mut self, all_alleles: &HashSet<String>) -> Result<(), String>{
+    pub fn validate_all_variants<F>(
+        &mut self, all_alleles: &HashSet<String>,
+        mut progress_cb: F)  
+    -> Result<(), String> 
+    where F: FnMut(u32, u32) {
         let n_alleles = all_alleles.len();
         let mut attempts = 0;
         let max_attempts = 4;
         let mut latency = 250 as u64; // time in milliseconds to wait between API calls
-        let mut n_validated = 0;
+        let mut n_validated: u32 = 0;
+        let n_alleles = all_alleles.len() as u32;
+        self.allele_set = all_alleles.clone();
         while n_validated < n_alleles && attempts < max_attempts {
-            n_validated = 0;
-            let validated_hgvs = self.validate_all_hgvs_variants(all_alleles, latency);
-            let validated_sv = self.validate_all_sv(all_alleles, latency);
-            n_validated = validated_hgvs + validated_sv;
+            for allele in all_alleles {
+                if allele.starts_with("c.") || allele.starts_with("n.") {
+                    if self.validate_hgvs(allele) {
+                        n_validated += 1;
+                    }
+                } else if  self.validate_sv(&allele) {
+                     n_validated += 1;
+                }
+                // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
+                thread::sleep(Duration::from_millis(latency));
+                progress_cb(n_validated, n_alleles);
+            }
             latency += 250;
             attempts += 1;
-            println!("Round {}: validated: {} (HGVS: {}, SV: {})", attempts, n_validated, validated_hgvs, validated_sv);
         }
+        println!("Round {}: validated: {}", attempts, n_validated);
+        
         // When we get here, we will have all variants that could be validated. If some were not validated, either we had not
         // internet or there is actually an error. We will enter their variantKey as na, and the front end will need to do something.
         Ok(())
@@ -106,32 +124,26 @@ impl VariantManager {
         None
     }
 
+    pub fn allele_set(&self) -> HashSet<String> {
+        self.allele_set.clone()
+    }
+
     /// Completely analogous to validate_all_sv, see there for documentation
-    pub fn validate_all_hgvs_variants(&mut self, variants: &HashSet<String>, latency: u64) -> usize {
-        let mut n_valid = 0 as usize;
-        for v in variants {
-            if ! v.starts_with("c.") && ! v.starts_with("n.") {
-                eprint!("error: attempt to HGVS validate non-HGVS variant {}", v);
-                continue;
-            }
-            let vv_dto = VariantValidationDto::hgvs_c(v, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-            let variant_key = HgvsVariant::generate_variant_key(v, &self.gene_symbol, &self.transcript);
-            if self.validated_hgvs.contains_key(&variant_key) {
-                println!("Previously validated {}", variant_key);
-                n_valid += 1;
-                continue;
-            }
-            if let Ok(hgvs) = self.hgvs_validator.validate(vv_dto) {
-                println!("Validated {}:{:?}", variant_key, hgvs);
-                self.validated_hgvs.insert(variant_key, hgvs.clone());
-                n_valid += 1;
-            } else {
-                eprint!("Could not validate {v}/{variant_key}");
-            }
-            // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
-            thread::sleep(Duration::from_millis(latency));
+    pub fn validate_hgvs(&mut self, hgvs: &str) -> bool {
+        let vv_dto = VariantValidationDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        let variant_key = HgvsVariant::generate_variant_key(hgvs, &self.gene_symbol, &self.transcript);
+        if self.validated_hgvs.contains_key(&variant_key) {
+            println!("Previously validated {}", variant_key);
+            return true;
         }
-        n_valid
+        if let Ok(hgvs) = self.hgvs_validator.validate(vv_dto) {
+            println!("Validated {}:{:?}", variant_key, hgvs);
+            self.validated_hgvs.insert(variant_key, hgvs.clone());
+            return true;
+        } else {
+            eprint!("Could not validate {hgvs}/{variant_key}");
+            return false;
+        }
     }
 
 
@@ -150,32 +162,26 @@ impl VariantManager {
     ///
     /// Errors are silently skipped under the assumption they may be network errors and this function can 
     /// be called multiple times to get all variants (one a variant string is validated, it is skipped in this function)
-    pub fn validate_all_sv(&mut self, variants: &HashSet<String>,  latency: u64) -> usize {
-        let mut n_valid = 0 as usize;
-         for v in variants {
-            let vv_dto = VariantValidationDto::sv(v, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-            let sv_type = SvType::try_from(vv_dto.validation_type);
-            if sv_type.is_err() {
-                eprint!("Could not extract SvType from variant {v}");
-                continue;
-            }
-            let sv_type = sv_type.unwrap();
-            let variant_key = StructuralVariant::generate_variant_key(v, &self.gene_symbol, sv_type);
-            if self.validated_sv.contains_key(&variant_key) {
-                println!("Previously validated {}", variant_key);
-                n_valid += 1;
-                continue;
-            }
-            if let Ok(sv) = self.structural_validator.validate(vv_dto) {
-                self.validated_sv.insert(variant_key, sv.clone());
-                n_valid += 1;
-            } else {
-                eprint!("Could not validate {v}/{variant_key}");
-            }
-            // sleep to try to avoid network issues; we have a lot of time, so let's sleep for 2 seconds!
-            thread::sleep(Duration::from_secs(latency));
-         }
-        n_valid
+    pub fn validate_sv(&mut self, sv: &str) -> bool {
+        let vv_dto = VariantValidationDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        let sv_type = SvType::try_from(vv_dto.validation_type);
+        if sv_type.is_err() {
+            eprint!("Could not extract SvType from variant {sv}");
+            return false;
+        }
+        let sv_type = sv_type.unwrap();
+        let variant_key = StructuralVariant::generate_variant_key(sv, &self.gene_symbol, sv_type);
+        if self.validated_sv.contains_key(&variant_key) {
+            println!("Previously validated {}", variant_key);
+            return true;
+        }
+        if let Ok(sv) = self.structural_validator.validate(vv_dto) {
+            self.validated_sv.insert(variant_key, sv.clone());
+            return true;
+        } else {
+            eprint!("Could not validate {sv}/{variant_key}");
+            return false;
+        }
     }
 
 
@@ -233,7 +239,11 @@ impl VariantManager {
 
     /// Columns 6,7,8 "HGNC_id",	"gene_symbol", 
     ///    "transcript"
-    pub fn from_mendelian_matrix(matrix: &Vec<Vec<String>>) -> Result<Self, String> {
+    pub fn from_mendelian_matrix<F>(
+        matrix: &Vec<Vec<String>>,  
+        progress_cb: F) 
+    -> Result<Self, String> 
+        where F: FnMut(u32, u32) {
         let hgnc_id_index = 6 as usize;
         let gene_symbol_index = 7 as usize;
         let transcript_index = 8 as usize;
@@ -246,8 +256,8 @@ impl VariantManager {
         if row0.len() < 11 {
             return Err(format!("First matrix row too short: {} fields", row0.len()));
         }
-        if row0[hgnc_id_index] != "hgnc_id" {
-            return Err(format!("Expected 'hgnc_id' at index {} but got {}", hgnc_id_index, row0[hgnc_id_index] ));
+        if row0[hgnc_id_index] != "HGNC_id" {
+            return Err(format!("Expected 'HGNC_id' at index {} but got {}", hgnc_id_index, row0[hgnc_id_index] ));
         }
          if row0[gene_symbol_index] != "gene_symbol" {
             return Err(format!("Expected 'gene_symbol' at index {} but got {}", gene_symbol_index, row0[gene_symbol_index] ));
@@ -274,7 +284,7 @@ impl VariantManager {
                 allele_set.insert(a2);
             }
         }
-        vmanager.validate_all_variants(&allele_set)?;
+        vmanager.validate_all_variants(&allele_set, progress_cb)?;
         Ok(vmanager)
     }
 

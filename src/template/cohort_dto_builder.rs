@@ -475,21 +475,6 @@ impl CohortDtoBuilder {
     }
  */
 
-    fn get_allele_set(ppkt_rows: & Vec<PpktRow>) -> HashSet<String> {
-        let mut alleles = HashSet::new();
-        for row in ppkt_rows {
-            for gvd in row.get_gene_var_dto_list() {
-                if gvd.allele1_is_present() {
-                    alleles.insert(gvd.allele1.clone());
-                }
-                if gvd.allele2_is_present() {
-                    alleles.insert(gvd.allele2.clone());
-                }
-            }
-        }
-        alleles
-    }
-
 
 
     fn row_dto_from_values(
@@ -513,18 +498,23 @@ impl CohortDtoBuilder {
     /// # Returns
     ///
     /// A CohortDto constructed from the given legacy Excel template.
-    pub fn dto_from_mendelian_template(
+    /// 
+    /// 
+    /// 
+    pub fn dto_from_mendelian_template<F>(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
-        fix_errors: bool
-    ) -> std::result::Result<CohortDto, String> {
+        fix_errors: bool,
+        progress_cb: F
+    ) -> std::result::Result<CohortDto, String> 
+        where F: FnMut(u32, u32) {
         let fix_errors = false;
         let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
         let ppt_rows: Vec<PpktRow> = Vec::new();
         let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
-        let vmanager = VariantManager::from_mendelian_matrix(&matrix)?;
+        let mut vmanager = VariantManager::from_mendelian_matrix(&matrix, progress_cb)?;
         let mut row_dto_list: Vec<RowDto> = Vec::new();
          for row in matrix.into_iter().skip(HEADER_ROWS) {
             let hdr_clone = hdr_arc.clone();
@@ -541,14 +531,6 @@ impl CohortDtoBuilder {
             let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
             row_dto_list.push(row_dto);
         }
-
-        let allele_set = Self::get_allele_set(&ppt_rows);
-        // We must be Mendelian, check that we only have one gene
-        if dg_dto.gene_transcript_dto_list.len() != 1 {
-            return Err(format!("Expecting exactly one GeneTranscriptDto (Mendelian) but got {}", dg_dto.gene_transcript_dto_list.len()));
-        }
-        let gt_dto = dg_dto.gene_transcript_dto_list.first().unwrap(); // We know here we have exactly one list entry, safe to unwrap
-        let mut vmanager = VariantManager::from_gene_transcript_dto(gt_dto);
         let mut row_dto_list: Vec<RowDto> = Vec::new();
         for ppkt_row in ppt_rows {
             let mut allele_key_list: Vec<String> = Vec::new();
@@ -755,7 +737,7 @@ impl CohortDtoBuilder {
         cohort_dto: CohortDto,
         orcid: &str) 
     -> std::result::Result<Vec<Phenopacket>, String> {
-        let mut ppkt_list: Vec<Phenopacket> = Vec::new();
+        let ppkt_list: Vec<Phenopacket> = Vec::new();
         let hpo_version = self.hpo.version();
         let ppkt_exporter = PpktExporter::new(hpo_version, orcid, cohort_dto);
         panic!("Needs refactor - extract_phenopackets");

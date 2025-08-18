@@ -13,7 +13,8 @@ use common::matrix;
 #[rstest]
 fn test_valid_input(matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
     let mut phetools = PheTools::new(hpo);
-    let res = phetools.load_matrix(matrix, false);
+    let res = phetools.load_matrix(matrix, false, |p,q|{// no progress bar for test
+        });
     assert!(res.is_ok());
 }
 

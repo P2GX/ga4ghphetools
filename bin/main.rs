@@ -42,7 +42,7 @@ fn main() {
         .expect("HPO should be loaded");
     let hpo_arc = Arc::new(hpo);
 
-    if false {
+    if true {
         test_load_template(hpo_arc, &cli.template);
     } else {
         test_load_etl(hpo_arc);
@@ -55,7 +55,8 @@ fn main() {
 fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
     let mut phetools = PheTools::new(hpo_arc);
     println!("Created phetools");
-    match phetools.load_excel_template(template, false) {
+    match phetools.load_excel_template(template, false, |p,q|{
+        println!("{}/ {} variants validated", p, q);}) {
         Ok(template) => {
             println!("[INFO] No errors identified for {:?}", template);
         }
@@ -64,8 +65,6 @@ fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
             return;
         }
     }
-    let dto = phetools.get_template_dto();
-    println!("{:?}", dto);
 }
 
 
