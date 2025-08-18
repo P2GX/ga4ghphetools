@@ -476,17 +476,6 @@ impl CohortDtoBuilder {
  */
 
 
-
-    fn row_dto_from_values(
-        header_dupler_row: Arc<HeaderDupletRow>,
-        cell_values: Vec<String>
-    ) -> Result<RowDto, String> {
-
-
-        Err("c".to_ascii_lowercase())
-    }
-
-
     /// Builds a DTO from a Mendelian template matrix. The function calls VariantValidator to get info about all variants.
     ///
     /// # Arguments
@@ -529,21 +518,6 @@ impl CohortDtoBuilder {
                 }
             }
             let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
-            row_dto_list.push(row_dto);
-        }
-        let mut row_dto_list: Vec<RowDto> = Vec::new();
-        for ppkt_row in ppt_rows {
-            let mut allele_key_list: Vec<String> = Vec::new();
-            for gv_dto in ppkt_row.get_gene_var_dto_list() {
-                if let Some(a1) = vmanager.get_variant_key(&gv_dto.allele1) {
-                    allele_key_list.push(a1);
-                }
-                if let Some(a2) = vmanager.get_variant_key(&gv_dto.allele2) {
-                    allele_key_list.push(a2);
-                }
-            }
-            let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
-       
             row_dto_list.push(row_dto);
         }
         let header_duplet_list = hdr_arc.get_hpo_header_dtos();
