@@ -13,7 +13,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CellDto, CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDto, structural_variant::StructuralVariant}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CellDto, CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -86,26 +86,6 @@ impl CohortDtoBuilder {
          Ok(CohortDto::mendelian(disease_gene_dto, hpo_headers, vec![] ))
     }
 
-   
-
-  /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
-    /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
-    /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
-    /* 
-    pub fn update_old( term_list: &Vec<HeaderDupletDto>) -> Self {
-        let updated_hpo_duplets: Vec<HpoTermDuplet> = term_list
-            .iter()
-            .map(|term| HeaderDupletDto::new(term.name(), &term.identifier().to_string()))
-            .collect();
-        Self {
-            individual_header: self.individual_header.clone(),
-            disease_header_list: self.disease_header_list.clone(),
-            gene_variant_header_list: self.gene_variant_header_list.clone(),
-            hpo_duplets: updated_hpo_duplets,
-            cohort_type: self.cohort_type,
-        }       
-    }
- */
 
     fn get_existing_hpos_from_cohort(
         cohort_dto: &CohortDto
@@ -182,7 +162,7 @@ impl CohortDtoBuilder {
         let previous_hpo_id_list = Self::get_previous_hpo_id_list(&cohort_dto)?;
         for row in cohort_dto.rows {
             // make a copy of the default map and add the actual values for terms for which we have data
-            let mut tid_map = term_id_map.clone();
+            let tid_map = term_id_map.clone();
             match Self::update_row_dto(row, &tid_map, &arranged_terms, &previous_hpo_id_list) {
                 Ok(updated_row) => {updated_row_dto_list.push(updated_row);},
                 Err(err) => { return Err(err); },
@@ -437,45 +417,6 @@ impl CohortDtoBuilder {
         Ok(dg_dto)
     }
 
-    /// Extract a template from the version 1 Excel files (that will be deprecated)
-    /// These files do not have a disease_gene_dto element, but we know that all the
-    /// excel files share the fields we will need to extract this data. 
-    /// Note: This function should be deleted after the Excel files have been converted.
-    /// The legacy Excel file templates did not include variant information, so we initial
-    /// the fields for HGVS and structural variant validation to empty maps. We will need to 
-    /// use variant validator etc. to create validated objects that can then be stored in
-    /// the JSON templates for the cohorts.
-    /// TODO: This method can be deleted once the legacy excel templates have been converted.
-    /// 
-    /// # Parameters
-    /// 
-    /// * `matrix` - A 2D vector representing Excel data as rows and columns of string values
-    /// * `hpo` - Shared reference to the Human Phenotype Ontology for validation and processing
-    /// * `fix_errors` - Whether to attempt automatic correction of validation errors during processing
-   /*
-    pub fn from_mendelian_template(
-        matrix: Vec<Vec<String>>,
-        hpo: Arc<FullCsrOntology>,
-        fix_errors: bool
-    ) -> std::result::Result<Self, String> {
-        let fix_errors = false;
-        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
-        const HEADER_ROWS: usize = 2; // first two rows of template are header
-        let hdr_arc = Arc::new(header);
-        let mut ppt_rows: Vec<PpktRow> = Vec::new();
-        let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
-        for row in matrix.into_iter().skip(HEADER_ROWS) {
-            let hdr_clone = hdr_arc.clone();
-            let ppkt_row = PpktRow::from_row(hdr_clone, row)?;
-            ppt_rows.push(ppkt_row);
-        }
-        panic!("Needs refactor/deletion from mendelian template");
-       
-
-    }
- */
-
-
     /// Builds a DTO from a Mendelian template matrix. The function calls VariantValidator to get info about all variants.
     ///
     /// # Arguments
@@ -511,10 +452,29 @@ impl CohortDtoBuilder {
             let mut allele_key_list = vec![]; // TODO
             for gv_dto in ppkt_row.get_gene_var_dto_list() {
                 if gv_dto.allele1_is_present() {
-                    allele_key_list.push(gv_dto.allele1.clone());
+                    //gv_dto.get_key_allele1()
+                    if gv_dto.allele1_is_hgvs() {
+                        let allele_key = HgvsVariant::generate_variant_key(&gv_dto.allele1, &gv_dto.gene_symbol, &gv_dto.transcript);
+                        allele_key_list.push(allele_key);
+                    } else if gv_dto.allele1_is_sv(){
+                        // We do not try to guess the SV type, the user needs to adjust in the GUI
+                        let allele_key = StructuralVariant::generate_variant_key(&gv_dto.allele1, &gv_dto.gene_symbol, SvType::Sv);
+                        allele_key_list.push(allele_key);
+                    } else {
+                        return Err(format!("Unknown allele1 type {:?}", gv_dto));
+                    }
                 }
                 if gv_dto.allele2_is_present() {
-                    allele_key_list.push(gv_dto.allele2);
+                    if gv_dto.allele2_is_hgvs() {
+                        let allele_key = HgvsVariant::generate_variant_key(&gv_dto.allele2, &gv_dto.gene_symbol, &gv_dto.transcript);
+                        allele_key_list.push(allele_key);
+                    } else if gv_dto.allele2_is_sv(){
+                        // We do not try to guess the SV type, the user needs to adjust in the GUI
+                        let allele_key = StructuralVariant::generate_variant_key(&gv_dto.allele2, &gv_dto.gene_symbol, SvType::Sv);
+                        allele_key_list.push(allele_key);
+                    }else {
+                        return Err(format!("Unknown allele2 type {:?}", gv_dto));
+                    }
                 }
             }
             let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
@@ -571,9 +531,7 @@ impl CohortDtoBuilder {
 
 
 
-    pub fn get_variant_dto_list(&self) {
-        
-    }
+
 
     /// Arranges the given HPO terms into a specific order for curation.
     ///
@@ -705,7 +663,8 @@ impl CohortDtoBuilder {
         Ok(var_list)
     }
 
-
+    /// Get Phenopackets for all individuals (rows) represented in the cohort
+    /// orcid: ORCID id of the biocurator.
     pub fn extract_phenopackets(
         &self,
         cohort_dto: CohortDto,
@@ -714,8 +673,7 @@ impl CohortDtoBuilder {
         let ppkt_list: Vec<Phenopacket> = Vec::new();
         let hpo_version = self.hpo.version();
         let ppkt_exporter = PpktExporter::new(hpo_version, orcid, cohort_dto);
-        panic!("Needs refactor - extract_phenopackets");
-        //Ok(ppkt_list)
+        ppkt_exporter.get_all_phenopackets()
     }
 
 

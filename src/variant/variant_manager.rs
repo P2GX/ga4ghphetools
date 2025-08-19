@@ -273,8 +273,8 @@ impl VariantManager {
         let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
         // extract all allele strings
         let mut allele_set: HashSet<String> = HashSet::new();
-        let HEADER_ROWS = 2;
-        for row in matrix.into_iter().skip(HEADER_ROWS) {
+        let n_header_rows = 2;
+        for row in matrix.into_iter().skip(n_header_rows) {
             let a1 = row[allele1_idx].clone();
             let a2 = row[allele2_idx].clone();
             if a1 != "na" {

@@ -108,19 +108,6 @@ impl PpktRow {
         })
     }
 
-/*
-    pub fn from_dto(dto: &RowDto, header: Arc<HeaderDupletRow>) -> Self {
-        let hpo_content = dto.hpo_data.iter()
-            .map(|c|c.value.clone())
-            .collect();
-        Self { 
-            header, 
-            individual_bundle: IndividualBundle::from_dto(dto.individual_dto.clone()), 
-            disease_bundle_list: DiseaseBundle::from_dto_list(dto.disease_dto_list.clone()), 
-            gene_var_bundle_list: GeneVariantBundle::from_dto_list(dto.gene_var_dto_list.clone()), 
-            hpo_content
-        }
-    } */
 
     pub fn get_individual_dto(&self) -> IndividualDto {
         let ibdl = &self.individual_bundle;
@@ -154,34 +141,6 @@ impl PpktRow {
 
     pub fn get_hpo_term_dto_list(&self) -> std::result::Result<Vec<HpoTermDto>, String> {
         self.header.get_hpo_term_dto_list(&self.hpo_content).map_err(|e| e.to_string())
-    }
-
-
-    pub fn mendelian_from_dto(
-        &self,
-        header_duplet_row: Arc<HeaderDupletRow>,
-        individual_dto: IndividualDto,
-        annotations: Vec<HpoTermDto>,
-        existing_annotation_map:HashMap<TermId, String>) 
-    -> std::result::Result<Self, ValidationErrors> 
-    {
-        let verrs = ValidationErrors::new();
-        //let existing_header = self.header:
-        
-       /*  Ok(Self {
-            header_duplet_row: header_duplet_row,
-            content: values
-        })*/
-        if verrs.has_error() {
-            Err(verrs)
-        } else {
-            Ok(Self{ 
-                header: header_duplet_row, 
-                individual_bundle: IndividualBundle::from_dto(individual_dto), 
-                disease_bundle_list: todo!(), 
-                gene_var_bundle_list: todo!(), 
-                hpo_content: todo!() })
-        }
     }
 
     /// This function checks the current PpktRow for syntactical errors

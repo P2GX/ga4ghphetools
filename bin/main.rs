@@ -3,6 +3,7 @@ use clap::{command, Parser};
 use ga4ghphetools::etl::etl_tools::EtlTools;
 use ga4ghphetools::PheTools;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
+use phenopackets::schema::v2::Phenopacket;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -57,8 +58,8 @@ fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
     println!("Created phetools");
     match phetools.load_excel_template(template, false, |p,q|{
         println!("{}/ {} variants validated", p, q);}) {
-        Ok(template) => {
-            println!("[INFO] No errors identified for {:?}", template);
+        Ok(cohort_dto) => {
+           println!("[INFO] No errors identified for {:?}\n\n\n", template);
         }
         Err(e) => {
             println!("[ERROR] {:?}", e);

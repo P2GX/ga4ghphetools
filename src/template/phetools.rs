@@ -12,6 +12,7 @@ use crate::etl::etl_tools::EtlTools;
 use crate::persistence::dir_manager::DirManager;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
 use crate::dto::{ hpo_term_dto::HpoTermDto};
+use crate::ppkt::ppkt_exporter::PpktExporter;
 use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
 
@@ -27,7 +28,6 @@ use std::fmt::{self};
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{ vec};
 
 
 /// The main struct for interacting with this library
@@ -447,15 +447,19 @@ impl PheTools {
         &mut self,  
         cohort_dto: CohortDto, 
         dir: PathBuf,
-        orcid: String) -> Result<(), String> {
-        let ppkt_list: Vec<Phenopacket> = vec![];// self.export_ppkt(cohort_dto, &orcid)?;
+        orcid: String) 
+    -> Result<(), String> {
+        let hpo_version = self.hpo.version();
+        let exporter = PpktExporter::new(hpo_version, &orcid, cohort_dto);
+        let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()?;
+        println!("write_ppkt_list");
         for ppkt in ppkt_list {
             let title = ppkt.id.clone() + ".json";
             let mut file_path = dir.clone();
             file_path.push(title);
             Self::write_ppkt(&ppkt, file_path)?;
         }
-        Err("write_ppkt_list -- needs refactor".to_ascii_lowercase())
+        Ok(())
     }
 
     /// Load an excel file with a table of information that can be

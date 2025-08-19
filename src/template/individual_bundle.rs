@@ -53,7 +53,6 @@ impl IndividualBundle {
     ) -> std::result::Result<Self, String> {
         let  i = start_idx;
         let bundle = Self::new(&row[0], &row[1], &row[2], &row[3], &row[i], &row[i+1], &row[i+2], &row[i+3]);
-        println!("from row - {:?}", bundle);
         bundle.do_qc()?;
         Ok(bundle)
     }

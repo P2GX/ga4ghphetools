@@ -12,13 +12,11 @@ use phenopackets::schema::v2::Phenopacket;
 
 use rand::Rng;
 use regex::Regex;
-use crate::dto::cohort_dto::{CohortDto, GeneVariantDto};
-use crate::error::{Error, Result};
+use crate::dto::cohort_dto::{CohortDto, RowDto};
 
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
 use phenopacket_tools;
-use super::ppkt_row::PpktRow;
 use phenopacket_tools::builders::builder::Builder;
 
 
@@ -36,13 +34,6 @@ pub struct PpktExporter {
     orcid_id: String,
     cohort_dto: CohortDto,
 }
-
-impl Error {
-    pub fn malformed_time_element(msg: impl Into<String>) -> Self {
-        Error::AgeParseError { msg: msg.into() }
-    }
-}
-
 
 impl PpktExporter {
 
@@ -84,10 +75,10 @@ impl PpktExporter {
 
 
     /// Create a GA4GH Individual message
-    pub fn extract_individual(&self, ppkt_row: &PpktRow) -> Result<Individual> {
-        let individual_dto = ppkt_row.get_individual_dto();
+    pub fn extract_individual(&self, ppkt_row: &RowDto) -> Result<Individual, String> {
+        let individual_dto = &ppkt_row.individual_dto;
         let mut idvl = Individual{ 
-            id: individual_dto.individual_id, 
+            id: individual_dto.individual_id.clone(), 
             alternate_ids: vec![], 
             date_of_birth: None, 
             time_at_last_encounter: None, 
@@ -101,13 +92,12 @@ impl PpktExporter {
             "F" => idvl.sex = Sex::Female.into(),
             "O" => idvl.sex = Sex::OtherSex.into(),
             "U" => idvl.sex = Sex::UnknownSex.into(),
-            _ => { return Err(Error::TemplateError { msg: format!("Did not recognize sex string '{}'", idvl.sex) });
-            }
+            _ => { return Err(format!("Did not recognize sex string '{}'", idvl.sex)); }
         };
-        let last_enc = individual_dto.age_at_last_encounter;
+        let last_enc = &individual_dto.age_at_last_encounter;
         if last_enc != "na" {
-            let age = time_element_from_str(&last_enc)
-                .map_err(|e| Error::malformed_time_element(e.to_string()))?;
+            let age = time_element_from_str(last_enc)
+                .map_err(|e| format!("malformed_time_element {}",e.to_string()))?;
             idvl.time_at_last_encounter = Some(age);
         }
         if individual_dto.deceased == "yes" {
@@ -143,7 +133,7 @@ impl PpktExporter {
     } 
 
     /// Create GA4GH MetaData object from version numbers using functions from phenopacket_tools
-    pub fn get_meta_data(&self, ppkt_row: &PpktRow) -> Result<MetaData> {
+    pub fn get_meta_data(&self, row_dto: &RowDto) -> Result<MetaData, String> {
         let created_by = self.orcid_id.clone();
         let mut meta_data = Builder::meta_data_now(created_by);
         let hpo = phenopacket_tools::builders::resources::Resources::hpo_version(self.hpo_version());
@@ -151,11 +141,11 @@ impl PpktExporter {
         let so = phenopacket_tools::builders::resources::Resources::so_version(self.so_version());
         let omim = phenopacket_tools::builders::resources::Resources::omim_version(self.omim_version());
         let hgnc = phenopacket_tools::builders::resources::Resources::hgnc_version(&self.hgnc_version());
-        let indvl_dto = ppkt_row.get_individual_dto();
+        let indvl_dto = row_dto.individual_dto.individual_id.clone();
         let ext_res = ExternalReference{ 
-            id: indvl_dto.pmid, 
+            id: row_dto.individual_dto.pmid.clone(), 
             reference: String::default(), 
-            description: indvl_dto.title 
+            description: row_dto.individual_dto.title.clone()
         };
         meta_data.resources.push(hpo);
         meta_data.resources.push(geno);
@@ -168,9 +158,9 @@ impl PpktExporter {
 
 
     /// Generate the phenopacket identifier from the PMID and the individual identifier
-    pub fn get_phenopacket_id(&self, ppkt_row: &PpktRow) -> String {
-        let individual_dto = ppkt_row.get_individual_dto();
-        let pmid = individual_dto.pmid.replace(":", "_");
+    pub fn get_phenopacket_id(&self, ppkt_row: &RowDto) -> String {
+        let individual_dto = &ppkt_row.individual_dto;
+        let pmid = ppkt_row.individual_dto.pmid.replace(":", "_");
         let individual_id = individual_dto.individual_id.replace(" ", "_");
         let ppkt_id = format!("{}_{}", pmid, individual_id);
         let ppkt_id = ppkt_id.replace("__", "_");
@@ -188,14 +178,14 @@ impl PpktExporter {
     }
 
     /// TODO extend for multiple diseases
-    pub fn get_disease(&self, ppkt_row: &PpktRow) -> Result<Disease> {
-        let disease_list = ppkt_row.get_disease_dto_list();
+    pub fn get_disease(&self, ppkt_row: &RowDto) -> Result<Disease, String> {
+        let disease_list = &ppkt_row.disease_dto_list;
         if disease_list.is_empty() {
-            return Err(Error::TemplateError { msg: format!("todo empty disease") });
+            return Err(format!("todo empty disease"));
         }
         let dto = disease_list[0].clone();
         let dx_id = Builder::ontology_class(dto.disease_id, dto.disease_label)
-            .map_err(|e| Error::DiseaseIdError{msg:format!("malformed disease id")})?;
+            .map_err(|e| format!("malformed disease id: {:?}", disease_list))?;
         let mut disease = Disease{ 
             term: Some(dx_id), 
             excluded: false, 
@@ -206,11 +196,11 @@ impl PpktExporter {
             primary_site: None, 
             laterality: None 
         };
-        let idl_dto = ppkt_row.get_individual_dto();
-        let onset = idl_dto.age_of_onset;
+        let idl_dto = ppkt_row.individual_dto.individual_id.clone();
+        let onset = &ppkt_row.individual_dto.age_of_onset;
         if onset != "na" {
-            let age = time_element_from_str(&onset)
-                .map_err(|e| Error::malformed_time_element(e.to_string()))?;
+            let age = time_element_from_str(onset)
+                .map_err(|e| format!("malformed_time_element {}",e.to_string()))?;
             disease.onset = Some(age);
         };
         Ok(disease)
@@ -223,14 +213,12 @@ impl PpktExporter {
 
 
     fn get_sv_variant_interpretation(
-        gvb: &GeneVariantDto, 
-        allele: &str,
         sv: &StructuralVariant,
-        biallelic: bool
+        allele_count: usize
     ) -> VariantInterpretation {
         let gene_ctxt = GeneDescriptor{ 
-            value_id: gvb.hgnc_id.clone(), 
-            symbol: gvb.gene_symbol.clone(), 
+            value_id: sv.hgnc_id().to_string(), 
+            symbol: sv.gene_symbol().to_string(), 
             description: String::default(), 
             alternate_ids: vec![] , 
             alternate_symbols: vec![] , 
@@ -238,7 +226,7 @@ impl PpktExporter {
             };
         let is_x = sv.is_x_chromosomal();
         let sv_class = sv.get_sequence_ontology_term();
-        let allelic_state = Self::get_allele_term(biallelic, sv.is_x_chromosomal());
+        let allelic_state = Self::get_allele_term(allele_count, sv.is_x_chromosomal());
         
         let vdesc = VariationDescriptor {
             id: sv.variant_key().to_string(),
@@ -264,8 +252,8 @@ impl PpktExporter {
         vi
     }
 
-    fn get_allele_term(is_homozygous: bool, is_x: bool) -> OntologyClass {
-        if is_homozygous {
+    fn get_allele_term(allele_count: usize, is_x: bool) -> OntologyClass {
+        if  allele_count == 2 {
             return OntologyClass {
                 id: "GENO:0000136".to_string(),
                 label: "homozygous".to_string(),
@@ -284,14 +272,12 @@ impl PpktExporter {
     }
       
     fn get_hgvs_variant_interpretation(
-            gvb: &GeneVariantDto, 
-            allele: &str,
-            hgvs: &HgvsVariant,
-            biallelic: bool) 
+        hgvs: &HgvsVariant,
+        allele_count: usize) 
     -> VariantInterpretation {
         let gene_ctxt = GeneDescriptor{ 
-            value_id: gvb.hgnc_id.clone(), 
-            symbol: gvb.gene_symbol.clone(), 
+            value_id: hgvs.hgnc_id().to_string(), 
+            symbol: hgvs.symbol().to_string(), 
             description: String::default(), 
             alternate_ids: vec![] , 
             alternate_symbols: vec![] , 
@@ -311,7 +297,7 @@ impl PpktExporter {
 
         let hgvs_c = Expression{ 
             syntax: "hgvs.c".to_string(),
-            value: format!("{}:{}", gvb.transcript, allele), 
+            value: format!("{}:{}", hgvs.transcript(), hgvs.hgvs()), 
             version: String::default() 
         };
         let mut expression_list = vec![hgvs_c];
@@ -322,7 +308,7 @@ impl PpktExporter {
                 };
         expression_list.push(hgvs_g);
          
-        let allelic_state = Self::get_allele_term(biallelic, hgvs.is_x_chromosomal());
+        let allelic_state = Self::get_allele_term(allele_count, hgvs.is_x_chromosomal());
         let vdesc = VariationDescriptor{ 
             id: hgvs.variant_key().to_string(), 
             variation: None, 
@@ -347,30 +333,6 @@ impl PpktExporter {
         vi
     }
 
-    /// Get variant interpretations for current phenopacket.
-    /// Note that by the time we call this method we are sure we have information for the variants
-    /// TODO refactor to make logic clearer
-    fn get_variant_interpretation_list(
-        &self,
-        gvb: &GeneVariantDto) 
-    -> Vec<VariantInterpretation> {
-        let mut v_interp_list: Vec<VariantInterpretation> = Vec::new();
-        if gvb.allele1 == "na" {
-            return v_interp_list;
-        }
-        let biallelic: bool = gvb.allele1 == gvb.allele2;
-        if let Some(hgvs) = self.cohort_dto.hgvs_variants.get(&gvb.allele1) {
-            let vinterp = Self::get_hgvs_variant_interpretation(gvb, &gvb.allele1, hgvs, biallelic);
-            v_interp_list.push(vinterp);
-        } else if let Some(sv) = self.cohort_dto.structural_variants.get(&gvb.allele1) {
-            let vinterp = Self::get_sv_variant_interpretation(gvb, &gvb.allele1, sv, biallelic);
-        } 
-        
-
-
-        v_interp_list
-    }
-    
     /// Generate a random identifier (used in this struct for Interpretation objects).
     pub fn generate_id() -> String {
         rand::rng()
@@ -380,36 +342,40 @@ impl PpktExporter {
             .collect()
     }
     
+    /// TODO, for melded, we need to assign genes to diseases
     pub fn get_interpretation_list(
         &self, 
-        ppkt_row: &PpktRow) 
+        ppkt_row: &RowDto) 
     -> std::result::Result<Vec<Interpretation>, String> {
-        let dx_list = ppkt_row.get_disease_dto_list();
-        let gdb_list = ppkt_row.get_gene_var_dto_list();
-        //TODO for now we just support Mendelian. Need to extend for digenic and Melded
-        if dx_list.len() != 1 || gdb_list.len() != 1 {
-            return Err("Only mendelian supported TODO".to_ascii_lowercase());
+        let mut v_interpretation_list: Vec<VariantInterpretation> = Vec::new();
+        for (allele, count) in &ppkt_row.allele_count_map {
+            let allele_count = *count;
+            if allele_count > 2 || allele_count < 1 {
+                return Err(format!("Invalid count ({}) for allele '{}'", count, allele));
+            }
+            if let Some(hgvs) = self.cohort_dto.hgvs_variants.get(allele) {
+                let vinterp = Self::get_hgvs_variant_interpretation( hgvs, allele_count);
+                v_interpretation_list.push(vinterp);
+            } else if let Some(sv) = self.cohort_dto.structural_variants.get(allele) {
+                let vinterp = Self::get_sv_variant_interpretation(sv, allele_count);
+                v_interpretation_list.push(vinterp);
+            } else {
+                return Err(format!("Could not find validated variant for allele {}", allele));
+            }
         }
-        println!("{}{}-", file!(), line!());
-        let gdb_dto = gdb_list.first().unwrap();
-        let dx_dto = dx_list.first().unwrap();
-        let a1 = &gdb_dto.allele1;
-        let a2 = &gdb_dto.allele2;
-        if !self.cohort_dto.hgvs_variants.contains_key(a1) && !self.cohort_dto.structural_variants.contains_key(a1) {
-            return Err(Self::allele_not_contained(a1));
+        if self.cohort_dto.disease_gene_dto.disease_dto_list.len() != 1 {
+            return Err(format!("Melded disease interpretation not implemented yet: {:?}", self.cohort_dto.disease_gene_dto.disease_dto_list));
         }
-        if a2 != "na" && ! self.cohort_dto.hgvs_variants.contains_key(a2) && !self.cohort_dto.structural_variants.contains_key(a2) {
-            return Err(Self::allele_not_contained(a2));
-        }
-        let v_interpretations = self.get_variant_interpretation_list(gdb_dto);
+        let d_dto = &self.cohort_dto.disease_gene_dto.disease_dto_list[0];
+    
         let disease_clz = OntologyClass{
-            id: dx_dto.disease_id.clone(),
-            label: dx_dto.disease_label.clone(),
+            id: d_dto.disease_id.clone(),
+            label: d_dto.disease_label.clone(),
         };
         let mut g_interpretations: Vec<GenomicInterpretation> = Vec::new();
-        for vi in v_interpretations {
+        for vi in v_interpretation_list {
             let gi = GenomicInterpretation{
-                subject_or_biosample_id: ppkt_row.get_individual_dto().individual_id.clone(),
+                subject_or_biosample_id: ppkt_row.individual_dto.individual_id.to_string(),
                 interpretation_status: InterpretationStatus::Causative.into(),
                 call: Some(Call::VariantInterpretation(vi))
             };
@@ -432,29 +398,33 @@ impl PpktExporter {
     
 
 
-    pub fn get_phenopacket_features(&self, ppkt_row: &PpktRow) -> Result<Vec<PhenotypicFeature>> {
-        let dto_list = ppkt_row.get_hpo_term_dto_list()?;
-        let mut ppkt_feature_list: Vec<PhenotypicFeature> = Vec::with_capacity(dto_list.len());
-        for dto in dto_list {
-            if ! dto.is_ascertained() {
+    pub fn get_phenopacket_features(&self, ppkt_row: &RowDto) -> Result<Vec<PhenotypicFeature>, String> {
+        let hpo_term_list = &self.cohort_dto.hpo_headers;
+        let hpo_data = &ppkt_row.hpo_data;
+        if hpo_data.len() != hpo_term_list.len() {
+            return Err(format!("Length of HPO headers ({}) does not match length of HPO values {}",
+            hpo_term_list.len(), hpo_data.len()));
+        }
+        let mut ppkt_feature_list: Vec<PhenotypicFeature> = Vec::with_capacity(hpo_data.len());
+        for (term, cell_contents) in hpo_term_list.iter().zip(hpo_data.iter()) {
+            if ! cell_contents.is_ascertained() {
                 continue;
             }
-            let hpo_term = Builder::ontology_class(dto.term_id(), dto.label())
-                .map_err(|e| Error::termid_parse_error(dto.term_id()))?;
+            let hpo_term = Builder::ontology_class(term.h2.clone(), term.h1.clone())
+                .map_err(|e| format!("termid_parse_error '{:?}'", term))?;
             let mut pf = PhenotypicFeature{ 
                 description: String::default(), 
                 r#type: Some(hpo_term), 
-                excluded: dto.is_excluded(), 
+                excluded: cell_contents.is_excluded(), 
                 severity: None, 
                 modifiers: vec![], 
                 onset: None,
                 resolution: None, 
                 evidence: vec![]
             };
-            if dto.has_onset() {
-                let value = dto.onset()?;
-                let ost = time_element_from_str(&value)
-                    .map_err(|e| Error::malformed_time_element(value))?;
+            if cell_contents.has_onset() {
+                let ost = time_element_from_str(&cell_contents.value)
+                    .map_err(|e| format!("malformed_time_element{}", cell_contents.value))?;
                 pf.onset = Some(ost);
             }
             ppkt_feature_list.push(pf);
@@ -465,11 +435,12 @@ impl PpktExporter {
 
     /// Extract a single phenopacket from a PpktRow object
     /// This method will make use of the full variant definitions in the CohortDto.
+     /*
     pub fn extract_phenopacket(
         &self, 
         ppkt_row: &PpktRow, 
     ) 
-    -> Result<Phenopacket> {
+    -> Result<Phenopacket, String> {
         if ppkt_row.get_gene_var_dto_list().len() != 1 {
             panic!("NEED TO EXTEND MODEL TO NON MEND. NEED TO EXTEND CACHE KEY FOR GENE-TRANSCRIPT-NAME");
         }
@@ -491,6 +462,45 @@ impl PpktExporter {
         };
     
         Ok(ppkt)
+    } */
+
+ pub fn extract_phenopacket_from_dto(
+        &self, 
+        ppkt_row_dto: &RowDto, 
+    ) -> Result<Phenopacket, String> {
+        if self.cohort_dto.disease_gene_dto.gene_transcript_dto_list.len() != 1 {
+            panic!("NEED TO EXTEND MODEL TO NON MEND. NEED TO EXTEND CACHE KEY FOR GENE-TRANSCRIPT-NAME");
+        }
+        let interpretation_list = self.get_interpretation_list(ppkt_row_dto)?;
+        //let gv_dto = ppkt_row_dto.get_gene_var_dto_list()[0].clone();
+       // let allele1 = ppkt_row_dto.;
+        //let allele2= gv_dto.allele2;
+        let ppkt = Phenopacket{ 
+            id: self.get_phenopacket_id(ppkt_row_dto), 
+            subject:  Some(self.extract_individual(ppkt_row_dto)?), 
+            phenotypic_features: self.get_phenopacket_features(ppkt_row_dto)?, 
+            measurements: vec![], 
+            biosamples: vec![], 
+            interpretations: interpretation_list, 
+            diseases: vec![self.get_disease(ppkt_row_dto)?], 
+            medical_actions: vec![], 
+            files: vec![], 
+            meta_data: Some(self.get_meta_data(ppkt_row_dto)?) 
+        };
+    
+        Ok(ppkt)
+
+
+    }
+
+    pub fn get_all_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {
+        let mut ppkt_list: Vec<Phenopacket> = Vec::new();
+        for row in &self.cohort_dto.rows {
+           let ppkt = self.extract_phenopacket_from_dto(row)?;
+           ppkt_list.push(ppkt);
+        }
+
+        Ok(ppkt_list)
     }
 
 

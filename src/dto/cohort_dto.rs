@@ -184,6 +184,23 @@ impl CellDto {
     pub fn na() -> Self {
         Self { value: "na".to_string() }
     }
+
+    /// Return true if we have ascertained the corresponding HPO term (i.e., it is not na, it is observed, excluded, P4Y, etc)
+    pub fn is_ascertained(&self) -> bool {
+        return self.value != "na"
+    }
+
+    pub fn is_excluded(&self) -> bool {
+        return self.value == "excluded";
+    }
+
+    pub fn is_observed(&self) -> bool {
+        return self.value == "observed";
+    }
+
+    pub fn has_onset(&self) -> bool {
+        (! self.is_excluded() ) && (! self.is_observed() ) && (self.is_ascertained())
+    }
 }
 
 
