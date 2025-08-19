@@ -4,7 +4,7 @@
 
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantValidationDto}, variant::vcf_var::VcfVar};
+use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantDto}, variant::vcf_var::VcfVar};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
@@ -50,7 +50,7 @@ impl HgvsVariantValidator {
     /// - `Err(Error)` - An error if the API call fails (which may happen because of malformed input or network issues).
     pub fn validate(
         &self, 
-        vv_dto: VariantValidationDto
+        vv_dto: VariantDto
     ) -> Result<HgvsVariant, String> 
     {
         let hgvs = &vv_dto.variant_string;

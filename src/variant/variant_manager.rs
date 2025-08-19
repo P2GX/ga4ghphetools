@@ -20,7 +20,7 @@ use std::time::Duration;
 use crate::dto::cohort_dto::{CohortDto, GeneTranscriptDto};
 
 
-use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
+use crate::dto::variant_dto::{VariantDto, VariantType};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::{variant::hgvs_variant_validator::HgvsVariantValidator};
@@ -130,7 +130,7 @@ impl VariantManager {
 
     /// Completely analogous to validate_all_sv, see there for documentation
     pub fn validate_hgvs(&mut self, hgvs: &str) -> bool {
-        let vv_dto = VariantValidationDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
         let variant_key = HgvsVariant::generate_variant_key(hgvs, &self.gene_symbol, &self.transcript);
         if self.validated_hgvs.contains_key(&variant_key) {
             println!("Previously validated {}", variant_key);
@@ -163,8 +163,8 @@ impl VariantManager {
     /// Errors are silently skipped under the assumption they may be network errors and this function can 
     /// be called multiple times to get all variants (one a variant string is validated, it is skipped in this function)
     pub fn validate_sv(&mut self, sv: &str) -> bool {
-        let vv_dto = VariantValidationDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-        let sv_type = SvType::try_from(vv_dto.validation_type);
+        let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        let sv_type = SvType::try_from(vv_dto.variant_type);
         if sv_type.is_err() {
             eprint!("Could not extract SvType from variant {sv}");
             return false;
@@ -189,23 +189,24 @@ impl VariantManager {
     /// Precise SV not yet implemented.
     pub fn validate_variant(
         &self, 
-        vv_dto: VariantValidationDto, 
+        vv_dto: VariantDto, 
         mut cohort_dto: CohortDto)
     -> Result<CohortDto, String> {
-        match &vv_dto.validation_type {
-            VariantValidationType::Hgvs => {
+        match &vv_dto.variant_type {
+            VariantType::Hgvs => {
                 let hgvs = self.hgvs_validator.validate(vv_dto)?;
                 cohort_dto.hgvs_variants.insert(hgvs.variant_key(), hgvs);
                 return Ok(cohort_dto);
             } 
-            VariantValidationType::PreciseSv => {
-                return Err("Precise SV validation not implemented".to_string())
+            VariantType::PreciseSv 
+            | VariantType::Unknown=> {
+                return Err(format!("validation not implemented for '{:?}'", vv_dto.variant_type));
             }
-            VariantValidationType::Del 
-            | VariantValidationType::Inv 
-            | VariantValidationType::Transl 
-            | VariantValidationType::Dup
-            | VariantValidationType::Sv => {
+            VariantType::Del 
+            | VariantType::Inv 
+            | VariantType::Transl 
+            | VariantType::Dup
+            | VariantType::Sv => {
                 let sv = self.structural_validator.validate(vv_dto)?;
                 cohort_dto.structural_variants.insert(sv.variant_key().to_string(), sv);
                 return Ok(cohort_dto);
@@ -295,8 +296,67 @@ impl VariantManager {
          mem::take(&mut self.validated_hgvs)
     }
     /// Take ownership of the map of validated Structural variants
-     pub fn sv_map(&mut self) -> HashMap<String, StructuralVariant> {
+    pub fn sv_map(&mut self) -> HashMap<String, StructuralVariant> {
          mem::take(&mut self.validated_sv)
+    }
+
+    /// Check if the variants in the cohort are all validated
+    /// Return a dto that will allow the front end to see what
+    /// variants remain to be validated
+    pub fn analyze_variants(&self, cohort_dto: CohortDto)
+    -> Result<Vec<VariantDto>, String> {
+        let mut var_ana_map: HashMap<String, VariantDto> = HashMap::new();
+        for row in &cohort_dto.rows {
+            for allele_key in row.allele_count_map.keys() {
+                if let Some(hgvs) = cohort_dto.hgvs_variants.get(allele_key) {
+                    var_ana_map
+                        .entry(allele_key.to_string()) // key type = String
+                        .and_modify(|existing| {
+                            existing.count += 1; 
+                        })
+                        .or_insert_with(|| VariantDto {
+                            variant_string: allele_key.to_string(),
+                            variant_key: None,
+                            transcript: hgvs.transcript().to_string(),
+                            hgnc_id: hgvs.hgnc_id().to_string(),
+                            gene_symbol: hgvs.symbol().to_string(),
+                            variant_type: VariantType::Hgvs,
+                            is_validated: false,
+                            count: 0,
+                        });
+                } else if let Some(sv) = cohort_dto.structural_variants.get(allele_key) {
+                     var_ana_map
+                        .entry(allele_key.to_string()) // key type = String
+                        .and_modify(|existing| {
+                            existing.count += 1; 
+                        })
+                        .or_insert_with(|| VariantDto {
+                            variant_string: sv.label().to_string(),
+                            variant_key: Some(allele_key.to_string()),
+                            transcript: sv.transcript().to_string(),
+                            hgnc_id: sv.hgnc_id().to_string(),
+                            gene_symbol: sv.gene_symbol().to_string(),
+                            variant_type: VariantType::Sv,
+                            is_validated: true,
+                            count: 0
+                        });   
+                } else {
+                     let v_ana = VariantDto {
+                        variant_string: format!("na:{}",allele_key),
+                        variant_key: Some(allele_key.to_string()),
+                        transcript: String::default(),
+                        hgnc_id: String::default(),
+                        gene_symbol: String::default(),
+                        variant_type: VariantType::Unknown,
+                        is_validated: false,
+                        count: 1,
+                    };
+                    var_ana_map.insert(allele_key.to_string(), v_ana);
+                }
+            }
+        }
+        let var_list: Vec<VariantDto> = var_ana_map.into_values().collect();
+        Ok(var_list)
     }
 
 

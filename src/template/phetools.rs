@@ -7,7 +7,7 @@ use crate::dto::etl_dto::ColumnTableDto;
 use crate::dto::cohort_dto::{DiseaseGeneDto, IndividualDto,CohortDto};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
-use crate::dto::variant_dto::VariantValidationDto;
+use crate::dto::variant_dto::VariantDto;
 use crate::etl::etl_tools::EtlTools;
 use crate::persistence::dir_manager::DirManager;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
@@ -15,6 +15,7 @@ use crate::dto::{ hpo_term_dto::HpoTermDto};
 use crate::ppkt::ppkt_exporter::PpktExporter;
 use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
+use crate::variant::variant_manager::VariantManager;
 
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
@@ -322,6 +323,11 @@ impl PheTools {
     }
 
 
+
+
+
+
+
     /// Validates an HGVS variant using the VariantValidator API
     /// First we check if we already have information about the variant in 
     /// our CohortDto, which contains a HashMap of previously validated variants.
@@ -331,7 +337,7 @@ impl PheTools {
     /// - corresponding full HgvsVariant object, with information derived from VariantValidator
     pub fn validate_hgvs_variant(
         &self,
-        vv_dto: VariantValidationDto,
+        vv_dto: VariantDto,
         cohort_dto: CohortDto
     ) -> Result<HgvsVariant, String> {
         if ! vv_dto.is_hgvs() {
@@ -351,13 +357,13 @@ impl PheTools {
     /// chromosome of the variant (we need this information to determine the proper genotype)
      pub fn validate_structural_variant(
         &self,
-        vv_dto: VariantValidationDto,
+        vv_dto: VariantDto,
         cohort_dto: CohortDto
     ) -> Result<StructuralVariant, String> {
         if ! vv_dto.is_sv() {
             return Err(format!("Attempt to SV-validate non-SV variant: {:?}", vv_dto));
         }
-        let sv_type: SvType = SvType::try_from(vv_dto.validation_type)?;
+        let sv_type: SvType = SvType::try_from(vv_dto.variant_type)?;
         let sv_key = StructuralVariant::generate_variant_key(&vv_dto.variant_string, &vv_dto.gene_symbol, sv_type);
         if let Some(sv) = cohort_dto.structural_variants.get(&sv_key) {
             return Ok(sv.clone())
@@ -365,32 +371,7 @@ impl PheTools {
         self.sv_validator.validate(vv_dto)
     }
 
-    /// Validates all variants in the given [`CohortDto`] that originate from
-    /// legacy Excel template files.
-    ///
-    /// This function is intended for bulk validation of variants that were already
-    /// validated in the past. While most should still validate successfully, transient
-    /// errors (e.g., network issues) may cause some to fail. In such cases, the
-    /// validation can be retried from the front end.
-    ///
-    /// For cases where a specific variant repeatedly fails validation, use
-    /// [`validate_variant`] instead, as it will return the specific error encountered.
-    ///
-    /// # Arguments
-    /// * `cohort_dto` — The current representation of the cohort
-    ///
-    /// # Returns
-    /// The updated [`CohortDto`] on success, or a [`ValidationErrors`] containing
-    /// details of all validation failures.
-    /// TODO --REMOVE ME
-    pub fn validate_all_variants(
-        &self,
-        cohort_dto: CohortDto) 
-    -> Result<CohortDto, String> {
-        
-        Err(format!("validate_all_variants -- needs refactor"))
-    }
-       
+ 
 
 
 
@@ -410,22 +391,6 @@ impl PheTools {
     pub fn get_cohort_dir(&self) -> Option<PathBuf> {
         self.manager.as_ref().map(|dirman| dirman.get_cohort_dir())
     }
-
-    /** Export phenopackets contained in the TemplateDto object passed from the front end (we consider
-     * that the frontend possesses the single source of truth, and always update the TemplateDto object in the
-     * backend). We first create a new PheToolsTemplate from the CohortDto object (because the single
-     * source of truth is regard to come from the front end).
-    ) 
-    pub fn export_ppkt(
-        &mut self,
-        cohort_dto: CohortDto,
-        orcid: &str) 
-    -> Result<Vec<Phenopacket>, String> {
-        // 1. Update PheToolsTemplate object according to DTO
-       let builder = CohortDtoBuilder::from_cohort_dto(&cohort_dto, self.hpo.clone())?;
-        let ppkt_list = builder.extract_phenopackets(cohort_dto, orcid)?;
-        Ok(ppkt_list)
-    }*/
 
     
     fn write_ppkt(ppkt: &Phenopacket, file_path: PathBuf) -> Result<(), String> {
@@ -476,7 +441,50 @@ impl PheTools {
         Ok(dto)
     }
 
+    pub fn analyze_variants(&self, cohort_dto: CohortDto) 
+    -> Result<Vec<VariantDto>, String> {
+       if cohort_dto.disease_gene_dto.gene_transcript_dto_list.len() != 1 {
+            return Err(format!("analyze_variants is only implemented for Mendelian"));
+       }
+       let gtdto = &cohort_dto.disease_gene_dto.gene_transcript_dto_list[0];
+        let vmanager = VariantManager::from_gene_transcript_dto(gtdto);
+        vmanager.analyze_variants(cohort_dto)
+    }
+
+    /// Validates all variants in the given [`CohortDto`] that originate from
+    /// legacy Excel template files.
+    ///
+    /// This function is intended for bulk validation of variants that were already
+    /// validated in the past. While most should still validate successfully, transient
+    /// errors (e.g., network issues) may cause some to fail. In such cases, the
+    /// validation can be retried from the front end.
+    ///
+    /// For cases where a specific variant repeatedly fails validation, use
+    /// [`validate_variant`] instead, as it will return the specific error encountered.
+    ///
+    /// # Arguments
+    /// * `cohort_dto` — The current representation of the cohort
+    ///
+    /// # Returns
+    /// The updated [`CohortDto`] on success, or a [`ValidationErrors`] containing
+    /// details of all validation failures.
+    /// TODO --REMOVE ME
+    pub fn validate_all_variants(
+        &self,
+        cohort_dto: CohortDto) 
+    -> Result<CohortDto, String> {
+        
+        Err(format!("validate_all_variants -- needs refactor"))
+    }
+       
+
+
 }
+
+
+
+
+
 
 impl core::fmt::Display for PheTools {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> fmt::Result {

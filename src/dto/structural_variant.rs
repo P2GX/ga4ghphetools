@@ -7,7 +7,7 @@ use phenopackets::schema::v2::core::OntologyClass;
 use serde::{Serialize, Deserialize};
 use std::{fmt, str::FromStr};
 use once_cell::sync::Lazy;
-use crate::dto::variant_dto::{VariantValidationDto, VariantValidationType};
+use crate::dto::variant_dto::{VariantDto, VariantType};
 
 
 /// The frontend will tell us what kind of variant is being sent to the backend for validation using this enumeration
@@ -53,17 +53,18 @@ impl FromStr for SvType {
     }
 }
 
-impl TryFrom<VariantValidationType> for SvType {
+impl TryFrom<VariantType> for SvType {
     type Error = String;
-    fn try_from(vvt: VariantValidationType) -> Result<Self, Self::Error> {
+    fn try_from(vvt: VariantType) -> Result<Self, Self::Error> {
         match vvt {
-            VariantValidationType::Del => Ok(Self::Del),
-            VariantValidationType::Dup => Ok(Self::Dup),
-            VariantValidationType::Inv => Ok(Self::Inv),
-            VariantValidationType::Transl => Ok(Self::Transl),
-            VariantValidationType::Sv => Ok(Self::Sv),
-            VariantValidationType::Hgvs => Err("Cannot convert ValidationType HGVS into SV type".to_string()),
-            VariantValidationType::PreciseSv => Err("Cannot convert ValidationType PreciseSv into SV type".to_string()),
+            VariantType::Del => Ok(Self::Del),
+            VariantType::Dup => Ok(Self::Dup),
+            VariantType::Inv => Ok(Self::Inv),
+            VariantType::Transl => Ok(Self::Transl),
+            VariantType::Sv => Ok(Self::Sv),
+            VariantType::Hgvs => Err("Cannot convert ValidationType HGVS into SV type".to_string()),
+            VariantType::PreciseSv => Err("Cannot convert ValidationType PreciseSv into SV type".to_string()),
+            VariantType::Unknown => Err("Cannot convert unknown into SvType".to_string())
         }
     }
 }
@@ -216,7 +217,7 @@ impl StructuralVariant {
     }
 
     pub fn code_as_chromosomal_structure_variation(
-        vv_dto: VariantValidationDto,
+        vv_dto: VariantDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
         Self::chromosomal_structure_variation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id,  chrom)
@@ -224,28 +225,28 @@ impl StructuralVariant {
 
 
     pub fn code_as_chromosomal_deletion(
-        vv_dto: VariantValidationDto,
+        vv_dto: VariantDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
         Self::chromosomal_deletion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_inversion(
-        vv_dto: VariantValidationDto,
+        vv_dto: VariantDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
         Self::chromosomal_inversion(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_duplication(
-        vv_dto: VariantValidationDto,
+        vv_dto: VariantDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
         Self::chromosomal_duplication(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)
     }
 
     pub fn code_as_chromosomal_translocation(
-        vv_dto: VariantValidationDto,
+        vv_dto: VariantDto,
         chrom: String
     ) -> std::result::Result<Self, String> {
         Self::chromosomal_translocation(vv_dto.variant_string, vv_dto.gene_symbol, vv_dto.transcript, vv_dto.hgnc_id, chrom)

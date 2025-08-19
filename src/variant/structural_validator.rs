@@ -1,7 +1,7 @@
 use reqwest::blocking::get;
 use serde_json::Value;
 
-use crate::{dto::variant_dto::VariantValidationDto, dto::structural_variant::{StructuralVariant, SvType}};
+use crate::{dto::variant_dto::VariantDto, dto::structural_variant::{StructuralVariant, SvType}};
 
 
 
@@ -45,11 +45,11 @@ impl StructuralValidator {
     /// Validate a structural variant (symbolic, non-precise)
     /// If successful, add the StructuralVariant object to the cohort_dto, otherwise return an error
     /// Calling code should update the cohort dto in the front end if successful
-    pub fn validate(&self,  vv_dto: VariantValidationDto) ->
+    pub fn validate(&self,  vv_dto: VariantDto) ->
      
         Result<StructuralVariant, String> {
             let chrom = self.get_chromosome_from_vv(&vv_dto.gene_symbol)?;
-            let sv_type: SvType = vv_dto.validation_type.try_into()?;
+            let sv_type: SvType = vv_dto.variant_type.try_into()?;
             Self::check_ascii(&vv_dto.variant_string)?;
             match sv_type {
                 SvType::Del => StructuralVariant::code_as_chromosomal_deletion(vv_dto, chrom),
@@ -106,7 +106,7 @@ impl StructuralValidator {
 mod tests {
     use rstest::{fixture, rstest};
 
-    use crate::dto::variant_dto::{VariantValidationType};
+    use crate::dto::variant_dto::{VariantType};
 
     use super::*;
 
@@ -118,7 +118,7 @@ mod tests {
             transcript: "NM_052988.5".to_string(), 
             hgnc_id: "HGNC:1770".to_string(), 
             gene_symbol: "CDK10".to_string(), 
-            validation_type: VariantValidationType::Del 
+            validation_type: VariantType::Del 
         }
     }
     
@@ -129,7 +129,7 @@ mod tests {
             transcript: "NM_052988.5".to_string(), 
             hgnc_id: "HGNC:1770".to_string(), 
             gene_symbol: "CDK10".to_string(), 
-            validation_type: VariantValidationType::Del 
+            validation_type: VariantType::Del 
         }
     }
 
