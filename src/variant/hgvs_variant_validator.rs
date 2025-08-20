@@ -182,8 +182,8 @@ mod tests {
 
     // NM_000138.5(FBN1):c.8230C>T (p.Gln2744Ter)
     #[fixture]
-    fn vvdto() -> VariantValidationDto {
-        VariantValidationDto::hgvs_c(
+    fn vvdto() -> VariantDto {
+        VariantDto::hgvs_c(
             "c.8230C>T",
             "NM_000138.5", 
             "HGNC:3603", 
@@ -193,14 +193,14 @@ mod tests {
     /// Invalid version of the above with the wrong nucleotide (G instead of C) 
     /// Designed to elicit an error from VariantValidator
     #[fixture]
-    fn invalid_vvdto(mut vvdto: VariantValidationDto) -> VariantValidationDto {
+    fn invalid_vvdto(mut vvdto: VariantDto) -> VariantDto {
         vvdto.variant_string = "c.8230G>T".to_string();
         vvdto
     }
 
     #[rstest]
     fn test_url(
-        vvdto: VariantValidationDto
+        vvdto: VariantDto
     ){
         let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NM_000138.5%3Ac.8230C>T/NM_000138.5?content-type=application%2Fjson";
         let my_url = get_variant_validator_url("hg38", &vvdto.transcript, &vvdto.variant_string);
@@ -209,7 +209,7 @@ mod tests {
 
     #[rstest]
     #[ignore = "runs with API"]
-    fn test_variant_validator(vvdto: VariantValidationDto) {
+    fn test_variant_validator(vvdto: VariantDto) {
         let vvalidator = HgvsVariantValidator::hg38();
         let json = vvalidator.validate(vvdto);
         assert!(json.is_ok());
@@ -219,7 +219,7 @@ mod tests {
 
     #[rstest]
     #[ignore = "runs with API"]
-    fn test_variant_validator_invalid(invalid_vvdto: VariantValidationDto) {
+    fn test_variant_validator_invalid(invalid_vvdto: VariantDto) {
         let vvalidator = HgvsVariantValidator::hg38();
         // This is an invalid HGVS because the reference base should be C and not G
         let result = vvalidator.validate(invalid_vvdto);

@@ -112,24 +112,30 @@ mod tests {
 
 
     #[fixture]
-    fn valid_sv1() -> VariantValidationDto {
-        VariantValidationDto{ 
-            variant_string:"arr 16q24.3 DEL89,754,790-89,757,400".to_string(), 
-            transcript: "NM_052988.5".to_string(), 
-            hgnc_id: "HGNC:1770".to_string(), 
-            gene_symbol: "CDK10".to_string(), 
-            validation_type: VariantType::Del 
-        }
+    fn valid_sv1() -> VariantDto {
+        VariantDto{
+            variant_string:"arr 16q24.3 DEL89,754,790-89,757,400".to_string(),
+            transcript:"NM_052988.5".to_string(),
+            hgnc_id:"HGNC:1770".to_string(),
+            gene_symbol:"CDK10".to_string(),
+            variant_type:VariantType::Del, 
+            variant_key: None, 
+            is_validated: false, 
+            count: 0 
+        } 
     }
     
     #[fixture]
-    fn invalid_sv1() -> VariantValidationDto {
-        VariantValidationDto{ 
+    fn invalid_sv1() -> VariantDto {
+        VariantDto{ 
             variant_string:"arr 16q24.3 DEL89,754,790 −89,757,400".to_string(), 
+            variant_key: None, 
             transcript: "NM_052988.5".to_string(), 
             hgnc_id: "HGNC:1770".to_string(), 
             gene_symbol: "CDK10".to_string(), 
-            validation_type: VariantType::Del 
+            variant_type: VariantType::Del ,
+            is_validated: false, 
+            count: 0 
         }
     }
 

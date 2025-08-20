@@ -144,7 +144,7 @@ impl HgvsVariant {
 #[cfg(test)]
 mod tests {
 
-    use crate::{dto::variant_dto::VariantValidationDto, variant::hgvs_variant_validator::HgvsVariantValidator};
+    use crate::{dto::variant_dto::VariantDto, variant::hgvs_variant_validator::HgvsVariantValidator};
     use rstest::rstest;
 
     // test NM_000138.5(FBN1):c.8242G>T (p.Glu2748Ter)
@@ -156,7 +156,7 @@ mod tests {
     #[ignore = "testing API"]
     fn test_hgvs_c_fbn1() {
         let vvalidator = HgvsVariantValidator::hg38();
-        let vv_dto = VariantValidationDto::hgvs_c("c.8242G>T", "NM_000138.5", "HGNC:3603", "FBN1");
+        let vv_dto = VariantDto::hgvs_c("c.8242G>T", "NM_000138.5", "HGNC:3603", "FBN1");
         let result = vvalidator.validate(vv_dto);
         assert!(result.is_ok());
         let hgvs_var = result.unwrap();
