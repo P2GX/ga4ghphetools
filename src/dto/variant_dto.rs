@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// variants, but the genetics literature contains lots of data with imprecide, non-standardized descriptions of structural variants that we want to capture.
 /// This struct encapsulates all of the data we expect to get from the front end about either of the variant categories
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VariantDto {
     /// either an HGVS String (e.g., c.123T>G) or a SV String: DEL: deletion of exon 5
     pub variant_string: String,

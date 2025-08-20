@@ -316,7 +316,7 @@ impl VariantManager {
                         })
                         .or_insert_with(|| VariantDto {
                             variant_string: allele_key.to_string(),
-                            variant_key: None,
+                            variant_key: Some(allele_key.to_string()),
                             transcript: hgvs.transcript().to_string(),
                             hgnc_id: hgvs.hgnc_id().to_string(),
                             gene_symbol: hgvs.symbol().to_string(),
