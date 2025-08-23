@@ -1,6 +1,8 @@
-use std::{collections::{HashMap, HashSet}};
+use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, sync::Arc};
+
 
 use chrono::Local;
+use ontolius::ontology::csr::FullCsrOntology;
 
 use crate::{dto::cohort_dto::{DiseaseDto, CohortDto}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
@@ -9,13 +11,21 @@ use crate::{dto::cohort_dto::{DiseaseDto, CohortDto}, hpoa::{hpoa_table_row::Hpo
 
 
 pub struct HpoaTable {
-    hpoa_row_list: Vec<HpoaTableRow>
+    hpoa_row_list: Vec<HpoaTableRow>,
+    today: String
 }
 
 impl HpoaTable {
 
-    pub fn new(cohort: CohortDto, biocurator: &str) -> Result<Self, String>{
+    pub fn new(
+        cohort: CohortDto, 
+        hpo: Arc<FullCsrOntology>,
+        biocurator: &str) -> Result<Self, String>{
         let todays_date = Local::now().format("%Y-%m-%d").to_string();
+        if biocurator.starts_with("O") {
+            return Err(format!("Malformed biocurator string ({biocurator}). Must be the ORCID 16-digit identifier (only)."));
+        }
+        let biocurator = format!("ORCID:{biocurator}[{todays_date}]");
         if ! cohort.is_mendelian() {
             return Err(format!("Can only export Mendelian HPOA table, but this cohort is {:?}", 
                 cohort.cohort_type));
@@ -45,13 +55,12 @@ impl HpoaTable {
                 let label = hpo_duplet.hpo_label();
                 if data_item.value == "na" {
                     continue;
-                }
-                if data_item.value == "observed" {
-                    counter.observed(hpo_id);
                 } else if data_item.value == "excluded" {
                     counter.excluded(hpo_id);
-                } else {
-                    return Err(format!("Unknown HPO cell contents '{}' for HPO '{}'", data_item.value, hpo_id));
+                } else if data_item.value == "observed" {
+                    counter.observed(hpo_id);
+                }  else {
+                    println!("[INFO] Unknown HPO cell contents '{}' for HPO '{}'", data_item.value, hpo_id);
                 }
             }
         }
@@ -70,7 +79,7 @@ impl HpoaTable {
                         hpo_duplet.hpo_label(),
                         &freq,
                         &pmid, 
-                        biocurator)?;
+                        &biocurator)?;
                     hpoa_rows.push(row);
                 }
             }
@@ -78,7 +87,94 @@ impl HpoaTable {
 
         Ok(Self{
             hpoa_row_list: hpoa_rows,
+            today: todays_date
         })
 
     }
+
+
+    
+    pub fn get_dataframe(&self) -> Vec<Vec<String>> {
+        let mut rows:  Vec<Vec<String>> = Vec::new();
+        rows.push(HpoaTableRow::header_fields());
+        for r in &self.hpoa_row_list {
+            rows.push(r.row());
+        }
+        rows
+    }
+
+    /// Output the HPOA-format file representing data from the entire cohort.
+    /// This format is used in the internal pipeline of the HPO project that generates teh
+    /// phenotype.hpoa file for releases. The file can be used by that pipeline to add
+    /// data to existing data for a disease or to create the disease file (for new diseases).
+    /// We have used the PhenoteFX tool to manage this. This function should not be
+    /// needed except by the internal HPO team.
+    pub fn write_tsv(&self, path: &str) -> std::io::Result<()> {
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+
+        for row in self.get_dataframe() {
+            writeln!(writer, "{}", row.join("\t"))?;
+        }
+
+        Ok(())
+    }
+
+
+}
+
+
+
+#[cfg(test)]
+mod test {
+    use crate::{dto::cohort_dto::{DiseaseDto, GeneTranscriptDto}};
+    use ontolius::{io::OntologyLoaderBuilder};
+  
+    use super::*;
+    use std::{fs::{self, File}, io::BufReader};
+    use rstest::{fixture, rstest};
+    use flate2::bufread::GzDecoder;
+
+    #[fixture]
+    fn hpo() -> Arc<FullCsrOntology> {
+        let path = "resources/hp.v2025-03-03.json.gz";
+        let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
+        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
+        let hpo = loader.load_from_read(reader).unwrap();
+        Arc::new(hpo)
+    }
+
+    #[fixture]
+    fn biocurator() -> String {
+        "0000-0002-0736-9199".to_string()
+    }
+
+     #[fixture]
+     fn cohort() -> CohortDto {
+        let json_template_path = "/Users/robin/GIT/phenopacket-store/notebooks/NT5C2/NT5C2_SPG45_individuals.json";
+         let file_data = fs::read_to_string(json_template_path)
+            .map_err(|e| 
+                format!("Could not extract string data from {}: {}", json_template_path, e.to_string())).unwrap();
+        let cohort: CohortDto = serde_json::from_str(&file_data)
+            .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
+                file_data, e.to_string())).unwrap();
+        cohort
+     }
+
+
+     #[rstest]
+     fn test_hpoa(
+        hpo: Arc<FullCsrOntology>,
+        biocurator: String,
+        cohort: CohortDto
+     ) {
+        let mut hpoa = HpoaTable::new(cohort, hpo, &biocurator).unwrap();
+        let matrix = hpoa.get_dataframe();
+        assert!(matrix.len() > 2);
+       let outpath =  "/Users/robin/GIT/phenopacket-store/notebooks/NT5C2/NT5C2_SPG45_TEST.hpoa";
+        hpoa.write_tsv(outpath);
+     }
+
+
+
 }

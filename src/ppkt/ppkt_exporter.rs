@@ -1,6 +1,10 @@
 //! Module to export GA4GH Phenopackets from the information in the template.
 
 
+use std::sync::Arc;
+
+use ontolius::ontology::csr::FullCsrOntology;
+use ontolius::ontology::MetadataAware;
 use phenopacket_tools::builders::time_elements::time_element_from_str;
 use phenopackets::ga4gh::vrsatile::v1::{Expression, GeneDescriptor, MoleculeContext, VariationDescriptor, VcfRecord};
 use phenopackets::schema::v2::core::genomic_interpretation::{Call, InterpretationStatus};
@@ -26,7 +30,8 @@ const DEFAULT_SEQUENCE_ONTOLOGY_VERSION: &str =  "2024-11-18";
 const DEFAULT_GENO_VERSION: &str =  "2025-07-25";
 
 pub struct PpktExporter {
-    hpo_version: String,
+    /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
+    hpo: Arc<FullCsrOntology>,
     so_version: String,
     geno_version: String,
     omim_version: String,
@@ -38,13 +43,13 @@ pub struct PpktExporter {
 impl PpktExporter {
 
 
-    pub fn new(
-        hpo_version: &str, 
+    pub fn new( 
+        hpo: Arc<FullCsrOntology>,
         creator_orcid: &str,
         cohort: CohortDto
     ) -> Self {
         Self::from_versions(
-            hpo_version,
+            hpo,
             DEFAULT_SEQUENCE_ONTOLOGY_VERSION,
             DEFAULT_GENO_VERSION,
             DEFAULT_OMIM_VERSION,
@@ -54,7 +59,7 @@ impl PpktExporter {
     }
 
     pub fn from_versions(
-        hpo_version: &str,
+        hpo: Arc<FullCsrOntology>,
         so_version: &str, 
         geno_version: &str,
         omim_version: &str, 
@@ -63,7 +68,7 @@ impl PpktExporter {
         cohort: CohortDto
     ) -> Self {
         Self{ 
-            hpo_version: hpo_version.to_string(), 
+            hpo, 
             so_version: so_version.to_string(), 
             geno_version: geno_version.to_string(),
             omim_version: omim_version.to_string(), 
@@ -113,7 +118,7 @@ impl PpktExporter {
     }
 
     pub fn hpo_version(&self) -> &str {
-        &self.hpo_version
+        &self.hpo.version()
     } 
 
     pub fn so_version(&self) -> &str {
@@ -433,37 +438,6 @@ impl PpktExporter {
     }
 
 
-    /// Extract a single phenopacket from a PpktRow object
-    /// This method will make use of the full variant definitions in the CohortDto.
-     /*
-    pub fn extract_phenopacket(
-        &self, 
-        ppkt_row: &PpktRow, 
-    ) 
-    -> Result<Phenopacket, String> {
-        if ppkt_row.get_gene_var_dto_list().len() != 1 {
-            panic!("NEED TO EXTEND MODEL TO NON MEND. NEED TO EXTEND CACHE KEY FOR GENE-TRANSCRIPT-NAME");
-        }
-        let interpretation_list = self.get_interpretation_list(ppkt_row)?;
-        let gv_dto = ppkt_row.get_gene_var_dto_list()[0].clone();
-        let allele1 = gv_dto.allele1;
-        let allele2= gv_dto.allele2;
-        let ppkt = Phenopacket{ 
-            id: self.get_phenopacket_id(ppkt_row), 
-            subject:  Some(self.extract_individual(ppkt_row)?), 
-            phenotypic_features: self.get_phenopacket_features(ppkt_row)?, 
-            measurements: vec![], 
-            biosamples: vec![], 
-            interpretations: interpretation_list, 
-            diseases: vec![self.get_disease(ppkt_row)?], 
-            medical_actions: vec![], 
-            files: vec![], 
-            meta_data: Some(self.get_meta_data(ppkt_row)?) 
-        };
-    
-        Ok(ppkt)
-    } */
-
  pub fn extract_phenopacket_from_dto(
         &self, 
         ppkt_row_dto: &RowDto, 
@@ -472,9 +446,6 @@ impl PpktExporter {
             panic!("NEED TO EXTEND MODEL TO NON MEND. NEED TO EXTEND CACHE KEY FOR GENE-TRANSCRIPT-NAME");
         }
         let interpretation_list = self.get_interpretation_list(ppkt_row_dto)?;
-        //let gv_dto = ppkt_row_dto.get_gene_var_dto_list()[0].clone();
-       // let allele1 = ppkt_row_dto.;
-        //let allele2= gv_dto.allele2;
         let ppkt = Phenopacket{ 
             id: self.get_phenopacket_id(ppkt_row_dto), 
             subject:  Some(self.extract_individual(ppkt_row_dto)?), 

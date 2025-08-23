@@ -6,8 +6,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use ontolius::TermId;
+use crate::dto::hpo_cell_dto::CellDto;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{CellDto, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
+use crate::dto::cohort_dto::{DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
 

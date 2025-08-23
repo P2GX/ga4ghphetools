@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-
+/// The frequency of an HPO feature in a cohort, e.g., 3/7 means 3 of 7 individuals had the HPO
 #[derive(Debug, Clone, Copy)]
 pub struct Freq {
     pub numerator: usize,
@@ -9,7 +9,9 @@ pub struct Freq {
 
 
 pub struct PmidCounter {
+    /// The PubMed identifier, e.g., PMID:123456
     pmid: String,
+    /// Key: An HPO id, represented as a String. Value: The frequency of the HPO in the PMID cohort
     term_map: HashMap<String, Freq>
 }
 

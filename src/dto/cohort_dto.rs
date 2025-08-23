@@ -5,6 +5,7 @@ use std::str::FromStr;
 use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
+use crate::dto::hpo_cell_dto::CellDto;
 use crate::dto::structural_variant::StructuralVariant;
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
@@ -167,40 +168,6 @@ pub struct DiseaseGeneDto {
     pub cohort_acronym: String,
     pub disease_dto_list: Vec<DiseaseDto>,
     pub gene_transcript_dto_list: Vec<GeneTranscriptDto>,
-}
-
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CellDto {
-    pub value: String
-}
-
-impl CellDto {
-    pub fn new(val: impl Into<String>) -> Self {
-        Self { value: val.into() }
-    }
-
-    pub fn na() -> Self {
-        Self { value: "na".to_string() }
-    }
-
-    /// Return true if we have ascertained the corresponding HPO term (i.e., it is not na, it is observed, excluded, P4Y, etc)
-    pub fn is_ascertained(&self) -> bool {
-        return self.value != "na"
-    }
-
-    pub fn is_excluded(&self) -> bool {
-        return self.value == "excluded";
-    }
-
-    pub fn is_observed(&self) -> bool {
-        return self.value == "observed";
-    }
-
-    pub fn has_onset(&self) -> bool {
-        (! self.is_excluded() ) && (! self.is_observed() ) && (self.is_ascertained())
-    }
 }
 
 

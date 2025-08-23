@@ -1,4 +1,4 @@
-
+//! The main struct for interacting with this library
 
 
 
@@ -9,6 +9,7 @@ use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
 use crate::dto::variant_dto::VariantDto;
 use crate::etl::etl_tools::EtlTools;
+use crate::hpoa::hpoa_table::HpoaTable;
 use crate::persistence::dir_manager::DirManager;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
 use crate::dto::{ hpo_term_dto::HpoTermDto};
@@ -26,12 +27,11 @@ use crate::template::excel;
 use core::option::Option::Some;
 use std::collections::HashMap;
 use std::fmt::{self};
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 
-/// The main struct for interacting with this library
 pub struct PheTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
@@ -200,6 +200,20 @@ impl PheTools {
     where F: FnMut(u32,u32) {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
         self.load_matrix(matrix, fix_errors, progress_cb)
+    }
+
+    /// Load JSON serialization of a cohort.
+    pub fn load_json_cohort(
+        &mut self,
+        json_template_path: &str
+    ) -> Result<CohortDto, String> {
+        let file_data = fs::read_to_string(json_template_path)
+            .map_err(|e| 
+                format!("Could not extract string data from {}: {}", json_template_path, e.to_string()))?;
+        let cohort: CohortDto = serde_json::from_str(&file_data)
+            .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
+                file_data, e.to_string()))?;
+        Ok(cohort)
     }
 
     /// Todo: update documentation
@@ -414,16 +428,25 @@ impl PheTools {
         dir: PathBuf,
         orcid: String) 
     -> Result<(), String> {
-        let hpo_version = self.hpo.version();
-        let exporter = PpktExporter::new(hpo_version, &orcid, cohort_dto);
+        let exporter = PpktExporter::new(self.hpo.clone(), &orcid, cohort_dto);
         let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()?;
-        println!("write_ppkt_list");
         for ppkt in ppkt_list {
             let title = ppkt.id.clone() + ".json";
             let mut file_path = dir.clone();
             file_path.push(title);
             Self::write_ppkt(&ppkt, file_path)?;
         }
+        Ok(())
+    }
+
+    pub fn write_aggregate_table(
+        &self, 
+        cohort_dto: CohortDto,
+        outfile: &str,
+        orcid: String
+    ) -> Result<(), String> {
+        let hpoa = HpoaTable::new(cohort_dto, self.hpo.clone(), &orcid)?;
+        hpoa.write_tsv(outfile).map_err(|e| e.to_string())?;
         Ok(())
     }
 

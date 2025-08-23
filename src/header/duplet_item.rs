@@ -28,6 +28,7 @@ pub static ALLOWED_STRUCTURAL_PREFIX: Lazy<HashSet<String>> = Lazy::new(|| {
         .collect()
 });
 
+/// TODO -- remove from here, this should go to HpoCellValue
 pub static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
     [
         "Late onset",

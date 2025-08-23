@@ -6,14 +6,14 @@
 //! after we are finished refactoring the legacy files.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
-    ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
+    ontology::{csr::FullCsrOntology, OntologyTerms},
     term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
     Identified, TermId,
 };
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CellDto, CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_cell_dto::CellDto, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -671,8 +671,7 @@ impl CohortDtoBuilder {
         orcid: &str) 
     -> std::result::Result<Vec<Phenopacket>, String> {
         let ppkt_list: Vec<Phenopacket> = Vec::new();
-        let hpo_version = self.hpo.version();
-        let ppkt_exporter = PpktExporter::new(hpo_version, orcid, cohort_dto);
+        let ppkt_exporter = PpktExporter::new(self.hpo.clone(), orcid, cohort_dto);
         ppkt_exporter.get_all_phenopackets()
     }
 

@@ -5,12 +5,12 @@ use crate::dto::cohort_dto::DiseaseDto;
 
 
 pub struct HpoaTableRow {
-    diseaseID: String,
-    diseaseName:String,
-    phenotypeID: String,
-    phenotypeName: String,
-    onsetID: String,
-    onsetName: String,
+    disease_id: String,
+    disease_name:String,
+    phenotype_id: String,
+    phenotype_name: String,
+    onset_id: String,
+    onset_name: String,
     frequency: String,
     sex: String,
     negation : String,
@@ -30,12 +30,12 @@ impl HpoaTableRow {
         pmid: &str,
         biocurator: &str) -> Result<Self, String> {
         Ok(Self { 
-            diseaseID: disease.disease_id.to_string(), 
-            diseaseName: disease.disease_label.to_string(), 
-            phenotypeID: term_id.to_string(), 
-            phenotypeName: term_label.to_string(), 
-            onsetID: "".to_string(), 
-            onsetName: "".to_string(), 
+            disease_id: disease.disease_id.to_string(), 
+            disease_name: disease.disease_label.to_string(), 
+            phenotype_id: term_id.to_string(), 
+            phenotype_name: term_label.to_string(), 
+            onset_id: "".to_string(), 
+            onset_name: "".to_string(), 
             frequency: freq_string.to_string(), 
             sex: "".to_string(), 
             negation: "".to_string(), 
@@ -46,5 +46,47 @@ impl HpoaTableRow {
             biocuration: biocurator.to_string() 
         })
     }
+
+
+    pub fn header_fields() -> Vec<String> {
+        let header = vec![
+                "#diseaseID".to_string(),
+                "diseaseName".to_string(),
+                "phenotypeID".to_string(),
+                "phenotypeName".to_string(),
+                "onsetID".to_string(),
+                "onsetName".to_string(),
+                "frequency".to_string(),
+                "sex".to_string(),
+                "negation".to_string(),
+                "modifier".to_string(),
+                "description".to_string(),
+                "publication".to_string(),
+                "evidence".to_string(),
+                "biocuration".to_string()
+                ];
+            return header;
+    }
+
+    pub fn row(&self) -> Vec<String> {
+        let fields = vec![
+            self.disease_id.clone(),
+            self.disease_name.clone(),
+            self.phenotype_id.clone(),
+            self.phenotype_name.clone(),
+            self.onset_id.clone(),
+            self.onset_name.clone(),
+            self.frequency.clone(),
+            self.sex.clone(),
+            self.negation.clone(),
+            self.modifier.clone(),
+            self.description.clone(),
+            self.publication.clone(),
+            self.evidence.clone(),
+            self.biocuration.clone(),
+        ];
+        fields
+    }
+
 }
 
