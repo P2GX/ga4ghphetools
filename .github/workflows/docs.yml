@@ -19,6 +19,19 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          override: true
+
+       # Ensure compatible rayon for graph_builder
+      - name: Force compatible rayon version
+        run: |
+          echo '[patch.crates-io]' >> Cargo.toml
+          echo 'rayon = "=1.10.0"' >> Cargo.toml
+
+      # Build Rust code (ensures deps compile in CI)
+      - name: Build project
+        run: cargo build --release --locked
 
       - name: Install mdBook
         run: cargo install mdbook --version 0.4.40 --locked
