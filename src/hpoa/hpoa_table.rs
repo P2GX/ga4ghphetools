@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, sync::Arc};
+use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, path::PathBuf, sync::Arc};
 
 
 use chrono::Local;
@@ -123,7 +123,7 @@ impl HpoaTable {
     /// data to existing data for a disease or to create the disease file (for new diseases).
     /// We have used the PhenoteFX tool to manage this. This function should not be
     /// needed except by the internal HPO team.
-    pub fn write_tsv(&self, path: &str) -> std::io::Result<()> {
+    pub fn write_tsv(&self, path: &PathBuf) -> std::io::Result<()> {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
 

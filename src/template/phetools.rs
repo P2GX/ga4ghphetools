@@ -457,9 +457,10 @@ impl PheTools {
         match &cohort_dto.cohort_acronym {
             Some(acronym) => {
                 let outfile = format!("{}-{}.hpoa", gt.gene_symbol, acronym);
+                let file_path: PathBuf = dir.join(outfile);
                 let hpoa = HpoaTable::new(cohort_dto, self.hpo.clone(), &orcid)?;
-                hpoa.write_tsv(&outfile).map_err(|e| e.to_string())?;
-                return Ok(format!("Wrote HPOA file to {}", outfile));
+                hpoa.write_tsv(&file_path).map_err(|e| e.to_string())?;
+                return Ok(format!("Wrote HPOA file to {}", file_path.to_string_lossy()));
             },
             None => { return Err(format!("HPOA export requires cohort acronym but got '{:?}'", cohort_dto.cohort_acronym)); },
         }
