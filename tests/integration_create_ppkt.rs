@@ -43,7 +43,6 @@ fn create_cohort_dto(
     hpo: Arc<FullCsrOntology>,
 ) {
      let mut phetools = PheTools::new(hpo);
-    println!("Created phetools");
     let template_path = "/Users/robin/GIT/phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx";
     match phetools.load_excel_template(template_path, false, |p,q|{
         println!("{}/ {} variants validated", p, q);}) {

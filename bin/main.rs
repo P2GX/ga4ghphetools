@@ -3,7 +3,6 @@ use clap::{command, Parser};
 use ga4ghphetools::etl::etl_tools::EtlTools;
 use ga4ghphetools::PheTools;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
-use phenopackets::schema::v2::Phenopacket;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -55,7 +54,6 @@ fn main() {
 
 fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
     let mut phetools = PheTools::new(hpo_arc);
-    println!("Created phetools");
     match phetools.load_excel_template(template, false, |p,q|{
         println!("{}/ {} variants validated", p, q);}) {
         Ok(cohort_dto) => {

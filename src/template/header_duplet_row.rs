@@ -83,7 +83,7 @@ impl HeaderDupletRow {
     pub fn mendelian(
         matrix: &Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
-        fix_errors: bool
+        update_hpo_labels: bool
     ) -> std::result::Result<Self, String> {
         Self::qc_matrix_dimensions(matrix)?;
         // first Q/C the constant part of the Mendelian header
@@ -99,8 +99,7 @@ impl HeaderDupletRow {
         }
         Self::check_separator(matrix)?;
         let hpo_util = HpoUtil::new(hpo.clone());
-        if fix_errors {}
-        let hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list, fix_errors)?;
+        let hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list, update_hpo_labels)?;
         Ok(Self { 
             individual_header: iheader, 
             disease_header_list: vec![DiseaseHeader::new()], 

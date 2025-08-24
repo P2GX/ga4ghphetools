@@ -163,16 +163,16 @@ impl PheTools {
     /// # Arguments
     ///
     /// * `matrix` - A 2D vector of strings representing the Mendelian template (extracted from Excel template file).
-    /// * `fix_errors` - Whether to update HPO labels automatically.
+    /// * `update_hpo_labels` - Whether to update HPO labels automatically.
     pub fn load_matrix<F>(
         &mut self, 
         matrix: Vec<Vec<String>>,
-        fix_errors: bool,
+        update_hpo_labels: bool,
         progress_cb: F
     ) -> Result<CohortDto, String> 
         where F: FnMut(u32,u32),{
         let hpo_arc = self.hpo.clone();
-        CohortDtoBuilder::dto_from_mendelian_template(matrix, hpo_arc, fix_errors, progress_cb)
+        CohortDtoBuilder::dto_from_mendelian_template(matrix, hpo_arc, update_hpo_labels, progress_cb)
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
@@ -190,16 +190,16 @@ impl PheTools {
     /// # Arguments
     ///
     /// * `template_path` - path to excel file with Phetools cohort template
-    /// * `fix_errors` - Whether to update HPO labels automatically.
+    /// * `update_hpo_labels` - Whether to update HPO labels automatically.
     pub fn load_excel_template<F>(
         &mut self,
         phetools_template_path: &str,
-        fix_errors: bool,
+        update_hpo_labels: bool,
         progress_cb: F
     ) -> Result<CohortDto, String> 
     where F: FnMut(u32,u32) {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
-        self.load_matrix(matrix, fix_errors, progress_cb)
+        self.load_matrix(matrix, update_hpo_labels, progress_cb)
     }
 
     /// Load JSON serialization of a cohort.

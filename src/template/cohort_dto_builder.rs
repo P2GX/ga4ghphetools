@@ -423,7 +423,7 @@ impl CohortDtoBuilder {
     ///
     /// * `matrix` - A 2D vector of strings representing the Mendelian template (extracted from Excel template file).
     /// * `hpo` - Shared reference to the HPO ontology.
-    /// * `fix_errors` - Whether to update HPO labels automatically.
+    /// * `update_hpo_labels` - Whether to update HPO labels automatically.
     ///
     /// # Returns
     ///
@@ -434,12 +434,11 @@ impl CohortDtoBuilder {
     pub fn dto_from_mendelian_template<F>(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
-        fix_errors: bool,
+        update_hpo_labels: bool,
         progress_cb: F
     ) -> std::result::Result<CohortDto, String> 
         where F: FnMut(u32, u32) {
-        let fix_errors = false;
-        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), fix_errors)?;
+        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), update_hpo_labels)?;
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
         let ppt_rows: Vec<PpktRow> = Vec::new();

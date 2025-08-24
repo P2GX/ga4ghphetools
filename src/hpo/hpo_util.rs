@@ -131,7 +131,16 @@ impl HpoUtil {
             };
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 if term.name() != duplet.row1() {
-                    return Err(format!("{}: expected '{}' but got '{}'", duplet.row2(), term.name(), duplet.row1()));
+                    // This usually happens if the name of the HPO term was changed after the Excel template
+                    // was created. If the user chooses to update labels, this is fixed automatically here.
+                    let err_str = format!("{}: expected '{}' but got '{}'", duplet.row2(), term.name(), duplet.row1());
+                    if update_labels {
+                         updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
+                         eprint!("Updating HPO label {err_str}"); // Output to shell, this is expected behavior.
+                         // consider sending a signal to update user
+                    } else {
+                        return Err(err_str);
+                    }
                 }
                 updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
             } else {
