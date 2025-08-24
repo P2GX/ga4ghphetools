@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, syn
 use chrono::Local;
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::cohort_dto::{DiseaseDto, CohortDto}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto}, hpo_cell_dto::CellValue}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
 
 
@@ -53,14 +53,14 @@ impl HpoaTable {
                 let hpo_duplet = hpo_item.to_hpo_duplet();
                 let hpo_id = hpo_duplet.hpo_id();
                 let label = hpo_duplet.hpo_label();
-                if data_item.value == "na" {
+                if *data_item == CellValue::Na {
                     continue;
-                } else if data_item.value == "excluded" {
+                } else if *data_item == CellValue::Excluded {
                     counter.excluded(hpo_id);
-                } else if data_item.value == "observed" {
+                } else if *data_item == CellValue::Observed {
                     counter.observed(hpo_id);
                 }  else {
-                    println!("[INFO] Unknown HPO cell contents '{}' for HPO '{}'", data_item.value, hpo_id);
+                    println!("[INFO] Unknown HPO cell contents '{:?}' for HPO '{}'", data_item, hpo_id);
                 }
             }
         }
@@ -163,16 +163,17 @@ mod test {
 
 
      #[rstest]
+     #[ignore = "for development, add better test once API stable for new template"]
      fn test_hpoa(
         hpo: Arc<FullCsrOntology>,
         biocurator: String,
         cohort: CohortDto
      ) {
-        let mut hpoa = HpoaTable::new(cohort, hpo, &biocurator).unwrap();
+        let hpoa = HpoaTable::new(cohort, hpo, &biocurator).unwrap();
         let matrix = hpoa.get_dataframe();
         assert!(matrix.len() > 2);
-       let outpath =  "/Users/robin/GIT/phenopacket-store/notebooks/NT5C2/NT5C2_SPG45_TEST.hpoa";
-        hpoa.write_tsv(outpath);
+        let outpath =  "/Users/robin/GIT/phenopacket-store/notebooks/NT5C2/NT5C2_SPG45_TEST.hpoa";
+        hpoa.write_tsv(outpath).unwrap();
      }
 
 

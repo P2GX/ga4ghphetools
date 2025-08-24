@@ -13,7 +13,7 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_cell_dto::CellDto, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_cell_dto::{CellValue}, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -194,6 +194,7 @@ impl CohortDtoBuilder {
             rows: updated_row_dto_list,
             hgvs_variants: cohort_dto.hgvs_variants,
             structural_variants: cohort_dto.structural_variants,
+            dto_version: cohort_dto.dto_version,
         };
         Ok(updated_cohort_dto)
         
@@ -254,11 +255,12 @@ impl CohortDtoBuilder {
             panic!("from_map: Melded/Digenic not supported");
         }
         // Create a list of CellDto objects that matches the new order of HPO headers
-        let mut hpo_cell_list: Vec<CellDto> = Vec::with_capacity(header_dto_list.len());
+        let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
         for hduplet in header_dto_list {
             let tid = hduplet.to_term_id()?;
             let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
-            hpo_cell_list.push(CellDto { value });
+            let cell_value = CellValue::from_str(&value)?;
+            hpo_cell_list.push(cell_value);
         }
         if disease_gene_dto.gene_transcript_dto_list.len() != 1 {
             return Err(format!("Only implemented for Mendelian but gene transcript length was {}", disease_gene_dto.gene_transcript_dto_list.len()));
@@ -329,16 +331,14 @@ impl CohortDtoBuilder {
     /// A `Vec<String>` of length `new_size` where old values are in their new positions,
     /// and new (missing) entries are `"na"`.
     fn reorder_or_fill_na(
-        old_values: &[CellDto],
+        old_values: &[CellValue],
         old_to_new_indices: &[usize],
         new_size: usize,
-    ) -> Vec<CellDto> {
-        let mut new_values = vec![CellDto::na(); new_size];
-
+    ) -> Vec<CellValue> {
+        let mut new_values = vec![CellValue::Na; new_size];
         for (old_idx, &new_idx) in old_to_new_indices.iter().enumerate() {
             new_values[new_idx] = old_values[old_idx].clone();
         }
-
         new_values
     }
 
@@ -477,7 +477,7 @@ impl CohortDtoBuilder {
                     }
                 }
             }
-            let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list);
+            let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list)?;
             row_dto_list.push(row_dto);
         }
         let header_duplet_list = hdr_arc.get_hpo_header_dtos();

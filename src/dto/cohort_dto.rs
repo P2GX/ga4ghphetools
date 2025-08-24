@@ -5,7 +5,7 @@ use std::str::FromStr;
 use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
-use crate::dto::hpo_cell_dto::CellDto;
+use crate::dto::hpo_cell_dto::{CellValue};
 use crate::dto::structural_variant::StructuralVariant;
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
@@ -178,20 +178,21 @@ pub struct RowDto {
     pub disease_dto_list: Vec<DiseaseDto>,
     //pub gene_var_dto_list: Vec<GeneVariantDto>,
     pub allele_count_map: HashMap<String, usize>,
-    pub hpo_data: Vec<CellDto>
+    pub hpo_data: Vec<CellValue>
 }
 
 impl RowDto {
-    pub fn from_ppkt_row(ppkt_row: &PpktRow, allele_key_list: Vec<String>) -> Self {
+    pub fn from_ppkt_row(ppkt_row: &PpktRow, allele_key_list: Vec<String>) -> Result<Self, String> {
         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
         for allele in allele_key_list {
             *allele_count_map.entry(allele).or_insert(0) += 1;
         };
-        Self { individual_dto: ppkt_row.get_individual_dto(), 
+        let hpo_list = ppkt_row.get_hpo_value_list()?;
+        Ok(Self { individual_dto: ppkt_row.get_individual_dto(), 
             disease_dto_list: ppkt_row.get_disease_dto_list(), 
             allele_count_map, 
-            hpo_data: ppkt_row.get_hpo_value_list()
-        }
+            hpo_data: hpo_list,
+        })
     }
 }
 
@@ -249,9 +250,16 @@ pub struct CohortDto {
     pub hpo_headers: Vec<HeaderDupletDto>,
     /// The phenopackets (rows) in the current cohort
     pub rows: Vec<RowDto>,
+    /// Validated HGVS variants.
     pub hgvs_variants: HashMap<String, HgvsVariant>,
+    /// Validated structural (symbolic) variants
     pub structural_variants: HashMap<String, StructuralVariant>,
+    /// Version of the DTO JSON
+    pub dto_version: String,
 }
+
+/// Version of the Cohort JSON schema
+const COHORT_DTO_VERSION: &str = "0.9";
 
 impl CohortDto {
     /// Initialize a new TemplateDto for Mendelian cohorts. 
@@ -259,19 +267,11 @@ impl CohortDto {
     /// VariantValidator (for HGVS) and StructuralVariantValidator (for structural variants).
     /// This function is only used for ingesting (legacy) Excel files, since we are migrating
     /// to using the JSON representation of the TemplateDto as the serialization format.
-    /// TODO: remove this function once we have migrated all cohorts to the JSON format.
     pub fn mendelian(
             dg_dto: DiseaseGeneDto,
             hpo_headers: Vec<HeaderDupletDto>, 
             rows: Vec<RowDto>) -> Self {
-        Self { 
-            cohort_type: CohortType::Mendelian, 
-            disease_gene_dto: dg_dto,
-            hpo_headers, 
-            rows,
-            hgvs_variants: HashMap::new(),
-            structural_variants: HashMap::new(),
-        }
+        Self::mendelian_with_variants(dg_dto, hpo_headers, rows, HashMap::new(), HashMap::new())
     }
 
     pub fn mendelian_with_variants(
@@ -288,6 +288,7 @@ impl CohortDto {
             rows,
             hgvs_variants,
             structural_variants,
+            dto_version: COHORT_DTO_VERSION.to_string()
         }
     }
 

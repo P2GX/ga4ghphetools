@@ -3,33 +3,38 @@ use std::collections::HashMap;
 use ontolius::term::simple::SimpleMinimalTerm;
 use regex::Regex;
 
-use crate::{dto::cohort_dto::CohortDto, hpo::age_util};
+use crate::{dto::cohort_dto::CohortDto, hpo::age_util, hpoa::counted_hpo_term::CountedHpoTerm};
 
 
 
 pub struct HpoaOnsetCalculator {
     /// Key: a PMID, value: A list of HPO onset terms
-    onset_to_count_d: HashMap<String, Vec<SimpleMinimalTerm>>,
-    total_counts: usize
+    onset_to_count_d: HashMap<String, CountedHpoTerm>,
+    total_counts_by_pmid_d: HashMap<String,usize>
 }
 
 impl HpoaOnsetCalculator {
     pub fn new() -> Self {
         Self { 
             onset_to_count_d: HashMap::new(), 
-            total_counts: 0 
+            total_counts_by_pmid_d: HashMap::new(), 
         }
     } 
 
     pub fn add_onset(&mut self, pmid: &str, onset_term: SimpleMinimalTerm) {
         // Insert a new Vec if the key does not exist yet
-        let vec = self
+        let counted_term = self
             .onset_to_count_d
             .entry(pmid.to_string())
-            .or_insert_with(Vec::new);
-
-        vec.push(onset_term);
-        self.total_counts += 1;
+            .or_insert(CountedHpoTerm::from_simple_term(onset_term));
+        // modify in place
+        counted_term.increment_observed();
+       
+        let count = self.total_counts_by_pmid_d
+            .entry(pmid.to_string())
+            .or_insert(0);
+        // modify in place
+        *count += 1;
     }
 
     pub fn ingest_dto(&mut self, dto: &CohortDto) -> Result<(), String>  {

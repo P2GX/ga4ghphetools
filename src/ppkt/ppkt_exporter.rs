@@ -428,8 +428,8 @@ impl PpktExporter {
                 evidence: vec![]
             };
             if cell_contents.has_onset() {
-                let ost = time_element_from_str(&cell_contents.value)
-                    .map_err(|e| format!("malformed_time_element{}", cell_contents.value))?;
+                let ost = time_element_from_str(&cell_contents.to_string())
+                    .map_err(|e| format!("malformed_time_element{}", cell_contents))?;
                 pf.onset = Some(ost);
             }
             ppkt_feature_list.push(pf);

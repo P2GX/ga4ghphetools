@@ -4,9 +4,10 @@
 //! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use ontolius::TermId;
-use crate::dto::hpo_cell_dto::CellDto;
+use crate::dto::hpo_cell_dto::CellValue;
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::cohort_dto::{DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
 
@@ -131,12 +132,12 @@ impl PpktRow {
         gbdto_list
     }
 
-    pub fn get_hpo_value_list(&self) -> Vec<CellDto> {
-        let mut cell_dto_list: Vec<CellDto> = Vec::new();
+    pub fn get_hpo_value_list(&self) -> Result<Vec<CellValue>, String> {
+        let mut cell_dto_list: Vec<CellValue> = Vec::new();
         for hpo_val in &self.hpo_content {
-            cell_dto_list.push(CellDto::new(hpo_val));
+            cell_dto_list.push(CellValue::from_str(hpo_val)?);
         }
-        cell_dto_list
+        Ok(cell_dto_list)
     }
 
     pub fn get_hpo_term_dto_list(&self) -> std::result::Result<Vec<HpoTermDto>, String> {
