@@ -9,7 +9,7 @@ use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto::hpo_cell_dto::CellValue;
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
+use crate::dto::cohort_dto::{CohortType, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
 
 use crate::hpo::age_util::{self, check_hpo_table_cell};
 
@@ -17,7 +17,7 @@ use crate::hpo::age_util::{self, check_hpo_table_cell};
 use crate::template::disease_bundle::{ DiseaseBundle};
 use crate::template::gene_variant_bundle::{ GeneVariantBundle};
 use crate::template::individual_bundle::IndividualBundle;
-use crate::template::cohort_dto_builder::CohortType;
+
 
 use crate::template::header_duplet_row::{ HeaderDupletRow};
 
@@ -42,9 +42,9 @@ impl PpktRow {
         content: Vec<String>,
     ) -> std::result::Result<Self, String> {
         match header.template_type() {
-            crate::template::cohort_dto_builder::CohortType::Mendelian => Self::from_mendelian_row(header, content),
-            crate::template::cohort_dto_builder::CohortType::Melded => panic!("No legacy row is Melded (this option is never true)"),
-            crate::template::cohort_dto_builder::CohortType::Digenic => panic!("No legacy row is Digenic (this option is never true)"),
+            CohortType::Mendelian => Self::from_mendelian_row(header, content),
+            CohortType::Melded => panic!("No legacy row is Melded (this option is never true)"),
+            CohortType::Digenic => panic!("No legacy row is Digenic (this option is never true)"),
         }
     }
 
@@ -87,9 +87,6 @@ impl PpktRow {
         gene_variant_list: Vec<GeneVariantDto>,
         tid_to_value_map: HashMap<TermId, String>, 
         disease_gene_dto: DiseaseGeneDto) -> std::result::Result<Self, String> {
-        if disease_gene_dto.template_type != CohortType::Mendelian {
-            panic!("from_map: Melded/Digenic not supported");
-        }
         let mut items = Vec::with_capacity(header.hpo_count());
         for hduplet in header.hpo_duplets() {
             let tid = hduplet.to_term_id()?;

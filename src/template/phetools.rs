@@ -4,7 +4,7 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::cohort_dto::{DiseaseGeneDto, IndividualDto,CohortDto};
+use crate::dto::cohort_dto::{CohortDto, CohortType, DiseaseGeneDto, IndividualDto};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
 use crate::dto::variant_dto::VariantDto;
@@ -22,7 +22,7 @@ use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use phenopackets::schema::v2::Phenopacket;
-use crate::template::cohort_dto_builder::{CohortDtoBuilder, CohortType};
+use crate::template::cohort_dto_builder::CohortDtoBuilder;
 use crate::template::excel;
 use core::option::Option::Some;
 use std::collections::HashMap;
@@ -439,15 +439,30 @@ impl PheTools {
         Ok(())
     }
 
-    pub fn write_aggregate_table(
+    pub fn write_hpoa_table(
         &self, 
         cohort_dto: CohortDto,
-        outfile: &str,
+        dir: PathBuf,
         orcid: String
-    ) -> Result<(), String> {
-        let hpoa = HpoaTable::new(cohort_dto, self.hpo.clone(), &orcid)?;
-        hpoa.write_tsv(outfile).map_err(|e| e.to_string())?;
-        Ok(())
+    ) -> Result<String, String> {
+        if ! cohort_dto.is_mendelian() {
+            return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort_dto.cohort_type));
+        }
+        let gt_list = &cohort_dto.disease_gene_dto.gene_transcript_dto_list;
+
+        if gt_list.len() != 1 {
+            return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_list.len()));
+        }
+        let gt = gt_list[0].clone();
+        match &cohort_dto.cohort_acronym {
+            Some(acronym) => {
+                let outfile = format!("{}-{}.hpoa", gt.gene_symbol, acronym);
+                let hpoa = HpoaTable::new(cohort_dto, self.hpo.clone(), &orcid)?;
+                hpoa.write_tsv(&outfile).map_err(|e| e.to_string())?;
+                return Ok(format!("Wrote HPOA file to {}", outfile));
+            },
+            None => { return Err(format!("HPOA export required cohort acronym ")); },
+        }
     }
 
     /// Load an excel file with a table of information that can be

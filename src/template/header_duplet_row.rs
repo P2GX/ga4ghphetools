@@ -15,14 +15,14 @@ use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
 
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{HeaderDupletDto};
+use crate::dto::cohort_dto::{CohortType, HeaderDupletDto};
 use crate::dto::validation_errors::ValidationErrors;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::individual_header::IndividualHeader;
 use crate::hpo::hpo_util::{HpoUtil};
-use crate::template::cohort_dto_builder::CohortType;
+
 
 const NOT_AVAILABLE: &str = "na";
 const EXCLUDED: &str = "excluded";

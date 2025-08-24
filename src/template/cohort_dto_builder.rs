@@ -13,32 +13,11 @@ use ontolius::{
 use phenopackets::schema::v2::Phenopacket;
 use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_cell_dto::{CellValue}, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortDto, CohortType, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_cell_dto::CellValue, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
 
-
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum CohortType {
-    Mendelian,
-    Melded,
-    Digenic
-}
-
-impl FromStr for CohortType {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, String> {
-        match s.to_ascii_lowercase().as_str() {
-            "mendelian" => Ok(CohortType::Mendelian),
-            "melded" => Ok(CohortType::Melded),
-            "digenic" => Ok(CohortType::Digenic),
-            _ => Err(format!("Unrecognized template type {s}")),
-        }
-    }
-}
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
 pub struct CohortDtoBuilder {
@@ -195,6 +174,7 @@ impl CohortDtoBuilder {
             hgvs_variants: cohort_dto.hgvs_variants,
             structural_variants: cohort_dto.structural_variants,
             dto_version: cohort_dto.dto_version,
+            cohort_acronym: cohort_dto.cohort_acronym
         };
         Ok(updated_cohort_dto)
         
@@ -251,9 +231,6 @@ impl CohortDtoBuilder {
         tid_to_value_map: HashMap<TermId, String>, 
         disease_gene_dto: DiseaseGeneDto
     ) -> std::result::Result<RowDto, String> {
-        if disease_gene_dto.template_type != CohortType::Mendelian {
-            panic!("from_map: Melded/Digenic not supported");
-        }
         // Create a list of CellDto objects that matches the new order of HPO headers
         let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
         for hduplet in header_dto_list {
@@ -409,10 +386,8 @@ impl CohortDtoBuilder {
         };
         // Note we will need to manually fix the cohort acronym for legacy files TODO possibly refactor
         let dg_dto = DiseaseGeneDto{
-            template_type: CohortType::Mendelian,
             disease_dto_list: vec![disease_dto],
             gene_transcript_dto_list: vec![gtr_dto],
-            cohort_acronym:  "TODO".to_string(),
         };
         Ok(dg_dto)
     }
@@ -521,10 +496,6 @@ impl CohortDtoBuilder {
     pub fn qc_check(&self) -> Result<(), String> {
 
         Ok(())
-    }
-
-    pub fn is_mendelian(&self) -> bool {
-        self.cohort_type == CohortType::Mendelian
     }
 
 

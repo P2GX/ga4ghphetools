@@ -2,7 +2,7 @@ use core::{result::Result, todo};
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::cohort_dto::{DiseaseDto, DiseaseGeneDto, CohortDto}, header::disease_header::DiseaseHeader, template::cohort_dto_builder::CohortType};
+use crate::{dto::cohort_dto::{CohortDto, CohortType, DiseaseDto, DiseaseGeneDto}, header::disease_header::DiseaseHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {

@@ -10,7 +10,7 @@ use crate::dto::structural_variant::StructuralVariant;
 use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
-use crate::template::cohort_dto_builder::CohortType;
+
 
 
 
@@ -54,6 +54,7 @@ impl IndividualDto {
 /// variants found in an individual for one specific gene.
 /// The full information about the variants needed to create phenopackets is stored in the
 /// HashMaps 
+/// /* 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeneVariantDto {
@@ -163,9 +164,6 @@ pub struct GeneTranscriptDto {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseGeneDto {
-    pub template_type: CohortType,
-    /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
-    pub cohort_acronym: String,
     pub disease_dto_list: Vec<DiseaseDto>,
     pub gene_transcript_dto_list: Vec<GeneTranscriptDto>,
 }
@@ -237,6 +235,31 @@ impl From<DupletItem> for HeaderDupletDto {
     }
 }
 
+
+
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CohortType {
+    Mendelian,
+    Melded,
+    Digenic
+}
+
+impl FromStr for CohortType {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, String> {
+        match s.to_ascii_lowercase().as_str() {
+            "mendelian" => Ok(CohortType::Mendelian),
+            "melded" => Ok(CohortType::Melded),
+            "digenic" => Ok(CohortType::Digenic),
+            _ => Err(format!("Unrecognized template type {s}")),
+        }
+    }
+}
+
+
+
 /// This is the representation of the cohort (source of truth)
 /// There is a corresponding typescript DTO in the front-end
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -256,6 +279,8 @@ pub struct CohortDto {
     pub structural_variants: HashMap<String, StructuralVariant>,
     /// Version of the DTO JSON
     pub dto_version: String,
+    /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
+    pub cohort_acronym: Option<String>,
 }
 
 /// Version of the Cohort JSON schema
@@ -288,7 +313,8 @@ impl CohortDto {
             rows,
             hgvs_variants,
             structural_variants,
-            dto_version: COHORT_DTO_VERSION.to_string()
+            dto_version: COHORT_DTO_VERSION.to_string(),
+            cohort_acronym: None
         }
     }
 
