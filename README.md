@@ -11,12 +11,7 @@ For faster performance, enter
 cargo run --features="cli"  --release --bin rpt -- --template ./../phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx --json ./../../data/hpo/hp.json 
 ```
 
-## Generating rust code from phenopackets (experiment)
 
-1. Download google's protoc compiler
-2. Copy code from phenopacket schema (only v2) to a local directory
-3. Copy versionof VRS and VRSATILE
-4. Run cargo build with the following code in build.rs
 
 ## To build the binary demo (with clap)
 ```bash

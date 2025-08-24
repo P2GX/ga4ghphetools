@@ -2,3 +2,7 @@
 title = "GA4GH Phenotools Documentation"
 author = "Peter Robinson"
 description = "This library was created to support GA4GH Phenoboard, a Tauri (GUI) application for creating Phenopacket Cohorts"
+
+[output.html]
+additional-js = ["open_external.js"]
+additional-css = ["style.css"]
