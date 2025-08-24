@@ -4,6 +4,7 @@
 //! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
 use std::collections::HashMap;
+use std::f32::consts::E;
 use std::str::FromStr;
 use std::sync::Arc;
 use ontolius::TermId;
@@ -58,7 +59,10 @@ impl PpktRow {
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
         let mut hpo_content: Vec<String> = Vec::new();
-        for item in content.iter().skip(17) {
+        let number_of_constant_cells_to_skip = 16;
+        // HPO data begins at cell 17 in the legacy Excel files
+
+        for item in content.iter().skip(number_of_constant_cells_to_skip) {
             let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency
             age_util::check_hpo_table_cell(&item)?;
             hpo_content.push(item.clone());
@@ -135,6 +139,10 @@ impl PpktRow {
             cell_dto_list.push(CellValue::from_str(hpo_val)?);
         }
         Ok(cell_dto_list)
+    }
+
+    pub fn hpo_count(&self) -> usize {
+        self.hpo_content.len()
     }
 
     pub fn get_hpo_term_dto_list(&self) -> std::result::Result<Vec<HpoTermDto>, String> {

@@ -47,6 +47,20 @@ impl HpoaTable {
                 .or_insert(PmidCounter::new(pmid));
             // Iterate across HPO terms and add to counter 
             if hpo_header.len() != row.hpo_data.len() {
+                let mut i = 0 as usize;
+                for h in &hpo_header {
+                    i += 1;
+                    let data = if i < row.hpo_data.len() {
+                        row.hpo_data[i].to_string()
+                    } else {
+                        "ran out".to_string()
+                    };
+                    println!("{}) hpo_header:{:?} // row_data: {}", i, h, data);
+                }
+                 for h in &row.hpo_data {
+                    i += 1;
+                    println!("{}) {:?} ", i, h);
+                }
                 return Err(format!("Length mismatch: hpo_header has {}, hpo_data has {}", hpo_header.len(), row.hpo_data.len()));
             }
             for (hpo_item, data_item) in hpo_header.iter().zip(row.hpo_data.iter()) {

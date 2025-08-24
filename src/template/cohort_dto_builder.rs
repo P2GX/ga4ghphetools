@@ -414,6 +414,7 @@ impl CohortDtoBuilder {
     ) -> std::result::Result<CohortDto, String> 
         where F: FnMut(u32, u32) {
         let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), update_hpo_labels)?;
+        let header_hpo_count = header.hpo_count();
         const HEADER_ROWS: usize = 2; // first two rows of template are header
         let hdr_arc = Arc::new(header);
         let ppt_rows: Vec<PpktRow> = Vec::new();
@@ -423,6 +424,10 @@ impl CohortDtoBuilder {
          for row in matrix.into_iter().skip(HEADER_ROWS) {
             let hdr_clone = hdr_arc.clone();
             let ppkt_row = PpktRow::from_mendelian_row(hdr_clone, row)?;
+            if ppkt_row.hpo_count() != header_hpo_count {
+                return Err(format!("Error ({}:l.{}) - PPKtRow has {} HPO columns, but the header has {} HPO columns",
+                    file!(), line!(), ppkt_row.hpo_count(), header_hpo_count));
+            }
             let mut allele_key_list = vec![]; // TODO
             for gv_dto in ppkt_row.get_gene_var_dto_list() {
                 if gv_dto.allele1_is_present() {
@@ -452,6 +457,10 @@ impl CohortDtoBuilder {
                 }
             }
             let row_dto = RowDto::from_ppkt_row(&ppkt_row, allele_key_list)?;
+            if row_dto.hpo_data.len() != header_hpo_count {
+                return Err(format!("Error ({}:l.{}) - RowDto has {} HPO columns, but the header has {} HPO columns",
+                    file!(), line!(),row_dto.hpo_data.len(), header_hpo_count));
+            }
             row_dto_list.push(row_dto);
         }
         let header_duplet_list = hdr_arc.get_hpo_header_dtos();
@@ -752,8 +761,6 @@ mod test {
             transcript:   "NM_001111067.4".to_string(),
         };
         DiseaseGeneDto{ 
-            template_type: CohortType::Mendelian, 
-            cohort_acronym: "FOP".to_string(),
             disease_dto_list: vec![dx_dto], 
             gene_transcript_dto_list: vec![gv_dto]
         }

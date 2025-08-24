@@ -461,7 +461,7 @@ impl PheTools {
                 hpoa.write_tsv(&outfile).map_err(|e| e.to_string())?;
                 return Ok(format!("Wrote HPOA file to {}", outfile));
             },
-            None => { return Err(format!("HPOA export required cohort acronym ")); },
+            None => { return Err(format!("HPOA export requires cohort acronym but got '{:?}'", cohort_dto.cohort_acronym)); },
         }
     }
 
