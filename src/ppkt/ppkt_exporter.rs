@@ -16,7 +16,7 @@ use phenopackets::schema::v2::Phenopacket;
 
 use rand::Rng;
 use regex::Regex;
-use crate::dto::cohort_dto::{CohortDto, RowDto};
+use crate::dto::cohort_dto::{CohortData, RowData};
 
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
@@ -37,7 +37,7 @@ pub struct PpktExporter {
     omim_version: String,
     hgnc_version: String,
     orcid_id: String,
-    cohort_dto: CohortDto,
+    cohort_dto: CohortData,
 }
 
 impl PpktExporter {
@@ -46,7 +46,7 @@ impl PpktExporter {
     pub fn new( 
         hpo: Arc<FullCsrOntology>,
         creator_orcid: &str,
-        cohort: CohortDto
+        cohort: CohortData
     ) -> Self {
         Self::from_versions(
             hpo,
@@ -65,7 +65,7 @@ impl PpktExporter {
         omim_version: &str, 
         hgnc_version: &str ,
         creator_orcid: &str,
-        cohort: CohortDto
+        cohort: CohortData
     ) -> Self {
         Self{ 
             hpo, 
@@ -80,7 +80,7 @@ impl PpktExporter {
 
 
     /// Create a GA4GH Individual message
-    pub fn extract_individual(&self, ppkt_row: &RowDto) -> Result<Individual, String> {
+    pub fn extract_individual(&self, ppkt_row: &RowData) -> Result<Individual, String> {
         let individual_dto = &ppkt_row.individual_dto;
         let mut idvl = Individual{ 
             id: individual_dto.individual_id.clone(), 
@@ -138,7 +138,7 @@ impl PpktExporter {
     } 
 
     /// Create GA4GH MetaData object from version numbers using functions from phenopacket_tools
-    pub fn get_meta_data(&self, row_dto: &RowDto) -> Result<MetaData, String> {
+    pub fn get_meta_data(&self, row_dto: &RowData) -> Result<MetaData, String> {
         let created_by = self.orcid_id.clone();
         let mut meta_data = Builder::meta_data_now(created_by);
         let hpo = phenopacket_tools::builders::resources::Resources::hpo_version(self.hpo_version());
@@ -163,7 +163,7 @@ impl PpktExporter {
 
 
     /// Generate the phenopacket identifier from the PMID and the individual identifier
-    pub fn get_phenopacket_id(&self, ppkt_row: &RowDto) -> String {
+    pub fn get_phenopacket_id(&self, ppkt_row: &RowData) -> String {
         let individual_dto = &ppkt_row.individual_dto;
         let pmid = ppkt_row.individual_dto.pmid.replace(":", "_");
         let individual_id = individual_dto.individual_id.replace(" ", "_");
@@ -183,7 +183,7 @@ impl PpktExporter {
     }
 
     /// TODO extend for multiple diseases
-    pub fn get_disease(&self, ppkt_row: &RowDto) -> Result<Disease, String> {
+    pub fn get_disease(&self, ppkt_row: &RowData) -> Result<Disease, String> {
         let disease_list = &ppkt_row.disease_dto_list;
         if disease_list.is_empty() {
             return Err(format!("todo empty disease"));
@@ -350,7 +350,7 @@ impl PpktExporter {
     /// TODO, for melded, we need to assign genes to diseases
     pub fn get_interpretation_list(
         &self, 
-        ppkt_row: &RowDto) 
+        ppkt_row: &RowData) 
     -> std::result::Result<Vec<Interpretation>, String> {
         let mut v_interpretation_list: Vec<VariantInterpretation> = Vec::new();
         for (allele, count) in &ppkt_row.allele_count_map {
@@ -403,7 +403,7 @@ impl PpktExporter {
     
 
 
-    pub fn get_phenopacket_features(&self, ppkt_row: &RowDto) -> Result<Vec<PhenotypicFeature>, String> {
+    pub fn get_phenopacket_features(&self, ppkt_row: &RowData) -> Result<Vec<PhenotypicFeature>, String> {
         let hpo_term_list = &self.cohort_dto.hpo_headers;
         let hpo_data = &ppkt_row.hpo_data;
         if hpo_data.len() != hpo_term_list.len() {
@@ -440,7 +440,7 @@ impl PpktExporter {
 
  pub fn extract_phenopacket_from_dto(
         &self, 
-        ppkt_row_dto: &RowDto, 
+        ppkt_row_dto: &RowData, 
     ) -> Result<Phenopacket, String> {
         if self.cohort_dto.disease_gene_dto.gene_transcript_dto_list.len() != 1 {
             panic!("NEED TO EXTEND MODEL TO NON MEND. NEED TO EXTEND CACHE KEY FOR GENE-TRANSCRIPT-NAME");

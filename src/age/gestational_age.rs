@@ -45,3 +45,33 @@ impl GestationalAgeValidator {
 
 }
 
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ontolius::term::MinimalTerm;
+    use rstest::rstest;
+
+ 
+
+
+    #[rstest]
+    #[case("Third trimester onset", "G37w1d")]
+    #[case("Third trimester onset", "G37w")]
+    #[case("Second trimester onset", "G22w6d")]
+    #[case("Late first trimester onset", "G12w6d")]
+    #[case("Embryonal onset", "G9w")]
+    fn test_gestationalage(#[case] onset_term: &str, #[case] age_string: &str) {
+        let result= GestationalAgeValidator::get_hpo_onset_term_from_gestational_age(age_string);
+        assert!(result.is_ok());
+        let label: String  = result.unwrap();
+        assert_eq!(onset_term, label);
+    }
+
+
+    
+}
+
+// endregion: --- Tests

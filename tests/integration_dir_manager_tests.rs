@@ -6,7 +6,7 @@ use common::case_5_dto;
 use common::hpo_dto_list_1;
 use ontolius::ontology::csr::FullCsrOntology;
 use ga4ghphetools::dto::case_dto::CaseDto;
-use ga4ghphetools::dto::hpo_term_dto::HpoTermDto;
+use ga4ghphetools::dto::hpo_term_dto::HpoTermData;
 use ga4ghphetools::PheTools;
 use rstest::rstest;
 use common::hpo;
@@ -19,7 +19,7 @@ fn test_variant_manager_cache(
         matrix: Vec<Vec<String>>, 
         hpo: Arc<FullCsrOntology>,
         case_5_dto: CaseDto,
-        hpo_dto_list_1: Vec<HpoTermDto>
+        hpo_dto_list_1: Vec<HpoTermData>
     ) {
     let mut phetools = PheTools::new(hpo);
     let original_matrix = matrix.clone();

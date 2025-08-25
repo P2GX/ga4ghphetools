@@ -1,15 +1,14 @@
 //! TODO - obsolete this class, we can do everything with ontolius directly now
 
-use crate::dto::hpo_term_dto::HpoTermDto;
+use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::error::{Error, Result};
-use crate::header::hpo_term_duplet::HpoTermDuplet;
+use crate::dto::hpo_term_dto::HpoTermDuplet;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::MinimalTerm;
 use ontolius::TermId;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 
 
@@ -35,13 +34,12 @@ impl HpoUtil {
     
     pub fn term_label_map_from_dto_list(
         &self, 
-        hpo_dto_list: &Vec<HpoTermDto>
+        hpo_dto_list: &Vec<HpoTermData>
     ) -> std::result::Result<HashMap<TermId, String>, String> {
         let mut dto_map: HashMap<TermId, String> = HashMap::new();
         for dto in hpo_dto_list {
-            let result =  TermId::from_str(dto.term_id());
-            match result {
-                Ok(term_id) => {dto_map.insert(term_id.clone(), dto.label().clone());},
+            match dto.ontolius_term_id() {
+                Ok(term_id) => {dto_map.insert(term_id.clone(), dto.label().to_string());},
                 Err(_) => {
                     return Err(format!("Could not map termId: '{}'", dto.term_id()));
                 },
@@ -65,7 +63,7 @@ impl HpoUtil {
     }*/
 
     /// Check the validity of the HPO TermId/label pairs in the DTO objects and return corresponding HpoTermDuplet list
-    pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {
+    pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermData>) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {
         let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::with_capacity(hpo_dto_list.len());
         let mut verr = ValidationErrors::new();
         for hpo_dto in hpo_dto_list {
@@ -92,7 +90,7 @@ impl HpoUtil {
     }
 
     /// Check that the HPO Term Id and label used in the DTO object are correct
-    pub fn check_hpo_dto(&self, hpo_dto_items: &Vec<HpoTermDto>) -> Result<()> {
+    pub fn check_hpo_dto(&self, hpo_dto_items: &Vec<HpoTermData>) -> Result<()> {
         for dto in hpo_dto_items {
             let tid = dto.ontolius_term_id()?;
             let term = self.hpo.term_by_id(&tid).ok_or_else(|| Error::HpoError {

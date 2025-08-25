@@ -1,4 +1,4 @@
-use crate::{dto::cohort_dto::GeneVariantDto, header::duplet_item::DupletItem, template::gene_variant_bundle::GeneVariantBundle};
+use crate::{dto::cohort_dto::GeneVariantData, header::duplet_item::DupletItem, template::gene_variant_bundle::GeneVariantBundle};
 
 
 
@@ -52,7 +52,7 @@ impl GeneVariantHeader {
     }
 
     /// Check an GeneVariant bundle for errors.
-    pub fn qc_dto(&self, dto: &GeneVariantDto) -> Result<(), String> {
+    pub fn qc_dto(&self, dto: &GeneVariantData) -> Result<(), String> {
         self.qc_data(&dto.hgnc_id, &dto.gene_symbol, &dto.transcript, &dto.allele1, &dto.allele2, &dto.variant_comment)
     }
 

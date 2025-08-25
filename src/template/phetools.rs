@@ -4,15 +4,16 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::cohort_dto::{CohortDto, CohortType, DiseaseGeneDto, IndividualDto};
+use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseGeneData, IndividualData};
 use crate::dto::hgvs_variant::HgvsVariant;
+use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
 use crate::dto::variant_dto::VariantDto;
 use crate::etl::etl_tools::EtlTools;
 use crate::hpoa::hpoa_table::HpoaTable;
 use crate::persistence::dir_manager::DirManager;
 use crate::hpo::hpo_term_arranger::HpoTermArranger;
-use crate::dto::{ hpo_term_dto::HpoTermDto};
+use crate::dto::{ hpo_term_dto::HpoTermData};
 use crate::ppkt::ppkt_exporter::PpktExporter;
 use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
@@ -42,7 +43,7 @@ pub struct PheTools {
     /// as the source of truth. The backend will need to modify and return the DTO, to read it from persistance,
     /// and to serialize it (either to save the Cohort as a JSON file or to export GA4GH phenopackets.)
     /// TODO - try to remove the PheToolsTemplate to simplify operations!
-    cohort: Option<CohortDto>,
+    cohort: Option<CohortData>,
     /// Manager to validate and cache variants
     manager: Option<DirManager>, 
     etl_tools: Option<EtlTools>,
@@ -107,10 +108,10 @@ impl PheTools {
     pub fn create_cohort_dto_from_seeds(
         &mut self,
         template_type: CohortType,
-        disease_gene_dto: DiseaseGeneDto,
+        disease_gene_dto: DiseaseGeneData,
         dir_path: PathBuf,
         hpo_term_ids: Vec<TermId>,
-    ) -> std::result::Result<CohortDto, String> {
+    ) -> std::result::Result<CohortData, String> {
         if template_type != CohortType::Mendelian {
             return Err("TemplateDto generation for non-Mendelian not implemented yet".to_string());
         }
@@ -169,7 +170,7 @@ impl PheTools {
         matrix: Vec<Vec<String>>,
         update_hpo_labels: bool,
         progress_cb: F
-    ) -> Result<CohortDto, String> 
+    ) -> Result<CohortData, String> 
         where F: FnMut(u32,u32),{
         let hpo_arc = self.hpo.clone();
         CohortDtoBuilder::dto_from_mendelian_template(matrix, hpo_arc, update_hpo_labels, progress_cb)
@@ -196,7 +197,7 @@ impl PheTools {
         phetools_template_path: &str,
         update_hpo_labels: bool,
         progress_cb: F
-    ) -> Result<CohortDto, String> 
+    ) -> Result<CohortData, String> 
     where F: FnMut(u32,u32) {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
         self.load_matrix(matrix, update_hpo_labels, progress_cb)
@@ -206,11 +207,11 @@ impl PheTools {
     pub fn load_json_cohort(
         &mut self,
         json_template_path: &str
-    ) -> Result<CohortDto, String> {
+    ) -> Result<CohortData, String> {
         let file_data = fs::read_to_string(json_template_path)
             .map_err(|e| 
                 format!("Could not extract string data from {}: {}", json_template_path, e.to_string()))?;
-        let cohort: CohortDto = serde_json::from_str(&file_data)
+        let cohort: CohortData = serde_json::from_str(&file_data)
             .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
                 file_data, e.to_string()))?;
         Ok(cohort)
@@ -245,8 +246,8 @@ impl PheTools {
         &mut self,
         hpo_id: &str,
         hpo_label: &str,
-        cohort_dto: CohortDto) 
-    -> std::result::Result<CohortDto, String> {
+        cohort_dto: CohortData) 
+    -> std::result::Result<CohortData, String> {
         /*
         let mut updated_template = 
             CohortDtoBuilder::from_cohort_dto(  &cohort_dto, self.hpo.clone())?;
@@ -276,11 +277,11 @@ impl PheTools {
     /// # Returns updated cohort DTO if successful, otherwise list of strings representing errors
     pub fn add_new_row_to_cohort(
         &mut self,
-        individual_dto: IndividualDto, 
-        hpo_annotations: Vec<HpoTermDto>,
+        individual_dto: IndividualData, 
+        hpo_annotations: Vec<HpoTermData>,
         variant_key_list: Vec<String>,
-        cohort_dto: CohortDto) 
-    -> Result<CohortDto, String> {
+        cohort_dto: CohortData) 
+    -> Result<CohortData, String> {
         let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
         let mut builder = CohortDtoBuilder::new(CohortType::Mendelian, disease_gene_dto, self.hpo.clone());
         builder.add_new_row_to_cohort(individual_dto, hpo_annotations, variant_key_list, cohort_dto)
@@ -303,22 +304,22 @@ impl PheTools {
     /// the terms from the phetools HPO object anyway
     pub fn get_hpo_term_dto(
         &self,
-        tid: impl Into<String>,
-        label: impl Into<String>,
-        entry: impl Into<String>
-    )  -> Result<HpoTermDto, String> {
-        let dto = HpoTermDto::new(tid, label, entry);
-        let tid: TermId = dto.ontolius_term_id().map_err(|e| e.to_string())?;
-        let label = dto.label();
-        self.hpo.term_by_id(&tid)
-            .ok_or_else(|| format!("Could not find HPO term identifier {} in the ontology", tid))
-            .and_then(|term| {
-                if term.name() != label {
-                    Err(format!("Malformed HPO label {} for {} (expected: {})", label, tid, term.name()))
-                } else {
-                    Ok(dto)
-                }
-            })
+        tid: &str,
+        label: &str,
+        entry: &str
+    )  -> Result<HpoTermData, String> {
+        let hpo_term_duplet = HpoTermDuplet::new(label, tid);
+        let tid: TermId = hpo_term_duplet.to_term_id()?;
+        match self.hpo.term_by_id(&tid) {
+            Some(term) =>  { if term.name() != label {
+                        return  Err(format!("Malformed HPO label {} for {} (expected: {})", label, tid, term.name()));
+                    } 
+                },
+            None => {
+                 return  Err(format!("Could not retrieve HPO term for {}",  tid));
+            },
+        }
+        Ok(HpoTermData::from_duplet(hpo_term_duplet, entry))
     }
 
     /// Set the location of the directory where we will store phenopackets
@@ -352,7 +353,7 @@ impl PheTools {
     pub fn validate_hgvs_variant(
         &self,
         vv_dto: VariantDto,
-        cohort_dto: CohortDto
+        cohort_dto: CohortData
     ) -> Result<HgvsVariant, String> {
         if ! vv_dto.is_hgvs() {
             return Err(format!("Attempt to HGVS-validate non-HGVS variant: {:?}", vv_dto));
@@ -372,7 +373,7 @@ impl PheTools {
      pub fn validate_structural_variant(
         &self,
         vv_dto: VariantDto,
-        cohort_dto: CohortDto
+        cohort_dto: CohortData
     ) -> Result<StructuralVariant, String> {
         if ! vv_dto.is_sv() {
             return Err(format!("Attempt to SV-validate non-SV variant: {:?}", vv_dto));
@@ -395,7 +396,7 @@ impl PheTools {
     /// TODO, probably combine in the same command, and add a second command to write to disk
     pub fn validate_template(
         &self, 
-        cohort_dto: CohortDto) 
+        cohort_dto: CohortData) 
     -> Result<(), String> {
         //let builder = CohortDtoBuilder::from_cohort_dto(&cohort_dto, self.hpo.clone())?;
         Err("validate_template- Needs refactor".to_string())
@@ -424,7 +425,7 @@ impl PheTools {
     /// Write phenopackets to file that correspond to the current TemplateDto
     pub fn write_ppkt_list(
         &mut self,  
-        cohort_dto: CohortDto, 
+        cohort_dto: CohortData, 
         dir: PathBuf,
         orcid: String) 
     -> Result<(), String> {
@@ -441,7 +442,7 @@ impl PheTools {
 
     pub fn write_hpoa_table(
         &self, 
-        cohort_dto: CohortDto,
+        cohort_dto: CohortData,
         dir: PathBuf,
         orcid: String
     ) -> Result<String, String> {
@@ -480,7 +481,7 @@ impl PheTools {
         Ok(dto)
     }
 
-    pub fn analyze_variants(&self, cohort_dto: CohortDto) 
+    pub fn analyze_variants(&self, cohort_dto: CohortData) 
     -> Result<Vec<VariantDto>, String> {
        if cohort_dto.disease_gene_dto.gene_transcript_dto_list.len() != 1 {
             return Err(format!("analyze_variants is only implemented for Mendelian"));
@@ -510,8 +511,8 @@ impl PheTools {
     /// TODO --REMOVE ME
     pub fn validate_all_variants(
         &self,
-        cohort_dto: CohortDto) 
-    -> Result<CohortDto, String> {
+        cohort_dto: CohortData) 
+    -> Result<CohortData, String> {
         
         Err(format!("validate_all_variants -- needs refactor"))
     }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::cohort_dto::GeneVariantDto, header::gene_variant_header::GeneVariantHeader};
+use crate::{dto::cohort_dto::GeneVariantData, header::gene_variant_header::GeneVariantHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<GeneVariantHeader>> = Lazy::new(|| {
@@ -56,11 +56,11 @@ impl GeneVariantBundle {
         Ok(())
     }
 
-    pub fn to_dto(&self) -> GeneVariantDto {
-        GeneVariantDto:: new(self.hgnc_id(), self.gene_symbol(), self.transcript(), self.allele1(), self.allele2(), self.variant_comment())
+    pub fn to_dto(&self) -> GeneVariantData {
+        GeneVariantData:: new(self.hgnc_id(), self.gene_symbol(), self.transcript(), self.allele1(), self.allele2(), self.variant_comment())
     }
 
-    pub fn from_dto(dto: GeneVariantDto) -> Self {
+    pub fn from_dto(dto: GeneVariantData) -> Self {
         Self { 
             header: SHARED_HEADER.clone(), 
             hgnc_id: dto.hgnc_id, 
@@ -72,7 +72,7 @@ impl GeneVariantBundle {
         }
     }
 
-    pub fn from_dto_list(dto_list: Vec<GeneVariantDto>) -> Vec<Self> {
+    pub fn from_dto_list(dto_list: Vec<GeneVariantData>) -> Vec<Self> {
         dto_list.into_iter()
             .map(Self::from_dto)
             .collect()

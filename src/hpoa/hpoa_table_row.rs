@@ -1,6 +1,6 @@
 
 
-use crate::dto::cohort_dto::DiseaseDto;
+use crate::dto::cohort_dto::DiseaseData;
 
 
 
@@ -23,7 +23,7 @@ pub struct HpoaTableRow {
 
 impl HpoaTableRow {
     pub fn new(
-        disease: &DiseaseDto, 
+        disease: &DiseaseData, 
         term_id: &str,
         term_label: &str, 
         freq_string: &str,

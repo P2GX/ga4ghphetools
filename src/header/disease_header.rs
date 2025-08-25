@@ -1,4 +1,4 @@
-use crate::{dto::cohort_dto::DiseaseDto, header::duplet_item::DupletItem, template::disease_bundle::DiseaseBundle};
+use crate::{dto::cohort_dto::DiseaseData, header::duplet_item::DupletItem, template::disease_bundle::DiseaseBundle};
 
 
 
@@ -35,7 +35,7 @@ impl DiseaseHeader {
     }
 
     /// Check an disease bundle for errors.
-    pub fn qc_dto(&self, dto: &DiseaseDto) -> Result<(), String> {
+    pub fn qc_dto(&self, dto: &DiseaseData) -> Result<(), String> {
         self.qc_data(&dto.disease_id, &dto.disease_label)
     }
 

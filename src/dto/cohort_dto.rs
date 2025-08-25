@@ -1,3 +1,8 @@
+//! CohortData
+//! 
+//! This file contains definitions of structure with data about a cohort. They are used as Data Transfer Objects between the front and back end and the CohortData is used to serialize the data
+//! about the entire cohort.
+
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -5,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_cell_dto::{CellValue};
 use crate::dto::structural_variant::StructuralVariant;
-use crate::header::hpo_term_duplet::HpoTermDuplet;
+use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
 
 
@@ -13,7 +18,7 @@ use crate::ppkt::ppkt_row::PpktRow;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IndividualDto {
+pub struct IndividualData {
     pub pmid: String,
     pub title: String,
     pub individual_id: String,
@@ -24,7 +29,7 @@ pub struct IndividualDto {
     pub sex: String
 }
 
-impl IndividualDto {
+impl IndividualData {
     pub fn new(
         pmid: &str,
         title: &str,
@@ -54,7 +59,7 @@ impl IndividualDto {
 /// /* 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GeneVariantDto {
+pub struct GeneVariantData {
     pub hgnc_id: String,
     pub gene_symbol: String,
     pub transcript: String,
@@ -64,7 +69,7 @@ pub struct GeneVariantDto {
 }
 
 
-impl GeneVariantDto {
+impl GeneVariantData {
     pub fn new(hgnc_id: &str,
                 gene_symbol: &str,
                 transcript: &str,
@@ -122,12 +127,12 @@ impl GeneVariantDto {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DiseaseDto {
+pub struct DiseaseData {
     pub disease_id: String,
     pub disease_label: String,
 }
 
-impl DiseaseDto {
+impl DiseaseData {
     pub fn new(disease_id: &str, disease_label: &str) -> Self {
         Self { 
             disease_id: disease_id.to_string(), 
@@ -146,7 +151,7 @@ impl DiseaseDto {
 /// as part of a DiseaseGeneBundleDto
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GeneTranscriptDto {
+pub struct GeneTranscriptData {
     pub hgnc_id: String,
     pub gene_symbol: String,
     pub transcript: String,
@@ -160,23 +165,23 @@ pub struct GeneTranscriptDto {
 /// Digenic: disease_dto of length 1, gene_variant_dto of length 2
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DiseaseGeneDto {
-    pub disease_dto_list: Vec<DiseaseDto>,
-    pub gene_transcript_dto_list: Vec<GeneTranscriptDto>,
+pub struct DiseaseGeneData {
+    pub disease_dto_list: Vec<DiseaseData>,
+    pub gene_transcript_dto_list: Vec<GeneTranscriptData>,
 }
 
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RowDto {
-    pub individual_dto: IndividualDto,
-    pub disease_dto_list: Vec<DiseaseDto>,
+pub struct RowData {
+    pub individual_dto: IndividualData,
+    pub disease_dto_list: Vec<DiseaseData>,
     //pub gene_var_dto_list: Vec<GeneVariantDto>,
     pub allele_count_map: HashMap<String, usize>,
     pub hpo_data: Vec<CellValue>
 }
 
-impl RowDto {
+impl RowData {
     pub fn from_ppkt_row(ppkt_row: &PpktRow, allele_key_list: Vec<String>) -> Result<Self, String> {
         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
         for allele in allele_key_list {
@@ -220,15 +225,15 @@ impl FromStr for CohortType {
 /// There is a corresponding typescript DTO in the front-end
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CohortDto {
+pub struct CohortData {
     /// Mendelian, Melded, or Digenic
     pub cohort_type: CohortType,
     /// The diseases and genes in focus for the current cohort
-    pub disease_gene_dto: DiseaseGeneDto,
+    pub disease_gene_dto: DiseaseGeneData,
     /// The HPO terms used to annotate the cohort
     pub hpo_headers: Vec<HpoTermDuplet>,
     /// The phenopackets (rows) in the current cohort
-    pub rows: Vec<RowDto>,
+    pub rows: Vec<RowData>,
     /// Validated HGVS variants.
     pub hgvs_variants: HashMap<String, HgvsVariant>,
     /// Validated structural (symbolic) variants
@@ -240,25 +245,25 @@ pub struct CohortDto {
 }
 
 /// Version of the Cohort JSON schema
-const COHORT_DTO_VERSION: &str = "0.9";
+const COHORT_DTO_VERSION: &str = "0.2";
 
-impl CohortDto {
+impl CohortData {
     /// Initialize a new TemplateDto for Mendelian cohorts. 
     /// Lists for validated variants are generated that should be filled using
     /// VariantValidator (for HGVS) and StructuralVariantValidator (for structural variants).
     /// This function is only used for ingesting (legacy) Excel files, since we are migrating
     /// to using the JSON representation of the TemplateDto as the serialization format.
     pub fn mendelian(
-            dg_dto: DiseaseGeneDto,
+            dg_dto: DiseaseGeneData,
             hpo_headers: Vec<HpoTermDuplet>, 
-            rows: Vec<RowDto>) -> Self {
+            rows: Vec<RowData>) -> Self {
         Self::mendelian_with_variants(dg_dto, hpo_headers, rows, HashMap::new(), HashMap::new())
     }
 
     pub fn mendelian_with_variants(
-            dg_dto: DiseaseGeneDto,
+            dg_dto: DiseaseGeneData,
             hpo_headers: Vec<HpoTermDuplet>, 
-            rows: Vec<RowDto>,
+            rows: Vec<RowData>,
             hgvs_variants: HashMap<String, HgvsVariant>,
             structural_variants: HashMap<String, StructuralVariant>
         ) -> Self {
@@ -283,7 +288,7 @@ impl CohortDto {
     }
 
 
-    pub fn get_disease_dto_list(&self) -> std::result::Result<Vec<DiseaseDto>, String> {
+    pub fn get_disease_dto_list(&self) -> std::result::Result<Vec<DiseaseData>, String> {
         if ! self.is_mendelian() {
             return Err("Not implemented except for Mendelian".to_string());
         }

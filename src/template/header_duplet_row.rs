@@ -13,12 +13,11 @@ use ontolius::term::simple::SimpleTerm;
 use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
 
-use crate::dto::hpo_term_dto::HpoTermDto;
+use crate::dto::hpo_term_dto::{HpoTermData, HpoTermDuplet};
 use crate::dto::cohort_dto::CohortType;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
-use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::header::individual_header::IndividualHeader;
 use crate::hpo::hpo_util::{HpoUtil};
 
@@ -185,7 +184,7 @@ impl HeaderDupletRow {
     }
 
     pub fn get_hpo_term_dto_list(&self, values: &Vec<String>) 
-    -> std::result::Result<Vec<HpoTermDto>, String> {
+    -> std::result::Result<Vec<HpoTermData>, String> {
         let mut hpo_dto_list = Vec::new();
         if self.hpo_count() != values.len() {
             return Err(format!("Expects {} HPO columns but got {}",
@@ -194,7 +193,7 @@ impl HeaderDupletRow {
         for (i, cell_contents) in values.iter().enumerate() {
             let hpo_label = self.hpo_duplets[i].hpo_label();
             let hpo_id = self.hpo_duplets[i].hpo_id();
-            let dto = HpoTermDto::new(hpo_id, hpo_label, cell_contents);
+            let dto = HpoTermData::new(hpo_id, hpo_label, cell_contents);
             hpo_dto_list.push(dto);
         }
         Ok(hpo_dto_list)
@@ -261,16 +260,16 @@ impl HeaderDupletRow {
     pub fn get_hpo_content_dtos(
         &self,
         cell_content_list: &Vec<String>)
-    -> std::result::Result<Vec<HpoTermDto>, String> {
+    -> std::result::Result<Vec<HpoTermData>, String> {
         if cell_content_list.len() != self.hpo_count() {
             return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
             self.hpo_count(), cell_content_list.len()));
         }
-        let dto_list: Vec<HpoTermDto> = self.get_hpo_duplets()
+        let dto_list: Vec<HpoTermData> = self.get_hpo_duplets()
             .iter()
             .zip(cell_content_list.iter())
             .map(|(duplet, content)| {
-                HpoTermDto::new(duplet.hpo_id(), duplet.hpo_label(), content)
+                HpoTermData::new(duplet.hpo_id(), duplet.hpo_label(), content)
             })
             .collect();
         Ok(dto_list)

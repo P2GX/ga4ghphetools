@@ -1,5 +1,5 @@
 
-use ga4ghphetools::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermDto};
+use ga4ghphetools::dto::{case_dto::CaseDto, hpo_term_dto::HpoTermData};
 use rstest::fixture;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::{fs::File, io::BufReader, sync::Arc};
@@ -106,84 +106,84 @@ pub fn case_7_dto() -> CaseDto {
 
 
 #[fixture]
-pub fn thick_eye_brow_excluded_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0000574", "Thick eyebrow", "excluded")
+pub fn thick_eye_brow_excluded_dto() -> HpoTermData {
+    HpoTermData::new("HP:0000574", "Thick eyebrow", "excluded")
 }
 
 #[fixture]
-pub fn thick_eye_brow_observed_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0000574", "Thick eyebrow", "observed")
+pub fn thick_eye_brow_observed_dto() -> HpoTermData {
+    HpoTermData::new("HP:0000574", "Thick eyebrow", "observed")
 }
 
 #[fixture]
-pub fn thick_eye_brow_na_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0000574", "Thick eyebrow", "na")
-}
-
-
-#[fixture]
-pub fn flat_occiput_observed_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0005469", "Flat occiput", "observed")
-}
-#[fixture]
-pub fn flat_occiput_excluded_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0005469", "Flat occiput", "excluded")
-}
-#[fixture]
-pub fn flat_occiput_na_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0005469", "Flat occiput", "na")
-}
-#[fixture]
-pub fn join_hypermobility_observed_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0001382", "Joint hypermobility", "observed")
-}
-
-#[fixture]
-pub fn joint_hypermobility_excluded_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0001382", "Joint hypermobility", "excluded")
-}
-#[fixture]
-pub fn joint_hypermobility_na_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0001382", "Joint hypermobility", "na")
+pub fn thick_eye_brow_na_dto() -> HpoTermData {
+    HpoTermData::new("HP:0000574", "Thick eyebrow", "na")
 }
 
 
 #[fixture]
-pub fn grand_mal_observed_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0002069", "Bilateral tonic-clonic seizure", "observed")
+pub fn flat_occiput_observed_dto() -> HpoTermData {
+    HpoTermData::new("HP:0005469", "Flat occiput", "observed")
 }
 #[fixture]
-pub fn grand_mal_excluded_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0002069", "Bilateral tonic-clonic seizure", "excluded")
+pub fn flat_occiput_excluded_dto() -> HpoTermData {
+    HpoTermData::new("HP:0005469", "Flat occiput", "excluded")
+}
+#[fixture]
+pub fn flat_occiput_na_dto() -> HpoTermData {
+    HpoTermData::new("HP:0005469", "Flat occiput", "na")
+}
+#[fixture]
+pub fn join_hypermobility_observed_dto() -> HpoTermData {
+    HpoTermData::new("HP:0001382", "Joint hypermobility", "observed")
 }
 
 #[fixture]
-pub fn strabismus_observed_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0000486", "Strabismus", "observed")
+pub fn joint_hypermobility_excluded_dto() -> HpoTermData {
+    HpoTermData::new("HP:0001382", "Joint hypermobility", "excluded")
+}
+#[fixture]
+pub fn joint_hypermobility_na_dto() -> HpoTermData {
+    HpoTermData::new("HP:0001382", "Joint hypermobility", "na")
+}
+
+
+#[fixture]
+pub fn grand_mal_observed_dto() -> HpoTermData {
+    HpoTermData::new("HP:0002069", "Bilateral tonic-clonic seizure", "observed")
+}
+#[fixture]
+pub fn grand_mal_excluded_dto() -> HpoTermData {
+    HpoTermData::new("HP:0002069", "Bilateral tonic-clonic seizure", "excluded")
 }
 
 #[fixture]
-pub fn esotropia_observed_dto() -> HpoTermDto {
-    HpoTermDto::new("HP:0000565", "Esotropia", "observed")
+pub fn strabismus_observed_dto() -> HpoTermData {
+    HpoTermData::new("HP:0000486", "Strabismus", "observed")
+}
+
+#[fixture]
+pub fn esotropia_observed_dto() -> HpoTermData {
+    HpoTermData::new("HP:0000565", "Esotropia", "observed")
 }
 
 #[fixture]
 pub fn hpo_dto_list_1(
-    thick_eye_brow_excluded_dto: HpoTermDto,
-    grand_mal_observed_dto: HpoTermDto,
-    strabismus_observed_dto: HpoTermDto,
-    esotropia_observed_dto: HpoTermDto) -> Vec<HpoTermDto>
+    thick_eye_brow_excluded_dto: HpoTermData,
+    grand_mal_observed_dto: HpoTermData,
+    strabismus_observed_dto: HpoTermData,
+    esotropia_observed_dto: HpoTermData) -> Vec<HpoTermData>
 {
     vec![thick_eye_brow_excluded_dto, grand_mal_observed_dto, strabismus_observed_dto, esotropia_observed_dto]
 }
 
 #[fixture]
 pub fn hpo_dto_list_2(
-    thick_eye_brow_excluded_dto: HpoTermDto,
-    joint_hypermobility_na_dto: HpoTermDto,
-    grand_mal_excluded_dto: HpoTermDto,
-    esotropia_observed_dto: HpoTermDto,
-    flat_occiput_excluded_dto: HpoTermDto) -> Vec<HpoTermDto>
+    thick_eye_brow_excluded_dto: HpoTermData,
+    joint_hypermobility_na_dto: HpoTermData,
+    grand_mal_excluded_dto: HpoTermData,
+    esotropia_observed_dto: HpoTermData,
+    flat_occiput_excluded_dto: HpoTermData) -> Vec<HpoTermData>
 {
     vec![thick_eye_brow_excluded_dto, grand_mal_excluded_dto,  esotropia_observed_dto, joint_hypermobility_na_dto, flat_occiput_excluded_dto]
 }

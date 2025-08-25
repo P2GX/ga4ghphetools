@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use std::{mem, thread};
 use std::time::Duration;
 
-use crate::dto::cohort_dto::{CohortDto, GeneTranscriptDto};
+use crate::dto::cohort_dto::{CohortData, GeneTranscriptData};
 
 
 use crate::dto::variant_dto::{VariantDto, VariantType};
@@ -66,7 +66,7 @@ impl VariantManager {
     }
 
     /// Construct a VariantManager object for a specific gene/HGNC/transcript
-    pub fn from_gene_transcript_dto(dto: &GeneTranscriptDto) -> Self {
+    pub fn from_gene_transcript_dto(dto: &GeneTranscriptData) -> Self {
         Self::new(&dto.gene_symbol, &dto.hgnc_id, &dto.transcript)
     }
 
@@ -190,8 +190,8 @@ impl VariantManager {
     pub fn validate_variant(
         &self, 
         vv_dto: VariantDto, 
-        mut cohort_dto: CohortDto)
-    -> Result<CohortDto, String> {
+        mut cohort_dto: CohortData)
+    -> Result<CohortData, String> {
         match &vv_dto.variant_type {
             VariantType::Hgvs => {
                 let hgvs = self.hgvs_validator.validate(vv_dto)?;
@@ -303,7 +303,7 @@ impl VariantManager {
     /// Check if the variants in the cohort are all validated
     /// Return a dto that will allow the front end to see what
     /// variants remain to be validated
-    pub fn analyze_variants(&self, cohort_dto: CohortDto)
+    pub fn analyze_variants(&self, cohort_dto: CohortData)
     -> Result<Vec<VariantDto>, String> {
         let mut var_ana_map: HashMap<String, VariantDto> = HashMap::new();
         for row in &cohort_dto.rows {

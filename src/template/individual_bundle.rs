@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::cohort_dto::IndividualDto, header::individual_header::IndividualHeader};
+use crate::{dto::cohort_dto::IndividualData, header::individual_header::IndividualHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<IndividualHeader>> = Lazy::new(|| {
@@ -93,7 +93,7 @@ impl IndividualBundle {
         &self.sex
     }
 
-    pub fn from_dto(dto: IndividualDto) -> Self {
+    pub fn from_dto(dto: IndividualData) -> Self {
         Self { 
             header: SHARED_HEADER.clone(), 
             pmid: dto.pmid, 

@@ -2,7 +2,7 @@ use core::{result::Result, todo};
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::cohort_dto::{CohortDto, CohortType, DiseaseDto, DiseaseGeneDto}, header::disease_header::DiseaseHeader};
+use crate::{dto::cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData}, header::disease_header::DiseaseHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {
@@ -45,11 +45,11 @@ impl DiseaseBundle {
         self.header.qc_bundle(self)
     }
 
-    pub fn to_dto(&self) -> DiseaseDto {
-        DiseaseDto::new(&self.disease_id, &self.disease_label)
+    pub fn to_dto(&self) -> DiseaseData {
+        DiseaseData::new(&self.disease_id, &self.disease_label)
     }
 
-    pub fn from_dto(dto: DiseaseDto) -> Self {
+    pub fn from_dto(dto: DiseaseData) -> Self {
         Self { header: SHARED_HEADER.clone(), 
             disease_id: dto.disease_id, 
             disease_label: dto.disease_label
@@ -57,10 +57,10 @@ impl DiseaseBundle {
     }
 
 
-    pub fn from_cohort_dto(cohort_dto: &CohortDto) -> Result<Vec<Self>, String> {
+    pub fn from_cohort_dto(cohort_dto: &CohortData) -> Result<Vec<Self>, String> {
         match cohort_dto.template_type() {
             CohortType::Mendelian => {
-                let disease_dto_list: Vec<DiseaseDto> = cohort_dto.get_disease_dto_list()?;
+                let disease_dto_list: Vec<DiseaseData> = cohort_dto.get_disease_dto_list()?;
                 let disease_bundle_list = Self::from_dto_list(disease_dto_list);
                 Ok(disease_bundle_list)
         },
@@ -69,13 +69,13 @@ impl DiseaseBundle {
         }
     }
 
-    pub fn from_dto_list(dto_list: Vec<DiseaseDto>) -> Vec<Self> {
+    pub fn from_dto_list(dto_list: Vec<DiseaseData>) -> Vec<Self> {
         dto_list.into_iter()
             .map(|dto| Self::from_dto(dto))
             .collect()
     }
     /// Create a list of DiseaseBundle objects from a DiseaseGeneDto (this is what we expect to get from the frontend)
-    pub fn from_disease_gene_dto(dto: DiseaseGeneDto) -> Vec<Self> {
+    pub fn from_disease_gene_dto(dto: DiseaseGeneData) -> Vec<Self> {
         Self::from_dto_list(dto.disease_dto_list)
     }
 

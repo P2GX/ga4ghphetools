@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
 use ga4ghphetools::PheTools;
-use polars::prelude::null;
 use rstest::rstest;
 use common::hpo;
 

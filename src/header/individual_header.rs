@@ -1,4 +1,4 @@
-use crate::{dto::cohort_dto::IndividualDto, header::duplet_item::DupletItem, template::individual_bundle::IndividualBundle};
+use crate::{dto::cohort_dto::IndividualData, header::duplet_item::DupletItem, template::individual_bundle::IndividualBundle};
 
 
 
@@ -54,7 +54,7 @@ impl IndividualHeader {
     }
 
     /// Check an individual bundle for errors.
-    pub fn qc_dto(&self, dto: IndividualDto) -> Result<(), String> {
+    pub fn qc_dto(&self, dto: IndividualData) -> Result<(), String> {
         self.qc_data(&dto.pmid, &dto.title, &dto.individual_id, &dto.comment, &dto.age_of_onset, &dto.age_at_last_encounter, &dto.deceased, &dto.sex)
     }
 

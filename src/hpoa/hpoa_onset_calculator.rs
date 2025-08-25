@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ontolius::term::simple::SimpleMinimalTerm;
 use regex::Regex;
 
-use crate::{dto::cohort_dto::CohortDto, age::age_util, hpoa::counted_hpo_term::CountedHpoTerm};
+use crate::{dto::cohort_dto::CohortData, age::age_util, hpoa::counted_hpo_term::CountedHpoTerm};
 
 
 
@@ -38,7 +38,7 @@ impl HpoaOnsetCalculator {
         counted_term.increment_observed();
     }
 
-    pub fn ingest_dto(&mut self, dto: &CohortDto) -> Result<(), String>  {
+    pub fn ingest_dto(&mut self, dto: &CohortData) -> Result<(), String>  {
         for row in &dto.rows {
             let pmid = row.individual_dto.pmid.clone();
             if row.individual_dto.age_of_onset != "na" {
@@ -138,21 +138,6 @@ mod tests {
     #[case("Juvenile onset", "P13Y2M1D")]
     #[case("Young adult onset", "P23Y2M1D")]
     fn test_isoage(#[case] onset_term: &str, #[case] age_string: &str) {
-        let result= HpoaOnsetCalculator::get_term_from_age_string(age_string);
-        assert!(result.is_ok());
-        let smt: SimpleMinimalTerm  = result.unwrap();
-        let label = smt.name();
-        assert_eq!(onset_term, label);
-    }
-
-
-    #[rstest]
-    #[case("Third trimester onset", "G37w1d")]
-    #[case("Third trimester onset", "G37w")]
-    #[case("Second trimester onset", "G22w6d")]
-    #[case("Late first trimester onset", "G12w6d")]
-    #[case("Embryonal onset", "G9w")]
-    fn test_gestationalage(#[case] onset_term: &str, #[case] age_string: &str) {
         let result= HpoaOnsetCalculator::get_term_from_age_string(age_string);
         assert!(result.is_ok());
         let smt: SimpleMinimalTerm  = result.unwrap();

@@ -8,8 +8,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto::hpo_cell_dto::CellValue;
-use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{CohortType, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
+use crate::dto::hpo_term_dto::HpoTermData;
+use crate::dto::cohort_dto::{CohortType, DiseaseData, DiseaseGeneData, GeneVariantData, IndividualData};
 
 use crate::age::age_util::{self, check_hpo_table_cell};
 
@@ -86,10 +86,10 @@ impl PpktRow {
     /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
     pub fn from_dtos(
         header: Arc<HeaderDupletRow>, 
-        individual_dto: IndividualDto,
-        gene_variant_list: Vec<GeneVariantDto>,
+        individual_dto: IndividualData,
+        gene_variant_list: Vec<GeneVariantData>,
         tid_to_value_map: HashMap<TermId, String>, 
-        disease_gene_dto: DiseaseGeneDto) -> std::result::Result<Self, String> {
+        disease_gene_dto: DiseaseGeneData) -> std::result::Result<Self, String> {
         let mut items = Vec::with_capacity(header.hpo_count());
         for hduplet in header.hpo_duplets() {
             let tid = hduplet.to_term_id()?;
@@ -110,22 +110,22 @@ impl PpktRow {
     }
 
 
-    pub fn get_individual_dto(&self) -> IndividualDto {
+    pub fn get_individual_dto(&self) -> IndividualData {
         let ibdl = &self.individual_bundle;
-        IndividualDto::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment(),
+        IndividualData::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment(),
             ibdl.age_of_onset(), ibdl.age_at_last_encounter(), ibdl.deceased(), ibdl.sex())
     }
 
-    pub fn get_disease_dto_list(&self) -> Vec<DiseaseDto> {
-        let mut dto_list: Vec<DiseaseDto> = Vec::new();
+    pub fn get_disease_dto_list(&self) -> Vec<DiseaseData> {
+        let mut dto_list: Vec<DiseaseData> = Vec::new();
         for disease in &self.disease_bundle_list {
             dto_list.push(disease.to_dto())
         }
         dto_list
     }
 
-    pub fn get_gene_var_dto_list(&self) -> Vec<GeneVariantDto> {
-        let mut gbdto_list: Vec<GeneVariantDto> = Vec::new();
+    pub fn get_gene_var_dto_list(&self) -> Vec<GeneVariantData> {
+        let mut gbdto_list: Vec<GeneVariantData> = Vec::new();
         for gvb in &self.gene_var_bundle_list{
             gbdto_list.push(gvb.to_dto());
         }
@@ -144,7 +144,7 @@ impl PpktRow {
         self.hpo_content.len()
     }
 
-    pub fn get_hpo_term_dto_list(&self) -> std::result::Result<Vec<HpoTermDto>, String> {
+    pub fn get_hpo_term_dto_list(&self) -> std::result::Result<Vec<HpoTermData>, String> {
         self.header.get_hpo_term_dto_list(&self.hpo_content).map_err(|e| e.to_string())
     }
 
@@ -366,9 +366,9 @@ mod test {
     }
 
     #[fixture]
-    pub fn hpo_dtos() -> Vec<HpoTermDto> {
-        vec![HpoTermDto::new("HP:0001382", "Joint hypermobility", "observed"),
-        HpoTermDto::new("HP:0000574", "Thick eyebrow", "observed")]
+    pub fn hpo_dtos() -> Vec<HpoTermData> {
+        vec![HpoTermData::new("HP:0001382", "Joint hypermobility", "observed"),
+        HpoTermData::new("HP:0000574", "Thick eyebrow", "observed")]
     }
     
     #[rstest]

@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, pat
 use chrono::Local;
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto}, hpo_cell_dto::CellValue}, hpoa::{hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::{cohort_dto::{CohortData, DiseaseData}, hpo_cell_dto::CellValue}, hpoa::{hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
 
 
@@ -18,7 +18,7 @@ pub struct HpoaTable {
 impl HpoaTable {
 
     pub fn new(
-        cohort: CohortDto, 
+        cohort: CohortData, 
         hpo: Arc<FullCsrOntology>,
         biocurator: &str) -> Result<Self, String>{
         let todays_date = Local::now().format("%Y-%m-%d").to_string();
@@ -33,7 +33,7 @@ impl HpoaTable {
         let hpo_header = cohort.hpo_headers;
         let mut pmid_map: HashMap<String, PmidCounter> = HashMap::new();
         let mut onset_map: HashMap<String, HpoaOnsetCalculator> = HashMap::new();
-        let mut disease_set: HashSet<DiseaseDto> = HashSet::new();
+        let mut disease_set: HashSet<DiseaseData> = HashSet::new();
         let mut hpoa_rows = Vec::new();
         for row in &cohort.rows {
             if row.disease_dto_list.len() != 1 {
@@ -146,7 +146,7 @@ impl HpoaTable {
 
 #[cfg(test)]
 mod test {
-    use crate::{dto::cohort_dto::{DiseaseDto, GeneTranscriptDto}};
+    use crate::{dto::cohort_dto::{DiseaseData, GeneTranscriptData}};
     use ontolius::{io::OntologyLoaderBuilder};
   
     use super::*;
@@ -169,12 +169,12 @@ mod test {
     }
 
      #[fixture]
-     fn cohort() -> CohortDto {
+     fn cohort() -> CohortData {
         let json_template_path = "/Users/robin/GIT/phenopacket-store/notebooks/NT5C2/NT5C2_SPG45_individuals.json";
          let file_data = fs::read_to_string(json_template_path)
             .map_err(|e| 
                 format!("Could not extract string data from {}: {}", json_template_path, e.to_string())).unwrap();
-        let cohort: CohortDto = serde_json::from_str(&file_data)
+        let cohort: CohortData = serde_json::from_str(&file_data)
             .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
                 file_data, e.to_string())).unwrap();
         cohort
@@ -186,7 +186,7 @@ mod test {
      fn test_hpoa(
         hpo: Arc<FullCsrOntology>,
         biocurator: String,
-        cohort: CohortDto
+        cohort: CohortData
      ) {
         let hpoa = HpoaTable::new(cohort, hpo, &biocurator).unwrap();
         let matrix = hpoa.get_dataframe();

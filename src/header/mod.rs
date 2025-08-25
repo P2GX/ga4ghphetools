@@ -10,5 +10,4 @@ mod allele_util;
 pub mod duplet_item;
 pub mod disease_header;
 pub mod gene_variant_header;
-pub mod hpo_term_duplet;
 pub mod individual_header;
