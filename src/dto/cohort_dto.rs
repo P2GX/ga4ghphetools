@@ -1,13 +1,10 @@
-use core::convert::From;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_cell_dto::{CellValue};
 use crate::dto::structural_variant::StructuralVariant;
-use crate::header::duplet_item::DupletItem;
 use crate::header::hpo_term_duplet::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
 
@@ -194,47 +191,6 @@ impl RowDto {
     }
 }
 
-/// The tabular serialization format phetools has the first two rows act as header.
-/// For display, we will combine the two rows into one. For the HPO rows, we
-/// we add a link.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HeaderDupletDto {
-    pub h1: String,
-    pub h2: String,
-}
-
-impl HeaderDupletDto {
-    pub fn new(row1: &str, row2: &str) -> Self {
-        Self { h1: row1.into(), h2: row2.into() }
-    }
-
-    pub fn from_duplet_item(duplet: &DupletItem) -> Self {
-        Self::new(duplet.row1(), duplet.row2())
-    }
-
-    pub fn to_hpo_duplet(&self) -> HpoTermDuplet {
-        HpoTermDuplet::new(self.h1.clone(), self.h2.clone())
-    }
-
-    pub fn to_term_id(&self) -> Result<TermId, String> {
-        match TermId::from_str(&self.h2) {
-            Ok(tid) => Ok(tid),
-            Err(_) => Err(format!("Could not create TermId from DTO {:?}", self)),
-        }
-    }
-
-}
-/// convert from DupletItem using into()
-impl From<DupletItem> for HeaderDupletDto {
-    fn from(duplet: DupletItem) -> Self {
-        Self {
-            h1: duplet.row1.clone(),
-            h2: duplet.row2.clone()
-        }
-    }
-}
-
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
@@ -270,7 +226,7 @@ pub struct CohortDto {
     /// The diseases and genes in focus for the current cohort
     pub disease_gene_dto: DiseaseGeneDto,
     /// The HPO terms used to annotate the cohort
-    pub hpo_headers: Vec<HeaderDupletDto>,
+    pub hpo_headers: Vec<HpoTermDuplet>,
     /// The phenopackets (rows) in the current cohort
     pub rows: Vec<RowDto>,
     /// Validated HGVS variants.
@@ -294,14 +250,14 @@ impl CohortDto {
     /// to using the JSON representation of the TemplateDto as the serialization format.
     pub fn mendelian(
             dg_dto: DiseaseGeneDto,
-            hpo_headers: Vec<HeaderDupletDto>, 
+            hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowDto>) -> Self {
         Self::mendelian_with_variants(dg_dto, hpo_headers, rows, HashMap::new(), HashMap::new())
     }
 
     pub fn mendelian_with_variants(
             dg_dto: DiseaseGeneDto,
-            hpo_headers: Vec<HeaderDupletDto>, 
+            hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowDto>,
             hgvs_variants: HashMap<String, HgvsVariant>,
             structural_variants: HashMap<String, StructuralVariant>

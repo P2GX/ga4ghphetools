@@ -4,7 +4,6 @@
 //! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
 use std::collections::HashMap;
-use std::f32::consts::E;
 use std::str::FromStr;
 use std::sync::Arc;
 use ontolius::TermId;

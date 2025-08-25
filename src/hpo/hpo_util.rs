@@ -125,15 +125,15 @@ impl HpoUtil {
     ) -> std::result::Result<Vec<HpoTermDuplet>, String> {
         let mut updated_duplets = vec![];
         for duplet in hpo_duplets {
-            let tid = match  TermId::from_str(&duplet.row2()) {
+            let tid = match  duplet.to_term_id() {
                 Ok(tid) => tid,
-                Err(e) => { return Err(format!("Failed to parse TermId from row2: {}", duplet.row2())); },
+                Err(e) => { return Err(format!("Failed to parse TermId from row2: {}", duplet.hpo_id())); },
             };
             if let Some(term) = self.hpo.term_by_id(&tid) {
-                if term.name() != duplet.row1() {
+                if term.name() != duplet.hpo_label() {
                     // This usually happens if the name of the HPO term was changed after the Excel template
                     // was created. If the user chooses to update labels, this is fixed automatically here.
-                    let err_str = format!("{}: expected '{}' but got '{}'", duplet.row2(), term.name(), duplet.row1());
+                    let err_str = format!("{}: expected '{}' but got '{}'", duplet.hpo_id(), term.name(), duplet.hpo_label());
                     if update_labels {
                          updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
                          eprint!("Updating HPO label {err_str}"); // Output to shell, this is expected behavior.
@@ -152,16 +152,15 @@ impl HpoUtil {
 
     pub fn check_hpo_duplets(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> std::result::Result<(), ValidationErrors> {
         let mut verrs = ValidationErrors::new();
-        for header_dup in hpo_dup_list {
-            let row2 = header_dup.row2();
-            let row1 = header_dup.row1();
-            match TermId::from_str(&row2) {
+        for hpo_dup in hpo_dup_list {
+           
+            match hpo_dup.to_term_id() {
                 Ok(tid) => {
                     match self.hpo.term_by_id(&tid) {
                         Some(term) => {
-                            if term.name() != row1 {
+                            if term.name() != hpo_dup.hpo_label() {
                                 verrs.push_str(format!("Expected label '{}' but got '{}' for TermId '{}'",
-                                                term.name(), row1, tid.to_string()));
+                                                term.name(), hpo_dup.hpo_label(), tid.to_string()));
                             }
                         },
                         None => {
@@ -170,7 +169,7 @@ impl HpoUtil {
                     }
                 },
                 Err(_) => {
-                    verrs.push_str(format!("Failed to parse TermId: {}", &row2));
+                    verrs.push_str(format!("Failed to parse TermId: {}", hpo_dup.hpo_id()));
                 },
             }
         }

@@ -69,8 +69,7 @@ impl HpoaTable {
                 }
                 return Err(format!("Length mismatch: hpo_header has {}, hpo_data has {}", hpo_header.len(), row.hpo_data.len()));
             }
-            for (hpo_item, data_item) in hpo_header.iter().zip(row.hpo_data.iter()) {
-                let hpo_duplet = hpo_item.to_hpo_duplet();
+            for (hpo_duplet, data_item) in hpo_header.iter().zip(row.hpo_data.iter()) {
                 let hpo_id = hpo_duplet.hpo_id();
                 let label = hpo_duplet.hpo_label();
                 if *data_item == CellValue::Na {
@@ -89,8 +88,8 @@ impl HpoaTable {
         }
         let disease_dto = disease_set.into_iter().next().unwrap();
         for (pmid, counter) in &pmid_map {
-            for hpo_item in &hpo_header {
-                let hpo_duplet = hpo_item.to_hpo_duplet();
+            for hpo_duplet in &hpo_header {
+               
                 if counter.contains(hpo_duplet.hpo_id()) {
                     let freq = counter.get_freq(hpo_duplet.hpo_id())?;
                     let row = HpoaTableRow::new(
@@ -193,7 +192,8 @@ mod test {
         let matrix = hpoa.get_dataframe();
         assert!(matrix.len() > 2);
         let outpath =  "/Users/robin/GIT/phenopacket-store/notebooks/NT5C2/NT5C2_SPG45_TEST.hpoa";
-        hpoa.write_tsv(outpath).unwrap();
+        let pth = PathBuf::from(outpath);
+        hpoa.write_tsv(&pth).unwrap();
      }
 
 
