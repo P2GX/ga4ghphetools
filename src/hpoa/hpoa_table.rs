@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, pat
 use chrono::Local;
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto}, hpo_cell_dto::CellValue}, hpoa::{hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::{cohort_dto::{CohortDto, DiseaseDto}, hpo_cell_dto::CellValue}, hpoa::{hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
 
 
@@ -32,6 +32,7 @@ impl HpoaTable {
         }
         let hpo_header = cohort.hpo_headers;
         let mut pmid_map: HashMap<String, PmidCounter> = HashMap::new();
+        let mut onset_map: HashMap<String, HpoaOnsetCalculator> = HashMap::new();
         let mut disease_set: HashSet<DiseaseDto> = HashSet::new();
         let mut hpoa_rows = Vec::new();
         for row in &cohort.rows {
@@ -42,6 +43,11 @@ impl HpoaTable {
             let disease_dto = row.disease_dto_list[0].clone();
             disease_set.insert(disease_dto);
             let pmid = &row.individual_dto.pmid;
+            let disease_onset = &row.individual_dto.age_of_onset;
+            if disease_onset != "na" {
+                let onset_c = onset_map.entry(pmid.to_string()).or_insert(HpoaOnsetCalculator::new());
+                onset_c.add_onset(&disease_onset)?;
+            }
             let counter = pmid_map
                 .entry(pmid.clone())
                 .or_insert(PmidCounter::new(pmid));

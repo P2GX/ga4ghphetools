@@ -3,25 +3,32 @@ use std::collections::HashMap;
 use ontolius::term::simple::SimpleMinimalTerm;
 use regex::Regex;
 
-use crate::{dto::cohort_dto::CohortDto, hpo::age_util, hpoa::counted_hpo_term::CountedHpoTerm};
+use crate::{dto::cohort_dto::CohortDto, age::age_util, hpoa::counted_hpo_term::CountedHpoTerm};
 
 
 
 pub struct HpoaOnsetCalculator {
     /// Key: a PMID, value: A list of HPO onset terms
     onset_to_count_d: HashMap<String, CountedHpoTerm>,
-    total_counts_by_pmid_d: HashMap<String,usize>
 }
 
 impl HpoaOnsetCalculator {
     pub fn new() -> Self {
         Self { 
             onset_to_count_d: HashMap::new(), 
-            total_counts_by_pmid_d: HashMap::new(), 
         }
     } 
 
-    pub fn add_onset(&mut self, pmid: &str, onset_term: SimpleMinimalTerm) {
+    pub fn add_onset(&mut self, onset_str: &str) -> Result<(), String> {
+        let term = age_util::is_valid_age_string(onset_str);
+        if let Ok(onset_term) = Self::get_hpo_onset_term_from_iso8601(onset_str) {
+
+        }
+
+        Ok(())
+    }
+
+    pub fn add_onset_term(&mut self, pmid: &str, onset_term: SimpleMinimalTerm) {
         // Insert a new Vec if the key does not exist yet
         let counted_term = self
             .onset_to_count_d
@@ -29,12 +36,6 @@ impl HpoaOnsetCalculator {
             .or_insert(CountedHpoTerm::from_simple_term(onset_term));
         // modify in place
         counted_term.increment_observed();
-       
-        let count = self.total_counts_by_pmid_d
-            .entry(pmid.to_string())
-            .or_insert(0);
-        // modify in place
-        *count += 1;
     }
 
     pub fn ingest_dto(&mut self, dto: &CohortDto) -> Result<(), String>  {
@@ -43,10 +44,10 @@ impl HpoaOnsetCalculator {
             if row.individual_dto.age_of_onset != "na" {
                 let onset = row.individual_dto.age_of_onset.clone();
                 match age_util::ONSET_TERM_DICT.get(&onset) {
-                    Some(term) => self.add_onset(&pmid, term.clone()),
+                    Some(term) => self.add_onset_term(&pmid, term.clone()),
                     None => {
                         let term = Self::get_term_from_age_string(&onset)?;
-                        self.add_onset(&pmid, term.clone());
+                        self.add_onset_term(&pmid, term.clone());
                     }
                 }            
             }
@@ -59,7 +60,8 @@ impl HpoaOnsetCalculator {
         let label = if onset.starts_with("P") {
             Self::get_hpo_onset_term_from_iso8601(onset)
         } else {
-            Self::get_hpo_onset_term_from_gestational_age(onset)
+            return Err("NEED TO REFACTOR FOR GA".to_string());
+            //Self::get_hpo_onset_term_from_gestational_age(onset)
         }?; 
         match age_util::ONSET_TERM_DICT.get(&label) {
             Some(term) => Ok(term.clone()),
@@ -114,28 +116,7 @@ impl HpoaOnsetCalculator {
     }
 
 
-    /// Derive an HPO onset term from a Gestational Age string such as G32w3d
-    pub fn get_hpo_onset_term_from_gestational_age(gestational_age: &str) -> Result<String, String> {
-        let captures = age_util::GESTATIONAL_AGE_RE
-            .captures(gestational_age)
-            .ok_or_else(|| format!("Could not parse Gestational Age string: '{}'", gestational_age))?;
-
-        let weeks: usize = captures
-            .get(1)
-            .map_or(Ok(0), |m| m.as_str().parse())
-            .map_err(|_| "Invalid weeks format")?;
-
-        let label = if weeks >= 28 {
-            "Third trimester onset"
-        } else if weeks >= 14 {
-            "Second trimester onset"
-        } else if weeks >= 11 {
-            "Late first trimester onset"
-        } else {
-            "Embryonal onset"
-        };
-        Ok(label.to_string())
-    }
+   
 
 }
 

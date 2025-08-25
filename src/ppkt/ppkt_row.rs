@@ -12,7 +12,7 @@ use crate::dto::hpo_cell_dto::CellValue;
 use crate::dto::hpo_term_dto::HpoTermDto;
 use crate::dto::cohort_dto::{CohortType, DiseaseDto, DiseaseGeneDto, GeneVariantDto, IndividualDto};
 
-use crate::hpo::age_util::{self, check_hpo_table_cell};
+use crate::age::age_util::{self, check_hpo_table_cell};
 
 
 use crate::template::disease_bundle::{ DiseaseBundle};

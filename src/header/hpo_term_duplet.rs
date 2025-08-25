@@ -10,7 +10,7 @@ use ontolius::TermId;
 
 use crate::dto::cohort_dto::{HeaderDupletDto};
 use crate::error::{Error, Result};
-use crate::hpo::age_util;
+use crate::age::age_util;
 
 
 
@@ -32,15 +32,7 @@ lazy_static! {
     };
 }
 
-impl Error {
-    fn malformed_hpo_entry(hpo_label: &str, hpo_id: &str, value: &str) -> Self {
-        Error::HpoError { msg: format!("Malformed entry for {} ({}): '{}'", hpo_label, hpo_id, value) } 
-    }
 
-    fn malformed_hpo_term_id( value: &str) -> Self {
-        Error::HpoError { msg: format!("Malformed HPO Term id: '{}'", value) } 
-    }
-}
 
 impl HpoTermDuplet {
     pub fn new(label: impl Into<String>, identifier: impl Into<String>) -> Self {
@@ -84,9 +76,11 @@ impl HpoTermDuplet {
 impl  HpoTermDuplet {
    
 
-    /// An HPO cell can be empty, or contain observed/expected/na or an age string
-    /// We plan to enforce that HPO cells cannot be empty (they will need to have na for not-available data)
-    /// We also plan to allow some modifiers (e.g., "Mild") in this field, indicating "observed" with modifier
+    // An HPO cell can be empty, or contain observed/expected/na or an age string
+    // We plan to enforce that HPO cells cannot be empty (they will need to have na for not-available data)
+    // We also plan to allow some modifiers (e.g., "Mild") in this field, indicating "observed" with modifier
+    
+     /*
     fn qc_cell(&self, cell_contents: &str) -> Result<()> {
         if cell_contents.is_empty() {
             return Ok(());
@@ -99,7 +93,7 @@ impl  HpoTermDuplet {
         }
         Err(Error::malformed_hpo_entry(&self.row1(), &self.row2(), cell_contents))
     }
-
+ */
 
 }
 
