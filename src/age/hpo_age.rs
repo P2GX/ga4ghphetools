@@ -46,4 +46,11 @@ impl HpoTermAge {
     pub fn is_valid(cell_contents: &str) -> bool {
         ONSET_TERM_DICT.contains_key(cell_contents)
     }
+
+    pub fn get_duplet(cell_contents: &str) -> Result<HpoTermDuplet, String> {
+        match ONSET_TERM_DICT.get(cell_contents) {
+            Some(duplet) => Ok(duplet.clone()),
+            None => Err(format!("Could not retrieve HPO term for '{cell_contents}'")),
+        }
+    }
 }

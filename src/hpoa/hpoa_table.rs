@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, pat
 use chrono::Local;
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::{cohort_dto::{CohortData, DiseaseData}, hpo_term_dto::CellValue}, hpoa::{hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::{cohort_dto::{CohortData, DiseaseData}, hpo_term_dto::CellValue}, hpoa::{counted_hpo_term::CountedHpoTerm, hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
 
 
@@ -30,9 +30,9 @@ impl HpoaTable {
             return Err(format!("Can only export Mendelian HPOA table, but this cohort is {:?}", 
                 cohort.cohort_type));
         }
-        let hpo_header = cohort.hpo_headers;
+        let hpo_header = &cohort.hpo_headers;
         let mut pmid_map: HashMap<String, PmidCounter> = HashMap::new();
-        let mut onset_map: HashMap<String, HpoaOnsetCalculator> = HashMap::new();
+        let mut onset_term_list: Vec<CountedHpoTerm> = HpoaOnsetCalculator::pmid_to_onset_freq_d(&cohort)?;
         let mut disease_set: HashSet<DiseaseData> = HashSet::new();
         let mut hpoa_rows = Vec::new();
         for row in &cohort.rows {
@@ -43,18 +43,14 @@ impl HpoaTable {
             let disease_dto = row.disease_dto_list[0].clone();
             disease_set.insert(disease_dto);
             let pmid = &row.individual_dto.pmid;
-            let disease_onset = &row.individual_dto.age_of_onset;
-            if disease_onset != "na" {
-                let onset_c = onset_map.entry(pmid.to_string()).or_insert(HpoaOnsetCalculator::new());
-                onset_c.add_onset(&disease_onset)?;
-            }
+            
             let counter = pmid_map
                 .entry(pmid.clone())
                 .or_insert(PmidCounter::new(pmid));
             // Iterate across HPO terms and add to counter 
             if hpo_header.len() != row.hpo_data.len() {
                 let mut i = 0 as usize;
-                for h in &hpo_header {
+                for h in hpo_header {
                     i += 1;
                     let data = if i < row.hpo_data.len() {
                         row.hpo_data[i].to_string()
@@ -88,7 +84,7 @@ impl HpoaTable {
         }
         let disease_dto = disease_set.into_iter().next().unwrap();
         for (pmid, counter) in &pmid_map {
-            for hpo_duplet in &hpo_header {
+            for hpo_duplet in hpo_header {
                
                 if counter.contains(hpo_duplet.hpo_id()) {
                     let freq = counter.get_freq(hpo_duplet.hpo_id())?;
@@ -102,6 +98,10 @@ impl HpoaTable {
                     hpoa_rows.push(row);
                 }
             }
+        }
+        for counted_onset in onset_term_list {
+            let row = HpoaTableRow::from_counted_term(&disease_dto,counted_onset, &biocurator)?;
+            hpoa_rows.push(row);
         }
 
         Ok(Self{

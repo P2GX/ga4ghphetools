@@ -29,7 +29,7 @@ static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
  */
 
 
-use crate::age::{gestational_age::GestationalAgeValidator, hpo_age::HpoTermAge, iso_age::Iso8601Age};
+use crate::{age::{gestational_age::GestationalAgeValidator, hpo_age::HpoTermAge, iso_age::Iso8601Age}, dto::hpo_term_dto::HpoTermDuplet};
 
 pub fn is_valid_age_string(cell_value: &str) -> bool {
     // empty not allowed
@@ -54,5 +54,20 @@ pub fn is_valid_age_string(cell_value: &str) -> bool {
     }
 
     false
+}
+
+
+/// Get an HPO Onset term from one of the valid age string values.
+/// Note that we assume that we are only getting candidate ages here, not "na", "observed", "expected"
+pub fn get_onset_term(cell_value: &str) -> Result<HpoTermDuplet, String> {
+   if HpoTermAge::is_valid(cell_value) {
+        return HpoTermAge::get_duplet(cell_value);
+    } else if  Iso8601Age::is_valid(cell_value) {
+        return Iso8601Age::get_duplet(cell_value);
+    } else if GestationalAgeValidator::is_valid(cell_value) {
+        return GestationalAgeValidator::get_duplet(cell_value);
+    } else {
+        return Err(format!("Malformed age string '{}'", cell_value))
+    }
 }
 

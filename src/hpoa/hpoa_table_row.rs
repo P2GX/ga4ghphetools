@@ -1,6 +1,6 @@
 
 
-use crate::dto::cohort_dto::DiseaseData;
+use crate::{dto::cohort_dto::DiseaseData, hpoa::counted_hpo_term::CountedHpoTerm};
 
 
 
@@ -45,6 +45,11 @@ impl HpoaTableRow {
             evidence: "PCS".to_string(), 
             biocuration: biocurator.to_string() 
         })
+    }
+
+
+    pub fn from_counted_term(disease: &DiseaseData, cterm: CountedHpoTerm, biocurator: &str) -> Result<Self, String> {
+        HpoaTableRow::new(disease, cterm.hpo_id(), cterm.hpo_label(), &cterm.freq_string(), cterm.pmid(), biocurator)
     }
 
 

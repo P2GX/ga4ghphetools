@@ -7,10 +7,11 @@
 
 use std::str::FromStr;
 use ontolius::TermId;
-use serde::{Deserialize, Deserializer, Serialize};
-use std::{collections::HashSet, fmt};
-use once_cell::sync::Lazy;
-use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::fmt;
+
+
+use crate::age;
 
 
 /// A structure to represent an HPO term (id and label) in a simple way
@@ -43,35 +44,7 @@ impl HpoTermDuplet {
 
 
 
-
-
-pub static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
-    [
-        "Late onset",
-        "Middle age onset",
-        "Young adult onset",
-        "Late young adult onset",
-        "Intermediate young adult onset",
-        "Early young adult onset",
-        "Adult onset",
-        "Juvenile onset",
-        "Childhood onset",
-        "Infantile onset",
-        "Neonatal onset",
-        "Congenital onset",
-        "Antenatal onset",
-        "Embryonal onset",
-        "Fetal onset",
-        "Late first trimester onset",
-        "Second trimester onset",
-        "Third trimester onset",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect()
-});
-
-/// Regex for ISO 8601 durations
+/*
 pub static ISO8601_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").expect("valid ISO 8601 regex")
 });
@@ -79,23 +52,9 @@ pub static ISO8601_RE: Lazy<Regex> = Lazy::new(|| {
 /// Regex for gestational age format
 pub static GESTATIONAL_AGE_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"G\d+w[0-6]d").expect("valid gestational age regex")
-});
+}); */
 
-fn is_valid_age_string(cell_value: &str) -> bool {
-        if cell_value.is_empty() {
-            return false;
-        }
-        if ALLOWED_AGE_LABELS.contains(cell_value) {
-            return true;
-        }
-        if ISO8601_RE.is_match(cell_value) {
-            return true;
-        } 
-        if GESTATIONAL_AGE_RE.is_match(cell_value) {
-            return true;
-        }
-        return false;
-}
+
 
 /// TODO implement!
 fn is_valid_hpo_modifier(cell_value: &str) -> bool {
@@ -139,7 +98,7 @@ impl CellValue {
             "observed" => true,
             "excluded" => true,
             "na" => true,
-            _ if is_valid_age_string(s) =>  true,
+            _ if age::is_valid_age_string(s) =>  true,
             _ if is_valid_hpo_modifier(s) => true,
             _ => false,
         }
@@ -155,7 +114,7 @@ impl FromStr for CellValue {
             "observed" => Ok(CellValue::Observed),
             "excluded" => Ok(CellValue::Excluded),
             "na" => Ok(CellValue::Na),
-            _ if is_valid_age_string(s) =>  Ok(CellValue::OnsetAge(s.to_string())),
+            _ if age::is_valid_age_string(s) =>  Ok(CellValue::OnsetAge(s.to_string())),
             _ if is_valid_hpo_modifier(s) => Ok(CellValue::Modifier(s.to_string())),
             _ => Err(format!("Malformed HPO cell contents: '{s}'")),
         }
@@ -183,14 +142,6 @@ impl fmt::Display for CellValue {
 pub struct HpoTermData {
     term_duplet: HpoTermDuplet,
     entry: CellValue,
-}
-
-fn deserialize_term_id<'de, D>(deserializer: D) -> std::result::Result<TermId, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    TermId::from_str(&s).map_err(serde::de::Error::custom)
 }
 
 

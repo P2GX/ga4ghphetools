@@ -38,7 +38,7 @@ impl GestationalAgeValidator {
     }
 
      /// Derive an HPO onset term from a Gestational Age string such as G32w3d
-    pub fn get_hpo_onset_term_from_gestational_age(gestational_age: &str) -> Result<HpoTermDuplet, String> {
+    pub fn get_duplet(gestational_age: &str) -> Result<HpoTermDuplet, String> {
         let captures = GESTATIONAL_AGE_RE
             .captures(gestational_age)
             .ok_or_else(|| format!("Could not parse Gestational Age string: '{}'", gestational_age))?;
@@ -89,7 +89,7 @@ mod tests {
     #[case("Late first trimester onset", "G12w6d")]
     #[case("Embryonal onset", "G9w")]
     fn test_gestationalage(#[case] label: &str, #[case] age_string: &str) {
-        let result= GestationalAgeValidator::get_hpo_onset_term_from_gestational_age(age_string);
+        let result= GestationalAgeValidator::get_duplet(age_string);
         assert!(result.is_ok());
         let onset_term: HpoTermDuplet  = result.unwrap();
         assert_eq!(onset_term.hpo_label(), label);
