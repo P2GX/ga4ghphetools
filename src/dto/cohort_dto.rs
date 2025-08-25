@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
-use crate::dto::hpo_cell_dto::{CellValue};
+use crate::dto::hpo_term_dto::CellValue;
 use crate::dto::structural_variant::StructuralVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;

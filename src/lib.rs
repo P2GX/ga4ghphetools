@@ -11,7 +11,7 @@
 //! - API for curation tools
 
 
-mod age;
+
 mod error;
 mod header;
 mod hpo;
@@ -21,6 +21,8 @@ mod ppkt;
 mod template;
 mod variant;
 
+
+pub mod age;
 pub mod dto;
 pub mod etl;
 pub use template::phetools::PheTools;

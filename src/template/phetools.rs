@@ -319,7 +319,7 @@ impl PheTools {
                  return  Err(format!("Could not retrieve HPO term for {}",  tid));
             },
         }
-        Ok(HpoTermData::from_duplet(hpo_term_duplet, entry))
+        Ok(HpoTermData::from_duplet(hpo_term_duplet, entry)?)
     }
 
     /// Set the location of the directory where we will store phenopackets

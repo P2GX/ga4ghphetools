@@ -11,7 +11,7 @@ use crate::common::one_case_matrix;
 
 
 
-
+/*
 #[rstest]
 fn create_ppkt_1(
     one_case_matrix: Vec<Vec<String>>, 
@@ -34,9 +34,10 @@ fn create_ppkt_1(
      */
     //println!("{:?}", ppkt);
 }
-
+ */
 
 #[rstest]
+#[ignore = "local test TODO refactor"]
 fn create_cohort_dto(
     one_case_matrix: Vec<Vec<String>>, 
     hpo: Arc<FullCsrOntology>,

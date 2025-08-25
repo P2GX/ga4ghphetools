@@ -1,7 +1,8 @@
 //! HeaderDupletRow: Encapsulate the headers (which we call duplets because each has two fields and which are serialized as the furst two rows of the template)
 //! 
 //! Each HeaderDuplet determines the meaning of the rows beneath it.
-//! We pass a reference (via ARC) of the HeaderDupletRow to each of the rows of the template
+//! We pass a reference (via ARC) of the HeaderDupletRow to each of the rows of the template.
+//! This only applies to the legacy Excel templates. Once we have updated Phenopacket Store to use the new JSON format, we will no longer need this struct.
 
 
 
@@ -193,7 +194,7 @@ impl HeaderDupletRow {
         for (i, cell_contents) in values.iter().enumerate() {
             let hpo_label = self.hpo_duplets[i].hpo_label();
             let hpo_id = self.hpo_duplets[i].hpo_id();
-            let dto = HpoTermData::new(hpo_id, hpo_label, cell_contents);
+            let dto = HpoTermData::new(hpo_id, hpo_label, cell_contents)?;
             hpo_dto_list.push(dto);
         }
         Ok(hpo_dto_list)
@@ -265,16 +266,15 @@ impl HeaderDupletRow {
             return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
             self.hpo_count(), cell_content_list.len()));
         }
-        let dto_list: Vec<HpoTermData> = self.get_hpo_duplets()
-            .iter()
-            .zip(cell_content_list.iter())
-            .map(|(duplet, content)| {
-                HpoTermData::new(duplet.hpo_id(), duplet.hpo_label(), content)
-            })
-            .collect();
+        let mut dto_list: Vec<HpoTermData> = Vec::new();
+        for (duplet, content) in self.get_hpo_duplets().iter().zip(cell_content_list.iter()) {
+            let htd = HpoTermData::new(duplet.hpo_id(), duplet.hpo_label(), content)?;
+            dto_list.push(htd);
+        }
         Ok(dto_list)
     }
 
+    /// Get a map with tid (term ID of the HPO column in question) to value (contents of the cell, e.g. observed, P32Y)
     pub fn get_hpo_content_map(
         &self,
         cell_content_list: &[String])
@@ -283,13 +283,12 @@ impl HeaderDupletRow {
             return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
             self.hpo_count(), cell_content_list.len()));
         }
-        self.get_hpo_duplets()
-            .iter()
-            .zip(cell_content_list.iter())
-            .map(|(duplet, content)| {
-                duplet.to_term_id().map(|tid| (tid, content.clone()))
-            })
-            .collect()
+        let mut dto_map: HashMap<TermId, String> = HashMap::new();
+        for (duplet, content) in self.get_hpo_duplets().iter().zip(cell_content_list.iter()) {
+            let tid = duplet.to_term_id()?;
+            dto_map.insert(tid, content.to_string());
+        };
+        Ok(dto_map)
     }
 
     pub fn n_mendelian_contant_fields() -> usize {

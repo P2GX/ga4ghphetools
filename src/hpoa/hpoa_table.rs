@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, pat
 use chrono::Local;
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::{cohort_dto::{CohortData, DiseaseData}, hpo_cell_dto::CellValue}, hpoa::{hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::{cohort_dto::{CohortData, DiseaseData}, hpo_term_dto::CellValue}, hpoa::{hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
 
 
 
@@ -146,7 +146,6 @@ impl HpoaTable {
 
 #[cfg(test)]
 mod test {
-    use crate::{dto::cohort_dto::{DiseaseData, GeneTranscriptData}};
     use ontolius::{io::OntologyLoaderBuilder};
   
     use super::*;

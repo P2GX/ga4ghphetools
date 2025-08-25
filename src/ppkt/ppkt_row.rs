@@ -4,14 +4,15 @@
 //! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
 use std::collections::HashMap;
+
 use std::str::FromStr;
 use std::sync::Arc;
 use ontolius::TermId;
-use crate::dto::hpo_cell_dto::CellValue;
+use crate::dto;
+use crate::dto::hpo_term_dto::CellValue;
 use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::cohort_dto::{CohortType, DiseaseData, DiseaseGeneData, GeneVariantData, IndividualData};
 
-use crate::age::age_util::{self, check_hpo_table_cell};
 
 
 use crate::template::disease_bundle::{ DiseaseBundle};
@@ -58,13 +59,15 @@ impl PpktRow {
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
         let mut hpo_content: Vec<String> = Vec::new();
-        let number_of_constant_cells_to_skip = 16;
-        // HPO data begins at cell 17 in the legacy Excel files
+        let number_of_constant_cells_to_skip = 17;
+        // HPO data begins at cell 17 in the legacy Excel files -- need to skip 17 (zero based)
 
         for item in content.iter().skip(number_of_constant_cells_to_skip) {
             let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency
-            age_util::check_hpo_table_cell(&item)?;
-            hpo_content.push(item.clone());
+            match dto::hpo_term_dto::CellValue::is_valid_cell_value(cell) {
+                true => hpo_content.push(item.clone()),
+                false => { return Err(format!("Invalid table cell '{cell}'y"));},
+            }
         }
         Ok(Self { header: header.clone(), 
             individual_bundle: ibundle, 
@@ -158,7 +161,9 @@ impl PpktRow {
             gvb.do_qc()?;
         }
         for item in &self.hpo_content {
-            check_hpo_table_cell(item)?;
+            if ! CellValue::is_valid_cell_value(item){
+                return Err(format!("Invalid HPO cell contents '{}'", item));
+            }
         }
         Ok(())
     }
@@ -367,8 +372,8 @@ mod test {
 
     #[fixture]
     pub fn hpo_dtos() -> Vec<HpoTermData> {
-        vec![HpoTermData::new("HP:0001382", "Joint hypermobility", "observed"),
-        HpoTermData::new("HP:0000574", "Thick eyebrow", "observed")]
+        vec![HpoTermData::new("HP:0001382", "Joint hypermobility", "observed").unwrap(),
+        HpoTermData::new("HP:0000574", "Thick eyebrow", "observed").unwrap()]
     }
     
     #[rstest]

@@ -107,64 +107,64 @@ pub fn case_7_dto() -> CaseDto {
 
 #[fixture]
 pub fn thick_eye_brow_excluded_dto() -> HpoTermData {
-    HpoTermData::new("HP:0000574", "Thick eyebrow", "excluded")
+    HpoTermData::new("HP:0000574", "Thick eyebrow", "excluded").unwrap()
 }
 
 #[fixture]
 pub fn thick_eye_brow_observed_dto() -> HpoTermData {
-    HpoTermData::new("HP:0000574", "Thick eyebrow", "observed")
+    HpoTermData::new("HP:0000574", "Thick eyebrow", "observed").unwrap()
 }
 
 #[fixture]
 pub fn thick_eye_brow_na_dto() -> HpoTermData {
-    HpoTermData::new("HP:0000574", "Thick eyebrow", "na")
+    HpoTermData::new("HP:0000574", "Thick eyebrow", "na").unwrap()
 }
 
 
 #[fixture]
 pub fn flat_occiput_observed_dto() -> HpoTermData {
-    HpoTermData::new("HP:0005469", "Flat occiput", "observed")
+    HpoTermData::new("HP:0005469", "Flat occiput", "observed").unwrap()
 }
 #[fixture]
 pub fn flat_occiput_excluded_dto() -> HpoTermData {
-    HpoTermData::new("HP:0005469", "Flat occiput", "excluded")
+    HpoTermData::new("HP:0005469", "Flat occiput", "excluded").unwrap()
 }
 #[fixture]
 pub fn flat_occiput_na_dto() -> HpoTermData {
-    HpoTermData::new("HP:0005469", "Flat occiput", "na")
+    HpoTermData::new("HP:0005469", "Flat occiput", "na").unwrap()
 }
 #[fixture]
 pub fn join_hypermobility_observed_dto() -> HpoTermData {
-    HpoTermData::new("HP:0001382", "Joint hypermobility", "observed")
+    HpoTermData::new("HP:0001382", "Joint hypermobility", "observed").unwrap()
 }
 
 #[fixture]
 pub fn joint_hypermobility_excluded_dto() -> HpoTermData {
-    HpoTermData::new("HP:0001382", "Joint hypermobility", "excluded")
+    HpoTermData::new("HP:0001382", "Joint hypermobility", "excluded").unwrap()
 }
 #[fixture]
 pub fn joint_hypermobility_na_dto() -> HpoTermData {
-    HpoTermData::new("HP:0001382", "Joint hypermobility", "na")
+    HpoTermData::new("HP:0001382", "Joint hypermobility", "na").unwrap()
 }
 
 
 #[fixture]
 pub fn grand_mal_observed_dto() -> HpoTermData {
-    HpoTermData::new("HP:0002069", "Bilateral tonic-clonic seizure", "observed")
+    HpoTermData::new("HP:0002069", "Bilateral tonic-clonic seizure", "observed").unwrap()
 }
 #[fixture]
 pub fn grand_mal_excluded_dto() -> HpoTermData {
-    HpoTermData::new("HP:0002069", "Bilateral tonic-clonic seizure", "excluded")
+    HpoTermData::new("HP:0002069", "Bilateral tonic-clonic seizure", "excluded").unwrap()
 }
 
 #[fixture]
 pub fn strabismus_observed_dto() -> HpoTermData {
-    HpoTermData::new("HP:0000486", "Strabismus", "observed")
+    HpoTermData::new("HP:0000486", "Strabismus", "observed").unwrap()
 }
 
 #[fixture]
 pub fn esotropia_observed_dto() -> HpoTermData {
-    HpoTermData::new("HP:0000565", "Esotropia", "observed")
+    HpoTermData::new("HP:0000565", "Esotropia", "observed").unwrap()
 }
 
 #[fixture]

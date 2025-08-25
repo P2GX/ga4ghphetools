@@ -1,4 +1,6 @@
-use ontolius::{common::hpo, term::{simple::SimpleMinimalTerm, MinimalTerm}, Identified};
+
+
+use crate::dto::hpo_term_dto::HpoTermDuplet;
 
 
 
@@ -28,9 +30,9 @@ impl CountedHpoTerm {
         }
     }
 
-    pub fn from_simple_term(onset_term: SimpleMinimalTerm) -> Self {
-        let hpo_id = onset_term.identifier().to_string();
-        let label = onset_term.name().to_string();
+    pub fn from_simple_term(onset_term: HpoTermDuplet) -> Self {
+        let hpo_id = onset_term.hpo_id().to_string();
+        let label = onset_term.hpo_label().to_string();
         Self::new(&hpo_id, &label)
     }
 

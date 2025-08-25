@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use ontolius::term::simple::SimpleMinimalTerm;
+
 use regex::Regex;
 
-use crate::{dto::cohort_dto::CohortData, age::age_util, hpoa::counted_hpo_term::CountedHpoTerm};
+use crate::{age, dto::{cohort_dto::CohortData, hpo_term_dto::HpoTermDuplet}, hpoa::counted_hpo_term::CountedHpoTerm};
 
 
 
@@ -20,7 +20,7 @@ impl HpoaOnsetCalculator {
     } 
 
     pub fn add_onset(&mut self, onset_str: &str) -> Result<(), String> {
-        let term = age_util::is_valid_age_string(onset_str);
+        let term = age::is_valid_age_string(onset_str);
         if let Ok(onset_term) = Self::get_hpo_onset_term_from_iso8601(onset_str) {
 
         }
@@ -28,7 +28,7 @@ impl HpoaOnsetCalculator {
         Ok(())
     }
 
-    pub fn add_onset_term(&mut self, pmid: &str, onset_term: SimpleMinimalTerm) {
+    pub fn add_onset_term(&mut self, pmid: &str, onset_term: HpoTermDuplet) {
         // Insert a new Vec if the key does not exist yet
         let counted_term = self
             .onset_to_count_d
@@ -43,7 +43,7 @@ impl HpoaOnsetCalculator {
             let pmid = row.individual_dto.pmid.clone();
             if row.individual_dto.age_of_onset != "na" {
                 let onset = row.individual_dto.age_of_onset.clone();
-                match age_util::ONSET_TERM_DICT.get(&onset) {
+                match age::hpo_age::ONSET_TERM_DICT.get(&onset) {
                     Some(term) => self.add_onset_term(&pmid, term.clone()),
                     None => {
                         let term = Self::get_term_from_age_string(&onset)?;
@@ -56,14 +56,14 @@ impl HpoaOnsetCalculator {
     }
 
     /// Get a SimpleMinimalTerm representing age from an age string (iso8601 or gestationalclear)
-    pub fn get_term_from_age_string(onset: &str) -> Result<SimpleMinimalTerm, String> {
+    pub fn get_term_from_age_string(onset: &str) -> Result<HpoTermDuplet, String> {
         let label = if onset.starts_with("P") {
             Self::get_hpo_onset_term_from_iso8601(onset)
         } else {
             return Err("NEED TO REFACTOR FOR GA".to_string());
             //Self::get_hpo_onset_term_from_gestational_age(onset)
         }?; 
-        match age_util::ONSET_TERM_DICT.get(&label) {
+        match age::hpo_age::ONSET_TERM_DICT.get(&label) {
             Some(term) => Ok(term.clone()),
             None => Err(format!("Could not find onset term for '{label}'")),
         }
@@ -125,7 +125,6 @@ impl HpoaOnsetCalculator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ontolius::term::MinimalTerm;
     use rstest::rstest;
 
     #[rstest]
@@ -140,9 +139,8 @@ mod tests {
     fn test_isoage(#[case] onset_term: &str, #[case] age_string: &str) {
         let result= HpoaOnsetCalculator::get_term_from_age_string(age_string);
         assert!(result.is_ok());
-        let smt: SimpleMinimalTerm  = result.unwrap();
-        let label = smt.name();
-        assert_eq!(onset_term, label);
+        let duplet: HpoTermDuplet  = result.unwrap();
+        assert_eq!(onset_term, duplet.hpo_label());
     }
 
 
