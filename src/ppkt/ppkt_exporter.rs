@@ -415,7 +415,7 @@ impl PpktExporter {
             if ! cell_contents.is_ascertained() {
                 continue;
             }
-            let hpo_term = Builder::ontology_class(term.h2.clone(), term.h1.clone())
+            let hpo_term = Builder::ontology_class(term.hpo_id(), term.hpo_label())
                 .map_err(|e| format!("termid_parse_error '{:?}'", term))?;
             let mut pf = PhenotypicFeature{ 
                 description: String::default(), 

@@ -6,7 +6,6 @@
 
 
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
@@ -15,7 +14,7 @@ use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
 
 use crate::dto::hpo_term_dto::HpoTermDto;
-use crate::dto::cohort_dto::{CohortType, HeaderDupletDto};
+use crate::dto::cohort_dto::CohortType;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
@@ -193,24 +192,20 @@ impl HeaderDupletRow {
                 self.hpo_count(), values.len()));
         }
         for (i, cell_contents) in values.iter().enumerate() {
-            let hpo_label = self.hpo_duplets[i].row1();
-            let hpo_id = self.hpo_duplets[i].row2();
+            let hpo_label = self.hpo_duplets[i].hpo_label();
+            let hpo_id = self.hpo_duplets[i].hpo_id();
             let dto = HpoTermDto::new(hpo_id, hpo_label, cell_contents);
             hpo_dto_list.push(dto);
         }
         Ok(hpo_dto_list)
     }
 
-    pub fn new_mendelian_ppkt_from_dto(dto_list: &[HeaderDupletDto]) -> Self {
-        let hpo_termduplet_list: Vec<HpoTermDuplet> = dto_list
-            .iter()
-            .map(|dto| dto.to_hpo_duplet())
-            .collect();
+    pub fn new_mendelian_ppkt_from_dto(duplet_list: &[HpoTermDuplet]) -> Self {
         Self { 
             individual_header: IndividualHeader::new(), 
             disease_header_list: vec![DiseaseHeader::new()], 
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
-            hpo_duplets: hpo_termduplet_list, 
+            hpo_duplets: duplet_list.to_vec(), 
             template_type: CohortType::Mendelian
         }
     }
@@ -243,7 +238,7 @@ impl HeaderDupletRow {
     pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, String> {();
         let mut term_id_list: Vec<TermId> = Vec::with_capacity(self.hpo_duplets.len());
         for duplet in &self.hpo_duplets {
-            match  TermId::from_str(&duplet.row2()) {
+            match  duplet.to_term_id() {
                 Ok(tid) => { term_id_list.push(tid);},
                 Err(_) => { return Err(format!("Could not parse {:?}", duplet));},
             }
@@ -259,10 +254,8 @@ impl HeaderDupletRow {
         self.hpo_duplets.as_ref()
     }
 
-    pub fn get_hpo_header_dtos(&self) -> Vec<HeaderDupletDto> {
-        self.hpo_duplets.iter()
-            .map(|hpo_duplet| hpo_duplet.to_header_dto())
-            .collect()
+    pub fn get_hpo_header_dtos(&self) -> Vec<HpoTermDuplet> {
+        self.hpo_duplets.clone()
     }
 
     pub fn get_hpo_content_dtos(

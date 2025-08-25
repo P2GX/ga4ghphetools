@@ -3,59 +3,26 @@
 //! The duplet and the QC routines for the PMID column
 //! 
 
-use std::collections::HashSet;
 use std::str::FromStr;
-use lazy_static::lazy_static;
 use ontolius::TermId;
-
-use crate::dto::cohort_dto::{HeaderDupletDto};
-use crate::error::{Error, Result};
-use crate::age::age_util;
+use serde::{Deserialize, Serialize};
 
 
 
 
-#[derive(Clone, Debug, Default, PartialEq)]
+
+
+/// A structure to represent an HPO term (id and label) in a simple way
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct HpoTermDuplet {
-    pub(crate) hpo_label: String,
-    hpo_id: String,
+    pub hpo_label: String,
+    pub hpo_id: String,
 }
-
-
-lazy_static! {
-    pub static ref ALLOWED_HPO_ITEMS: HashSet<String> =  {
-        let mut set = HashSet::new();
-        set.insert("na".to_string());
-        set.insert("observed".to_string());
-        set.insert("excluded".to_string());
-        set
-    };
-}
-
 
 
 impl HpoTermDuplet {
     pub fn new(label: impl Into<String>, identifier: impl Into<String>) -> Self {
         Self { hpo_label: label.into(), hpo_id: identifier.into() }
-    }
-
-    pub fn to_header_dto(&self) -> HeaderDupletDto {
-        HeaderDupletDto::new(&self.hpo_label, &self.hpo_id)
-    }
-
-    pub fn from_header_dto(dto: HeaderDupletDto) -> Self {
-        Self { 
-            hpo_label: dto.h1, 
-            hpo_id: dto.h2 
-        }
-    }
-
-    pub fn row1(&self) -> String {
-        self.hpo_label.clone()
-    }
-
-    pub fn row2(&self) -> String {
-        self.hpo_id.clone()
     }
 
     pub fn hpo_id(&self) -> &str {
@@ -71,79 +38,4 @@ impl HpoTermDuplet {
         Ok(tid)
     }
     
-}
-
-impl  HpoTermDuplet {
-   
-
-    // An HPO cell can be empty, or contain observed/expected/na or an age string
-    // We plan to enforce that HPO cells cannot be empty (they will need to have na for not-available data)
-    // We also plan to allow some modifiers (e.g., "Mild") in this field, indicating "observed" with modifier
-    
-     /*
-    fn qc_cell(&self, cell_contents: &str) -> Result<()> {
-        if cell_contents.is_empty() {
-            return Ok(());
-        }
-        if ALLOWED_HPO_ITEMS.contains(cell_contents) {
-            return Ok(());
-        }
-        if age_util::is_valid_age_string(cell_contents) {
-            return Ok(());
-        }
-        Err(Error::malformed_hpo_entry(&self.row1(), &self.row2(), cell_contents))
-    }
- */
-
-}
-
-
-
-#[cfg(test)]
-mod test {
-   
-
-   
-
-/*
-    #[rstest]
-    #[case("na ", "Malformed entry for Parasomnia (HP:0025234): 'na '")]
-    fn test_invalid_hpo_field(#[case] item:&str, #[case] response:&str) {
-        let duplet = HpoTermDuplet::new("Parasomnia", "HP:0025234");
-        let result = duplet.qc_cell(item);
-        assert!(result.is_err());
-        assert_eq!(response, result.unwrap_err().to_string());
-    }
-
-   
-
-    #[rstest]
-    #[case("na")]
-    #[case("observed")]
-    #[case("excluded")]
-    #[case("P32Y4M")]
-    fn test_valid_hpo_field(#[case] item:&str) {
-        let duplet = HpoTermDuplet::default();
-        let result = duplet.qc_cell(item);
-        assert!(result.is_ok());
-    }
-
-
-    #[rstest]
-    fn test_valid_ctor() {
-        let duplet = HpoTermDuplet::new("Arachnodactyly", "HP:0001166");
-        assert!(duplet.is_ok());
-    }
-
-    #[rstest]
-    #[case("Arachnodactyly", "0001166", "Invalid CURIE with no colon: '0001166'")]
-    fn test_invalid_ctor(#[case] r1:&str, #[case] r2:&str, #[case] err_msg:&str) {
-        let duplet = HpoTermDuplet::new(r1, r2);
-        assert!(duplet.is_err());
-        // TODO -- what kind of error? -- assert!(matches!(&duplet, Err(Error::HeaderError { .. })));
-        assert_eq!(err_msg, duplet.unwrap_err().to_string());
-    }
- */
-}
-
-
+} 

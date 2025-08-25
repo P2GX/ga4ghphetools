@@ -11,9 +11,8 @@ use ontolius::{
     Identified, TermId,
 };
 use phenopackets::schema::v2::Phenopacket;
-use serde::{Deserialize, Serialize};
 
-use crate::{dto::{cohort_dto::{CohortDto, CohortType, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, HeaderDupletDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_cell_dto::CellValue, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortDto, CohortType, DiseaseDto, DiseaseGeneDto, GeneTranscriptDto, IndividualDto, RowDto}, hgvs_variant::HgvsVariant, hpo_cell_dto::CellValue, hpo_term_dto::HpoTermDto, structural_variant::{StructuralVariant, SvType}}, header::hpo_term_duplet::HpoTermDuplet, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 use crate::{
     hpo::hpo_term_arranger::HpoTermArranger
 };
@@ -59,10 +58,7 @@ impl CohortDtoBuilder {
                 }
             }
         }
-        let hpo_headers: Vec<HeaderDupletDto> = hp_header_duplet_list.iter()
-            .map(|hpo_duplet| hpo_duplet.to_header_dto())
-            .collect();
-         Ok(CohortDto::mendelian(disease_gene_dto, hpo_headers, vec![] ))
+         Ok(CohortDto::mendelian(disease_gene_dto, hp_header_duplet_list, vec![] ))
     }
 
 
@@ -71,7 +67,7 @@ impl CohortDtoBuilder {
     ) -> Result<Vec<TermId>, String> {
         let mut tid_list: Vec<TermId> = Vec::new();
         for hdd in &cohort_dto.hpo_headers {
-            match TermId::from_str(&hdd.h2) {
+            match hdd.to_term_id() {
                 Ok(tid) => tid_list.push(tid),
                 Err(e) => { return Err(format!("Could not extract TermIf from {:?}", hdd)); }
             }
@@ -81,12 +77,12 @@ impl CohortDtoBuilder {
 
 
     pub fn get_updated_header_dto_list(arranged_terms: &Vec<SimpleTerm>) 
-    -> Vec<HeaderDupletDto> {
-        let mut dto_list: Vec<HeaderDupletDto> = Vec::new();
+    -> Vec<HpoTermDuplet> {
+        let mut dto_list: Vec<HpoTermDuplet> = Vec::new();
         for st in arranged_terms {
-            let dto = HeaderDupletDto{
-                h1: st.name().to_string(),
-                h2: st.identifier().to_string()
+            let dto = HpoTermDuplet{
+                hpo_label: st.name().to_string(),
+                hpo_id: st.identifier().to_string()
             };
             dto_list.push(dto);
         }
@@ -225,7 +221,7 @@ impl CohortDtoBuilder {
     /// * `tid_to_value_map` - this has values (e.g., observed, na, P32Y2M) for which we have information in the new phenopacket
     /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
     fn new_row_dto(
-        header_dto_list:  &Vec<HeaderDupletDto>, 
+        header_dto_list:  &Vec<HpoTermDuplet>, 
         individual_dto: IndividualDto,
         variant_key_list: Vec<String>,
         tid_to_value_map: HashMap<TermId, String>, 
