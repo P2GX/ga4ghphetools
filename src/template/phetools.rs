@@ -247,15 +247,9 @@ impl PheTools {
         hpo_label: &str,
         cohort_dto: CohortData) 
     -> std::result::Result<CohortData, String> {
-        /*
-        let mut updated_template = 
-            CohortDtoBuilder::from_cohort_dto(  &cohort_dto, self.hpo.clone())?;
-        updated_template.add_hpo_term_to_cohort(hpo_id, hpo_label)
-            .map_err(|verrs| format!("{:?}", verrs.errors()))?;
-        let template_dto = updated_template.get_template_dto()?;
-         */
-        Err("add_hpo_term_to_cohort- Needs refactor".to_string())
-        
+        let mut builder = CohortDtoBuilder::from_cohort(&cohort_dto, self.hpo.clone())?;
+        let newcohort = builder.add_hpo_term_to_cohort(hpo_id, hpo_label, cohort_dto)?;
+        Ok(newcohort)
     }
 
 

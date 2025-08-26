@@ -4,7 +4,7 @@
 //! to store information about the Cohort. It uses the PPKtRow object as an intermediate stage in ETL 
 //! for each row of the legacy template to be ingested. This class can be simplified
 //! after we are finished refactoring the legacy files.
-use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
+use std::{collections::{HashMap, HashSet}, fmt::format, str::FromStr, sync::Arc, vec};
 use ontolius::{
     ontology::{csr::FullCsrOntology, OntologyTerms},
     term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
@@ -33,6 +33,21 @@ impl CohortDtoBuilder {
         hpo: Arc<FullCsrOntology>
     ) -> Self {
         Self { cohort_type, disease_gene_dto, hpo}
+    }
+
+    pub fn from_cohort(
+        cohort_dto: &CohortData,
+         hpo: Arc<FullCsrOntology>
+    ) -> Result<Self, String> {
+        if ! cohort_dto.is_mendelian() {
+            return Err(format!("Only Mendelian cohorts supported; {:?} not currently supported", cohort_dto.cohort_type));
+        }
+        Ok(Self{
+            cohort_type: cohort_dto.cohort_type,
+            disease_gene_dto: cohort_dto.disease_gene_data.clone(),
+            hpo,
+        })
+
     }
 
 
@@ -192,7 +207,7 @@ impl CohortDtoBuilder {
         &reordering_indices,
         updated_header.len());
         Ok(RowData {
-            individualData: row.individualData,
+            individual_data: row.individual_data,
             disease_data_list: row.disease_data_list,
             allele_count_map: row.allele_count_map,
             hpo_data: updated_hpo,
@@ -236,7 +251,7 @@ impl CohortDtoBuilder {
             *allele_count_map.entry(allele).or_insert(0) += 1;
         }
        let novel_row_dto = RowData{
-            individualData: individual_dto,
+            individual_data: individual_dto,
             disease_data_list: disease_gene_dto.disease_dto_list.clone(),
             allele_count_map,
             hpo_data: hpo_cell_list,
@@ -644,44 +659,69 @@ impl CohortDtoBuilder {
     }
 
 
-    /* 
+    /// Compare the old header with the new header and update the RowData object to have the new HPO columns but sset the value to na for these columns because we do not yet have the value for them
+    fn update_hpo_row_with_new_header(
+        &self,
+        oldrow: &RowData, 
+        previous_duplets: &Vec<HpoTermDuplet>,
+        update_duplets: &Vec<HpoTermDuplet>) 
+    -> Result<RowData, String> {
+        if oldrow.hpo_data.len() != previous_duplets.len() {
+            return Err(format!("Length mismatch for update HPO row with new header: previous row HPOs: {} but header: {}",
+            oldrow.hpo_data.len(), previous_duplets.len()));
+        }
+        let hpo_map = hpo::term_label_map_from_duplet_list(self.hpo.clone(), update_duplets)?;
+        let mut content = Vec::new();
+        for duplet in update_duplets {
+            let item: String = hpo_map
+                .get(&duplet.to_term_id()?)
+                .cloned() // converts Option<&String> to Option<String>
+                .unwrap_or_else(|| "na".to_string()); // this will pertain to the new HPO term we are adding
+            content.push(item);
+        }
+        let values_result: Result<Vec<CellValue>, String> = content.iter().map(|item| CellValue::from_str(item)).collect();
+        let values:  Vec<CellValue> = values_result?;
+        let mut newrow = oldrow.clone();
+        newrow.hpo_data = values;
+        Ok(newrow)
+    }
+     
     pub fn add_hpo_term_to_cohort(
         &mut self,
         hpo_id: &str,
-        hpo_label: &str) 
-    -> std::result::Result<(), String> {
+        hpo_label: &str,
+        cohort: CohortData
+    ) 
+    -> std::result::Result<CohortData, String> {
         let tid = TermId::from_str(hpo_id)
                 .map_err(|_| format!("Could not arrange terms: {}\n", hpo_id))?;
         let term = self.hpo
             .term_by_id(&tid)
             .ok_or_else(|| format!("could not retrieve HPO term for '{hpo_id}'"))?;
         // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
-        let hpo_util = HpoUtil::new(self.hpo.clone());
-        let mut all_tids = self.header.get_hpo_id_list()?;
+        let all_tid_result: Result<Vec<TermId>, String> =
+            cohort.hpo_headers
+                .iter()
+                .map(|duplet| duplet.to_term_id())
+                .collect();
+        let mut all_tids = all_tid_result?;
         if all_tids.contains(&tid) {
             return Err(format!("Not allowed to add term {} because it already is present", &tid));
         }
         all_tids.push(tid);
-        let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
-        let arranged_terms = term_arrager.arrange_terms(&all_tids)?;
-        // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms and set the new terms to "na"
-        // strategy: Make a HashMap with all of the new terms, initialize the values to na. Clone this, pass it to the
-        // PpktRow object, and update the map with the current values. The remaining (new) terms will be "na". Then use
-        // the new HeaderDupletRow object to write the values.
-        // 3a. Update the HeaderDupletRow object.
-        let update_hdr = self.header.update_old(&arranged_terms);
-        let updated_hdr_arc = Arc::new(update_hdr);
-        let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
-        for ppkt in &self.ppkt_rows {
-            match ppkt.update_header(updated_hdr_arc.clone()) {
-                Ok(new_ppkt) => {     updated_ppkt_rows.push(new_ppkt); },
-                Err(e) => { return Err(e);},
-            } 
+        let arranged_hpo_duplets = hpo::hpo_terms_to_dfs_order_duplets(self.hpo.clone(), &all_tids)?;
+        // === Step 3: Rearrange the existing RowData objects to have the new HPO terms and set the new terms to "na"
+        // strategy: Make a HashMap with all of the new terms, initialize the values to na. Update the map with the current values. The remaining (new) terms will be "na". 
+        let mut updated_cohort = cohort.clone();
+        updated_cohort.hpo_headers = arranged_hpo_duplets;
+        let mut updated_ppkt_rows: Vec<RowData> = Vec::new();
+        for oldrow in cohort.rows {
+            let newrow = self.update_hpo_row_with_new_header(&oldrow, &cohort.hpo_headers, &updated_cohort.hpo_headers)?;
+            updated_ppkt_rows.push(newrow);
         }
-        self.header = updated_hdr_arc.clone();
-        self.ppkt_rows = updated_ppkt_rows;
-        Ok(())
-    }*/
+        updated_cohort.rows = updated_ppkt_rows;
+        Ok(updated_cohort)
+    }
 }
 
 

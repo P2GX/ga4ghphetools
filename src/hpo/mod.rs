@@ -97,6 +97,19 @@ pub fn term_label_map_from_dto_list(
     hpo_util.term_label_map_from_dto_list(hpo_dto_list)
 }
 
+
+
+
+
+
+pub fn term_label_map_from_duplet_list(
+    hpo: Arc<FullCsrOntology>,
+    hpo_duplet_list: &Vec<HpoTermDuplet>
+) -> std::result::Result<HashMap<TermId, String>, String> {
+    let hpo_util = HpoUtil::new(hpo);
+    hpo_util.term_label_map_from_duplet_list(hpo_duplet_list)
+}
+
 /// Update HPO term duplets with the latest labels from the ontology.
 ///
 /// This function refreshes a list of [`HpoTermDuplet`]s by ensuring that

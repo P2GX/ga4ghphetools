@@ -16,6 +16,7 @@ use crate::age;
 
 /// A structure to represent an HPO term (id and label) in a simple way
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HpoTermDuplet {
     pub hpo_label: String,
     pub hpo_id: String,

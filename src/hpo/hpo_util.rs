@@ -47,6 +47,22 @@ impl HpoUtil {
         Ok(dto_map)
     }
 
+    pub fn term_label_map_from_duplet_list(
+        &self, 
+        hpo_duplet_list: &Vec<HpoTermDuplet>
+    ) -> std::result::Result<HashMap<TermId, String>, String> {
+        let mut dto_map: HashMap<TermId, String> = HashMap::new();
+        for dto in hpo_duplet_list {
+            match dto.to_term_id() {
+                Ok(term_id) => {dto_map.insert(term_id.clone(), dto.hpo_label().to_string());},
+                Err(_) => {
+                    return Err(format!("Could not map termId: '{}'", dto.hpo_id()));
+                },
+            } 
+        }
+        Ok(dto_map)
+    }
+
 
 
     /// Check the validity of the HPO TermId/label pairs in the DTO objects and return corresponding HpoTermDuplet list

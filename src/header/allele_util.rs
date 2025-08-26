@@ -59,13 +59,6 @@ pub fn is_plausible_hgvs(hgvs: &str) -> bool {
 
 
 
-pub fn check_valid_structural(value: &str) -> bool {
-    let parts: Vec<&str> = value.split(':').collect();
-    let prefix = parts[0];
-    let suffix = parts[1..].join(":"); // in case the original string contains ":"
-    let structural_var = suffix.trim();
-    return  ALLOWED_STRUCTURAL_PREFIX.contains(prefix)
-}
 
 
 

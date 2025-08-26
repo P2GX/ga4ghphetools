@@ -174,7 +174,7 @@ pub struct DiseaseGeneData {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowData {
-    pub individualData: IndividualData,
+    pub individual_data: IndividualData,
     pub disease_data_list: Vec<DiseaseData>,
     //pub gene_var_dto_list: Vec<GeneVariantDto>,
     pub allele_count_map: HashMap<String, usize>,
@@ -188,7 +188,7 @@ impl RowData {
             *allele_count_map.entry(allele).or_insert(0) += 1;
         };
         let hpo_list = ppkt_row.get_hpo_value_list()?;
-        Ok(Self { individualData: ppkt_row.get_individual_dto(), 
+        Ok(Self { individual_data: ppkt_row.get_individual_dto(), 
             disease_data_list: ppkt_row.get_disease_dto_list(), 
             allele_count_map, 
             hpo_data: hpo_list,

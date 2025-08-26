@@ -81,7 +81,7 @@ impl PpktExporter {
 
     /// Create a GA4GH Individual message
     pub fn extract_individual(&self, ppkt_row: &RowData) -> Result<Individual, String> {
-        let individual_dto = &ppkt_row.individualData;
+        let individual_dto = &ppkt_row.individual_data;
         let mut idvl = Individual{ 
             id: individual_dto.individual_id.clone(), 
             alternate_ids: vec![], 
@@ -146,11 +146,11 @@ impl PpktExporter {
         let so = phenopacket_tools::builders::resources::Resources::so_version(self.so_version());
         let omim = phenopacket_tools::builders::resources::Resources::omim_version(self.omim_version());
         let hgnc = phenopacket_tools::builders::resources::Resources::hgnc_version(&self.hgnc_version());
-        let indvl_dto = row_dto.individualData.individual_id.clone();
+        let indvl_dto = row_dto.individual_data.individual_id.clone();
         let ext_res = ExternalReference{ 
-            id: row_dto.individualData.pmid.clone(), 
+            id: row_dto.individual_data.pmid.clone(), 
             reference: String::default(), 
-            description: row_dto.individualData.title.clone()
+            description: row_dto.individual_data.title.clone()
         };
         meta_data.resources.push(hpo);
         meta_data.resources.push(geno);
@@ -164,8 +164,8 @@ impl PpktExporter {
 
     /// Generate the phenopacket identifier from the PMID and the individual identifier
     pub fn get_phenopacket_id(&self, ppkt_row: &RowData) -> String {
-        let individual_dto = &ppkt_row.individualData;
-        let pmid = ppkt_row.individualData.pmid.replace(":", "_");
+        let individual_dto = &ppkt_row.individual_data;
+        let pmid = ppkt_row.individual_data.pmid.replace(":", "_");
         let individual_id = individual_dto.individual_id.replace(" ", "_");
         let ppkt_id = format!("{}_{}", pmid, individual_id);
         let ppkt_id = ppkt_id.replace("__", "_");
@@ -201,8 +201,8 @@ impl PpktExporter {
             primary_site: None, 
             laterality: None 
         };
-        let idl_dto = ppkt_row.individualData.individual_id.clone();
-        let onset = &ppkt_row.individualData.age_of_onset;
+        let idl_dto = ppkt_row.individual_data.individual_id.clone();
+        let onset = &ppkt_row.individual_data.age_of_onset;
         if onset != "na" {
             let age = time_element_from_str(onset)
                 .map_err(|e| format!("malformed_time_element {}",e.to_string()))?;
@@ -380,7 +380,7 @@ impl PpktExporter {
         let mut g_interpretations: Vec<GenomicInterpretation> = Vec::new();
         for vi in v_interpretation_list {
             let gi = GenomicInterpretation{
-                subject_or_biosample_id: ppkt_row.individualData.individual_id.to_string(),
+                subject_or_biosample_id: ppkt_row.individual_data.individual_id.to_string(),
                 interpretation_status: InterpretationStatus::Causative.into(),
                 call: Some(Call::VariantInterpretation(vi))
             };

@@ -21,11 +21,11 @@ impl HpoaOnsetCalculator {
         let mut counted_term_list: Vec<CountedHpoTerm> = Vec::new();
         let mut pmid_to_onset_string_d : HashMap<String, Vec<String>> = HashMap::new();
         for row in &cohort_dto.rows {
-            let pmid = row.individualData.pmid.clone();
-            let onset = row.individualData.age_of_onset.clone();
+            let pmid = row.individual_data.pmid.clone();
+            let onset = row.individual_data.age_of_onset.clone();
             if onset != "na" {
                 if ! age::is_valid_age_string(&onset) {
-                    return Err(format!("Invalid age string '{}' for '{}'", onset, row.individualData.individual_id));
+                    return Err(format!("Invalid age string '{}' for '{}'", onset, row.individual_data.individual_id));
                 }
                 let onset_list = pmid_to_onset_string_d.entry(pmid).or_insert(Vec::new());
                 onset_list.push(onset);
