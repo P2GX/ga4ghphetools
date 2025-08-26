@@ -7,8 +7,10 @@
 use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use ontolius::{
-    common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::{simple::SimpleTerm}, TermId
+    common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::MinimalTerm, TermId
 };
+
+use crate::dto::hpo_term_dto::HpoTermDuplet;
 
 /// Arranges HPO terms into a meaningful order for curation using DFS.
 pub struct HpoTermArranger {
@@ -100,14 +102,16 @@ impl HpoTermArranger {
     }
 
 
-    pub fn arrange_terms(&mut self, hpo_terms_for_curation: &Vec<TermId>)
-    -> std::result::Result<Vec<SimpleTerm>, String> {
+    pub fn arrange_terms(
+        &mut self, 
+        hpo_terms_for_curation: &Vec<TermId>)
+    -> std::result::Result<Vec<HpoTermDuplet>, String> {
         let arranged_tids = self.arrange_term_ids(hpo_terms_for_curation);
-        let mut arranged_terms: Vec<SimpleTerm> = Vec::new();
+        let mut arranged_terms: Vec<HpoTermDuplet> = Vec::new();
         for tid in arranged_tids {
             match self.hpo.term_by_id(&tid) {
                 Some(term) => {
-                    arranged_terms.push(term.clone());
+                    arranged_terms.push(HpoTermDuplet::new(term.name(), tid.to_string()));
                 },
                 None => {
                     return Err(format!("arrange_terms, could not find {}", &tid));

@@ -14,8 +14,8 @@
 
 mod error;
 mod header;
-mod hpo;
-mod hpoa;
+
+
 mod persistence;
 mod ppkt;
 mod template;
@@ -25,5 +25,7 @@ mod variant;
 pub mod age;
 pub mod dto;
 pub mod etl;
+pub mod hpo;
+pub mod hpoa;
 pub use template::phetools::PheTools;
 

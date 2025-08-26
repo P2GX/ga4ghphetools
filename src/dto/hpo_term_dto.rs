@@ -140,8 +140,8 @@ impl fmt::Display for CellValue {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HpoTermData {
-    term_duplet: HpoTermDuplet,
-    entry: CellValue,
+    pub term_duplet: HpoTermDuplet,
+    pub entry: CellValue,
 }
 
 

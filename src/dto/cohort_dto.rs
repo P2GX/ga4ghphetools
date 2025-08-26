@@ -174,8 +174,8 @@ pub struct DiseaseGeneData {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowData {
-    pub individual_dto: IndividualData,
-    pub disease_dto_list: Vec<DiseaseData>,
+    pub individualData: IndividualData,
+    pub disease_data_list: Vec<DiseaseData>,
     //pub gene_var_dto_list: Vec<GeneVariantDto>,
     pub allele_count_map: HashMap<String, usize>,
     pub hpo_data: Vec<CellValue>
@@ -188,8 +188,8 @@ impl RowData {
             *allele_count_map.entry(allele).or_insert(0) += 1;
         };
         let hpo_list = ppkt_row.get_hpo_value_list()?;
-        Ok(Self { individual_dto: ppkt_row.get_individual_dto(), 
-            disease_dto_list: ppkt_row.get_disease_dto_list(), 
+        Ok(Self { individualData: ppkt_row.get_individual_dto(), 
+            disease_data_list: ppkt_row.get_disease_dto_list(), 
             allele_count_map, 
             hpo_data: hpo_list,
         })
@@ -229,7 +229,7 @@ pub struct CohortData {
     /// Mendelian, Melded, or Digenic
     pub cohort_type: CohortType,
     /// The diseases and genes in focus for the current cohort
-    pub disease_gene_dto: DiseaseGeneData,
+    pub disease_gene_data: DiseaseGeneData,
     /// The HPO terms used to annotate the cohort
     pub hpo_headers: Vec<HpoTermDuplet>,
     /// The phenopackets (rows) in the current cohort
@@ -269,7 +269,7 @@ impl CohortData {
         ) -> Self {
         Self { 
             cohort_type: CohortType::Mendelian, 
-            disease_gene_dto: dg_dto,
+            disease_gene_data: dg_dto,
             hpo_headers, 
             rows,
             hgvs_variants,
@@ -295,16 +295,16 @@ impl CohortData {
         let first_disease = self.rows
             .first()
             .ok_or_else(|| "No rows provided".to_string())?
-            .disease_dto_list
+            .disease_data_list
             .get(0)
             .ok_or_else(|| "First row has no disease".to_string())?
             .clone();
 
         for (i, row) in self.rows.iter().enumerate() {
-            if row.disease_dto_list.len() != 1 {
+            if row.disease_data_list.len() != 1 {
                 return Err(format!("Row {} does not have exactly one disease", i));
             }
-            if row.disease_dto_list[0] != first_disease {
+            if row.disease_data_list[0] != first_disease {
                 return Err(format!("Row {} has a different disease", i));
             }
         }

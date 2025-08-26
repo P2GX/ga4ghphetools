@@ -2,7 +2,6 @@
 
 use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::validation_errors::ValidationErrors;
-use crate::error::{Error, Result};
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
@@ -48,19 +47,7 @@ impl HpoUtil {
         Ok(dto_map)
     }
 
-/* TODO, do we still need this?
-    pub fn simple_terms_from_dto(&self, hpo_dto_list: &Vec<HpoTermDto>) -> Result<Vec<SimpleTerm>> {
-        let mut simple_terms = vec![];
-        for hpo_dto in hpo_dto_list {
-            let tid = TermId::from_str(hpo_dto.term_id()).map_err(|e| Error::TermIdError { msg: "Could not map termId".to_string() })?;
-            if let Some(term) = self.hpo.term_by_id(&tid) {
-                simple_terms.push(term.clone());
-            } else {
-                return Err(Error::TermError { msg: format!("Could not find term for {}", hpo_dto.term_id()) })
-            }
-        }
-        Ok(simple_terms)
-    }*/
+
 
     /// Check the validity of the HPO TermId/label pairs in the DTO objects and return corresponding HpoTermDuplet list
     pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermData>) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {
@@ -89,27 +76,7 @@ impl HpoUtil {
         }
     }
 
-    /// Check that the HPO Term Id and label used in the DTO object are correct
-    pub fn check_hpo_dto(&self, hpo_dto_items: &Vec<HpoTermData>) -> Result<()> {
-        for dto in hpo_dto_items {
-            let tid = dto.ontolius_term_id()?;
-            let term = self.hpo.term_by_id(&tid).ok_or_else(|| Error::HpoError {
-                msg: format!("Term ID not found in ontology: '{}'", dto.term_id()),
-            })?;
 
-            if term.name() != dto.label() {
-                return Err(Error::HpoError {
-                    msg: format!(
-                        "Label mismatch for {}: expected '{}', got '{}'",
-                        dto.term_id(),
-                        term.name(),
-                        dto.label()
-                    ),
-                });
-            }
-        }
-        Ok(())
-    }
 
     /// Update the HPO duplets with the current term names from the ontology
     /// This will automatically update term labels if they have changed

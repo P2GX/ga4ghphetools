@@ -1,9 +1,11 @@
 
 
-use crate::dto::hpo_term_dto::HpoTermDuplet;
 
 
+use crate::dto::hpo_term_dto::{CellValue, HpoTermDuplet};
 
+
+#[derive(Clone, Debug)]
 pub struct CountedHpoTerm {
     hpo_id: String,
     hpo_label: String,
@@ -33,9 +35,26 @@ impl CountedHpoTerm {
         Self::new_with_counts(&hpo_id, &label, num, denom, pmid)
     }
 
+    pub fn increment_value(
+        &mut self,
+        value: &CellValue
+    ) {
+        match value {
+            CellValue::Observed => { self.increment_observed(); },
+            CellValue::Excluded => { self.increment_excluded(); },
+            CellValue::Na => {},
+            CellValue::OnsetAge(_) => { self.increment_observed(); },
+            CellValue::Modifier(_) => { self.increment_observed(); },
+        }
+    }
+
     pub fn increment_observed(&mut self) {
         self.numerator += 1;
         self.denominator += 1;
+    }
+
+    pub fn increment_excluded(&mut self) {
+        self.denominator += 1; 
     }
 
     #[inline]

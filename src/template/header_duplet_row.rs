@@ -20,7 +20,8 @@ use crate::dto::validation_errors::ValidationErrors;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::individual_header::IndividualHeader;
-use crate::hpo::hpo_util::{HpoUtil};
+use crate::hpo;
+
 
 
 const NOT_AVAILABLE: &str = "na";
@@ -97,9 +98,8 @@ impl HeaderDupletRow {
             hpo_duplet_list.push(hdup);
         }
         Self::check_separator(matrix)?;
-        let hpo_util = HpoUtil::new(hpo.clone());
         if update_hpo_labels {
-            hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list)?;
+            hpo_duplet_list = hpo::update_hpo_duplets(hpo.clone(), &hpo_duplet_list)?;
         }
         Ok(Self { 
             individual_header: iheader, 

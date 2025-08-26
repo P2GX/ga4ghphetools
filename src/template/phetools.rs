@@ -10,14 +10,13 @@ use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
 use crate::dto::variant_dto::VariantDto;
 use crate::etl::etl_tools::EtlTools;
-use crate::hpoa::hpoa_table::HpoaTable;
 use crate::persistence::dir_manager::DirManager;
-use crate::hpo::hpo_term_arranger::HpoTermArranger;
 use crate::dto::{ hpo_term_dto::HpoTermData};
 use crate::ppkt::ppkt_exporter::PpktExporter;
 use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::variant::variant_manager::VariantManager;
+use crate::{hpo, hpoa};
 
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
@@ -148,12 +147,13 @@ impl PheTools {
     /// # Notes
     ///
     /// - Terms are ordered using depth-first search (DFS) over the HPO hierarchy so that related terms are displayed near each other
+    /* 
     pub fn arrange_terms(&self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
         let hpo_arc = Arc::clone(&self.hpo);
         let mut term_arrager = HpoTermArranger::new(hpo_arc);
         
         term_arrager.arrange_term_ids(hpo_terms_for_curation)
-    }
+    }*/
 
     pub fn initialize_project_dir(&mut self, project_dir: PathBuf) -> Result<(), String> {
         self.manager = Some(DirManager::new(project_dir)?);
@@ -282,7 +282,7 @@ impl PheTools {
         variant_key_list: Vec<String>,
         cohort_dto: CohortData) 
     -> Result<CohortData, String> {
-        let disease_gene_dto = cohort_dto.disease_gene_dto.clone();
+        let disease_gene_dto = cohort_dto.disease_gene_data.clone();
         let mut builder = CohortDtoBuilder::new(CohortType::Mendelian, disease_gene_dto, self.hpo.clone());
         builder.add_new_row_to_cohort(individual_dto, hpo_annotations, variant_key_list, cohort_dto)
     }
@@ -440,6 +440,7 @@ impl PheTools {
         Ok(())
     }
 
+    #[deprecated]
     pub fn write_hpoa_table(
         &self, 
         cohort_dto: CohortData,
@@ -449,7 +450,7 @@ impl PheTools {
         if ! cohort_dto.is_mendelian() {
             return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort_dto.cohort_type));
         }
-        let gt_list = &cohort_dto.disease_gene_dto.gene_transcript_dto_list;
+        let gt_list = &cohort_dto.disease_gene_data.gene_transcript_dto_list;
 
         if gt_list.len() != 1 {
             return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_list.len()));
@@ -459,8 +460,9 @@ impl PheTools {
             Some(acronym) => {
                 let outfile = format!("{}-{}.hpoa", gt.gene_symbol, acronym);
                 let file_path: PathBuf = dir.join(outfile);
-                let hpoa = HpoaTable::new(cohort_dto, self.hpo.clone(), &orcid)?;
-                hpoa.write_tsv(&file_path).map_err(|e| e.to_string())?;
+               // let hpoa = HpoaTable::new(cohort_dto, self.hpo.clone(), &orcid)?;
+                hpoa::write_hpoa_tsv(cohort_dto, self.hpo.clone(), &orcid, &file_path)?;
+                //hpoa.write_tsv(&file_path).map_err(|e| e.to_string())?;
                 return Ok(format!("Wrote HPOA file to {}", file_path.to_string_lossy()));
             },
             None => { return Err(format!("HPOA export requires cohort acronym but got '{:?}'", cohort_dto.cohort_acronym)); },
@@ -483,10 +485,10 @@ impl PheTools {
 
     pub fn analyze_variants(&self, cohort_dto: CohortData) 
     -> Result<Vec<VariantDto>, String> {
-       if cohort_dto.disease_gene_dto.gene_transcript_dto_list.len() != 1 {
+       if cohort_dto.disease_gene_data.gene_transcript_dto_list.len() != 1 {
             return Err(format!("analyze_variants is only implemented for Mendelian"));
        }
-       let gtdto = &cohort_dto.disease_gene_dto.gene_transcript_dto_list[0];
+       let gtdto = &cohort_dto.disease_gene_data.gene_transcript_dto_list[0];
         let vmanager = VariantManager::from_gene_transcript_dto(gtdto);
         vmanager.analyze_variants(cohort_dto)
     }

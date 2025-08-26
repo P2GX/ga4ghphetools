@@ -12,10 +12,8 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::CellValue, hpo_term_dto::{HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo::hpo_util::HpoUtil, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
-use crate::{
-    hpo::hpo_term_arranger::HpoTermArranger
-};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+
 
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
@@ -75,7 +73,7 @@ impl CohortDtoBuilder {
         Ok(tid_list)
     }
 
-
+    #[deprecated]
     pub fn get_updated_header_dto_list(arranged_terms: &Vec<SimpleTerm>) 
     -> Vec<HpoTermDuplet> {
         let mut dto_list: Vec<HpoTermDuplet> = Vec::new();
@@ -113,26 +111,26 @@ impl CohortDtoBuilder {
         variant_key_list: Vec<String>,
         cohort_dto: CohortData) 
     -> Result<CohortData, String> {
-        let hpo_util = HpoUtil::new(self.hpo.clone());
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
-        let dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_annotations)?;
+        let dto_map: HashMap<TermId, String> = hpo::term_label_map_from_dto_list(self.hpo.clone(), &hpo_annotations)?;
         let mut term_id_set_new: HashSet<TermId>  = dto_map.keys().cloned().collect();
         let term_id_list_existing = Self::get_existing_hpos_from_cohort(&cohort_dto)?;
         term_id_set_new.extend(term_id_list_existing); 
          // === STEP 2: Arrange TIDs before borrowing template mutably ===
         let all_tids: Vec<TermId> = term_id_set_new.into_iter().collect();
-        let mut term_arranger = HpoTermArranger::new(self.hpo.clone());
-        let arranged_terms = term_arranger.arrange_terms(&all_tids)?;
+        //let mut term_arranger = HpoTermArranger::new(self.hpo.clone());
+        let arranged_terms = hpo::hpo_terms_to_dfs_order_duplets(self.hpo.clone(), &all_tids)?;
+        //let arranged_terms = hpo::hpo_terms_to_dfs_order(hpo, &all_tids).arrange_terms()?;
          // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms set to "na"
         // 3a. transform the simple terms to HeaderDupletDto objects
-        let updated_header_duplet_dto_list = Self::get_updated_header_dto_list(&arranged_terms);
+        let updated_header_duplet_dto_list = arranged_terms.clone();// Self::get_updated_header_dto_list(&arranged_terms);
         
         // 3b. Update the existing PpktRow objects
         let mut updated_row_dto_list: Vec<RowData> = Vec::new();
         let mut term_id_map: HashMap<TermId, String> = HashMap::new();
         // Make a map and add "na" as the default value for all terms
         for term in &arranged_terms {
-            term_id_map.insert(term.identifier().clone(), "na".to_string());
+            term_id_map.insert(term.to_term_id()?, "na".to_string());
         }
         let previous_hpo_id_list = Self::get_previous_hpo_id_list(&cohort_dto)?;
         for row in cohort_dto.rows {
@@ -158,13 +156,13 @@ impl CohortDtoBuilder {
             individual_dto, 
             variant_key_list, 
             tid_to_value_map, 
-            cohort_dto.disease_gene_dto.clone())?;
+            cohort_dto.disease_gene_data.clone())?;
             
         updated_row_dto_list.push(novel_row);
         
         let updated_cohort_dto = CohortData{
             cohort_type: cohort_dto.cohort_type,
-            disease_gene_dto: cohort_dto.disease_gene_dto,
+            disease_gene_data: cohort_dto.disease_gene_data,
             hpo_headers: updated_header_duplet_dto_list,
             rows: updated_row_dto_list,
             hgvs_variants: cohort_dto.hgvs_variants,
@@ -180,28 +178,22 @@ impl CohortDtoBuilder {
     fn update_row_dto(
         row: RowData, 
         tid_to_value_map: &HashMap<TermId, String>,
-        updated_header: &Vec<SimpleTerm>,
+        updated_header: &Vec<HpoTermDuplet>,
         previous_hpo_id_list: &[TermId]
     ) -> Result<RowData, String> {
-         // update the tid map with the existing  values
-       // let previous_hpo_id_list = row.
-       // let previous_hpo_id_list = updated_header.get_hpo_id_list()?;
         let hpo_cell_content_list = row.hpo_data.clone();
-        
-    /*     if previous_hpo_id_list.len() != hpo_cell_content_list.len() {
-            return Err(format!("Mismatched lengths between HPO ID list from header ({}) and HPO content from row ({})",
-                previous_hpo_id_list.len(), hpo_cell_content_list.len())); 
-        }*/
-        //let updated_hpo_id_list = updated_header.get_hpo_id_list()?;
-        let updated_tid_list: Vec<TermId> = updated_header.iter().map(|st| st.identifier().clone()).collect();
+        let updated_tid_list = updated_header
+            .iter()
+            .map(|st| st.to_term_id())
+            .collect::<Result<Vec<_>, _>>()?;
         let reordering_indices = Self::get_update_vector(&previous_hpo_id_list, &updated_tid_list);
 
         let updated_hpo = Self::reorder_or_fill_na(&hpo_cell_content_list, 
         &reordering_indices,
         updated_header.len());
         Ok(RowData {
-            individual_dto: row.individual_dto,
-            disease_dto_list: row.disease_dto_list,
+            individualData: row.individualData,
+            disease_data_list: row.disease_data_list,
             allele_count_map: row.allele_count_map,
             hpo_data: updated_hpo,
         })
@@ -244,8 +236,8 @@ impl CohortDtoBuilder {
             *allele_count_map.entry(allele).or_insert(0) += 1;
         }
        let novel_row_dto = RowData{
-            individual_dto,
-            disease_dto_list: disease_gene_dto.disease_dto_list.clone(),
+            individualData: individual_dto,
+            disease_data_list: disease_gene_dto.disease_dto_list.clone(),
             allele_count_map,
             hpo_data: hpo_cell_list,
         };
@@ -345,7 +337,7 @@ impl CohortDtoBuilder {
     }
 
    
-    /// We are extract a DiseaseGeneDto from the Excel files (version 1), all of which are
+    /// We are extract a DiseaseGeneData from the Excel files (version 1), all of which are
     /// Mendelian. We know the columns are
     /// (0) "PMID", (1) "title", (2) "individual_id", (3)"comment", 
     /// (4*) "disease_id", (5*) "disease_label", (6*) "HGNC_id", (7*) "gene_symbol", 
@@ -369,7 +361,7 @@ impl CohortDtoBuilder {
         let first = &extracted_data[0];
         let all_identical = extracted_data.iter().all(|tuple| tuple == first);
         if ! all_identical {
-            return Err("DiseaseGeneDto-related columns are not equal in all rows - requires manual check".to_string());
+            return Err("DiseaseGeneData-related columns are not equal in all rows - requires manual check".to_string());
         }
         let disease_dto = DiseaseData{
             disease_id: first.0.clone(),
@@ -532,7 +524,7 @@ impl CohortDtoBuilder {
         individual_dto: IndividualDto,
         hpo_dto_items: Vec<HpoTermDto>,
         gene_variant_list: Vec<GeneVariantDto>,
-        disease_gene_dto: DiseaseGeneDto
+        disease_gene_dto: DiseaseGeneData
     ) -> std::result::Result<(), String> {
         let hpo_util = HpoUtil::new(self.hpo.clone());
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===

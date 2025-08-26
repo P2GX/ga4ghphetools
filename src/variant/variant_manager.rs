@@ -366,9 +366,7 @@ impl VariantManager {
 
 #[cfg(test)]
 mod tests {
-    use rstest::{rstest};
-
-    use super::*;
+    
 
     /*
     #[rstest]

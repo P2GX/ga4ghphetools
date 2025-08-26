@@ -3,12 +3,10 @@
 //! Each table cell is modelled as having the ability to return a datatype and the contents as a String
 //! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
-use std::cmp::min;
 use std::collections::HashMap;
 
 use std::str::FromStr;
 use std::sync::Arc;
-use ontolius::common::hpo;
 use ontolius::TermId;
 use crate::dto;
 use crate::dto::hpo_term_dto::CellValue;

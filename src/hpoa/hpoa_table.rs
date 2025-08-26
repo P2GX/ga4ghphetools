@@ -1,10 +1,11 @@
-use std::{collections::{HashMap, HashSet}, fs::File, io::{BufWriter, Write}, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, fs::File, io::{BufWriter, Write}, path::PathBuf, sync::Arc};
 
 
 use chrono::Local;
 use ontolius::ontology::csr::FullCsrOntology;
+use regex::Regex;
 
-use crate::{dto::{cohort_dto::{CohortData, DiseaseData}, hpo_term_dto::CellValue}, hpoa::{counted_hpo_term::CountedHpoTerm, hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, pmid_counter::PmidCounter}};
+use crate::{dto::cohort_dto::{CohortData, DiseaseData}, hpoa::{counted_hpo_term::CountedHpoTerm, hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, hpo_term_counter::HpoTermCounter}};
 
 
 
@@ -12,7 +13,6 @@ use crate::{dto::{cohort_dto::{CohortData, DiseaseData}, hpo_term_dto::CellValue
 
 pub struct HpoaTable {
     hpoa_row_list: Vec<HpoaTableRow>,
-    today: String
 }
 
 impl HpoaTable {
@@ -22,7 +22,7 @@ impl HpoaTable {
         hpo: Arc<FullCsrOntology>,
         biocurator: &str) -> Result<Self, String>{
         let todays_date = Local::now().format("%Y-%m-%d").to_string();
-        if biocurator.starts_with("O") {
+        if ! Self::is_valid_orcid(biocurator) {
             return Err(format!("Malformed biocurator string ({biocurator}). Must be the ORCID 16-digit identifier (only)."));
         }
         let biocurator = format!("ORCID:{biocurator}[{todays_date}]");
@@ -31,87 +31,50 @@ impl HpoaTable {
                 cohort.cohort_type));
         }
         let hpo_header = &cohort.hpo_headers;
-        let mut pmid_map: HashMap<String, PmidCounter> = HashMap::new();
-        let mut onset_term_list: Vec<CountedHpoTerm> = HpoaOnsetCalculator::pmid_to_onset_freq_d(&cohort)?;
-        let mut disease_set: HashSet<DiseaseData> = HashSet::new();
+        let onset_term_list: Vec<CountedHpoTerm> = HpoaOnsetCalculator::pmid_to_onset_freq_d(&cohort)?;
+        let hpo_counted_term_list = HpoTermCounter::pmid_term_count_list(&cohort)?;
+        let disease_data = Self::get_disease_data(&cohort)?;
         let mut hpoa_rows = Vec::new();
-        for row in &cohort.rows {
-            if row.disease_dto_list.len() != 1 {
-                // should never happen
-                return Err("Can only export Mendelian (one disease) HPOA file".to_string());
-            }
-            let disease_dto = row.disease_dto_list[0].clone();
-            disease_set.insert(disease_dto);
-            let pmid = &row.individual_dto.pmid;
-            
-            let counter = pmid_map
-                .entry(pmid.clone())
-                .or_insert(PmidCounter::new(pmid));
-            // Iterate across HPO terms and add to counter 
-            if hpo_header.len() != row.hpo_data.len() {
-                let mut i = 0 as usize;
-                for h in hpo_header {
-                    i += 1;
-                    let data = if i < row.hpo_data.len() {
-                        row.hpo_data[i].to_string()
-                    } else {
-                        "ran out".to_string()
-                    };
-                    println!("{}) hpo_header:{:?} // row_data: {}", i, h, data);
-                }
-                 for h in &row.hpo_data {
-                    i += 1;
-                    println!("{}) {:?} ", i, h);
-                }
-                return Err(format!("Length mismatch: hpo_header has {}, hpo_data has {}", hpo_header.len(), row.hpo_data.len()));
-            }
-            for (hpo_duplet, data_item) in hpo_header.iter().zip(row.hpo_data.iter()) {
-                let hpo_id = hpo_duplet.hpo_id();
-                let label = hpo_duplet.hpo_label();
-                if *data_item == CellValue::Na {
-                    continue;
-                } else if *data_item == CellValue::Excluded {
-                    counter.excluded(hpo_id);
-                } else if *data_item == CellValue::Observed {
-                    counter.observed(hpo_id);
-                }  else {
-                    println!("[INFO] Unknown HPO cell contents '{:?}' for HPO '{}'", data_item, hpo_id);
-                }
-            }
-        }
-        if disease_set.len() != 1 {
-            return Err(format!("Expected exactly one disease, found {}", disease_set.len()));
-        }
-        let disease_dto = disease_set.into_iter().next().unwrap();
-        for (pmid, counter) in &pmid_map {
-            for hpo_duplet in hpo_header {
-               
-                if counter.contains(hpo_duplet.hpo_id()) {
-                    let freq = counter.get_freq(hpo_duplet.hpo_id())?;
-                    let row = HpoaTableRow::new(
-                        &disease_dto, 
-                        hpo_duplet.hpo_id(), 
-                        hpo_duplet.hpo_label(),
-                        &freq,
-                        &pmid, 
-                        &biocurator)?;
-                    hpoa_rows.push(row);
-                }
-            }
-        }
-        for counted_onset in onset_term_list {
-            let row = HpoaTableRow::from_counted_term(&disease_dto,counted_onset, &biocurator)?;
+        for counted_term in hpo_counted_term_list {
+            let row = HpoaTableRow::from_counted_term(&disease_data, counted_term, &biocurator)?;
             hpoa_rows.push(row);
         }
-
+        for counted_onset in onset_term_list {
+            let row = HpoaTableRow::from_counted_term(&disease_data,counted_onset, &biocurator)?;
+            hpoa_rows.push(row);
+        }
         Ok(Self{
             hpoa_row_list: hpoa_rows,
-            today: todays_date
         })
 
     }
 
 
+    /// Extract the DiseaseData object from the Cohort.
+    /// We check if there is only one such object, because the HPOA export is only intended for Mendelian disease cohorts
+    /// and if we have zero or two, then there is some error.
+    fn get_disease_data(cohort: &CohortData) -> Result<DiseaseData, String> {
+        let mut disease_set: HashSet<DiseaseData> = HashSet::new();
+         for row in &cohort.rows {
+            if row.disease_data_list.len() != 1 {
+                // should never happen
+                return Err("Can only export Mendelian (one disease) HPOA file".to_string());
+            }
+            let disease_dto = row.disease_data_list[0].clone();
+            disease_set.insert(disease_dto);
+        }
+        if disease_set.len() != 1 {
+            return Err(format!("Expected exactly one disease, found {}", disease_set.len()));
+        }
+        let disease_dto = disease_set.into_iter().next().unwrap();
+        Ok(disease_dto)
+    }
+
+    /// Regex for ORCID IDs: 0000-0000-0000-0000 where the last char can be a digit or X
+    fn is_valid_orcid(orcid: &str) -> bool {
+        let re = Regex::new(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$").unwrap();
+        re.is_match(orcid)
+    }
     
     pub fn get_dataframe(&self) -> Vec<Vec<String>> {
         let mut rows:  Vec<Vec<String>> = Vec::new();
