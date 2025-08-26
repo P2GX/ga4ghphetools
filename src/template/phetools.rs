@@ -16,7 +16,6 @@ use crate::ppkt::ppkt_exporter::PpktExporter;
 use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::variant::variant_manager::VariantManager;
-use crate::{hpo, hpoa};
 
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
@@ -440,34 +439,7 @@ impl PheTools {
         Ok(())
     }
 
-    #[deprecated]
-    pub fn write_hpoa_table(
-        &self, 
-        cohort_dto: CohortData,
-        dir: PathBuf,
-        orcid: String
-    ) -> Result<String, String> {
-        if ! cohort_dto.is_mendelian() {
-            return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort_dto.cohort_type));
-        }
-        let gt_list = &cohort_dto.disease_gene_data.gene_transcript_dto_list;
-
-        if gt_list.len() != 1 {
-            return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_list.len()));
-        }
-        let gt = gt_list[0].clone();
-        match &cohort_dto.cohort_acronym {
-            Some(acronym) => {
-                let outfile = format!("{}-{}.hpoa", gt.gene_symbol, acronym);
-                let file_path: PathBuf = dir.join(outfile);
-               // let hpoa = HpoaTable::new(cohort_dto, self.hpo.clone(), &orcid)?;
-                hpoa::write_hpoa_tsv(cohort_dto, self.hpo.clone(), &orcid, &file_path)?;
-                //hpoa.write_tsv(&file_path).map_err(|e| e.to_string())?;
-                return Ok(format!("Wrote HPOA file to {}", file_path.to_string_lossy()));
-            },
-            None => { return Err(format!("HPOA export requires cohort acronym but got '{:?}'", cohort_dto.cohort_acronym)); },
-        }
-    }
+  
 
     /// Load an excel file with a table of information that can be
     /// transformed into a collection of phenopackets (e.g. a Supplementary Table)

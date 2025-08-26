@@ -13,6 +13,7 @@ use crate::{dto::cohort_dto::{CohortData, DiseaseData}, hpoa::{counted_hpo_term:
 
 pub struct HpoaTable {
     hpoa_row_list: Vec<HpoaTableRow>,
+    file_name: String
 }
 
 impl HpoaTable {
@@ -43,8 +44,10 @@ impl HpoaTable {
             let row = HpoaTableRow::from_counted_term(&disease_data,counted_onset, &biocurator)?;
             hpoa_rows.push(row);
         }
+        let file_name = Self::get_hpoa_filename(&cohort)?;
         Ok(Self{
             hpoa_row_list: hpoa_rows,
+            file_name
         })
 
     }
@@ -85,14 +88,36 @@ impl HpoaTable {
         rows
     }
 
+
+    /// Create the filename for the cohort, something like MFS-FBN1.tsv
+    fn get_hpoa_filename(cohort: &CohortData) -> Result<String, String> {
+         if ! cohort.is_mendelian() {
+            return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort.cohort_type));
+        }
+        let gt_list = &cohort.disease_gene_data.gene_transcript_dto_list;
+
+        if gt_list.len() != 1 {
+            return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_list.len()));
+        }
+        let gt = gt_list[0].clone();
+        match &cohort.cohort_acronym {
+            Some(acronym) => {
+                let outfile = format!("{}-{}.tsv", gt.gene_symbol, acronym);
+                Ok(outfile)
+            },
+            None =>  Err(format!("HPOA export requires cohort acronym but got '{:?}'", cohort.cohort_acronym))
+        }
+    }
+
     /// Output the HPOA-format file representing data from the entire cohort.
     /// This format is used in the internal pipeline of the HPO project that generates teh
     /// phenotype.hpoa file for releases. The file can be used by that pipeline to add
     /// data to existing data for a disease or to create the disease file (for new diseases).
     /// We have used the PhenoteFX tool to manage this. This function should not be
     /// needed except by the internal HPO team.
-    pub fn write_tsv(&self, path: &PathBuf) -> std::io::Result<()> {
-        let file = File::create(path)?;
+    pub fn write_tsv(&self, path: &PathBuf) -> std::io::Result<()> {  
+        let file_path: PathBuf = path.join(&self.file_name);
+         let file = File::create(file_path)?;
         let mut writer = BufWriter::new(file);
 
         for row in self.get_dataframe() {
