@@ -1,5 +1,5 @@
 
-use ga4ghphetools::{dto::{case_dto::CaseDto, cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}}, template::cohort_dto_builder::CohortDtoBuilder};
+use ga4ghphetools::{dto::{case_dto::CaseDto, cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}}, factory::cohort_factory::CohortFactory};
 use rstest::{fixture, rstest};
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc};
@@ -207,14 +207,6 @@ pub fn acvr1_disease_data() -> DiseaseData {
     DiseaseData::new(  "diseaseId", "Fibrodysplasia ossificans progressiva")
 }
 
-/* 
-pub struct RowData {
-    pub individual_data: IndividualData,
-    pub disease_data_list: Vec<DiseaseData>,
-    //pub gene_var_dto_list: Vec<GeneVariantDto>,
-    pub allele_count_map: HashMap<String, usize>,
-    pub hpo_data: Vec<CellValue>
-}*/
 
 #[fixture]
 pub fn acvr1_dg_data(
@@ -250,5 +242,6 @@ pub fn acvr1_cohort(
 
     CohortData::mendelian(acvr1_dg_data, hpo_headers_two_terms, vec![rdata])
 }
+
 
 

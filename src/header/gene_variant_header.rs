@@ -1,4 +1,4 @@
-use crate::{dto::cohort_dto::GeneVariantData, header::duplet_item::DupletItem, template::gene_variant_bundle::GeneVariantBundle};
+use crate::{dto::cohort_dto::GeneVariantData, header::duplet_item::DupletItem, factory::gene_variant_bundle::GeneVariantBundle};
 
 
 

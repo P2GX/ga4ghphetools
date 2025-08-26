@@ -1,4 +1,4 @@
-use crate::{dto::cohort_dto::IndividualData, header::duplet_item::DupletItem, template::individual_bundle::IndividualBundle};
+use crate::{dto::cohort_dto::IndividualData, header::duplet_item::DupletItem, factory::individual_bundle::IndividualBundle};
 
 
 

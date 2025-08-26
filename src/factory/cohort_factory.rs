@@ -12,45 +12,25 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, template::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, factory::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 
 
 
 /// All data needed to edit a cohort of phenopackets or export as GA4GH Phenopackets
-pub struct CohortDtoBuilder {
-    cohort_type: CohortType,
-    /// Data structure used to seed new entries in the template (info re: gene[s], disease[s])
-    disease_gene_dto: DiseaseGeneData,
+pub struct CohortFactory {
      /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
 }
 
-impl CohortDtoBuilder {
+impl CohortFactory {
 
     pub fn new(
-        cohort_type: CohortType,
-        disease_gene_dto: DiseaseGeneData,
         hpo: Arc<FullCsrOntology>
     ) -> Self {
-        Self { cohort_type, disease_gene_dto, hpo}
+        Self { hpo}
     }
 
-    pub fn from_cohort(
-        cohort_dto: &CohortData,
-         hpo: Arc<FullCsrOntology>
-    ) -> Result<Self, String> {
-        if ! cohort_dto.is_mendelian() {
-            return Err(format!("Only Mendelian cohorts supported; {:?} not currently supported", cohort_dto.cohort_type));
-        }
-        Ok(Self{
-            cohort_type: cohort_dto.cohort_type,
-            disease_gene_dto: cohort_dto.disease_gene_data.clone(),
-            hpo,
-        })
-
-    }
-
-
+   
 
     /// Create the initial pyphetools template using HPO seed terms
     pub fn create_pyphetools_template_mendelian(
@@ -500,14 +480,32 @@ impl CohortDtoBuilder {
 
    
 
-    /// Validate the current template
+    /// Validate the current template.
+    /// We check that all of the rows are the correct length
+    /// We check whether there are any duplicates in the header
+    /// ? What else. Some qc is necessarily done during construction
     ///
     ///  * Returns
     ///
-    /// - a vector of errors (can be empty)
+    /// - The first error encountered.
     ///
-    pub fn qc_check(&self) -> Result<(), String> {
-
+    pub fn qc_check(hpo: Arc<FullCsrOntology>, cohort: &CohortData) -> Result<(), String> {
+        let n_hpos = cohort.hpo_headers.len();
+        // check correct length
+        for row in &cohort.rows {
+            if row.hpo_data.len() != n_hpos {
+                return Err(format!("Length mismatch: Header: {} vs. row: {}", n_hpos, row.hpo_data.len()))
+            }
+        }
+        // check for duplicates
+        let mut seen = HashSet::new();
+        for duplet in &cohort.hpo_headers {
+            if seen.contains(duplet) {
+                return Err(format!("Duplicate entry in HPO Header: {} ({})", duplet.hpo_label(), duplet.hpo_id()));
+            } else {
+                seen.insert(duplet);
+            }
+        }
         Ok(())
     }
 

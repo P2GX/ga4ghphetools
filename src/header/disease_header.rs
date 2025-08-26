@@ -1,4 +1,4 @@
-use crate::{dto::cohort_dto::DiseaseData, header::duplet_item::DupletItem, template::disease_bundle::DiseaseBundle};
+use crate::{dto::cohort_dto::DiseaseData, header::duplet_item::DupletItem, factory::disease_bundle::DiseaseBundle};
 
 
 

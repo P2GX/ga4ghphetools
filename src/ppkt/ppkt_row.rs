@@ -15,12 +15,12 @@ use crate::dto::cohort_dto::{CohortType, DiseaseData, DiseaseGeneData, GeneVaria
 
 
 
-use crate::template::disease_bundle::{ DiseaseBundle};
-use crate::template::gene_variant_bundle::{ GeneVariantBundle};
-use crate::template::individual_bundle::IndividualBundle;
+use crate::factory::disease_bundle::{ DiseaseBundle};
+use crate::factory::gene_variant_bundle::{ GeneVariantBundle};
+use crate::factory::individual_bundle::IndividualBundle;
 
 
-use crate::template::header_duplet_row::{ HeaderDupletRow};
+use crate::factory::header_duplet_row::{ HeaderDupletRow};
 
 /// The index where the Mendelian demographic part sars
 const DEMOGRAPHIC_IDX:usize = 12;
@@ -373,8 +373,8 @@ mod test {
 
     #[fixture]
     pub fn hpo_dtos() -> Vec<HpoTermData> {
-        vec![HpoTermData::new("HP:0001382", "Joint hypermobility", "observed").unwrap(),
-        HpoTermData::new("HP:0000574", "Thick eyebrow", "observed").unwrap()]
+        vec![HpoTermData::from_str("HP:0001382", "Joint hypermobility", "observed").unwrap(),
+        HpoTermData::from_str("HP:0000574", "Thick eyebrow", "observed").unwrap()]
     }
     
     #[rstest]

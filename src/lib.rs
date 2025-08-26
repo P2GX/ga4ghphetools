@@ -27,6 +27,6 @@ pub mod dto;
 pub mod etl;
 pub mod hpo;
 pub mod hpoa;
-pub use template::phetools::PheTools;
-pub mod template;
+pub use factory::phetools::PheTools;
+pub mod factory;
 

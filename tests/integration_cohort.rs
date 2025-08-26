@@ -1,19 +1,29 @@
 mod common;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ga4ghphetools::dto::cohort_dto::CohortData;
 use ga4ghphetools::dto::cohort_dto::CohortType;
+use ga4ghphetools::dto::cohort_dto::DiseaseData;
+use ga4ghphetools::dto::cohort_dto::DiseaseGeneData;
+use ga4ghphetools::dto::cohort_dto::IndividualData;
+use ga4ghphetools::dto::cohort_dto::RowData;
+use ga4ghphetools::dto::hpo_term_dto::CellValue;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermData;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
-use ga4ghphetools::template::cohort_dto_builder::CohortDtoBuilder;
+use ga4ghphetools::factory::cohort_factory::CohortFactory;
 use ontolius::ontology::csr::FullCsrOntology;
-use ga4ghphetools::PheTools;
 use rstest::rstest;
 use common::hpo;
-use common::matrix;
+
 
 use crate::common::acvr1_cohort;
+use crate::common::acvr1_dg_data;
+use crate::common::acvr1_disease_data;
+use crate::common::cell_values_two_terms;
+use crate::common::hpo_headers_two_terms;
+use crate::common::individual_data;
 
 
 
@@ -28,8 +38,8 @@ use crate::common::acvr1_cohort;
         let row0 = acvr1_cohort.rows.get(0).cloned().unwrap();
         assert_eq!(2, row0.hpo_data.len());
         let hpo_term = HpoTermDuplet::new("Long hallux", "HP:0001847");
-        let mut builder = CohortDtoBuilder::new(acvr1_cohort.cohort_type, acvr1_cohort.disease_gene_data.clone(), hpo.clone());
-        let result = builder.add_hpo_term_to_cohort(hpo_term.hpo_id(), hpo_term.hpo_label(), acvr1_cohort);
+        let mut factory = CohortFactory::new(hpo.clone());
+        let result = factory.add_hpo_term_to_cohort(hpo_term.hpo_id(), hpo_term.hpo_label(), acvr1_cohort);
         if result.is_err() {
             let err = result.err().unwrap();
             println!("{}", err);
@@ -66,6 +76,36 @@ use crate::common::acvr1_cohort;
 
 
 
+/// Create a Cohort with three terms in which that first and the third terms are identical.
+/// The purpose is that we can see if the ingest function throws and error -- this needs to 
+/// be cleaned up before further processing.
+#[rstest]
+pub fn acvr1_cohort_with_repeated_term(
+    acvr1_dg_data: DiseaseGeneData,
+    mut hpo_headers_two_terms: Vec<HpoTermDuplet>,
+    mut cell_values_two_terms: Vec<CellValue>,
+    individual_data: IndividualData,
+    acvr1_disease_data: DiseaseData,
+    hpo: Arc<FullCsrOntology>
+)  {
+    if let Some(first) = hpo_headers_two_terms.first().cloned() {
+        hpo_headers_two_terms.push(first);
+    } else {
+        assert!(false, "could not add HPO term");
+    }
+    if let Some(first) = cell_values_two_terms.first().cloned() {
+        cell_values_two_terms.push(first);
+    }
+    
+     let rdata = RowData{ individual_data, disease_data_list: vec![acvr1_disease_data], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
+
+    let cohort_data = CohortData::mendelian(acvr1_dg_data, hpo_headers_two_terms, vec![rdata]);
+    let result = CohortFactory::qc_check(hpo, &cohort_data);
+    assert!(result.is_err());
+    let err_str = result.err().unwrap();
+    assert_eq!("Duplicate entry in HPO Header: Ectopic ossification in muscle tissue (HP:0011987)", err_str);
+    
+}
 
 
 

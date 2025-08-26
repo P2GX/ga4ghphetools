@@ -21,8 +21,8 @@ use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use phenopackets::schema::v2::Phenopacket;
-use crate::template::cohort_dto_builder::CohortDtoBuilder;
-use crate::template::excel;
+use crate::factory::cohort_factory::CohortFactory;
+use crate::factory::excel;
 use core::option::Option::Some;
 use std::collections::HashMap;
 use std::fmt::{self};
@@ -115,7 +115,7 @@ impl PheTools {
         }
         let dirman = DirManager::new(dir_path)?;
         let hpo_arc = self.hpo.clone();
-        let cohort_dto = CohortDtoBuilder::create_pyphetools_template(
+        let cohort_dto = CohortFactory::create_pyphetools_template(
             template_type, 
             disease_gene_dto,
             hpo_term_ids, 
@@ -171,8 +171,9 @@ impl PheTools {
         progress_cb: F
     ) -> Result<CohortData, String> 
         where F: FnMut(u32,u32),{
-        let hpo_arc = self.hpo.clone();
-        CohortDtoBuilder::dto_from_mendelian_template(matrix, hpo_arc, update_hpo_labels, progress_cb)
+        let cohort_data = CohortFactory::dto_from_mendelian_template(matrix, self.hpo.clone(), update_hpo_labels, progress_cb)?;
+        CohortFactory::qc_check(self.hpo.clone(), &cohort_data)?;
+        Ok(cohort_data)
     }
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
@@ -247,7 +248,7 @@ impl PheTools {
         hpo_label: &str,
         cohort_dto: CohortData) 
     -> std::result::Result<CohortData, String> {
-        let mut builder = CohortDtoBuilder::from_cohort(&cohort_dto, self.hpo.clone())?;
+        let mut builder = CohortFactory::new(self.hpo.clone());
         let newcohort = builder.add_hpo_term_to_cohort(hpo_id, hpo_label, cohort_dto)?;
         Ok(newcohort)
     }
@@ -276,7 +277,7 @@ impl PheTools {
         cohort_dto: CohortData) 
     -> Result<CohortData, String> {
         let disease_gene_dto = cohort_dto.disease_gene_data.clone();
-        let mut builder = CohortDtoBuilder::new(CohortType::Mendelian, disease_gene_dto, self.hpo.clone());
+        let mut builder = CohortFactory::new( self.hpo.clone());
         builder.add_new_row_to_cohort(individual_dto, hpo_annotations, variant_key_list, cohort_dto)
     }
 

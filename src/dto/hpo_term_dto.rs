@@ -15,7 +15,7 @@ use crate::age;
 
 
 /// A structure to represent an HPO term (id and label) in a simple way
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HpoTermDuplet {
     pub hpo_label: String,
@@ -247,7 +247,7 @@ mod test {
         let hpo_id = "HP:5200362";
         let hpo_label = "Short NREM sleep";
         let onset = "P29Y";
-        let dto = HpoTermData::new(hpo_id, hpo_label, onset).unwrap();
+        let dto = HpoTermData::from_str(hpo_id, hpo_label, onset).unwrap();
         assert_eq!(hpo_id, dto.term_id());
         assert_eq!(hpo_label, dto.label());
         println!("{:?}", dto);
@@ -259,7 +259,7 @@ mod test {
     fn test_excluded_ctor() {
         let hpo_id = "HP:5200362";
         let hpo_label = "Short NREM sleep";
-        let dto = HpoTermData::new(hpo_id, hpo_label, "excluded").unwrap();
+        let dto = HpoTermData::from_str(hpo_id, hpo_label, "excluded").unwrap();
         assert_eq!(hpo_id, dto.term_id());
         assert_eq!(hpo_label, dto.label());
         assert!(! dto.has_onset());
@@ -271,7 +271,7 @@ mod test {
         let hpo_id = "HP:5200362";
         let hpo_label = "Short NREM sleep";
         let onset = "Young adult onset";
-        let dto = HpoTermData::new(hpo_id, hpo_label, onset).unwrap();
+        let dto = HpoTermData::from_str(hpo_id, hpo_label, onset).unwrap();
         assert_eq!(hpo_id, dto.term_id());
         assert_eq!(hpo_label, dto.label());
         assert!(dto.has_onset());
