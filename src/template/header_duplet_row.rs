@@ -7,6 +7,7 @@
 
 
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
@@ -14,7 +15,7 @@ use ontolius::term::simple::SimpleTerm;
 use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
 
-use crate::dto::hpo_term_dto::{HpoTermData, HpoTermDuplet};
+use crate::dto::hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet};
 use crate::dto::cohort_dto::CohortType;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::header::disease_header::DiseaseHeader;
@@ -194,9 +195,7 @@ impl HeaderDupletRow {
                 self.hpo_count(), values.len()));
         }
         for (i, cell_contents) in values.iter().enumerate() {
-            let hpo_label = self.hpo_duplets[i].hpo_label();
-            let hpo_id = self.hpo_duplets[i].hpo_id();
-            let dto = HpoTermData::new(hpo_id, hpo_label, cell_contents)?;
+            let dto = HpoTermData::new(self.hpo_duplets[i].clone(), CellValue::from_str(cell_contents)?)?;
             hpo_dto_list.push(dto);
         }
         Ok(hpo_dto_list)
@@ -270,7 +269,7 @@ impl HeaderDupletRow {
         }
         let mut dto_list: Vec<HpoTermData> = Vec::new();
         for (duplet, content) in self.get_hpo_duplets().iter().zip(cell_content_list.iter()) {
-            let htd = HpoTermData::new(duplet.hpo_id(), duplet.hpo_label(), content)?;
+            let htd = HpoTermData::new(duplet.clone(),  CellValue::from_str(&content)?)?;
             dto_list.push(htd);
         }
         Ok(dto_list)

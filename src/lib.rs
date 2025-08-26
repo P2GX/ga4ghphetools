@@ -18,7 +18,7 @@ mod header;
 
 mod persistence;
 mod ppkt;
-mod template;
+
 mod variant;
 
 
@@ -28,4 +28,5 @@ pub mod etl;
 pub mod hpo;
 pub mod hpoa;
 pub use template::phetools::PheTools;
+pub mod template;
 

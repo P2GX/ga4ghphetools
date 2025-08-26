@@ -149,14 +149,12 @@ pub struct HpoTermData {
 impl HpoTermData {
 
     pub fn new(
-        tid: &str,
-        label: &str,
-        entry: &str
+        term_duplet: HpoTermDuplet,
+        entry: CellValue
     ) -> Result<Self, String> {
-        let duplet = HpoTermDuplet::new(label, tid);
         Ok(Self { 
-           term_duplet: duplet,
-            entry: CellValue::from_str(entry)? 
+           term_duplet: term_duplet,
+            entry 
         })
     }
 
@@ -167,6 +165,17 @@ impl HpoTermData {
         Ok(Self { 
             term_duplet: duplet, 
             entry: CellValue::from_str(entry)? 
+        })
+    }
+
+     pub fn from_str(
+        term_id: &str,
+        term_label: &str,
+        entry: &str
+    ) -> Result<Self, String> {
+        Ok(Self { 
+           term_duplet: HpoTermDuplet::new(term_label, term_id),
+            entry : CellValue::from_str(entry)?
         })
     }
 

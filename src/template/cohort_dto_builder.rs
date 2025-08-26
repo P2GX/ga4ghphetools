@@ -4,7 +4,7 @@
 //! to store information about the Cohort. It uses the PPKtRow object as an intermediate stage in ETL 
 //! for each row of the legacy template to be ingested. This class can be simplified
 //! after we are finished refactoring the legacy files.
-use std::{collections::{HashMap, HashSet}, fmt::format, str::FromStr, sync::Arc, vec};
+use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
     ontology::{csr::FullCsrOntology, OntologyTerms},
     term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
@@ -660,29 +660,39 @@ impl CohortDtoBuilder {
 
 
     /// Compare the old header with the new header and update the RowData object to have the new HPO columns but sset the value to na for these columns because we do not yet have the value for them
-    fn update_hpo_row_with_new_header(
+    fn update_hpo_row_with_new_term(
         &self,
         oldrow: &RowData, 
         previous_duplets: &Vec<HpoTermDuplet>,
-        update_duplets: &Vec<HpoTermDuplet>) 
+        update_duplets: &Vec<HpoTermDuplet>,
+        term_id_to_na_map: &HashMap<TermId, CellValue>) 
     -> Result<RowData, String> {
         if oldrow.hpo_data.len() != previous_duplets.len() {
             return Err(format!("Length mismatch for update HPO row with new header: previous row HPOs: {} but header: {}",
             oldrow.hpo_data.len(), previous_duplets.len()));
         }
-        let hpo_map = hpo::term_label_map_from_duplet_list(self.hpo.clone(), update_duplets)?;
-        let mut content = Vec::new();
-        for duplet in update_duplets {
-            let item: String = hpo_map
-                .get(&duplet.to_term_id()?)
-                .cloned() // converts Option<&String> to Option<String>
-                .unwrap_or_else(|| "na".to_string()); // this will pertain to the new HPO term we are adding
-            content.push(item);
+        let mut term_id_map = term_id_to_na_map.clone();
+        for (duplet, value) in previous_duplets.iter().zip(oldrow.hpo_data.clone()) {
+            let tid = duplet.to_term_id()?;
+            if ! term_id_map.contains_key(&tid) {
+                return Err(format!("Could not find {} in term_id_to_na_map", tid.to_string()));
+            }
+            term_id_map.insert(tid, value);
         }
-        let values_result: Result<Vec<CellValue>, String> = content.iter().map(|item| CellValue::from_str(item)).collect();
-        let values:  Vec<CellValue> = values_result?;
+        let mut content: Vec<CellValue> = Vec::new();
+        for duplet in update_duplets {
+            match term_id_map.get(&duplet.to_term_id()?) {
+                Some(cv) => {
+                    content.push(cv.clone());
+                },
+                None => {
+                    // should never happen, if it does, there is a problem with the arguments to the function
+                    return Err(format!("updating HPO row but did not find value for HPO id '{}'", duplet.hpo_id()))
+                }
+            }
+        }
         let mut newrow = oldrow.clone();
-        newrow.hpo_data = values;
+        newrow.hpo_data = content;
         Ok(newrow)
     }
      
@@ -693,10 +703,10 @@ impl CohortDtoBuilder {
         cohort: CohortData
     ) 
     -> std::result::Result<CohortData, String> {
-        let tid = TermId::from_str(hpo_id)
-                .map_err(|_| format!("Could not arrange terms: {}\n", hpo_id))?;
+        let new_tid = TermId::from_str(hpo_id)
+                .map_err(|_| format!("Could not create TermId from: '{}'", hpo_id))?;
         let term = self.hpo
-            .term_by_id(&tid)
+            .term_by_id(&new_tid)
             .ok_or_else(|| format!("could not retrieve HPO term for '{hpo_id}'"))?;
         // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
         let all_tid_result: Result<Vec<TermId>, String> =
@@ -705,18 +715,23 @@ impl CohortDtoBuilder {
                 .map(|duplet| duplet.to_term_id())
                 .collect();
         let mut all_tids = all_tid_result?;
-        if all_tids.contains(&tid) {
-            return Err(format!("Not allowed to add term {} because it already is present", &tid));
+        if all_tids.contains(&new_tid) {
+            return Err(format!("Not allowed to add term {} because it already is present", &new_tid));
         }
-        all_tids.push(tid);
+        all_tids.push(new_tid.clone());
         let arranged_hpo_duplets = hpo::hpo_terms_to_dfs_order_duplets(self.hpo.clone(), &all_tids)?;
         // === Step 3: Rearrange the existing RowData objects to have the new HPO terms and set the new terms to "na"
+        // This will be modified so that the new rows have the old value for the old terms and na for the new terms.
+        let mut term_id_to_na_map: HashMap<TermId, CellValue> = HashMap::new(); 
+        for duplet in &arranged_hpo_duplets {
+            term_id_to_na_map.insert(duplet.to_term_id()?.clone(), CellValue::Na);
+        }
         // strategy: Make a HashMap with all of the new terms, initialize the values to na. Update the map with the current values. The remaining (new) terms will be "na". 
         let mut updated_cohort = cohort.clone();
         updated_cohort.hpo_headers = arranged_hpo_duplets;
         let mut updated_ppkt_rows: Vec<RowData> = Vec::new();
         for oldrow in cohort.rows {
-            let newrow = self.update_hpo_row_with_new_header(&oldrow, &cohort.hpo_headers, &updated_cohort.hpo_headers)?;
+            let newrow = self.update_hpo_row_with_new_term(&oldrow, &cohort.hpo_headers, &updated_cohort.hpo_headers, &term_id_to_na_map)?;
             updated_ppkt_rows.push(newrow);
         }
         updated_cohort.rows = updated_ppkt_rows;
