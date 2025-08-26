@@ -119,7 +119,6 @@ impl HpoUtil {
     pub fn update_hpo_duplets(
         &self,
         hpo_duplets: &Vec<HpoTermDuplet>,
-        update_labels: bool
     ) -> std::result::Result<Vec<HpoTermDuplet>, String> {
         let mut updated_duplets = vec![];
         for duplet in hpo_duplets {
@@ -132,15 +131,12 @@ impl HpoUtil {
                     // This usually happens if the name of the HPO term was changed after the Excel template
                     // was created. If the user chooses to update labels, this is fixed automatically here.
                     let err_str = format!("{}: expected '{}' but got '{}'", duplet.hpo_id(), term.name(), duplet.hpo_label());
-                    if update_labels {
-                         updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
-                         eprint!("Updating HPO label {err_str}"); // Output to shell, this is expected behavior.
-                         // consider sending a signal to update user
-                    } else {
-                        return Err(err_str);
-                    }
+                    updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
+                    print!("[INFO] Updating HPO label {err_str}"); // Output to shell, this is expected behavior.
+                    // consider sending a signal to update user
+                } else {
+                    updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
                 }
-                updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
             } else {
                 return Err(format!("No HPO Term found for '{}'", &tid));
             }

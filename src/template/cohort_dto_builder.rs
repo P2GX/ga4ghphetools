@@ -417,7 +417,8 @@ impl CohortDtoBuilder {
         let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
         let mut vmanager = VariantManager::from_mendelian_matrix(&matrix, progress_cb)?;
         let mut row_dto_list: Vec<RowData> = Vec::new();
-         for row in matrix.into_iter().skip(HEADER_ROWS) {
+        for row in matrix.into_iter().skip(HEADER_ROWS) {
+            println!(" {:?}", row);
             let hdr_clone = hdr_arc.clone();
             let ppkt_row = PpktRow::from_mendelian_row(hdr_clone, row)?;
             if ppkt_row.hpo_count() != header_hpo_count {

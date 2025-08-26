@@ -39,12 +39,14 @@ fn create_ppkt_1(
 #[rstest]
 #[ignore = "local test TODO refactor"]
 fn create_cohort_dto(
-    one_case_matrix: Vec<Vec<String>>, 
+   // one_case_matrix: Vec<Vec<String>>, 
     hpo: Arc<FullCsrOntology>,
 ) {
      let mut phetools = PheTools::new(hpo);
-    let template_path = "/Users/robin/GIT/phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx";
-    match phetools.load_excel_template(template_path, false, |p,q|{
+    //let template_path = "/Users/robin/GIT/phenopacket-store/notebooks/CD28/input/CD28_IMD123_individuals.xlsx";
+ let template_path= "/Users/robin/GIT/phenopacket-store/notebooks/ABCB7/input/abcb7-individuals.xlsx";
+    let update_labels = true;
+    match phetools.load_excel_template(template_path, update_labels, |p,q|{
         println!("{}/ {} variants validated", p, q);}) {
         Ok(template) => {
             println!("[INFO] No errors identified for {:?}", template);

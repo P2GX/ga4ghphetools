@@ -3,10 +3,12 @@
 //! Each table cell is modelled as having the ability to return a datatype and the contents as a String
 //! If a PpktExporter instance has no error, then we are ready to create a phenopacket.
 
+use std::cmp::min;
 use std::collections::HashMap;
 
 use std::str::FromStr;
 use std::sync::Arc;
+use ontolius::common::hpo;
 use ontolius::TermId;
 use crate::dto;
 use crate::dto::hpo_term_dto::CellValue;
@@ -61,7 +63,6 @@ impl PpktRow {
         let mut hpo_content: Vec<String> = Vec::new();
         let number_of_constant_cells_to_skip = 17;
         // HPO data begins at cell 17 in the legacy Excel files -- need to skip 17 (zero based)
-
         for item in content.iter().skip(number_of_constant_cells_to_skip) {
             let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency
             match dto::hpo_term_dto::CellValue::is_valid_cell_value(cell) {
@@ -69,6 +70,8 @@ impl PpktRow {
                 false => { return Err(format!("Invalid table cell '{cell}'y"));},
             }
         }
+
+       
         Ok(Self { header: header.clone(), 
             individual_bundle: ibundle, 
             disease_bundle_list: vec![disease_bundle], 

@@ -98,7 +98,9 @@ impl HeaderDupletRow {
         }
         Self::check_separator(matrix)?;
         let hpo_util = HpoUtil::new(hpo.clone());
-        let hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list, update_hpo_labels)?;
+        if update_hpo_labels {
+            hpo_duplet_list = hpo_util.update_hpo_duplets(&hpo_duplet_list)?;
+        }
         Ok(Self { 
             individual_header: iheader, 
             disease_header_list: vec![DiseaseHeader::new()], 
