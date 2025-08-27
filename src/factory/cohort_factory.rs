@@ -222,10 +222,10 @@ impl CohortFactory {
             let cell_value = CellValue::from_str(&value)?;
             hpo_cell_list.push(cell_value);
         }
-        if dg_data.gene_transcript_data_list.len() != 1 {
-            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", dg_data.gene_transcript_data_list.len()));
+        if dg_data.gene_transcript_data_map.len() != 1 {
+            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", dg_data.gene_transcript_data_map.len()));
         }
-        let disease_id_list: Vec<String> = dg_data.disease_data_list.iter().map(|dgd| dgd.disease_id.clone()).collect();
+        let disease_id_list: Vec<String> = dg_data.disease_data_map.keys().cloned().collect();
         // Could the alleles
         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
         for allele in variant_key_list {
@@ -369,10 +369,14 @@ impl CohortFactory {
             gene_symbol: first.3.clone(),
             transcript: first.4.clone(),
         };
-        // Note we will need to manually fix the cohort acronym for legacy files TODO possibly refactor
+        // Note we will need to manually fix the cohort acronym for legacy files - this is done in the GUI
+        let mut disease_map: HashMap<String, DiseaseData> = HashMap::new();
+        disease_map.insert(disease_dto.disease_id.to_string(), disease_dto);
+        let mut gene_map: HashMap<String, GeneTranscriptData> = HashMap::new();
+        gene_map.insert(gtr_dto.gene_symbol.to_string(), gtr_dto);
         let dg_dto = DiseaseGeneData{
-            disease_data_list: vec![disease_dto],
-            gene_transcript_data_list: vec![gtr_dto],
+            disease_data_map: disease_map,
+            gene_transcript_data_map: gene_map
         };
         Ok(dg_dto)
     }
@@ -804,9 +808,15 @@ mod test {
             gene_symbol: "ACVR1".to_string(), 
             transcript:   "NM_001111067.4".to_string(),
         };
+        let disease_data_map = HashMap::<String, DiseaseData>::from([(
+            "OMIM:135100".to_string(),
+            dx_dto,
+        )]);
+        let gene_transcript_data_map = HashMap::<String, GeneTranscriptData>::from([(
+            "ACVR1".to_string(), gv_dto)]);
         DiseaseGeneData{ 
-            disease_data_list: vec![dx_dto], 
-            gene_transcript_data_list: vec![gv_dto]
+            disease_data_map, 
+            gene_transcript_data_map
         }
     }
 

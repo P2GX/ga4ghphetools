@@ -183,8 +183,10 @@ pub struct GeneTranscriptData {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseGeneData {
-    pub disease_data_list: Vec<DiseaseData>,
-    pub gene_transcript_data_list: Vec<GeneTranscriptData>,
+    /// Key is a disease identifier (e.g., OMIM:157000) that is also used in the RowData objects
+    pub disease_data_map: HashMap<String, DiseaseData>,
+    /// Key is a Gene symbol that is also used for the variants
+    pub gene_transcript_data_map: HashMap<String, GeneTranscriptData>,
 }
 
 
@@ -308,12 +310,10 @@ impl CohortData {
         if ! self.is_mendelian() {
             return Err("Not implemented except for Mendelian".to_string());
         }
-        match self.disease_gene_data.disease_data_list.first() {
+        match self.disease_gene_data.disease_data_map.values().next() {
             Some(d_data) => Ok(vec![d_data.clone()]),
             None => Err("No disease data objects found".to_string()),
         }
-
-    
-}
+    }
     
 }

@@ -9,7 +9,7 @@ static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {
     Arc::new(DiseaseHeader::new())
 });
 
-
+#[deprecated]
 #[derive(Clone, Debug)]
 pub struct DiseaseBundle {
     header: Arc<DiseaseHeader>,
@@ -76,7 +76,12 @@ impl DiseaseBundle {
     }
     /// Create a list of DiseaseBundle objects from a DiseaseGeneData (this is what we expect to get from the frontend)
     pub fn from_disease_gene_dto(dto: DiseaseGeneData) -> Vec<Self> {
-        Self::from_dto_list(dto.disease_data_list)
+        let dgdata = match dto.disease_data_map.values().into_iter().next() {
+            Some(data) => data.clone(),
+            None => {return vec![]; },
+        };
+        
+        Self::from_dto_list(vec![dgdata])
     }
 
 }

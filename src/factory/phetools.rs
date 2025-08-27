@@ -4,7 +4,7 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseGeneData, IndividualData};
+use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseGeneData, GeneTranscriptData, IndividualData};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
@@ -416,11 +416,14 @@ impl PheTools {
 
     pub fn analyze_variants(&self, cohort_dto: CohortData) 
     -> Result<Vec<VariantDto>, String> {
-       if cohort_dto.disease_gene_data.gene_transcript_data_list.len() != 1 {
+       if cohort_dto.disease_gene_data.gene_transcript_data_map.len() != 1 {
             return Err(format!("analyze_variants is only implemented for Mendelian"));
        }
-       let gtdto = &cohort_dto.disease_gene_data.gene_transcript_data_list[0];
-        let vmanager = VariantManager::from_gene_transcript_dto(gtdto);
+       let gt_data: GeneTranscriptData = match cohort_dto.disease_gene_data.gene_transcript_data_map.values().next() {
+            Some(data) => data.clone(),
+            None =>  { return Err(format!("Unable to extract GeneTranscriptData")); }
+        };
+        let vmanager = VariantManager::from_gene_transcript_dto(&gt_data);
         vmanager.analyze_variants(cohort_dto)
     }
 

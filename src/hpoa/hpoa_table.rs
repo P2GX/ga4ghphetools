@@ -57,10 +57,10 @@ impl HpoaTable {
     /// We check if there is only one such object, because the HPOA export is only intended for Mendelian disease cohorts
     /// and if we have zero or two, then there is some error.
     fn get_disease_data(cohort: &CohortData) -> Result<DiseaseData, String> {
-        if cohort.disease_gene_data.disease_data_list.len() != 1 {
-            return Err(format!("Exactly one disease required but there were {}", cohort.disease_gene_data.disease_data_list.len()));
+        if cohort.disease_gene_data.disease_data_map.len() != 1 {
+            return Err(format!("Exactly one disease required but there were {}", cohort.disease_gene_data.disease_data_map.len()));
         }
-        match cohort.disease_gene_data.disease_data_list.first() {
+        match cohort.disease_gene_data.disease_data_map.values().next() {
             Some(disease_data) => Ok(disease_data.clone()),
             None => Err(format!("Exactly one disease required but there were none"))
         }
@@ -87,12 +87,15 @@ impl HpoaTable {
          if ! cohort.is_mendelian() {
             return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort.cohort_type));
         }
-        let gt_list = &cohort.disease_gene_data.gene_transcript_data_list;
+        let gt_map = &cohort.disease_gene_data.gene_transcript_data_map;
 
-        if gt_list.len() != 1 {
-            return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_list.len()));
+        if gt_map.len() != 1 {
+            return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_map.len()));
         }
-        let gt = gt_list[0].clone();
+        let gt = match gt_map.values().cloned().into_iter().next() {
+            Some(gtr) => gtr.clone(),
+            None => { return Err(format!("Could not get GeneTranscriptData"));}
+        };
         match &cohort.cohort_acronym {
             Some(acronym) => {
                 let outfile = format!("{}-{}.tsv", gt.gene_symbol, acronym);

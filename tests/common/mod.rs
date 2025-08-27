@@ -213,7 +213,9 @@ pub fn acvr1_dg_data(
     acvr1_disease_data: DiseaseData
 ) -> DiseaseGeneData {
     let gt_data = GeneTranscriptData{ hgnc_id: "HGNC:171".to_string(), gene_symbol: "ACVR1".to_string(), transcript: "NM_001111067.4".to_string() };
-    DiseaseGeneData { disease_data_list: vec![acvr1_disease_data], gene_transcript_data_list: vec![gt_data] }
+    let disease_map = HashMap::<String, DiseaseData>::from([(acvr1_disease_data.disease_id.clone(), acvr1_disease_data)]);
+    let gene_transcript_data_map = HashMap::<String, GeneTranscriptData>::from([(gt_data.gene_symbol.clone(), gt_data)]);
+    DiseaseGeneData { disease_data_map: disease_map, gene_transcript_data_map }
 }
 
 

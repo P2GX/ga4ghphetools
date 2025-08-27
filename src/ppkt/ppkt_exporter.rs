@@ -39,7 +39,6 @@ pub struct PpktExporter {
     hgnc_version: String,
     orcid_id: String,
     cohort_dto: CohortData,
-    disease_map: HashMap<String, DiseaseData>
 }
 
 impl PpktExporter {
@@ -69,12 +68,6 @@ impl PpktExporter {
         creator_orcid: &str,
         cohort: CohortData
     ) -> Self {
-        let dd_list = cohort.disease_gene_data.disease_data_list.clone();
-        let disease_map = 
-            dd_list
-                .into_iter()
-                .map(|d| (d.disease_id.to_string(), d))
-                .collect();
         Self{ 
             hpo, 
             so_version: so_version.to_string(), 
@@ -83,7 +76,6 @@ impl PpktExporter {
             hgnc_version: hgnc_version.to_string(),
             orcid_id: creator_orcid.to_string(),
             cohort_dto: cohort,
-            disease_map
         }
     }
 
@@ -198,7 +190,7 @@ impl PpktExporter {
             return Err(format!("todo empty disease"));
         }
         let disease_id = disease_list[0].clone();
-        let d_data = self.disease_map.get(&disease_id)
+        let d_data = self.cohort_dto.disease_gene_data.disease_data_map.get(&disease_id)
             .ok_or_else(|| format!("Disease with id {} not found", disease_id))?;
         let dx_id = OntologyClass { 
             id:d_data.disease_id.clone(), label: d_data.disease_label.clone() };
@@ -379,14 +371,21 @@ impl PpktExporter {
                 return Err(format!("Could not find validated variant for allele {}", allele));
             }
         }
-        if self.cohort_dto.disease_gene_data.disease_data_list.len() != 1 {
-            return Err(format!("Melded disease interpretation not implemented yet: {:?}", self.cohort_dto.disease_gene_data.disease_data_list));
+        if self.cohort_dto.disease_gene_data.disease_data_map.len() != 1 {
+            return Err(format!("Melded disease interpretation not implemented yet: {:?}", self.cohort_dto.disease_gene_data.disease_data_map));
         }
-        let d_dto = &self.cohort_dto.disease_gene_data.disease_data_list[0];
+        let disease_id = match ppkt_row.disease_id_list.first()  {
+            Some(did) => did,
+            None => {return  Err(format!("Could not extract disease id from RowData: {:?}", ppkt_row));},
+        };
+        let disease_data = match self.cohort_dto.disease_gene_data.disease_data_map.get(disease_id) {
+            Some(data) => data.clone(),
+            None => {return  Err(format!("Could not extract disease data from disease_data_map for id: {}", disease_id));},
+        };
     
         let disease_clz = OntologyClass{
-            id: d_dto.disease_id.clone(),
-            label: d_dto.disease_label.clone(),
+            id: disease_data.disease_id.clone(),
+            label: disease_data.disease_label.clone(),
         };
         let mut g_interpretations: Vec<GenomicInterpretation> = Vec::new();
         for vi in v_interpretation_list {
@@ -453,7 +452,7 @@ impl PpktExporter {
         &self, 
         ppkt_row_dto: &RowData, 
     ) -> Result<Phenopacket, String> {
-        if self.cohort_dto.disease_gene_data.gene_transcript_data_list.len() != 1 {
+        if self.cohort_dto.disease_gene_data.gene_transcript_data_map.len() != 1 {
             panic!("NEED TO EXTEND MODEL TO NON MEND. NEED TO EXTEND CACHE KEY FOR GENE-TRANSCRIPT-NAME");
         }
         let interpretation_list = self.get_interpretation_list(ppkt_row_dto)?;
