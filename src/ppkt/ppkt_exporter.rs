@@ -1,6 +1,7 @@
 //! Module to export GA4GH Phenopackets from the information in the template.
 
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
@@ -16,7 +17,7 @@ use phenopackets::schema::v2::Phenopacket;
 
 use rand::Rng;
 use regex::Regex;
-use crate::dto::cohort_dto::{CohortData, RowData};
+use crate::dto::cohort_dto::{CohortData, DiseaseData, RowData};
 
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
@@ -38,6 +39,7 @@ pub struct PpktExporter {
     hgnc_version: String,
     orcid_id: String,
     cohort_dto: CohortData,
+    disease_map: HashMap<String, DiseaseData>
 }
 
 impl PpktExporter {
@@ -67,6 +69,12 @@ impl PpktExporter {
         creator_orcid: &str,
         cohort: CohortData
     ) -> Self {
+        let dd_list = cohort.disease_gene_data.disease_data_list.clone();
+        let disease_map = 
+            dd_list
+                .into_iter()
+                .map(|d| (d.disease_id.to_string(), d))
+                .collect();
         Self{ 
             hpo, 
             so_version: so_version.to_string(), 
@@ -74,7 +82,8 @@ impl PpktExporter {
             omim_version: omim_version.to_string(), 
             hgnc_version: hgnc_version.to_string(),
             orcid_id: creator_orcid.to_string(),
-            cohort_dto: cohort
+            cohort_dto: cohort,
+            disease_map
         }
     }
 
@@ -184,13 +193,15 @@ impl PpktExporter {
 
     /// TODO extend for multiple diseases
     pub fn get_disease(&self, ppkt_row: &RowData) -> Result<Disease, String> {
-        let disease_list = &ppkt_row.disease_data_list;
+        let disease_list = &ppkt_row.disease_id_list;
         if disease_list.is_empty() {
             return Err(format!("todo empty disease"));
         }
-        let dto = disease_list[0].clone();
-        let dx_id = Builder::ontology_class(dto.disease_id, dto.disease_label)
-            .map_err(|e| format!("malformed disease id: {:?}", disease_list))?;
+        let disease_id = disease_list[0].clone();
+        let d_data = self.disease_map.get(&disease_id)
+            .ok_or_else(|| format!("Disease with id {} not found", disease_id))?;
+        let dx_id = OntologyClass { 
+            id:d_data.disease_id.clone(), label: d_data.disease_label.clone() };
         let mut disease = Disease{ 
             term: Some(dx_id), 
             excluded: false, 
@@ -368,10 +379,10 @@ impl PpktExporter {
                 return Err(format!("Could not find validated variant for allele {}", allele));
             }
         }
-        if self.cohort_dto.disease_gene_data.disease_dto_list.len() != 1 {
-            return Err(format!("Melded disease interpretation not implemented yet: {:?}", self.cohort_dto.disease_gene_data.disease_dto_list));
+        if self.cohort_dto.disease_gene_data.disease_data_list.len() != 1 {
+            return Err(format!("Melded disease interpretation not implemented yet: {:?}", self.cohort_dto.disease_gene_data.disease_data_list));
         }
-        let d_dto = &self.cohort_dto.disease_gene_data.disease_dto_list[0];
+        let d_dto = &self.cohort_dto.disease_gene_data.disease_data_list[0];
     
         let disease_clz = OntologyClass{
             id: d_dto.disease_id.clone(),
@@ -442,7 +453,7 @@ impl PpktExporter {
         &self, 
         ppkt_row_dto: &RowData, 
     ) -> Result<Phenopacket, String> {
-        if self.cohort_dto.disease_gene_data.gene_transcript_dto_list.len() != 1 {
+        if self.cohort_dto.disease_gene_data.gene_transcript_data_list.len() != 1 {
             panic!("NEED TO EXTEND MODEL TO NON MEND. NEED TO EXTEND CACHE KEY FOR GENE-TRANSCRIPT-NAME");
         }
         let interpretation_list = self.get_interpretation_list(ppkt_row_dto)?;

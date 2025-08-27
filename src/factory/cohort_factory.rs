@@ -12,7 +12,7 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_exporter::PpktExporter, ppkt_row::PpktRow}, factory::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_row::PpktRow}, factory::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 
 
 
@@ -162,7 +162,7 @@ impl CohortFactory {
             rows: updated_row_dto_list,
             hgvs_variants: cohort_dto.hgvs_variants,
             structural_variants: cohort_dto.structural_variants,
-            dto_version: cohort_dto.dto_version,
+            phetools_schema_version: cohort_dto.phetools_schema_version,
             cohort_acronym: cohort_dto.cohort_acronym
         };
         Ok(updated_cohort_dto)
@@ -188,7 +188,7 @@ impl CohortFactory {
         updated_header.len());
         Ok(RowData {
             individual_data: row.individual_data,
-            disease_data_list: row.disease_data_list,
+            disease_id_list: row.disease_id_list,
             allele_count_map: row.allele_count_map,
             hpo_data: updated_hpo,
         })
@@ -212,7 +212,7 @@ impl CohortFactory {
         individual_dto: IndividualData,
         variant_key_list: Vec<String>,
         tid_to_value_map: HashMap<TermId, String>, 
-        disease_gene_dto: DiseaseGeneData
+        dg_data: DiseaseGeneData
     ) -> std::result::Result<RowData, String> {
         // Create a list of CellDto objects that matches the new order of HPO headers
         let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
@@ -222,9 +222,10 @@ impl CohortFactory {
             let cell_value = CellValue::from_str(&value)?;
             hpo_cell_list.push(cell_value);
         }
-        if disease_gene_dto.gene_transcript_dto_list.len() != 1 {
-            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", disease_gene_dto.gene_transcript_dto_list.len()));
+        if dg_data.gene_transcript_data_list.len() != 1 {
+            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", dg_data.gene_transcript_data_list.len()));
         }
+        let disease_id_list: Vec<String> = dg_data.disease_data_list.iter().map(|dgd| dgd.disease_id.clone()).collect();
         // Could the alleles
         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
         for allele in variant_key_list {
@@ -232,7 +233,7 @@ impl CohortFactory {
         }
        let novel_row_dto = RowData{
             individual_data: individual_dto,
-            disease_data_list: disease_gene_dto.disease_dto_list.clone(),
+            disease_id_list: disease_id_list,
             allele_count_map,
             hpo_data: hpo_cell_list,
         };
@@ -361,6 +362,7 @@ impl CohortFactory {
         let disease_dto = DiseaseData{
             disease_id: first.0.clone(),
             disease_label: first.1.clone(),
+            mode_of_inheritance_list: vec![]
         };
         let gtr_dto = GeneTranscriptData{
             hgnc_id: first.2.clone(),
@@ -369,8 +371,8 @@ impl CohortFactory {
         };
         // Note we will need to manually fix the cohort acronym for legacy files TODO possibly refactor
         let dg_dto = DiseaseGeneData{
-            disease_dto_list: vec![disease_dto],
-            gene_transcript_dto_list: vec![gtr_dto],
+            disease_data_list: vec![disease_dto],
+            gene_transcript_data_list: vec![gtr_dto],
         };
         Ok(dg_dto)
     }
@@ -646,14 +648,13 @@ impl CohortFactory {
 
     /// Get Phenopackets for all individuals (rows) represented in the cohort
     /// orcid: ORCID id of the biocurator.
+    #[deprecated]
     pub fn extract_phenopackets(
         &self,
         cohort_dto: CohortData,
         orcid: &str) 
     -> std::result::Result<Vec<Phenopacket>, String> {
-        let ppkt_list: Vec<Phenopacket> = Vec::new();
-        let ppkt_exporter = PpktExporter::new(self.hpo.clone(), orcid, cohort_dto);
-        ppkt_exporter.get_all_phenopackets()
+        crate::ppkt::get_phenopackets(cohort_dto, orcid.to_string(), self.hpo.clone())
     }
 
 
@@ -795,7 +796,8 @@ mod test {
     fn disease_gene_dto() -> DiseaseGeneData {
         let dx_dto = DiseaseData{ 
             disease_id: "OMIM:135100".to_string(), 
-            disease_label: "Fibrodysplasia ossificans progressiva".to_string()
+            disease_label: "Fibrodysplasia ossificans progressiva".to_string(),
+            mode_of_inheritance_list: vec![]
         };
         let gv_dto = GeneTranscriptData{ 
             hgnc_id: "HGNC:171".to_string(), 
@@ -803,8 +805,8 @@ mod test {
             transcript:   "NM_001111067.4".to_string(),
         };
         DiseaseGeneData{ 
-            disease_dto_list: vec![dx_dto], 
-            gene_transcript_dto_list: vec![gv_dto]
+            disease_data_list: vec![dx_dto], 
+            gene_transcript_data_list: vec![gv_dto]
         }
     }
 

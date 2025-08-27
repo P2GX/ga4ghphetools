@@ -57,20 +57,13 @@ impl HpoaTable {
     /// We check if there is only one such object, because the HPOA export is only intended for Mendelian disease cohorts
     /// and if we have zero or two, then there is some error.
     fn get_disease_data(cohort: &CohortData) -> Result<DiseaseData, String> {
-        let mut disease_set: HashSet<DiseaseData> = HashSet::new();
-         for row in &cohort.rows {
-            if row.disease_data_list.len() != 1 {
-                // should never happen
-                return Err("Can only export Mendelian (one disease) HPOA file".to_string());
-            }
-            let disease_dto = row.disease_data_list[0].clone();
-            disease_set.insert(disease_dto);
+        if cohort.disease_gene_data.disease_data_list.len() != 1 {
+            return Err(format!("Exactly one disease required but there were {}", cohort.disease_gene_data.disease_data_list.len()));
         }
-        if disease_set.len() != 1 {
-            return Err(format!("Expected exactly one disease, found {}", disease_set.len()));
+        match cohort.disease_gene_data.disease_data_list.first() {
+            Some(disease_data) => Ok(disease_data.clone()),
+            None => Err(format!("Exactly one disease required but there were none"))
         }
-        let disease_dto = disease_set.into_iter().next().unwrap();
-        Ok(disease_dto)
     }
 
     /// Regex for ORCID IDs: 0000-0000-0000-0000 where the last char can be a digit or X
@@ -94,7 +87,7 @@ impl HpoaTable {
          if ! cohort.is_mendelian() {
             return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort.cohort_type));
         }
-        let gt_list = &cohort.disease_gene_data.gene_transcript_dto_list;
+        let gt_list = &cohort.disease_gene_data.gene_transcript_data_list;
 
         if gt_list.len() != 1 {
             return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_list.len()));

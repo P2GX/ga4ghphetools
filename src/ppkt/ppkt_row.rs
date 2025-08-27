@@ -11,7 +11,7 @@ use ontolius::TermId;
 use crate::dto;
 use crate::dto::hpo_term_dto::CellValue;
 use crate::dto::hpo_term_dto::HpoTermData;
-use crate::dto::cohort_dto::{CohortType, DiseaseData, DiseaseGeneData, GeneVariantData, IndividualData};
+use crate::dto::cohort_dto::{CohortType, DiseaseGeneData, GeneVariantData, IndividualData};
 
 
 
@@ -120,10 +120,13 @@ impl PpktRow {
             ibdl.age_of_onset(), ibdl.age_at_last_encounter(), ibdl.deceased(), ibdl.sex())
     }
 
-    pub fn get_disease_dto_list(&self) -> Vec<DiseaseData> {
-        let mut dto_list: Vec<DiseaseData> = Vec::new();
+    /// Get a list of disease identifiers, e.g., OMIM:157000
+    /// For Mendelian and digenic diseases, we will have but one id
+    /// For melded, we will have two or more
+    pub fn get_disease_id_list(&self) -> Vec<String> {
+        let mut dto_list: Vec<String> = Vec::new();
         for disease in &self.disease_bundle_list {
-            dto_list.push(disease.to_dto())
+            dto_list.push(disease.disease_id.clone())
         }
         dto_list
     }

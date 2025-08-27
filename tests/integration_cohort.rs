@@ -97,7 +97,7 @@ pub fn acvr1_cohort_with_repeated_term(
         cell_values_two_terms.push(first);
     }
     
-     let rdata = RowData{ individual_data, disease_data_list: vec![acvr1_disease_data], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
+     let rdata = RowData{ individual_data, disease_id_list: vec![acvr1_disease_data.disease_id.to_string()], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
 
     let cohort_data = CohortData::mendelian(acvr1_dg_data, hpo_headers_two_terms, vec![rdata]);
     let result = CohortFactory::qc_check(hpo, &cohort_data);

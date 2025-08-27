@@ -213,7 +213,7 @@ pub fn acvr1_dg_data(
     acvr1_disease_data: DiseaseData
 ) -> DiseaseGeneData {
     let gt_data = GeneTranscriptData{ hgnc_id: "HGNC:171".to_string(), gene_symbol: "ACVR1".to_string(), transcript: "NM_001111067.4".to_string() };
-    DiseaseGeneData { disease_dto_list: vec![acvr1_disease_data], gene_transcript_dto_list: vec![gt_data] }
+    DiseaseGeneData { disease_data_list: vec![acvr1_disease_data], gene_transcript_data_list: vec![gt_data] }
 }
 
 
@@ -238,7 +238,7 @@ pub fn acvr1_cohort(
     individual_data: IndividualData,
     acvr1_disease_data: DiseaseData
     ) -> CohortData {
-    let rdata = RowData{ individual_data, disease_data_list: vec![acvr1_disease_data], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
+    let rdata = RowData{ individual_data, disease_id_list: vec![acvr1_disease_data.disease_id.to_string()], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
 
     CohortData::mendelian(acvr1_dg_data, hpo_headers_two_terms, vec![rdata])
 }

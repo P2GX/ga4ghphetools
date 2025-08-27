@@ -124,19 +124,38 @@ impl GeneVariantData {
 
 }
 
+/// A structure for representing the mode of inheritance (MOI) of 
+/// a disease. Knowing the MOI can help to Q/C a cohort - e.g., to 
+/// flag autosomal recessive cases with just one pathogenic allele
+/// Also, it allows us to use the MOI data to output HPOA annotation
+/// for the mode of inheritance
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModeOfInheritance {
+    /// Human Phenotype Ontology identifier such as HP:0000006
+    pub hpo_id: String,
+    /// Human Phenotype Ontology term label such as Autosomal dominant inheritance 
+    pub hpo_label: String,
+    /// PMID or other citation in CURIE form to support the assertion
+    pub citation: String
+}
+
+
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseData {
     pub disease_id: String,
     pub disease_label: String,
+    pub mode_of_inheritance_list: Vec<ModeOfInheritance>
 }
 
 impl DiseaseData {
     pub fn new(disease_id: &str, disease_label: &str) -> Self {
         Self { 
             disease_id: disease_id.to_string(), 
-            disease_label: disease_label.to_string() 
+            disease_label: disease_label.to_string(),
+            mode_of_inheritance_list: vec![]
         }
     }
 }
@@ -147,8 +166,6 @@ impl DiseaseData {
  
 
 /// A gene and its trasncript of reference
-/// We use this to act as a seed when we create a new row (phenopacket)
-/// as part of a DiseaseGeneBundleDto
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeneTranscriptData {
@@ -166,8 +183,8 @@ pub struct GeneTranscriptData {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseGeneData {
-    pub disease_dto_list: Vec<DiseaseData>,
-    pub gene_transcript_dto_list: Vec<GeneTranscriptData>,
+    pub disease_data_list: Vec<DiseaseData>,
+    pub gene_transcript_data_list: Vec<GeneTranscriptData>,
 }
 
 
@@ -175,8 +192,7 @@ pub struct DiseaseGeneData {
 #[serde(rename_all = "camelCase")]
 pub struct RowData {
     pub individual_data: IndividualData,
-    pub disease_data_list: Vec<DiseaseData>,
-    //pub gene_var_dto_list: Vec<GeneVariantDto>,
+    pub disease_id_list: Vec<String>,
     pub allele_count_map: HashMap<String, usize>,
     pub hpo_data: Vec<CellValue>
 }
@@ -189,7 +205,7 @@ impl RowData {
         };
         let hpo_list = ppkt_row.get_hpo_value_list()?;
         Ok(Self { individual_data: ppkt_row.get_individual_dto(), 
-            disease_data_list: ppkt_row.get_disease_dto_list(), 
+            disease_id_list: ppkt_row.get_disease_id_list(), 
             allele_count_map, 
             hpo_data: hpo_list,
         })
@@ -238,30 +254,30 @@ pub struct CohortData {
     pub hgvs_variants: HashMap<String, HgvsVariant>,
     /// Validated structural (symbolic) variants
     pub structural_variants: HashMap<String, StructuralVariant>,
-    /// Version of the DTO JSON
-    pub dto_version: String,
+    /// Version of this DTO JSON
+    pub phetools_schema_version: String,
     /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
     pub cohort_acronym: Option<String>,
 }
 
 /// Version of the Cohort JSON schema
-const COHORT_DTO_VERSION: &str = "0.2";
+const PHETOOLS_SCHEMA_VERSION: &str = "0.2";
 
 impl CohortData {
-    /// Initialize a new TemplateDto for Mendelian cohorts. 
+    /// Initialize a new CohortData object for Mendelian cohorts. 
     /// Lists for validated variants are generated that should be filled using
     /// VariantValidator (for HGVS) and StructuralVariantValidator (for structural variants).
     /// This function is only used for ingesting (legacy) Excel files, since we are migrating
-    /// to using the JSON representation of the TemplateDto as the serialization format.
+    /// to using the JSON representation of the CohortData as the serialization format.
     pub fn mendelian(
-            dg_dto: DiseaseGeneData,
+            dg_data: DiseaseGeneData,
             hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowData>) -> Self {
-        Self::mendelian_with_variants(dg_dto, hpo_headers, rows, HashMap::new(), HashMap::new())
+        Self::mendelian_with_variants(dg_data, hpo_headers, rows, HashMap::new(), HashMap::new())
     }
 
     pub fn mendelian_with_variants(
-            dg_dto: DiseaseGeneData,
+            dg_data: DiseaseGeneData,
             hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowData>,
             hgvs_variants: HashMap<String, HgvsVariant>,
@@ -269,12 +285,12 @@ impl CohortData {
         ) -> Self {
         Self { 
             cohort_type: CohortType::Mendelian, 
-            disease_gene_data: dg_dto,
+            disease_gene_data: dg_data,
             hpo_headers, 
             rows,
             hgvs_variants,
             structural_variants,
-            dto_version: COHORT_DTO_VERSION.to_string(),
+            phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
             cohort_acronym: None
         }
     }
@@ -292,24 +308,12 @@ impl CohortData {
         if ! self.is_mendelian() {
             return Err("Not implemented except for Mendelian".to_string());
         }
-        let first_disease = self.rows
-            .first()
-            .ok_or_else(|| "No rows provided".to_string())?
-            .disease_data_list
-            .get(0)
-            .ok_or_else(|| "First row has no disease".to_string())?
-            .clone();
-
-        for (i, row) in self.rows.iter().enumerate() {
-            if row.disease_data_list.len() != 1 {
-                return Err(format!("Row {} does not have exactly one disease", i));
-            }
-            if row.disease_data_list[0] != first_disease {
-                return Err(format!("Row {} has a different disease", i));
-            }
+        match self.disease_gene_data.disease_data_list.first() {
+            Some(d_data) => Ok(vec![d_data.clone()]),
+            None => Err("No disease data objects found".to_string()),
         }
 
-    Ok(vec![first_disease])
+    
 }
     
 }

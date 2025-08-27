@@ -76,7 +76,7 @@ impl DiseaseBundle {
     }
     /// Create a list of DiseaseBundle objects from a DiseaseGeneData (this is what we expect to get from the frontend)
     pub fn from_disease_gene_dto(dto: DiseaseGeneData) -> Vec<Self> {
-        Self::from_dto_list(dto.disease_dto_list)
+        Self::from_dto_list(dto.disease_data_list)
     }
 
 }

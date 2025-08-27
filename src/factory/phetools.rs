@@ -12,7 +12,6 @@ use crate::dto::variant_dto::VariantDto;
 use crate::etl::etl_tools::EtlTools;
 use crate::persistence::dir_manager::DirManager;
 use crate::dto::{ hpo_term_dto::HpoTermData};
-use crate::ppkt::ppkt_exporter::PpktExporter;
 use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::variant::variant_manager::VariantManager;
@@ -401,41 +400,6 @@ impl PheTools {
         self.manager.as_ref().map(|dirman| dirman.get_cohort_dir())
     }
 
-    
-    fn write_ppkt(ppkt: &Phenopacket, file_path: PathBuf) -> Result<(), String> {
-        let file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&file_path)
-            .map_err(|e| e.to_string())?;
-        println!("ga4ghphenotools - {}: l.{}", file!(), line!());
-        serde_json::to_writer_pretty(file, &ppkt)
-            .map_err(|e| e.to_string())?; 
-        Ok(())
-    }
-    
-
-    /// Write phenopackets to file that correspond to the current TemplateDto
-    pub fn write_ppkt_list(
-        &mut self,  
-        cohort_dto: CohortData, 
-        dir: PathBuf,
-        orcid: String) 
-    -> Result<(), String> {
-        let exporter = PpktExporter::new(self.hpo.clone(), &orcid, cohort_dto);
-        let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()?;
-        for ppkt in ppkt_list {
-            let title = ppkt.id.clone() + ".json";
-            let mut file_path = dir.clone();
-            file_path.push(title);
-            Self::write_ppkt(&ppkt, file_path)?;
-        }
-        Ok(())
-    }
-
-  
-
     /// Load an excel file with a table of information that can be
     /// transformed into a collection of phenopackets (e.g. a Supplementary Table)
     /// row_based is true of the data for an individual is arranged in a row,
@@ -452,10 +416,10 @@ impl PheTools {
 
     pub fn analyze_variants(&self, cohort_dto: CohortData) 
     -> Result<Vec<VariantDto>, String> {
-       if cohort_dto.disease_gene_data.gene_transcript_dto_list.len() != 1 {
+       if cohort_dto.disease_gene_data.gene_transcript_data_list.len() != 1 {
             return Err(format!("analyze_variants is only implemented for Mendelian"));
        }
-       let gtdto = &cohort_dto.disease_gene_data.gene_transcript_dto_list[0];
+       let gtdto = &cohort_dto.disease_gene_data.gene_transcript_data_list[0];
         let vmanager = VariantManager::from_gene_transcript_dto(gtdto);
         vmanager.analyze_variants(cohort_dto)
     }
