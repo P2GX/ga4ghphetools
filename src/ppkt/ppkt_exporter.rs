@@ -17,6 +17,7 @@ use phenopackets::schema::v2::Phenopacket;
 
 use rand::Rng;
 use regex::Regex;
+use serde_json::Value;
 use crate::dto::cohort_dto::{CohortData, DiseaseData, RowData};
 
 use crate::dto::hgvs_variant::HgvsVariant;
@@ -478,6 +479,39 @@ impl PpktExporter {
         Ok(ppkt)
 
 
+    }
+
+    /// The serde JSON serialization outputs certain fields that have concrete default values. For instance, karyotypic_sex is an integer enumeration,
+    /// and the first value (zero) stands for UNKNOWN_KARYOTYPE. Even though we did not actually enter this value into out Phenopacket, the serialization
+    /// routine outputs this default value, which essentially just clutters the output and does not provide useful information. Another default value is
+    /// survival_time_in_days of zero - this would appear if we list the subject as deceased even though we do not provide survival time information. In the latter
+    /// case, this is incorrect. Therefore, we manually strip these two values in the output.
+    pub fn strip_defaults(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Object(map) => {
+                for val in map.values_mut() {
+                    Self::strip_defaults(val);
+                }
+
+                map.retain(|key, val| {
+                    match (key.as_str(), val) {
+                        // Remove karyotypic_sex if it is UNKNOWN_KARYOTYPE
+                        ("karyotypic_sex", serde_json::Value::String(s)) if s == "UNKNOWN_KARYOTYPE" => false,
+                        ("karyotypic_sex", serde_json::Value::Number(n)) if n.as_i64() == Some(0) => false,
+                        // Remove survival_time_in_days if it's 0
+                        ("survival_time_in_days", serde_json::Value::Number(n)) if n.as_i64() == Some(0) => false,
+                        // Keep everything else
+                        _ => true,
+                    }
+                });
+            }
+            Value::Array(arr) => {
+                for val in arr {
+                    Self::strip_defaults(val);
+                }
+            }
+            _ => {}
+        }
     }
 
     pub fn get_all_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {

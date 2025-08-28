@@ -102,8 +102,11 @@ fn write_ppkt(ppkt: &Phenopacket, file_path: PathBuf) -> Result<(), String> {
         .truncate(true)
         .open(&file_path)
         .map_err(|e| e.to_string())?;
+
+    let mut json_value = serde_json::to_value(ppkt).map_err(|e| e.to_string())?;
+    PpktExporter::strip_defaults(&mut json_value);
     
-    serde_json::to_writer_pretty(file, &ppkt)
+    serde_json::to_writer_pretty(file, &json_value)
         .map_err(|e| e.to_string())?; 
     Ok(())
 }
