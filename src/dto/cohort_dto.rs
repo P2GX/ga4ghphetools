@@ -68,7 +68,8 @@ pub struct GeneVariantData {
     pub variant_comment: String,
 }
 
-
+/// This struct is used to organize data for the import for Legacy Excel files, and also to transmit data about
+/// variants from the front end to the backend. It is not used for serialization.
 impl GeneVariantData {
     pub fn new(hgnc_id: &str,
                 gene_symbol: &str,
@@ -141,6 +142,16 @@ pub struct ModeOfInheritance {
 }
 
 
+ 
+
+/// A gene and its trasncript of reference
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneTranscriptData {
+    pub hgnc_id: String,
+    pub gene_symbol: String,
+    pub transcript: String,
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -165,16 +176,6 @@ impl DiseaseData {
 
 
 
- 
-
-/// A gene and its trasncript of reference
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GeneTranscriptData {
-    pub hgnc_id: String,
-    pub gene_symbol: String,
-    pub transcript: String,
-}
 
 /// Genes and Diseases of reference for a cohort 
 /// We use this to act as a seed when we create a new row (phenopacket) 
@@ -261,6 +262,8 @@ pub struct CohortData {
     pub structural_variants: HashMap<String, StructuralVariant>,
     /// Version of this DTO JSON
     pub phetools_schema_version: String,
+    /// Version of HPO used to create the current version of this cohort
+    pub hpo_version: String,
     /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
     pub cohort_acronym: Option<String>,
 }
@@ -277,14 +280,16 @@ impl CohortData {
     pub fn mendelian(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
-            rows: Vec<RowData>) -> Self {
-        Self::mendelian_with_variants(dg_data, hpo_headers, rows, HashMap::new(), HashMap::new())
+            rows: Vec<RowData>,
+            hpo_version: &str) -> Self {
+        Self::mendelian_with_variants(dg_data, hpo_headers, rows, hpo_version, HashMap::new(), HashMap::new())
     }
 
     pub fn mendelian_with_variants(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowData>,
+            hpo_version: &str,
             hgvs_variants: HashMap<String, HgvsVariant>,
             structural_variants: HashMap<String, StructuralVariant>
         ) -> Self {
@@ -296,6 +301,7 @@ impl CohortData {
             hgvs_variants,
             structural_variants,
             phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
+            hpo_version: hpo_version.to_string(),
             cohort_acronym: None
         }
     }

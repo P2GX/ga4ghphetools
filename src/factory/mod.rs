@@ -11,13 +11,40 @@ pub mod cohort_factory;
 
 
 
-/// create name of JSON cohort template file, {gene}_{disease}_individuals.json
+/// Generate the filename for a JSON cohort template.
+///
+/// The template filename follows the convention:
+/// 
+/// ```text
+/// {gene_symbol}_{cohort_acronym}_individuals.json
+/// ```
+///
+/// # Arguments
+/// * `cohort_dto` - A [`CohortData`] object representing the cohort.
+///
+/// # Returns
+/// * `Ok(String)` containing the template filename if the cohort is Mendelian,
+///   contains exactly one gene transcript, and has a cohort acronym.
+/// * `Err(String)` if:
+///   - The cohort is not Mendelian,
+///   - No disease data is available,
+///   - More than one gene transcript is present (non-Mendelian case not implemented),
+///   - Or the cohort acronym is missing.
+///
+/// # Errors
+/// This function returns an error with a descriptive message when the filename
+/// cannot be generated. 
+///
+/// # Example
+/// ```ignore
+/// let filename = extract_template_name(&cohort_data)?;
+/// // e.g., "ACVR1_FOP_individuals.json"
+/// ```
 fn extract_template_name(cohort_dto: &CohortData) -> Result<String, String> {
-    
     if ! cohort_dto.is_mendelian() {
         return Err(format!("Templates are not supported for non-Mendelian inheritance.")); 
     };
-    let disease_data = match &cohort_dto.disease_list.first() {
+    let disease_data = match cohort_dto.disease_list.first() {
         Some(data) => data.clone(),
         None => { return Err(format!("Could not extract disease data from Mendelian cohort"));},
     };

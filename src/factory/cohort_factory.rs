@@ -6,7 +6,7 @@
 //! after we are finished refactoring the legacy files.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
-    ontology::{csr::FullCsrOntology, OntologyTerms},
+    ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
     term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
     Identified, TermId,
 };
@@ -51,7 +51,7 @@ impl CohortFactory {
                 }
             }
         }
-         Ok(CohortData::mendelian(disease_gene_dto, hp_header_duplet_list, vec![] ))
+         Ok(CohortData::mendelian(disease_gene_dto, hp_header_duplet_list, vec![], hpo.version() ))
     }
 
 
@@ -168,6 +168,7 @@ impl CohortFactory {
             hgvs_variants: cohort_dto.hgvs_variants,
             structural_variants: cohort_dto.structural_variants,
             phetools_schema_version: cohort_dto.phetools_schema_version,
+            hpo_version: self.hpo.version().to_string(),
             cohort_acronym: cohort_dto.cohort_acronym
         };
         Ok(updated_cohort_dto)
@@ -457,6 +458,7 @@ impl CohortFactory {
             dg_dto, 
             header_duplet_list, 
             row_dto_list,
+            hpo.version(),
             vmanager.hgvs_map(), 
             vmanager.sv_map(), 
         );
