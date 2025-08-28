@@ -6,7 +6,6 @@ use std::sync::Arc;
 use ga4ghphetools::dto::cohort_dto::CohortData;
 use ga4ghphetools::dto::cohort_dto::CohortType;
 use ga4ghphetools::dto::cohort_dto::DiseaseData;
-use ga4ghphetools::dto::cohort_dto::DiseaseGeneData;
 use ga4ghphetools::dto::cohort_dto::IndividualData;
 use ga4ghphetools::dto::cohort_dto::RowData;
 use ga4ghphetools::dto::hpo_term_dto::CellValue;
@@ -19,7 +18,6 @@ use common::hpo;
 
 
 use crate::common::acvr1_cohort;
-use crate::common::acvr1_dg_data;
 use crate::common::acvr1_disease_data;
 use crate::common::cell_values_two_terms;
 use crate::common::hpo_headers_two_terms;
@@ -81,7 +79,6 @@ use crate::common::individual_data;
 /// be cleaned up before further processing.
 #[rstest]
 pub fn acvr1_cohort_with_repeated_term(
-    acvr1_dg_data: DiseaseGeneData,
     mut hpo_headers_two_terms: Vec<HpoTermDuplet>,
     mut cell_values_two_terms: Vec<CellValue>,
     individual_data: IndividualData,
@@ -99,7 +96,7 @@ pub fn acvr1_cohort_with_repeated_term(
     
      let rdata = RowData{ individual_data, disease_id_list: vec![acvr1_disease_data.disease_id.to_string()], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
 
-    let cohort_data = CohortData::mendelian(acvr1_dg_data, hpo_headers_two_terms, vec![rdata]);
+    let cohort_data = CohortData::mendelian(acvr1_disease_data, hpo_headers_two_terms, vec![rdata]);
     let result = CohortFactory::qc_check(hpo, &cohort_data);
     assert!(result.is_err());
     let err_str = result.err().unwrap();

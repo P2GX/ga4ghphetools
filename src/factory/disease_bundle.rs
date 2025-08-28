@@ -2,7 +2,7 @@ use core::{result::Result, todo};
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
-use crate::{dto::cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData}, header::disease_header::DiseaseHeader};
+use crate::{dto::cohort_dto::{CohortData, CohortType, DiseaseData}, header::disease_header::DiseaseHeader};
 
 
 static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {
@@ -75,13 +75,8 @@ impl DiseaseBundle {
             .collect()
     }
     /// Create a list of DiseaseBundle objects from a DiseaseGeneData (this is what we expect to get from the frontend)
-    pub fn from_disease_gene_dto(dto: DiseaseGeneData) -> Vec<Self> {
-        let dgdata = match dto.disease_data_map.values().into_iter().next() {
-            Some(data) => data.clone(),
-            None => {return vec![]; },
-        };
-        
-        Self::from_dto_list(vec![dgdata])
+    pub fn from_disease_gene_dto(dto: DiseaseData) -> Vec<Self> {        
+        Self::from_dto_list(vec![dto])
     }
 
 }

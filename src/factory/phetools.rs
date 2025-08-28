@@ -4,7 +4,7 @@
 
 
 use crate::dto::etl_dto::ColumnTableDto;
-use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseGeneData, GeneTranscriptData, IndividualData};
+use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::dto::structural_variant::{StructuralVariant, SvType};
@@ -16,16 +16,16 @@ use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::variant::variant_manager::VariantManager;
 
+use calamine::Data;
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
-use phenopackets::schema::v2::Phenopacket;
 use crate::factory::cohort_factory::CohortFactory;
 use crate::factory::excel;
 use core::option::Option::Some;
 use std::collections::HashMap;
 use std::fmt::{self};
-use std::fs::{self, OpenOptions};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -105,7 +105,7 @@ impl PheTools {
     pub fn create_cohort_dto_from_seeds(
         &mut self,
         template_type: CohortType,
-        disease_gene_dto: DiseaseGeneData,
+        disease_data: DiseaseData,
         dir_path: PathBuf,
         hpo_term_ids: Vec<TermId>,
     ) -> std::result::Result<CohortData, String> {
@@ -116,7 +116,7 @@ impl PheTools {
         let hpo_arc = self.hpo.clone();
         let cohort_dto = CohortFactory::create_pyphetools_template(
             template_type, 
-            disease_gene_dto,
+            disease_data,
             hpo_term_ids, 
             hpo_arc
         ).map_err(|e| e.to_string())?;
@@ -270,14 +270,20 @@ impl PheTools {
     /// # Returns updated cohort DTO if successful, otherwise list of strings representing errors
     pub fn add_new_row_to_cohort(
         &mut self,
-        individual_dto: IndividualData, 
+        individual_data: IndividualData, 
         hpo_annotations: Vec<HpoTermData>,
         variant_key_list: Vec<String>,
-        cohort_dto: CohortData) 
+        cohort_data: CohortData) 
     -> Result<CohortData, String> {
-        let disease_gene_dto = cohort_dto.disease_gene_data.clone();
-        let mut builder = CohortFactory::new( self.hpo.clone());
-        builder.add_new_row_to_cohort(individual_dto, hpo_annotations, variant_key_list, cohort_dto)
+        if ! cohort_data.is_mendelian() {
+            return Err("add new row not implmented yet for non-Mendelian".to_string());
+        }
+       /* let disease_data = match cohort_dto.disease_list.first() {
+            Some(data) => data.clone(),
+            None => {return Err("add new row not implmented yet for non-Mendelian".to_string()); },
+        }; */
+        let mut builder = CohortFactory::new(self.hpo.clone());
+        builder.add_new_row_to_cohort(individual_data, hpo_annotations, variant_key_list, cohort_data)
     }
 
     /// Return information about the version and number of terms of the HPO 
@@ -416,10 +422,15 @@ impl PheTools {
 
     pub fn analyze_variants(&self, cohort_dto: CohortData) 
     -> Result<Vec<VariantDto>, String> {
-       if cohort_dto.disease_gene_data.gene_transcript_data_map.len() != 1 {
+       if ! cohort_dto.is_mendelian() {
             return Err(format!("analyze_variants is only implemented for Mendelian"));
        }
-       let gt_data: GeneTranscriptData = match cohort_dto.disease_gene_data.gene_transcript_data_map.values().next() {
+       let disease_data = match cohort_dto.disease_list.first() {
+            Some(data) => data.clone(),
+            None =>  { return Err(format!("Unable to extract DiseaseData")); },
+        };
+        
+       let gt_data: GeneTranscriptData = match disease_data.gene_transcript_list.first() {
             Some(data) => data.clone(),
             None =>  { return Err(format!("Unable to extract GeneTranscriptData")); }
         };

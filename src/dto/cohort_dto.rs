@@ -147,7 +147,8 @@ pub struct ModeOfInheritance {
 pub struct DiseaseData {
     pub disease_id: String,
     pub disease_label: String,
-    pub mode_of_inheritance_list: Vec<ModeOfInheritance>
+    pub mode_of_inheritance_list: Vec<ModeOfInheritance>,
+    pub gene_transcript_list: Vec<GeneTranscriptData>
 }
 
 impl DiseaseData {
@@ -155,7 +156,8 @@ impl DiseaseData {
         Self { 
             disease_id: disease_id.to_string(), 
             disease_label: disease_label.to_string(),
-            mode_of_inheritance_list: vec![]
+            mode_of_inheritance_list: vec![],
+            gene_transcript_list: vec![],
         }
     }
 }
@@ -166,7 +168,7 @@ impl DiseaseData {
  
 
 /// A gene and its trasncript of reference
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeneTranscriptData {
     pub hgnc_id: String,
@@ -180,6 +182,7 @@ pub struct GeneTranscriptData {
 /// Mendelian: disease_dto_list and gene_variant_dto_list must both be of length 1
 /// Melded: both of length two
 /// Digenic: disease_dto of length 1, gene_variant_dto of length 2
+/* 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiseaseGeneData {
@@ -187,7 +190,7 @@ pub struct DiseaseGeneData {
     pub disease_data_map: HashMap<String, DiseaseData>,
     /// Key is a Gene symbol that is also used for the variants
     pub gene_transcript_data_map: HashMap<String, GeneTranscriptData>,
-}
+}*/
 
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -247,7 +250,7 @@ pub struct CohortData {
     /// Mendelian, Melded, or Digenic
     pub cohort_type: CohortType,
     /// The diseases and genes in focus for the current cohort
-    pub disease_gene_data: DiseaseGeneData,
+    pub disease_list: Vec<DiseaseData>,
     /// The HPO terms used to annotate the cohort
     pub hpo_headers: Vec<HpoTermDuplet>,
     /// The phenopackets (rows) in the current cohort
@@ -272,14 +275,14 @@ impl CohortData {
     /// This function is only used for ingesting (legacy) Excel files, since we are migrating
     /// to using the JSON representation of the CohortData as the serialization format.
     pub fn mendelian(
-            dg_data: DiseaseGeneData,
+            dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowData>) -> Self {
         Self::mendelian_with_variants(dg_data, hpo_headers, rows, HashMap::new(), HashMap::new())
     }
 
     pub fn mendelian_with_variants(
-            dg_data: DiseaseGeneData,
+            dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowData>,
             hgvs_variants: HashMap<String, HgvsVariant>,
@@ -287,7 +290,7 @@ impl CohortData {
         ) -> Self {
         Self { 
             cohort_type: CohortType::Mendelian, 
-            disease_gene_data: dg_data,
+            disease_list: vec![dg_data],
             hpo_headers, 
             rows,
             hgvs_variants,
@@ -310,10 +313,7 @@ impl CohortData {
         if ! self.is_mendelian() {
             return Err("Not implemented except for Mendelian".to_string());
         }
-        match self.disease_gene_data.disease_data_map.values().next() {
-            Some(d_data) => Ok(vec![d_data.clone()]),
-            None => Err("No disease data objects found".to_string()),
-        }
+        Ok(self.disease_list.clone())
     }
     
 }

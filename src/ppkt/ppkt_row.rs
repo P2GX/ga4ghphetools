@@ -11,7 +11,7 @@ use ontolius::TermId;
 use crate::dto;
 use crate::dto::hpo_term_dto::CellValue;
 use crate::dto::hpo_term_dto::HpoTermData;
-use crate::dto::cohort_dto::{CohortType, DiseaseGeneData, GeneVariantData, IndividualData};
+use crate::dto::cohort_dto::{CohortType, DiseaseData, GeneVariantData, IndividualData};
 
 
 
@@ -93,7 +93,7 @@ impl PpktRow {
         individual_dto: IndividualData,
         gene_variant_list: Vec<GeneVariantData>,
         tid_to_value_map: HashMap<TermId, String>, 
-        disease_gene_dto: DiseaseGeneData) -> std::result::Result<Self, String> {
+        disease_data: DiseaseData) -> std::result::Result<Self, String> {
         let mut items = Vec::with_capacity(header.hpo_count());
         for hduplet in header.hpo_duplets() {
             let tid = hduplet.to_term_id()?;
@@ -103,7 +103,7 @@ impl PpktRow {
          println!("from_dtos {}:l.{} individual dto {:?}", file!(), line!(), individual_dto);
         let ibundle = IndividualBundle::from_dto(individual_dto);
         println!("from_dtos {}:l.{} individual bndle {:?}", file!(), line!(), ibundle);
-        let disease_bundle_list = DiseaseBundle::from_disease_gene_dto(disease_gene_dto);
+        let disease_bundle_list = DiseaseBundle::from_disease_gene_dto(disease_data);
         let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 
             individual_bundle: ibundle, 

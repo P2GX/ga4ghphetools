@@ -12,7 +12,7 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_row::PpktRow}, factory::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_row::PpktRow}, factory::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
 
 
 
@@ -37,7 +37,7 @@ impl CohortFactory {
         hpo_term_ids: Vec<TermId>,
         // Reference to the Ontolius Human Phenotype Ontology Full CSR object
         hpo: Arc<FullCsrOntology>,
-        disease_gene_dto: DiseaseGeneData,
+        disease_gene_dto: DiseaseData,
     ) -> std::result::Result<CohortData, String> {
         let mut hp_header_duplet_list: Vec<HpoTermDuplet> = Vec::new();
         for hpo_id in hpo_term_ids {
@@ -145,19 +145,24 @@ impl CohortFactory {
                 Err(_) => { return Err(format!("Could not create TermId from {:?}", &dto)); },
             }
         }
+
+        let disease_data = match cohort_dto.disease_list.first() {
+            Some(data) => data.clone(),
+            None => {return  Err(format!("Could not extract DiseaseData"));},
+        };
       
         let novel_row = Self::new_row_dto(
             &updated_header_duplet_dto_list, 
             individual_dto, 
             variant_key_list, 
             tid_to_value_map, 
-            cohort_dto.disease_gene_data.clone())?;
+            disease_data)?;
             
         updated_row_dto_list.push(novel_row);
         
         let updated_cohort_dto = CohortData{
             cohort_type: cohort_dto.cohort_type,
-            disease_gene_data: cohort_dto.disease_gene_data,
+            disease_list: cohort_dto.disease_list,
             hpo_headers: updated_header_duplet_dto_list,
             rows: updated_row_dto_list,
             hgvs_variants: cohort_dto.hgvs_variants,
@@ -212,7 +217,7 @@ impl CohortFactory {
         individual_dto: IndividualData,
         variant_key_list: Vec<String>,
         tid_to_value_map: HashMap<TermId, String>, 
-        dg_data: DiseaseGeneData
+        dg_data: DiseaseData
     ) -> std::result::Result<RowData, String> {
         // Create a list of CellDto objects that matches the new order of HPO headers
         let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
@@ -222,10 +227,10 @@ impl CohortFactory {
             let cell_value = CellValue::from_str(&value)?;
             hpo_cell_list.push(cell_value);
         }
-        if dg_data.gene_transcript_data_map.len() != 1 {
-            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", dg_data.gene_transcript_data_map.len()));
+        if dg_data.gene_transcript_list.len() != 1 {
+            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", dg_data.gene_transcript_list.len()));
         }
-        let disease_id_list: Vec<String> = dg_data.disease_data_map.keys().cloned().collect();
+        let disease_id_list: Vec<String> = vec![dg_data.disease_id.clone()];
         // Could the alleles
         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
         for allele in variant_key_list {
@@ -307,7 +312,7 @@ impl CohortFactory {
 
     pub fn create_pyphetools_template(
         template_type: CohortType,
-        disease_gene_dto: DiseaseGeneData,
+        disease_data: DiseaseData,
         hpo_term_ids: Vec<TermId>,
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<CohortData, String> {
@@ -325,7 +330,7 @@ impl CohortFactory {
             }
         }
         if template_type == CohortType::Mendelian {
-            let cohort_dto = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo, disease_gene_dto)?;
+            let cohort_dto = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo, disease_data)?;
             Ok(cohort_dto)
         } else {
             Err(format!("Creation of template of type {:?} not supported", template_type))
@@ -341,7 +346,7 @@ impl CohortFactory {
     ///    (12) "age_of_onset", (13)"age_at_last_encounter", (14)  "deceased", (15) "sex", (16) "HPO", 
     /// The columns with asterisk are what we need
     /// Note: This function should be deleted after the Excel files have been converted.
-    pub fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseGeneData, String> {
+    pub fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseData, String> {
         let rows: Vec<&Vec<String>> = matrix.iter().skip(2).collect();
         if rows.is_empty() {
             return Err("Could not extract DTO because less than three rows found".to_string());
@@ -359,26 +364,19 @@ impl CohortFactory {
         if ! all_identical {
             return Err("DiseaseGeneData-related columns are not equal in all rows - requires manual check".to_string());
         }
-        let disease_dto = DiseaseData{
-            disease_id: first.0.clone(),
-            disease_label: first.1.clone(),
-            mode_of_inheritance_list: vec![]
-        };
-        let gtr_dto = GeneTranscriptData{
+       
+        let gtr_data = GeneTranscriptData{
             hgnc_id: first.2.clone(),
             gene_symbol: first.3.clone(),
             transcript: first.4.clone(),
         };
-        // Note we will need to manually fix the cohort acronym for legacy files - this is done in the GUI
-        let mut disease_map: HashMap<String, DiseaseData> = HashMap::new();
-        disease_map.insert(disease_dto.disease_id.to_string(), disease_dto);
-        let mut gene_map: HashMap<String, GeneTranscriptData> = HashMap::new();
-        gene_map.insert(gtr_dto.gene_symbol.to_string(), gtr_dto);
-        let dg_dto = DiseaseGeneData{
-            disease_data_map: disease_map,
-            gene_transcript_data_map: gene_map
-        };
-        Ok(dg_dto)
+         let disease_data = DiseaseData{
+            disease_id: first.0.clone(),
+            disease_label: first.1.clone(),
+            mode_of_inheritance_list: vec![],
+            gene_transcript_list: vec![gtr_data],
+        };       
+        Ok(disease_data)
     }
 
     /// Builds a DTO from a Mendelian template matrix. The function calls VariantValidator to get info about all variants.
@@ -797,28 +795,22 @@ mod test {
 
 
     #[fixture]
-    fn disease_gene_dto() -> DiseaseGeneData {
-        let dx_dto = DiseaseData{ 
-            disease_id: "OMIM:135100".to_string(), 
-            disease_label: "Fibrodysplasia ossificans progressiva".to_string(),
-            mode_of_inheritance_list: vec![]
-        };
+    fn disease_gene_dto() -> DiseaseData {
+       
         let gv_dto = GeneTranscriptData{ 
             hgnc_id: "HGNC:171".to_string(), 
             gene_symbol: "ACVR1".to_string(), 
             transcript:   "NM_001111067.4".to_string(),
         };
-        let disease_data_map = HashMap::<String, DiseaseData>::from([(
-            "OMIM:135100".to_string(),
-            dx_dto,
-        )]);
-        let gene_transcript_data_map = HashMap::<String, GeneTranscriptData>::from([(
-            "ACVR1".to_string(), gv_dto)]);
-        DiseaseGeneData{ 
-            disease_data_map, 
-            gene_transcript_data_map
-        }
+         let dx_dto = DiseaseData{
+            disease_id:"OMIM:135100".to_string(),
+            disease_label:"Fibrodysplasia ossificans progressiva".to_string(),
+            mode_of_inheritance_list:vec![], 
+            gene_transcript_list: vec![gv_dto] 
+        };
+        dx_dto
     }
+
 
 
     #[fixture]

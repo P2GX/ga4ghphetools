@@ -1,6 +1,6 @@
 
-use ga4ghphetools::{dto::{case_dto::CaseDto, cohort_dto::{CohortData, CohortType, DiseaseData, DiseaseGeneData, GeneTranscriptData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}}, factory::cohort_factory::CohortFactory};
-use rstest::{fixture, rstest};
+use ga4ghphetools::{dto::{case_dto::CaseDto, cohort_dto::{CohortData, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}}};
+use rstest::fixture;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc};
 use flate2::bufread::GzDecoder;
@@ -209,17 +209,6 @@ pub fn acvr1_disease_data() -> DiseaseData {
 
 
 #[fixture]
-pub fn acvr1_dg_data(
-    acvr1_disease_data: DiseaseData
-) -> DiseaseGeneData {
-    let gt_data = GeneTranscriptData{ hgnc_id: "HGNC:171".to_string(), gene_symbol: "ACVR1".to_string(), transcript: "NM_001111067.4".to_string() };
-    let disease_map = HashMap::<String, DiseaseData>::from([(acvr1_disease_data.disease_id.clone(), acvr1_disease_data)]);
-    let gene_transcript_data_map = HashMap::<String, GeneTranscriptData>::from([(gt_data.gene_symbol.clone(), gt_data)]);
-    DiseaseGeneData { disease_data_map: disease_map, gene_transcript_data_map }
-}
-
-
-#[fixture]
 pub fn hpo_headers_two_terms() -> Vec<HpoTermDuplet> {
     let d1 = HpoTermDuplet::new("Ectopic ossification in muscle tissue", "HP:0011987");
     let d2 = HpoTermDuplet::new("Elevated circulating C-reactive protein concentration", "HP:0011227");
@@ -234,15 +223,14 @@ pub fn cell_values_two_terms() -> Vec<CellValue> {
 
 #[fixture]
 pub fn acvr1_cohort(
-    acvr1_dg_data: DiseaseGeneData,
+    acvr1_disease_data: DiseaseData,
     hpo_headers_two_terms: Vec<HpoTermDuplet>,
     cell_values_two_terms: Vec<CellValue>,
     individual_data: IndividualData,
-    acvr1_disease_data: DiseaseData
     ) -> CohortData {
     let rdata = RowData{ individual_data, disease_id_list: vec![acvr1_disease_data.disease_id.to_string()], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
 
-    CohortData::mendelian(acvr1_dg_data, hpo_headers_two_terms, vec![rdata])
+    CohortData::mendelian(acvr1_disease_data, hpo_headers_two_terms, vec![rdata])
 }
 
 

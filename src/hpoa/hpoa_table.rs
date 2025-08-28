@@ -57,10 +57,10 @@ impl HpoaTable {
     /// We check if there is only one such object, because the HPOA export is only intended for Mendelian disease cohorts
     /// and if we have zero or two, then there is some error.
     fn get_disease_data(cohort: &CohortData) -> Result<DiseaseData, String> {
-        if cohort.disease_gene_data.disease_data_map.len() != 1 {
-            return Err(format!("Exactly one disease required but there were {}", cohort.disease_gene_data.disease_data_map.len()));
+        if cohort.disease_list.len() != 1 {
+            return Err(format!("Exactly one disease required but there were {}", cohort.disease_list.len()));
         }
-        match cohort.disease_gene_data.disease_data_map.values().next() {
+        match cohort.disease_list.first() {
             Some(disease_data) => Ok(disease_data.clone()),
             None => Err(format!("Exactly one disease required but there were none"))
         }
@@ -87,18 +87,17 @@ impl HpoaTable {
          if ! cohort.is_mendelian() {
             return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort.cohort_type));
         }
-        let gt_map = &cohort.disease_gene_data.gene_transcript_data_map;
-
-        if gt_map.len() != 1 {
-            return Err(format!("HPOA export only supported for one gene (Mendelian) but we got '{}'", gt_map.len()));
-        }
-        let gt = match gt_map.values().cloned().into_iter().next() {
-            Some(gtr) => gtr.clone(),
-            None => { return Err(format!("Could not get GeneTranscriptData"));}
+        let disease_data = match cohort.disease_list.first() {
+            Some(data) => data.clone(),
+            None => { return Err("Could not extract disease data".to_string()) },
+        };
+        let gt_data = match disease_data.gene_transcript_list.first() {
+             Some(gt) => gt.clone(),
+            None => { return Err("Could not extract GeneTranscriptData".to_string()) },
         };
         match &cohort.cohort_acronym {
             Some(acronym) => {
-                let outfile = format!("{}-{}.tsv", gt.gene_symbol, acronym);
+                let outfile = format!("{}-{}.tsv", gt_data.gene_symbol, acronym);
                 Ok(outfile)
             },
             None =>  Err(format!("HPOA export requires cohort acronym but got '{:?}'", cohort.cohort_acronym))
