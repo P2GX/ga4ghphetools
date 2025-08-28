@@ -9,7 +9,7 @@ static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {
     Arc::new(DiseaseHeader::new())
 });
 
-#[deprecated]
+
 #[derive(Clone, Debug)]
 pub struct DiseaseBundle {
     header: Arc<DiseaseHeader>,
@@ -41,6 +41,7 @@ impl DiseaseBundle {
         Ok(bundle)
     }
 
+    
     pub fn do_qc(&self) -> Result<(), String> {
         self.header.qc_bundle(self)
     }

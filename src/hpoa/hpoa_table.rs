@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs::File, io::{BufWriter, Write}, path::PathBuf, sync::Arc};
+use std::{fs::File, io::{BufWriter, Write}, path::PathBuf, sync::Arc};
 
 
 use chrono::Local;

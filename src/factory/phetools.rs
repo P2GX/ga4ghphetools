@@ -15,8 +15,6 @@ use crate::dto::{ hpo_term_dto::HpoTermData};
 use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::variant::variant_manager::VariantManager;
-
-use calamine::Data;
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
