@@ -13,6 +13,7 @@ use ga4ghphetools::dto::hpo_term_dto::HpoTermData;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
 use ga4ghphetools::factory::cohort_factory::CohortFactory;
 use ontolius::ontology::csr::FullCsrOntology;
+use ontolius::ontology::MetadataAware;
 use rstest::rstest;
 use common::hpo;
 
@@ -96,7 +97,7 @@ pub fn acvr1_cohort_with_repeated_term(
     
      let rdata = RowData{ individual_data, disease_id_list: vec![acvr1_disease_data.disease_id.to_string()], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
 
-    let cohort_data = CohortData::mendelian(acvr1_disease_data, hpo_headers_two_terms, vec![rdata]);
+    let cohort_data = CohortData::mendelian(acvr1_disease_data, hpo_headers_two_terms, vec![rdata], hpo.version());
     let result = CohortFactory::qc_check(hpo, &cohort_data);
     assert!(result.is_err());
     let err_str = result.err().unwrap();

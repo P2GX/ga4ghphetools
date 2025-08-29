@@ -229,8 +229,8 @@ pub fn acvr1_cohort(
     individual_data: IndividualData,
     ) -> CohortData {
     let rdata = RowData{ individual_data, disease_id_list: vec![acvr1_disease_data.disease_id.to_string()], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
-
-    CohortData::mendelian(acvr1_disease_data, hpo_headers_two_terms, vec![rdata])
+    let hpo_version = "2025-05-09";
+    CohortData::mendelian(acvr1_disease_data, hpo_headers_two_terms, vec![rdata], hpo_version)
 }
 
 

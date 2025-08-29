@@ -1,8 +1,12 @@
 
 
-use crate::{dto::cohort_dto::DiseaseData, hpoa::counted_hpo_term::CountedHpoTerm};
+use crate::{dto::cohort_dto::{DiseaseData, ModeOfInheritance}, hpoa::counted_hpo_term::CountedHpoTerm};
 
-
+/// The default frequency is the empty string
+/// In the HPOA context, this is taken to mean 100%
+/// Here this is used for the mode of inheritance rows, which do 
+/// not have frequencies in the HPOA format.
+const DEFAULT_FREQ: &str = "";
 
 pub struct HpoaTableRow {
     disease_id: String,
@@ -91,6 +95,14 @@ impl HpoaTableRow {
             self.biocuration.clone(),
         ];
         fields
+    }
+
+    pub fn from_moi(
+        disease: &DiseaseData,
+        moi: &ModeOfInheritance,
+        biocurator: &str
+    ) -> Result<Self, String> {
+          HpoaTableRow::new(disease, &moi.hpo_id, &moi.hpo_label, &DEFAULT_FREQ, &moi.citation, biocurator)
     }
 
 }

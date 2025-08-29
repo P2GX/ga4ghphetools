@@ -44,6 +44,8 @@ impl HpoaTable {
             let row = HpoaTableRow::from_counted_term(&disease_data,counted_onset, &biocurator)?;
             hpoa_rows.push(row);
         }
+        let moi_list = Self::get_disease_mode_of_inheritance(&cohort, &biocurator)?;
+        hpoa_rows.extend(moi_list);
         let file_name = Self::get_hpoa_filename(&cohort)?;
         Ok(Self{
             hpoa_row_list: hpoa_rows,
@@ -120,6 +122,25 @@ impl HpoaTable {
         }
 
         Ok(())
+    }
+
+    pub fn get_disease_mode_of_inheritance(
+        cohort: &CohortData,
+        biocurator: &str
+    ) -> Result<Vec<HpoaTableRow>, String> {
+        let mut moi_list: Vec<HpoaTableRow> = Vec::new();
+        let disease: DiseaseData = match cohort.disease_list.first() {
+            Some(ds) => ds.clone(),
+            None => { return Err(format!("Could not extract disease from cohort: {:?}", cohort));},
+        };
+        if disease.mode_of_inheritance_list.is_empty() {
+            return Err(format!("Disease must have at least one mode-of-inheritance entry"));
+        }
+        for moi in &disease.mode_of_inheritance_list {
+            let hpoa_row = HpoaTableRow::from_moi(&disease, moi, biocurator)?;
+            moi_list.push(hpoa_row);
+        }
+        Ok(moi_list)
     }
 
 
