@@ -481,12 +481,14 @@ impl PpktExporter {
 
     }
 
-    /// The serde JSON serialization outputs certain fields that have concrete default values. For instance, karyotypic_sex is an integer enumeration,
-    /// and the first value (zero) stands for UNKNOWN_KARYOTYPE. Even though we did not actually enter this value into out Phenopacket, the serialization
-    /// routine outputs this default value, which essentially just clutters the output and does not provide useful information. Another default value is
-    /// survival_time_in_days of zero - this would appear if we list the subject as deceased even though we do not provide survival time information. In the latter
-    /// case, this is incorrect. Therefore, we manually strip these two values in the output.
-    /// Remove default-but-unset fields from a Phenopacket JSON without touching `subject` itself.
+/// The serde JSON serialization outputs certain fields that have concrete default values. For instance, karyotypic_sex is an integer enumeration,
+/// and the first value (zero) stands for UNKNOWN_KARYOTYPE. Even though we did not actually enter this value into out Phenopacket, the serialization
+/// routine outputs this default value, which essentially just clutters the output and does not provide useful information. Another default value is
+/// survival_time_in_days of zero - this would appear if we list the subject as deceased even though we do not provide survival time information. In the latter
+/// case, this is incorrect. Therefore, we manually strip these two values in the output.
+/// Remove default-but-unset fields from a Phenopacket JSON without touching `subject` itself.
+/// Note that we use the preserve_order option for serde_json; otherwise, this step
+/// is likely to rearrange order of top-level elements.
 /// - Drops `subject.karyotypic_sex` if it's "UNKNOWN_KARYOTYPE" or 0
 /// - Optionally drops `survival_time_in_days` if it's 0, wherever you expect it (subject or nested)
 pub fn strip_phenopacket_defaults(root: &mut Value) {
@@ -494,27 +496,19 @@ pub fn strip_phenopacket_defaults(root: &mut Value) {
     if let Value::Object(root_map) = root {
         if let Some(Value::Object(subject)) = root_map.get_mut("subject") {
             // Remove karyotypic_sex if it's the unknown/default
-            let drop_karyotype = match subject.get("karyotypic_sex") {
+            let drop_karyotype = match subject.get("karyotypicSex") {
                 Some(Value::String(s)) if s == "UNKNOWN_KARYOTYPE" => true,
                 Some(Value::Number(n)) if n.as_i64() == Some(0) => true,
                 _ => false,
             };
             if drop_karyotype {
-                subject.remove("karyotypic_sex");
+                subject.remove("karyotypicSex");
             }
 
-            // If you truly want to drop survival_time_in_days==0 from subject (enable if applicable)
-            if let Some(Value::Number(n)) = subject.get("survival_time_in_days") {
-                if n.as_i64() == Some(0) {
-                    subject.remove("survival_time_in_days");
-                }
-            }
-
-            // If your schema puts survival time inside a nested object (uncomment as needed)
-            if let Some(Value::Object(vs)) = subject.get_mut("vital_status") {
-                if let Some(Value::Number(n)) = vs.get("survival_time_in_days") {
+            if let Some(Value::Object(vs)) = subject.get_mut("vitalStatus") {
+                if let Some(Value::Number(n)) = vs.get("survivalTimeInDays") {
                     if n.as_i64() == Some(0) {
-                        vs.remove("survival_time_in_days");
+                        vs.remove("survivalTimeInDays");
                     }
                 }
             }
@@ -547,12 +541,12 @@ mod tests {
             "subject": {
                 "id": "patient1",
                 "sex": "MALE",
-                "karyotypic_sex": "UNKNOWN_KARYOTYPE"
+                "karyotypicSex": "UNKNOWN_KARYOTYPE"
             }
         });
         PpktExporter::strip_phenopacket_defaults(&mut packet);
         // karyotypic_sex should be gone
-        assert!(!packet["subject"].get("karyotypic_sex").is_some());
+        assert!(!packet["subject"].get("karyotypicSex").is_some());
         // id and sex should remain
         assert_eq!(packet["subject"]["id"], "patient1");
         assert_eq!(packet["subject"]["sex"], "MALE");
@@ -567,18 +561,39 @@ mod tests {
             "subject": {
                 "id": "patient3",
                 "sex": "UNKNOWN_SEX",
-                "vital_status": {
+                "vitalStatus": {
                     "status": "DECEASED",
-                    "survival_time_in_days": 0
+                    "survivalTimeInDays": 0
                 }
             }
         });
 
         PpktExporter::strip_phenopacket_defaults(&mut packet);
+        println!("{}", packet);
 
-        assert!(!packet["subject"]["vital_status"].get("survival_time_in_days").is_some());
-        assert_eq!(packet["subject"]["vital_status"]["status"], "DECEASED");
+        assert!(! packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
+        assert_eq!(packet["subject"]["vitalStatus"]["status"], "DECEASED");
     }
+
+
+  #[test]
+    fn test_strip_removes_unknown_karyotypic_sex_string2() {
+        let mut packet = json!({
+            "subject": {
+                "id": "PMID_29198722_p_Arg913Ter_Affected_Individual_1",
+                "sex": "MALE",
+                "karyotypicSex":"UNKNOWN_KARYOTYPE",
+                "vitalStatus": {
+                    "status": "DECEASED",
+                    "survivalTimeInDays": 0
+                }
+            }
+        });
+        assert!(!packet["subject"]["karyotypicSex"].get("karyotypicSex").is_some());
+}
+
+
+
 
     #[test]
     fn test_strip_does_not_remove_valid_values() {
@@ -586,10 +601,10 @@ mod tests {
             "subject": {
                 "id": "patient4",
                 "sex": "MALE",
-                "karyotypic_sex": "XY",
-                "vital_status": {
+                "karyotypicSex": "XY",
+                "vitalStatus": {
                     "status": "DECEASED",
-                    "survival_time_in_days": 365
+                    "survivalTimeInDays": 365
                 }
             }
         });
@@ -597,8 +612,8 @@ mod tests {
         PpktExporter::strip_phenopacket_defaults(&mut packet);
 
         // Nothing should be removed
-        assert_eq!(packet["subject"]["karyotypic_sex"], "XY");
-        assert_eq!(packet["subject"]["vital_status"]["survival_time_in_days"], 365);
+        assert_eq!(packet["subject"]["karyotypicSex"], "XY");
+        assert_eq!(packet["subject"]["vitalStatus"]["survivalTimeInDays"], 365);
     }
 
     #[test]
@@ -607,16 +622,16 @@ mod tests {
             "subject": {
                 "id": "patient4",
                 "sex": "MALE",
-                "karyotypic_sex": "UNKNOWN_KARYOTYPE",
-                "vital_status": {
+                "karyotypicSex": "UNKNOWN_KARYOTYPE",
+                "vitalStatus": {
                     "status": "DECEASED",
-                    "survival_time_in_days": 0
+                    "survivalTimeInDays": 0
                 }
             }
         });
 
         PpktExporter::strip_phenopacket_defaults(&mut packet);
-        assert!(!packet["subject"].get("karyotypic_sex").is_some());
-        assert!(!packet["subject"]["vital_status"].get("survival_time_in_days").is_some());
+        assert!(!packet["subject"].get("karyotypicSex").is_some());
+        assert!(!packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
     }
 }

@@ -100,7 +100,7 @@ impl VariantManager {
             latency += 250;
             attempts += 1;
         }
-        println!("Round {}: validated: {}", attempts, n_validated);
+        //println!("Round {}: validated: {}", attempts, n_validated);
         
         // When we get here, we will have all variants that could be validated. If some were not validated, either we had not
         // internet or there is actually an error. We will enter their variantKey as na, and the front end will need to do something.

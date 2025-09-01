@@ -10,7 +10,7 @@ use phenopackets::schema::v2::Phenopacket;
 
 use crate::{dto::cohort_dto::CohortData, ppkt::ppkt_exporter::PpktExporter};
 
-mod ppkt_exporter;
+pub mod ppkt_exporter;
 pub mod ppkt_row;
 
 

@@ -101,7 +101,7 @@ impl CohortFactory {
     /// in the HashMaps of CohortDto), and that we are getting the corresponding variant keys.
      pub fn add_new_row_to_cohort(
         &mut self,
-        individual_dto: IndividualData, 
+        individual_data: IndividualData, 
         hpo_annotations: Vec<HpoTermData>,
         variant_key_list: Vec<String>,
         cohort_dto: CohortData) 
@@ -153,7 +153,7 @@ impl CohortFactory {
       
         let novel_row = Self::new_row_dto(
             &updated_header_duplet_dto_list, 
-            individual_dto, 
+            individual_data, 
             variant_key_list, 
             tid_to_value_map, 
             disease_data)?;

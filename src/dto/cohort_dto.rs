@@ -210,7 +210,8 @@ impl RowData {
             *allele_count_map.entry(allele).or_insert(0) += 1;
         };
         let hpo_list = ppkt_row.get_hpo_value_list()?;
-        Ok(Self { individual_data: ppkt_row.get_individual_dto(), 
+        Ok(Self { 
+            individual_data: ppkt_row.get_individual_dto(), 
             disease_id_list: ppkt_row.get_disease_id_list(), 
             allele_count_map, 
             hpo_data: hpo_list,
