@@ -322,5 +322,9 @@ impl CohortData {
         }
         Ok(self.disease_list.clone())
     }
+
+    pub fn phenopackets_schema_version() -> String {
+        return PHETOOLS_SCHEMA_VERSION.to_string()
+    }
     
 }

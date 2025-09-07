@@ -71,7 +71,7 @@ impl HpoTermArranger {
         }
     }
 
-    /// Arrange the terms chosen for the pyphetools curation template using Depth-First Search (DFS)
+    /// Arrange the terms chosen for the template using Depth-First Search (DFS)
     ///
     /// Perform separate DFS for Neoplasm to arrange all neoplasm terms together
     ///

@@ -1,7 +1,7 @@
 //! HPO module
 //! 
 //! Convenience functions for working with HPO data
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 
@@ -138,4 +138,31 @@ pub fn update_hpo_duplets(
 ) -> std::result::Result<Vec<HpoTermDuplet>, String> {
     let hpo_util = HpoUtil::new(hpo);
     hpo_util.update_hpo_duplets(hpo_duplets)
+}
+
+/// Arrange the terms chosen for the template using Depth-First Search (DFS)
+/// 
+/// Perform separate DFS for Neoplasm to arrange all neoplasm terms together
+///
+/// # Arguments
+///
+/// * `hpo_terms_for_curation` - TermIds of the Terms chosen to initialize the template, generally terms we expect to curate
+///
+/// * Returns:
+///
+/// A Vector of TermIds in the order that they should be displayed in the template
+pub fn arrange_hpo_duplets(
+    hpo: Arc<FullCsrOntology>,  
+    hpo_duplets: &Vec<HpoTermDuplet>)
+-> std::result::Result<Vec<HpoTermDuplet>, String> {
+    let hpo_util = HpoUtil::new(hpo.clone());
+    let updated_duplets = hpo_util.update_hpo_duplets(hpo_duplets)?;
+    let hpo_tids: Vec<TermId> = updated_duplets
+        .into_iter()
+        .map(|dplt| TermId::from_str(dplt.hpo_id())
+            .map_err(|_e| format!("Could not create TermId from {:?}", dplt))
+        )
+        .collect::<Result<Vec<_>, String>>()?;
+    let mut arranger = HpoTermArranger::new(hpo.clone());
+    arranger.arrange_terms(&hpo_tids)
 }

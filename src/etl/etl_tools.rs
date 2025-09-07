@@ -1,8 +1,8 @@
-use std::{fmt, fs, sync::Arc};
+use std::{collections::HashMap, fmt, fs, sync::Arc};
 
-use ontolius::ontology::csr::FullCsrOntology;
+use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
 
-use crate::{dto::{etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, factory::excel};
+use crate::{dto::{cohort_dto::{CohortData, CohortType}, etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, factory::excel, hpo};
 
 
 
@@ -26,6 +26,14 @@ impl EtlTools {
             hpo,
             raw_table: dto.clone(),
         }
+    }
+
+    pub fn from_json(
+        etl_file_path: &str,
+        hpo: Arc<FullCsrOntology>
+    ) -> Result<Self, String> {
+        let table = EtlTools::load_column_table_from_json(etl_file_path)?;
+        Ok(Self { raw_table: table, hpo }) 
     }
 
     pub fn raw_table(&self) -> &ColumnTableDto {
@@ -57,6 +65,24 @@ impl EtlTools {
             })
             .flatten()
             .collect()
+    }
+
+     /// Note that only Mendelian is supported for Excel file bulk imports
+    /// Ohter MOIs are too complicated to be reliably imported in this way.
+    pub fn get_dto(&self) -> Result<CohortData, String> {
+        let hpo_duplets = Self::all_hpo_duplets(&self);
+        let header = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
+        Ok(CohortData { 
+            cohort_type: CohortType::Mendelian, 
+            disease_list: vec![], 
+            hpo_headers: header, 
+            rows: vec![], 
+            hgvs_variants: HashMap::new(), 
+            structural_variants: HashMap::new(), 
+            phetools_schema_version: CohortData::phenopackets_schema_version(), 
+            hpo_version: self.hpo.version().to_string(), 
+            cohort_acronym: None 
+        })
     }
   
 }
