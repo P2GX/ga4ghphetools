@@ -1,8 +1,8 @@
-use std::{fmt, sync::Arc};
+use std::{fmt, fs, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::etl_dto::{ColumnTableDto}, factory::excel};
+use crate::{dto::{etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, factory::excel};
 
 
 
@@ -31,6 +31,33 @@ impl EtlTools {
     pub fn raw_table(&self) -> &ColumnTableDto {
         &self.raw_table
     }
+
+    // Function to load JSON file and deserialize to ColumnTableDto
+    pub fn load_column_table_from_json(file_path: &str) -> Result<ColumnTableDto, String> {
+        let json_content = fs::read_to_string(file_path)
+            .map_err(|e| e.to_string())?;
+        let column_table: ColumnTableDto = serde_json::from_str(&json_content)
+            .map_err(|e| e.to_string())?;
+        Ok(column_table)
+    }
+
+
+
+    
+    /// Retrieve all HPO Duplets from the Single and Multiple HPO columns
+    /// We need this to know how many HPO terms we have altogether for the CohortData
+    pub fn all_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
+        self.raw_table.columns.iter()
+            .filter_map(|col| {
+                if let ColumnMetadata::HpoTerms(duplets) = &col.header.metadata {
+                    Some(duplets.clone())
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .collect()
+    }
   
 }
 
@@ -44,7 +71,7 @@ impl fmt::Display for ColumnTableDto {
 
         for column in &self.columns {
             let first_value = column.values.first().cloned().unwrap_or_else(|| "<empty>".to_string());
-            writeln!(f, "- {}: {}", column.header, first_value)?;
+            writeln!(f, "- {}: {}", column.header.original, first_value)?;
         }
 
         Ok(())

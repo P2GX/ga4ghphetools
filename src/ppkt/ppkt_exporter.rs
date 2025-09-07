@@ -589,7 +589,8 @@ mod tests {
                 }
             }
         });
-        assert!(!packet["subject"]["karyotypicSex"].get("karyotypicSex").is_some());
+         PpktExporter::strip_phenopacket_defaults(&mut packet);
+        assert!(!packet["subject"].get("karyotypicSex").is_some());
 }
 
 

@@ -1,17 +1,42 @@
-//! This module contains utilities to read the contents of a phenopacket-input-formated Excel fule
+//! This module contains utilities to read the contents of Excel files.
+//! 
+//! The Phenopacket Store project (PMID:39394689) was initially developed using
+//! pyphetools, a Python package that used templated Excel files as serialization medium.
+//! We are transitioning away from this format and replacing these Excel files with phetool JSON templates (CohortData), but
+//! since there are several hundred cohorts, the migration will take some time. 
+//! 
+//! Additionally, we provide code to help transform an Excel file from other sources into phenopacket data.
+//! The strategy is to first ingest the Excel file oriented such that the individuals are in rows and the
+//! specific data is in columns. Then, the Phenoboard GUI can be used to transform this data one column at a time.
 //!
-//! It ingests an Excel file and returns a DataFrame containing the contents of the file.
-//! It throws an error if there are syntactic errors in the input file.
+
 
 use calamine::{open_workbook, Reader, Xlsx, XlsxError};
-
-
 
 use crate::dto::etl_dto::{ColumnDto, ColumnTableDto};
 
 
-
-/// Get a matrix of strings from the first worksheet in an Excel file.
+/// Reads the **first worksheet** from an Excel `.xlsx` file and returns its contents
+/// as a 2D vector of strings (`Vec<Vec<String>>`).
+///
+/// # Behavior
+/// - Opens the Excel file at the given `file_path`.
+/// - Finds the first worksheet in the workbook.
+/// - Iterates over all rows and cells in the sheet.
+/// - Converts each cell to a string:
+///   - Empty cells are replaced with the literal string `"na"`.
+///   - Non-empty cells are converted with `to_string()`.
+/// - Collects each row into a `Vec<String>`, and all rows into a `Vec<Vec<String>>`.
+///
+/// # Errors
+/// Returns `Err(String)` in the following cases:
+/// - The file cannot be opened as an Excel workbook (I/O error or invalid file format).
+/// - The workbook has no worksheets.
+/// - The first worksheet cannot be read successfully.
+///
+/// # Returns
+/// On success, returns `Ok(rows)` where `rows` is a matrix of strings, one per row
+/// in the worksheet. Each inner `Vec<String>` represents the values in one row.
 fn get_list_of_rows_from_excel(file_path: &str) -> Result<Vec<Vec<String>>, String>  {
     let mut workbook: Xlsx<_> = open_workbook(file_path).map_err(|e: XlsxError| {
         format!(
@@ -47,8 +72,34 @@ fn get_list_of_rows_from_excel(file_path: &str) -> Result<Vec<Vec<String>>, Stri
 }
 
 
-/// Reads in data from the initial format version of phenopacket store (up to version 0.1.24)
-/// This function replaces any empty cells in the data with na
+/// Reads an Excel file in the **legacy phenopacket-store format** 
+/// and validates it into a structured 2D string matrix (`Vec<Vec<String>>`).
+///
+/// This function is specialized for early phenopacket-store input files,
+/// which are expected to have:
+/// - At least **3 rows** total (2 header rows + data).
+/// - The **first two rows** (`row0`, `row1`) defining the column headers.
+/// - Each data row having the **same number of fields** as the headers.
+///
+/// # Behavior
+/// - Delegates to [`get_list_of_rows_from_excel`] to extract raw cell values.
+/// - Ensures the matrix has at least 3 rows; otherwise returns an error.
+/// - Ensures the first two rows have the same number of fields (consistent headers).
+/// - Ensures each subsequent row has the same number of fields as the headers.
+/// - Replaces any **empty cells** (only in data rows) with the literal `"na"`.
+///
+/// # Errors
+/// Returns `Err(String)` in the following cases:
+/// - The Excel file cannot be opened or parsed (from [`get_list_of_rows_from_excel`]).
+/// - The file has fewer than 3 rows.
+/// - The two header rows have different numbers of fields.
+/// - Any data row has a different number of fields than the headers.
+///
+/// # Returns
+/// On success, returns `Ok(matrix)` where:
+/// - `matrix[0]` is the first header row (unchanged).
+/// - `matrix[1]` is the second header row (unchanged).
+/// - `matrix[2..]` are data rows, with empty cells normalized to `"na"`.
 pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, String> {
     let matrix = get_list_of_rows_from_excel(file_path)?;
     if matrix.len() < 3 {
@@ -90,9 +141,38 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Stri
 }
 
 
-/// Function to input an external Excel file for ETL purposes (not the version 1 Excel templates from phenopacket store!)
-/// Let's use a separate file for now TODO - consider sharing code with above once API/strategy are clear.
-/// We may want to allow some automatic error correction here, we can correct minor errors in the GUI!
+/// Reads an **external Excel file** for ETL purposes and converts it into
+/// a `ColumnTableDto` suitable for further transformation in the ETL pipeline.
+///
+/// This function is intended for external Excel files (**Not the internal phenopacket-store templates**).
+/// The output separates columns into DTOs that include:
+/// - `column_type` (initially set to `Raw`)
+/// - `transformed` flag (initially `false`)
+/// - `header` string
+/// - `values` vector for each column
+///
+/// # Parameters
+/// - `file_path`: Path to the Excel file to read.
+/// - `row_based`: Determines whether the Excel file is already **row-based** (`true`) or **column-major** (`false`).
+///   - If `false`, the function will **transpose** the matrix so that each vector represents a column.
+///
+/// # Behavior
+/// 1. Reads the first worksheet from the Excel file via [`get_list_of_rows_from_excel`].
+/// 2. Ensures the file has at least 3 rows; otherwise returns an error.
+/// 3. Optionally transposes the matrix if `row_based` is `false`.
+/// 4. Uses the first row as headers.
+/// 5. Remaining rows are treated as data, mapped into `ColumnDto` structs.
+/// 6. Each column gets a `Vec<String>` of values, maintaining order.
+///
+/// # Returns
+/// On success, returns a `ColumnTableDto` containing:
+/// - `file_name`: the input file path as string
+/// - `columns`: vector of `ColumnDto`, each representing a column with header and values.
+///
+/// # Errors
+/// Returns `Err(String)` if:
+/// - The file cannot be opened or read (from `get_list_of_rows_from_excel`)
+/// - The file has fewer than 3 rows
 pub fn read_external_excel_to_df(
     file_path: &str, 
     row_based: bool) 
@@ -118,12 +198,7 @@ pub fn read_external_excel_to_df(
     let total_columns = headers.len();
     let mut columns: Vec<ColumnDto> = headers
         .iter()
-        .map(|h| ColumnDto {
-            column_type: crate::dto::etl_dto::EtlColumnType::Raw,
-            transformed: false,
-            header: h.clone(),
-            values: Vec::with_capacity(total_rows),
-        })
+        .map(|h| ColumnDto::new_raw(h, total_rows))
         .collect();
 
     for row in data_rows {

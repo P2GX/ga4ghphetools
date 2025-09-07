@@ -295,11 +295,17 @@ impl StructuralVariant {
 
 
 mod tests {
-    use crate::dto::structural_variant::StructuralVariant;
+    use super::StructuralVariant;
 
     #[test]
     pub fn test_variant_key() {
-        let sv = StructuralVariant::chromosomal_structure_variation("DEL Ex 4", "FBN1","NM_000138.5", "HGNC:123", "15".to_string()).unwrap();
+        let sv = StructuralVariant::chromosomal_structure_variation(
+            "DEL Ex 4", 
+            "FBN1",
+            "NM_000138.5", 
+            "HGNC:123", 
+            "15".to_string()
+        ).unwrap();
         assert_eq!("FBN1_SV_DEL_Ex_4", sv.variant_key);
     }
 

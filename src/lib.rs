@@ -11,6 +11,10 @@
 //! - API for curation tools
 
 
+// for development allow this
+#![allow(dead_code)]
+#![allow(unused_variables)]
+//#![allow(unused_imports)]
 
 mod header;
 mod persistence;
