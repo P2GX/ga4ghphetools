@@ -3,7 +3,7 @@
 
 
 
-use crate::dto::etl_dto::ColumnTableDto;
+use crate::dto::etl_dto::{ColumnTableDto, EtlDto};
 use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
@@ -217,7 +217,7 @@ impl PheTools {
     /// Todo: update documentation
     pub fn set_external_template_dto(
         &mut self,
-        dto: &ColumnTableDto
+        dto: &EtlDto
     ) -> Result<(), String> {
         let etl = EtlTools::from_dto(self.hpo.clone(), dto);
         self.etl_tools = Some(etl);
@@ -412,10 +412,8 @@ impl PheTools {
         &mut self,
         external_excel_path: &str,
         row_based: bool) -> Result<ColumnTableDto, String> {
-        let etl_tools = EtlTools::new(self.hpo.clone(), external_excel_path, row_based)?;
-        let dto = etl_tools.raw_table().clone();
-        self.etl_tools = Some(etl_tools);
-        Ok(dto)
+        let etl_tools =  excel::read_external_excel_to_df(external_excel_path, row_based)?;
+        Ok(etl_tools)
     }
 
     pub fn analyze_variants(&self, cohort_dto: CohortData) 

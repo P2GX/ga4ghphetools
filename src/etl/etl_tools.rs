@@ -1,52 +1,58 @@
 use std::{collections::HashMap, fmt, fs, sync::Arc};
 
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
-
-use crate::{dto::{cohort_dto::{CohortData, CohortType}, etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, factory::excel, hpo};
+use phenopackets::schema::v1::core::Sex;
+use crate::dto::cohort_dto::DiseaseData;
+use crate::dto::etl_dto::{EtlColumnType::*, EtlDto};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, factory::excel, hpo};
 
 
 
 pub struct EtlTools {
-     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
+    /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
-    raw_table: ColumnTableDto,
+    /// The data that has been extracted and transformed in a front end
+    dto: EtlDto,
 }
 
 
 impl EtlTools {
 
-    pub fn new( hpo: Arc<FullCsrOntology>, excel_file_path: &str, row_based: bool) -> Result<Self, String> {
-        let raw_table = excel::read_external_excel_to_df(excel_file_path, row_based)
-            .map_err(|e| e.to_string())?;
-        Ok(Self { hpo, raw_table })
-    }
 
-    pub fn from_dto(hpo: Arc<FullCsrOntology>, dto: &ColumnTableDto) -> Self {
+    pub fn from_dto(
+        hpo: Arc<FullCsrOntology>, 
+        dto: &EtlDto,
+    ) -> Self {
         Self{
             hpo,
-            raw_table: dto.clone(),
+            dto: dto.clone(),
         }
     }
 
     pub fn from_json(
         etl_file_path: &str,
-        hpo: Arc<FullCsrOntology>
+        hpo: Arc<FullCsrOntology>,
     ) -> Result<Self, String> {
-        let table = EtlTools::load_column_table_from_json(etl_file_path)?;
-        Ok(Self { raw_table: table, hpo }) 
+        let dto = EtlTools::load_etl_dto_from_json(etl_file_path)?;
+        Ok(
+            Self {
+                hpo,
+                dto
+            }
+        ) 
     }
 
-    pub fn raw_table(&self) -> &ColumnTableDto {
-        &self.raw_table
+    pub fn raw_table(&self) -> &EtlDto {
+        &self.dto
     }
 
     // Function to load JSON file and deserialize to ColumnTableDto
-    pub fn load_column_table_from_json(file_path: &str) -> Result<ColumnTableDto, String> {
+    pub fn load_etl_dto_from_json(file_path: &str) -> Result<EtlDto, String> {
         let json_content = fs::read_to_string(file_path)
             .map_err(|e| e.to_string())?;
-        let column_table: ColumnTableDto = serde_json::from_str(&json_content)
+        let etl_dto: EtlDto = serde_json::from_str(&json_content)
             .map_err(|e| e.to_string())?;
-        Ok(column_table)
+        Ok(etl_dto)
     }
 
 
@@ -55,7 +61,7 @@ impl EtlTools {
     /// Retrieve all HPO Duplets from the Single and Multiple HPO columns
     /// We need this to know how many HPO terms we have altogether for the CohortData
     pub fn all_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
-        self.raw_table.columns.iter()
+        self.dto.table.columns.iter()
             .filter_map(|col| {
                 if let ColumnMetadata::HpoTerms(duplets) = &col.header.metadata {
                     Some(duplets.clone())
@@ -66,6 +72,71 @@ impl EtlTools {
             .flatten()
             .collect()
     }
+
+    /// Extract the string value of of table cell
+    fn extract_value(values: &[String], i: usize, field: &str) -> Result<String, String> {
+        values.get(i)
+            .map(|v| v.to_string())
+            .ok_or_else(|| format!("Could not extract {} from column", field))
+    }
+
+    /// Get the individual Data for row i
+    fn get_individual(&self, i: usize) -> Result<IndividualData, String> {
+         let mut individual = IndividualData{ 
+            pmid: self.dto.pmid.to_string(), 
+            title: self.dto.title.to_string(), 
+            individual_id: String::default(), 
+            comment: String::default(), 
+            age_of_onset: "na".to_string(), 
+            age_at_last_encounter: "na".to_string(), 
+            deceased: "na".to_string(), 
+            sex: "na".to_string(), 
+         };
+   
+         for col in &self.dto.table.columns {
+            match &col.header.column_type {
+                Raw | FamilyId | SingleHpoTerm | MultipleHpoTerm |
+                GeneSymbol | Variant | Ignore => {}
+                PatientId => {
+                    individual.individual_id = Self::extract_value(&col.values, i, "individual ID")?;
+                }
+                AgeOfOnset => {
+                    individual.age_of_onset = Self::extract_value(&col.values, i, "age_of_onset")?;
+                }
+                AgeAtLastEncounter => {
+                    individual.age_at_last_encounter = Self::extract_value(&col.values, i, "age_at_last_encounter")?;
+                }
+                Sex => {
+                    individual.sex = Self::extract_value(&col.values, i, "sex")?;
+                }
+                Deceased => {
+                    individual.deceased = Self::extract_value(&col.values, i, "deceased")?;
+                }
+            }
+        }
+        if individual.individual_id.len() < 1 {
+            return Err(format!("Invalid individual without identifier: {:?}", individual));
+        }
+        Ok(individual)
+    }
+
+
+
+    pub fn get_row(&self, i: usize) -> Result<RowData, String> {
+       
+         let individual = self.get_individual(i)?;
+
+         let row = RowData{
+            individual_data: individual,
+            disease_id_list: todo!(),
+            allele_count_map: todo!(),
+            hpo_data: todo!(),
+        };
+               
+
+        todo!()
+    }
+
 
      /// Note that only Mendelian is supported for Excel file bulk imports
     /// Ohter MOIs are too complicated to be reliably imported in this way.

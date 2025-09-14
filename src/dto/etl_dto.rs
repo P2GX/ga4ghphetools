@@ -1,7 +1,7 @@
 
  use serde::{Deserialize, Serialize};
 
-use crate::dto::hpo_term_dto::HpoTermDuplet;
+use crate::dto::{cohort_dto::DiseaseData, hpo_term_dto::HpoTermDuplet};
 
 
 
@@ -20,7 +20,6 @@ pub enum EtlColumnType {
     MultipleHpoTerm,
     GeneSymbol,
     Variant,
-    Disease,
     AgeOfOnset,
     AgeAtLastEncounter,
     Sex,
@@ -58,8 +57,6 @@ pub enum ColumnMetadata {
     HpoTerms(Vec<HpoTermDuplet>),
     /// Gene and transcript of reference for current column
     GeneTranscript { gene_symbol: String, transcript_id: String },
-    /// Disease entity of column
-    Disease { disease_id: String, disease_label: String },
     /// Male, Female, Other, Unknown: MFOU
     Sex { code: SexCode },
     /// Deceased: yes, no, na
@@ -96,15 +93,7 @@ impl EtlColumnHeader {
     pub values: Vec<String>,
 }
 
-/*
- let mut columns: Vec<ColumnDto> = headers
-        .iter()
-        .map(|h| ColumnDto {
-            column_type: crate::dto::etl_dto::EtlColumnType::Raw,
-            transformed: false,
-            header: h.clone(),
-            values: Vec::with_capacity(total_rows),
-        }) */
+
 impl ColumnDto {
     pub fn new_raw(original_header_contents: &str, size: usize) -> Self {
         Self { 
@@ -115,14 +104,26 @@ impl ColumnDto {
     }
 }
 
+/// The main structure to represent the actual data from an external table
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnTableDto {
     pub file_name: String,
     pub columns: Vec<ColumnDto>,
+   
 }
 
 
+/// The main structure for "deciphering" external data tables (e.g., supplemental tables about cohorts)
+/// We only support Mendelian cohorts
+/// This represents the product of transformation, and also includes DiseaseData and pub med data
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct EtlDto {
+    pub table: ColumnTableDto,
+    pub disease: DiseaseData,
+    pub pmid: String,
+    pub title: String,
+}
 
 
 
