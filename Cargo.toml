@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.4.69"
+version = "0.4.71"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -41,6 +41,7 @@ reqwest = {version = "0.12.22", features = ["blocking", "json"]}
 serde_json = { version = "1.0.140", features = ["preserve_order"] }
 clap = { version = "4.5.41", features = ["derive"], optional = true }
 rayon = "=1.10.0"
+uuid = { version = "1.18.1", features = ["v4"] }
 
 [lints.rust]
 unsafe_code = "forbid"

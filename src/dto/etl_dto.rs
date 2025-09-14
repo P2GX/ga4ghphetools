@@ -1,6 +1,6 @@
 
- use serde::{Deserialize, Serialize};
-
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use crate::dto::{cohort_dto::DiseaseData, hpo_term_dto::HpoTermDuplet};
 
 
@@ -88,6 +88,9 @@ impl EtlColumnHeader {
  #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
  #[serde(rename_all = "camelCase")]
  pub struct ColumnDto {
+    /// A unique, randomly generated id that we use to index columns in the front end
+    pub id: String,
+    /// true if the cell contents have been transformed
     pub transformed: bool,
     pub header: EtlColumnHeader,
     pub values: Vec<String>,
@@ -97,6 +100,7 @@ impl EtlColumnHeader {
 impl ColumnDto {
     pub fn new_raw(original_header_contents: &str, size: usize) -> Self {
         Self { 
+            id: Uuid::new_v4().to_string(),
             transformed:false, 
             header: EtlColumnHeader::new_raw(original_header_contents), 
             values: Vec::with_capacity(size) 
