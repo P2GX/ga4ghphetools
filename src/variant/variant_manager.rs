@@ -208,6 +208,29 @@ impl VariantManager {
         }
     }
 
+    pub fn get_validated_hgvs(&self, hgvs: &str) 
+    -> Result<HgvsVariant, String> {
+         let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        let variant_key = HgvsVariant::generate_variant_key(hgvs, &self.gene_symbol, &self.transcript);
+        if let Some(var) = self.validated_hgvs.get(&variant_key) {
+            Ok(var.clone())
+        } else {
+            self.hgvs_validator.validate(vv_dto)
+        }
+    }
+
+     pub fn get_validated_sv(&self, sv: &str) 
+    -> Result<StructuralVariant, String> {
+         let vv_dto = VariantDto::hgvs_c(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+         let sv_type = SvType::Sv; // needs to be made more precise in GUI
+        let variant_key = StructuralVariant::generate_variant_key(sv, &self.gene_symbol, sv_type);
+        if let Some(var) = self.validated_sv.get(&variant_key) {
+            Ok(var.clone())
+        } else {
+            self.structural_validator.validate(vv_dto)
+        }
+    }
+
 
     /// Validates all structural variants in the given set.
     ///

@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{dto::hgvs_variant::HgvsVariant, variant::variant_manager::VariantManager};
+use crate::{dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}, variant::variant_manager::VariantManager};
 pub mod acmg;
 pub mod structural_validator;
 pub mod variant_manager;
@@ -66,6 +66,27 @@ pub fn validate_all_hgvs(
 }
 
 
+pub fn validate_one_hgvs_variant(
+    symbol: &str,
+    hgnc: &str,
+    transcript: &str,
+    allele: &str) 
+-> Result<HgvsVariant, String> {
+    let vmanager = VariantManager::new(symbol, hgnc, transcript);
+    vmanager.get_validated_hgvs(allele)
+}
+
+pub fn validate_one_structural_variant(
+    symbol: &str,
+    hgnc: &str,
+    transcript: &str,
+    allele: &str) 
+-> Result<StructuralVariant, String> {
+    let vmanager = VariantManager::new(symbol, hgnc, transcript);
+    vmanager.get_validated_sv(allele)
+}
+
+
 /// Validates all structural variants in the given set of allele strings.
 ///
 /// This function creates a [`VariantManager`] for the provided gene symbol, HGNC identifier,
@@ -99,9 +120,9 @@ pub fn validate_all_sv(
     hgnc: &str, 
     transcript: &str,
     all_alleles: &HashSet<String>
-) -> Result<HashMap<String, HgvsVariant>, String> {
+) -> Result<HashMap<String, StructuralVariant>, String> {
     let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
     vmanager.validate_all_sv(all_alleles, |p,q|{
         println!("{}/{} variants validated", p, q)})?;
-    Ok(vmanager.hgvs_map())
+    Ok(vmanager.sv_map())
 }
