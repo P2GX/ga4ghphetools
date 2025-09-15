@@ -1,7 +1,9 @@
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::dto::{cohort_dto::DiseaseData, hpo_term_dto::HpoTermDuplet};
+use crate::dto::{cohort_dto::DiseaseData, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDuplet, structural_variant::StructuralVariant};
 
 
 
@@ -122,11 +124,16 @@ pub struct ColumnTableDto {
 /// We only support Mendelian cohorts
 /// This represents the product of transformation, and also includes DiseaseData and pub med data
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct EtlDto {
     pub table: ColumnTableDto,
-    pub disease: DiseaseData,
-    pub pmid: String,
-    pub title: String,
+    pub disease: Option<DiseaseData>,
+    pub pmid: Option<String>,
+    pub title: Option<String>,
+    /// Validated HGVS variants.
+    pub hgvs_variants: HashMap<String, HgvsVariant>,
+    /// Validated structural (symbolic) variants
+    pub structural_variants: HashMap<String, StructuralVariant>,
 }
 
 

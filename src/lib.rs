@@ -20,7 +20,7 @@ mod header;
 mod persistence;
 
 
-mod variant;
+
 
 
 pub mod age;
@@ -31,4 +31,5 @@ pub mod hpoa;
 pub use factory::phetools::PheTools;
 pub mod factory;
 pub mod ppkt;
+pub mod variant;
 

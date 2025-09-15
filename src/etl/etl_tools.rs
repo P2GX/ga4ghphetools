@@ -82,9 +82,11 @@ impl EtlTools {
 
     /// Get the individual Data for row i
     fn get_individual(&self, i: usize) -> Result<IndividualData, String> {
+         let pmid = self.dto.pmid.clone().ok_or_else(|| format!("Could not extract pmid for individual {i}"))?;
+         let title: String = self.dto.title.clone().ok_or_else(|| format!("Could not extract title for individual {i}"))?;
          let mut individual = IndividualData{ 
-            pmid: self.dto.pmid.to_string(), 
-            title: self.dto.title.to_string(), 
+            pmid: pmid, 
+            title: title, 
             individual_id: String::default(), 
             comment: String::default(), 
             age_of_onset: "na".to_string(), 
@@ -121,7 +123,7 @@ impl EtlTools {
     }
 
 
-
+    /** TODO */
     pub fn get_row(&self, i: usize) -> Result<RowData, String> {
        
          let individual = self.get_individual(i)?;

@@ -55,7 +55,7 @@ fn main() {
 fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
     let mut phetools = PheTools::new(hpo_arc);
     match phetools.load_excel_template(template, false, |p,q|{
-        println!("{}/ {} variants validated", p, q);}) {
+        println!("{}/{} variants validated", p, q);}) {
         Ok(cohort_dto) => {
            println!("[INFO] No errors identified for {:?}\n\n\n", template);
         }

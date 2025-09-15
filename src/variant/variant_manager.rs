@@ -44,7 +44,7 @@ pub struct VariantManager {
     /// HGVS Variants that could be validated. The key is the original allele denomination (e.g., c.1234A>T), not the variantKey
     validated_hgvs: HashMap<String, HgvsVariant>,
     /// HGStructural Variants that could be validated. The key is the original allele denomination (e.g., DEL Ex 5), not the variantKey
-    validated_sv: HashMap<String, StructuralVariant>
+    validated_sv: HashMap<String, StructuralVariant>,
 }
 
 
@@ -93,6 +93,68 @@ impl VariantManager {
                 } else if  self.validate_sv(&allele) {
                      n_validated += 1;
                 }
+                // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
+                thread::sleep(Duration::from_millis(latency));
+                progress_cb(n_validated, n_alleles);
+            }
+            latency += 250;
+            attempts += 1;
+        }
+        Ok(())
+    }
+
+    /// Perform up to 4 rounds of validation using the VariantValidator API
+    /// For each round, increase the latency between network calls
+    pub fn validate_all_sv<F>(
+        &mut self, all_alleles: &HashSet<String>,
+        mut progress_cb: F)  
+    -> Result<(), String> 
+    where F: FnMut(u32, u32) {
+        let n_alleles = all_alleles.len();
+        let mut attempts = 0;
+        let max_attempts = 4;
+        let mut latency = 250 as u64; // time in milliseconds to wait between API calls
+        let mut n_validated: u32 = 0;
+        let n_alleles = all_alleles.len() as u32;
+        self.allele_set = all_alleles.clone();
+        while n_validated < n_alleles && attempts < max_attempts {
+            for allele in all_alleles {
+                if ! allele.starts_with("c.") && ! allele.starts_with("n.") {
+                    if  self.validate_sv(&allele) {
+                        n_validated += 1;
+                    }
+                }
+                // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
+                thread::sleep(Duration::from_millis(latency));
+                progress_cb(n_validated, n_alleles);
+            }
+            latency += 250;
+            attempts += 1;
+        }
+        Ok(())
+    }
+
+
+     pub fn validate_all_hgvs<F>(
+        &mut self, all_alleles: &HashSet<String>,
+        mut progress_cb: F)  
+    -> Result<(), String> 
+    where F: FnMut(u32, u32) {
+        let n_alleles = all_alleles.len();
+        let mut attempts = 0;
+        let max_attempts = 4;
+        let mut latency = 250 as u64; // time in milliseconds to wait between API calls
+        let mut n_validated: u32 = 0;
+        let n_alleles = all_alleles.len() as u32;
+        self.allele_set = all_alleles.clone();
+
+        while n_validated < n_alleles && attempts < max_attempts {
+            for allele in all_alleles {
+                if allele.starts_with("c.") || allele.starts_with("n.") {
+                    if self.validate_hgvs(allele) {
+                        n_validated += 1;
+                    }
+                } 
                 // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
                 thread::sleep(Duration::from_millis(latency));
                 progress_cb(n_validated, n_alleles);
