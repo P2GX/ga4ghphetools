@@ -1,10 +1,9 @@
 use std::{collections::HashMap, fmt, fs, sync::Arc};
 
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
-use phenopackets::schema::v1::core::Sex;
-use crate::dto::cohort_dto::DiseaseData;
+
 use crate::dto::etl_dto::{EtlColumnType::*, EtlDto};
-use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, factory::excel, hpo};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, hpo};
 
 
 

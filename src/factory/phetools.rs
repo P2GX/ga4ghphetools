@@ -5,15 +5,11 @@
 
 use crate::dto::etl_dto::{ColumnTableDto, EtlDto};
 use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData};
-use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
-use crate::dto::structural_variant::{StructuralVariant, SvType};
 use crate::dto::variant_dto::VariantDto;
 use crate::etl::etl_tools::EtlTools;
 use crate::persistence::dir_manager::DirManager;
-use crate::dto::{ hpo_term_dto::HpoTermData};
-use crate::variant::hgvs_variant_validator::HgvsVariantValidator;
-use crate::variant::structural_validator::StructuralValidator;
+use crate::dto::{hpo_term_dto::HpoTermData};
 use crate::variant::variant_manager::VariantManager;
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
@@ -42,8 +38,6 @@ pub struct PheTools {
     /// Manager to validate and cache variants
     manager: Option<DirManager>, 
     etl_tools: Option<EtlTools>,
-    hgvs_validator: HgvsVariantValidator,
-    sv_validator: StructuralValidator
 }
 
 impl PheTools {
@@ -73,8 +67,6 @@ impl PheTools {
             cohort: None,
             manager: None,
             etl_tools: None,
-            hgvs_validator: HgvsVariantValidator::hg38(),
-            sv_validator: StructuralValidator::hg38()
         }
     }
 
@@ -333,58 +325,6 @@ impl PheTools {
         }
         Ok(())
     }
-
-
-
-
-
-
-
-    /// Validates an HGVS variant using the VariantValidator API
-    /// First we check if we already have information about the variant in 
-    /// our CohortDto, which contains a HashMap of previously validated variants.
-    /// # Arguments
-    /// * `vv_dto` — Data transfer object containing the variant to validate
-    /// # Returns
-    /// - corresponding full HgvsVariant object, with information derived from VariantValidator
-    pub fn validate_hgvs_variant(
-        &self,
-        vv_dto: VariantDto,
-        cohort_dto: CohortData
-    ) -> Result<HgvsVariant, String> {
-        if ! vv_dto.is_hgvs() {
-            return Err(format!("Attempt to HGVS-validate non-HGVS variant: {:?}", vv_dto));
-        }
-        let hgvs_key = HgvsVariant::generate_variant_key(&vv_dto.variant_string, &vv_dto.gene_symbol, &vv_dto.transcript);
-        if let Some(hgvs_var) = cohort_dto.hgvs_variants.get(&hgvs_key) {
-            return Ok(hgvs_var.clone());
-        }
-        self.hgvs_validator.validate(vv_dto)
-    }
-
-    /// Validates a structural variant
-    /// First we check if we already have information about the variant in 
-    /// our CohortDto, which contains a HashMap of previously validated variants.
-    /// If we do not find it, we use VariantValidator to check the 
-    /// chromosome of the variant (we need this information to determine the proper genotype)
-     pub fn validate_structural_variant(
-        &self,
-        vv_dto: VariantDto,
-        cohort_dto: CohortData
-    ) -> Result<StructuralVariant, String> {
-        if ! vv_dto.is_sv() {
-            return Err(format!("Attempt to SV-validate non-SV variant: {:?}", vv_dto));
-        }
-        let sv_type: SvType = SvType::try_from(vv_dto.variant_type)?;
-        let sv_key = StructuralVariant::generate_variant_key(&vv_dto.variant_string, &vv_dto.gene_symbol, sv_type);
-        if let Some(sv) = cohort_dto.structural_variants.get(&sv_key) {
-            return Ok(sv.clone())
-        }
-        self.sv_validator.validate(vv_dto)
-    }
-
- 
-
 
 
     /// Check correctness of a TemplateDto that was sent from the front end.

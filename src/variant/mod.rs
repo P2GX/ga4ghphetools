@@ -3,11 +3,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}, variant::variant_manager::VariantManager};
-pub mod acmg;
-pub mod structural_validator;
+mod acmg;
+mod structural_validator;
 pub mod variant_manager;
-pub mod hgvs_variant_validator;
-pub mod vcf_var;
+mod hgvs_variant_validator;
+pub(crate) mod vcf_var;
 
 
 /// Validates all HGVS variants in the given set of allele strings.
@@ -65,7 +65,18 @@ pub fn validate_all_hgvs(
     Ok(vmanager.hgvs_map())
 }
 
-
+/// Validates a single HGVS variant from one allele string (e.g., c.123A>C).
+/// # Arguments
+///
+/// * `symbol`     – Gene symbol (e.g. `"BRCA1"`).
+/// * `hgnc`       – HGNC identifier for the gene.
+/// * `transcript` – Transcript identifier against which the variants should be validated.
+/// * `allele` – A string that should contain an HGVS-formatted variant.
+///
+/// # Returns
+///
+/// * `Ok(HgvsVariant)` – The successfully parsed [`HgvsVariant`].
+/// * `Err(String)` – If validation fails, returns an error message describing the problem.
 pub fn validate_one_hgvs_variant(
     symbol: &str,
     hgnc: &str,
@@ -76,6 +87,21 @@ pub fn validate_one_hgvs_variant(
     vmanager.get_validated_hgvs(allele)
 }
 
+
+/// Validates a structural variant in the given string.
+///
+/// This function is intended for use with symbol structural variant strings such as DEL ex 5
+/// # Arguments
+///
+/// * `symbol`     – Gene symbol (e.g. `"BRCA1"`).
+/// * `hgnc`       – HGNC identifier for the gene.
+/// * `transcript` – Transcript identifier against which the variants should be validated.
+/// * `allele` – A string that represents a SV, e.g., DUP ex 9-10.
+///
+/// # Returns
+///
+/// * `Ok(StructuralVariant)` – The successfully parsed [`StructuralVariant`].
+/// * `Err(String)` – If validation fails, returns an error message describing the problem.
 pub fn validate_one_structural_variant(
     symbol: &str,
     hgnc: &str,
