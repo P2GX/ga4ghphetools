@@ -1,8 +1,12 @@
+use std::collections::hash_map::Entry;
 use std::{collections::HashMap, fmt, fs, sync::Arc};
 
+use chrono::naive;
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
 
+use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::etl_dto::{EtlColumnType::*, EtlDto};
+use crate::dto::hpo_term_dto::CellValue;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, hpo};
 
 
@@ -121,21 +125,94 @@ impl EtlTools {
         Ok(individual)
     }
 
-
+    /// We check if there is already an entry for some HPO term in some row. If yes, we throw an
+    /// error if the two values disagree.
+    fn insert_or_validate(map: &mut HashMap<HpoTermDuplet, String>, key: HpoTermDuplet, value: String) -> Result<(), String> {
+            match map.entry(key) {
+                Entry::Occupied(entry) => {
+                    if entry.get() != &value {
+                        return Err(format!(
+                            "Conflicting values for HPO term {:?}: existing '{}', new '{}'", 
+                            entry.key(), 
+                            entry.get(), 
+                            value
+                        ));
+                    }
+                },
+                Entry::Vacant(entry) => {
+                    entry.insert(value);
+                }
+            }
+            Ok(())
+        }
     /** TODO */
-    pub fn get_row(&self, i: usize) -> Result<RowData, String> {
+    pub fn get_row(&self, i: usize, all_hpo_duplets: &[HpoTermDuplet], disease: &DiseaseData) -> Result<RowData, String> {
        
          let individual = self.get_individual(i)?;
-
+         let mut hpo_to_status_map: HashMap<HpoTermDuplet, String> = HashMap::new();
+         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
+         for col in &self.dto.table.columns {
+            if col.header.column_type == SingleHpoTerm {
+                if let ColumnMetadata::HpoTerms(hpo_terms) = &col.header.metadata {
+                    let [single_term] = hpo_terms.as_slice() else {
+                        return Err(format!(
+                            "Expected exactly one HPO term in SingleHpoTerm header '{}' but found {}", 
+                            col.header.original, 
+                            hpo_terms.len()
+                        ));
+                    };
+                    Self::insert_or_validate(&mut hpo_to_status_map, single_term.clone(), col.values[i].clone())?;
+                }
+            } else if col.header.column_type == MultipleHpoTerm {
+                if let ColumnMetadata::HpoTerms(hpo_terms) = &col.header.metadata {
+                    for hpo_t in hpo_terms {
+                        Self::insert_or_validate(&mut hpo_to_status_map, hpo_t.clone(), col.values[i].clone())?;
+                    }
+                }
+            } else if col.header.column_type == Variant {
+                allele_count_map.entry(col.values[i].clone())
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
+            }   
+         }
+         let mut values: Vec<CellValue> = Vec::new();
+         for hpo_duplet in all_hpo_duplets {
+            match hpo_to_status_map.get(hpo_duplet) {
+                Some(status) => {
+                    match status.as_str() {
+                        "observed" => { values.push(CellValue::Observed);},
+                        "excluded" => { values.push(CellValue::Excluded);},
+                        "na" => { values.push(CellValue::Na);},
+                        _ => { values.push(CellValue::OnsetAge(status.clone()));}
+                    }
+                }
+                None => {
+                    values.push(CellValue::Na);
+                }
+            }
+         }
          let row = RowData{
             individual_data: individual,
-            disease_id_list: todo!(),
-            allele_count_map: todo!(),
-            hpo_data: todo!(),
+            disease_id_list: vec![disease.disease_id.clone()],
+            allele_count_map,
+            hpo_data: values,
         };
                
 
-        todo!()
+        Ok(row)
+    }
+
+    pub fn get_row_count(&self) -> Result<usize, String> {
+        let first_col = self.dto.table.columns.first()
+            .ok_or("No columns in table")?;
+        
+        let n_rows = first_col.values.len();
+        
+        if !self.dto.table.columns.iter().all(|col| col.values.len() == n_rows) {
+            return Err("Inconsistent column lengths".to_string());
+        }
+        
+        Ok(n_rows)
     }
 
 
@@ -143,14 +220,24 @@ impl EtlTools {
     /// Ohter MOIs are too complicated to be reliably imported in this way.
     pub fn get_dto(&self) -> Result<CohortData, String> {
         let hpo_duplets = Self::all_hpo_duplets(&self);
-        let header = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
+        let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
+        let disease = match &self.dto.disease {
+            Some(d) => d.clone(),
+            None => { return Err(format!("Cannot create CohortData if ETL does not have disease data"))},
+        };
+        let mut row_list: Vec<RowData> = Vec::new();
+        let n_rows = self.get_row_count()?;
+        for row_index in 0..n_rows {
+            let row = self.get_row(row_index, &arranged_duplets, &disease)?;
+            row_list.push(row);
+        }
         Ok(CohortData { 
             cohort_type: CohortType::Mendelian, 
-            disease_list: vec![], 
-            hpo_headers: header, 
-            rows: vec![], 
-            hgvs_variants: HashMap::new(), 
-            structural_variants: HashMap::new(), 
+            disease_list: vec![disease], 
+            hpo_headers: arranged_duplets, 
+            rows: row_list, 
+            hgvs_variants: self.dto.hgvs_variants.clone(), 
+            structural_variants: self.dto.structural_variants.clone(), 
             phetools_schema_version: CohortData::phenopackets_schema_version(), 
             hpo_version: self.hpo.version().to_string(), 
             cohort_acronym: None 

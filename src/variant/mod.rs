@@ -6,7 +6,7 @@ use crate::{dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVaria
 mod acmg;
 mod structural_validator;
 pub mod variant_manager;
-mod hgvs_variant_validator;
+pub(crate) mod hgvs_variant_validator;
 pub(crate) mod vcf_var;
 
 

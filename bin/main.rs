@@ -1,53 +1,90 @@
 // src/main.rs
-use clap::{command, Parser};
+use clap::{Arg, ArgMatches, Command};
 use ga4ghphetools::etl::etl_tools::EtlTools;
 use ga4ghphetools::PheTools;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
-use std::path::Path;
 use std::sync::Arc;
 
-/// A simple CLI example
-#[derive(Parser)]
-#[command(name = "rpt")]
-#[command(about = "Process pyphetools Excel template", long_about = None)]
-struct Cli {
-    /// A required input file
-    #[arg(short, long)]
-    template: String,
 
-    #[arg(short, long)]
-    json: String,
-
-    /// An optional flag
-    #[arg(short, long)]
-    verbose: bool,
-}
 
 
 
 fn main() {
-    let cli = Cli::parse();
-    if !Path::new(&cli.template).exists() {
-        println!("Could not find phetools template at {}.", &cli.template);
-        return;
+    let matches = Command::new("phetools")
+        .about("GA4GH Phenopacket Schema Curation Library Demo")
+        .version(env!("CARGO_PKG_VERSION"))  
+        .subcommand(
+            Command::new("excel")
+                .about("Test loading of legacy Excel template")
+                .arg(Arg::new("template").short('t').long("template").required(true))
+                .arg(Arg::new("hpo").short('o').long("hpo").required(true))
+        )
+        .subcommand(
+            Command::new("json")
+                .about("Test loading of new JSON template")
+                .arg(Arg::new("json").short('i').long("input"))
+                .arg(Arg::new("hpo").short('o').long("hpo").required(true))
+        )
+         .subcommand(
+            Command::new("etl")
+                .about("Test converting an EtlDto to CohortData")
+                .arg(Arg::new("input").short('i').long("input"))
+                .arg(Arg::new("hpo").short('o').long("hpo").required(true))
+        )
+        .subcommand(
+            Command::new("version")
+                .about("Show library version")
+                .arg(Arg::new("version").short('v').long("version"))
+        )
+        .get_matches();
+    match matches.subcommand() {
+        Some(("excel", sub_matches)) => handle_excel(sub_matches).expect("Could not start excel command"),
+        Some(("json", sub_matches)) => {
+            let input = sub_matches.get_one::<String>("input").unwrap();
+            println!("json: {}", input);
+        },
+        Some(("etl", sub_matches)) => handle_etl(sub_matches).expect("Could not start ETL command"),
+        Some(("version", sub_matches)) => {
+             println!("Version: {}", env!("CARGO_PKG_VERSION"));
+        },
+        _ => println!("No subcommand was used"),
     }
-    if !Path::new(&cli.json).exists() {
-        println!("Could not find HPO JSON file at {}.", &cli.json);
-        return;
-    }
-    // Configure the loader to parse the input as an Obographs file
-    let loader = OntologyLoaderBuilder::new().obographs_parser().build();
-    let hpo: FullCsrOntology = loader
-        .load_from_path(&cli.json)
-        .expect("HPO should be loaded");
-    let hpo_arc = Arc::new(hpo);
+      
+}
 
-    if true {
-        test_load_template(hpo_arc, &cli.template);
-    } else {
-        test_load_etl(hpo_arc);
-    }
+fn handle_excel(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
+    let template = sub_matches
+        .get_one::<String>("template")
+        .expect("template argument is required");
+    let hpo = sub_matches
+        .get_one::<String>("hpo")
+        .ok_or("Missing required --hpo argument")?;
+
+    let hpo_arc = load_hpo(hpo)?;
+    test_load_template(hpo_arc, template);
+    Ok(())
+}
+
+fn handle_etl(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
+    let input = sub_matches.get_one::<String>("input").unwrap();
+    println!("ETL: {}", input);
+    let hpo = sub_matches
+        .get_one::<String>("hpo")
+        .ok_or("Missing required --hpo argument")?;
+    let hpo_arc = load_hpo(hpo)?;
    
+    let etl_tools = EtlTools::from_json(&input, hpo_arc).unwrap();
+    let cohort = etl_tools.get_dto().unwrap();
+    let json = serde_json::to_string_pretty(&cohort).unwrap();
+    println!("{}", json);
+    Ok(())
+}
+
+
+fn load_hpo(json_path: &str) -> Result<Arc<FullCsrOntology>, Box<dyn std::error::Error>> {
+    let loader = OntologyLoaderBuilder::new().obographs_parser().build();
+    let hpo: FullCsrOntology = loader.load_from_path(json_path)?;
+    Ok(Arc::new(hpo))
 }
 
 
@@ -69,7 +106,7 @@ fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
 
 fn test_load_etl(hpo_arc: Arc<FullCsrOntology>) {
     let template_path = "/Users/robin/data/hpo/etlTest.xlsx";
-    let etl_tools = EtlTools::new(hpo_arc, template_path, false).unwrap();
+    //let etl_tools = EtlTools::(hpo_arc, template_path, false).unwrap();
     println!("Created etl_tools");
-    println!("{}", etl_tools.raw_table());
+    //println!("{}", etl_tools.raw_table());
 }
