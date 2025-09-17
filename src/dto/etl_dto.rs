@@ -48,23 +48,6 @@ pub enum DeceasedCode {
     Na,
 }
 
-/// Metadata that can be associated with a column header.
-/// Payload varies depending on `EtlColumnType`.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", tag = "kind", content = "data")]
-pub enum ColumnMetadata {
-    /// Default, for columns we will not use for transformation
-    Raw,
-    /// List of all HPO Terms used in the cells of the template
-    HpoTerms(Vec<HpoTermDuplet>),
-    /// Gene and transcript of reference for current column
-    GeneTranscript { gene_symbol: String, transcript_id: String },
-    /// Male, Female, Other, Unknown: MFOU
-    Sex { code: SexCode },
-    /// Deceased: yes, no, na
-    Deceased { code: DeceasedCode },
-    FreeText(String),
-}
 
 /// Tracks original/current header naming and semantic metadata
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -73,7 +56,7 @@ pub struct EtlColumnHeader {
     pub original: String,
     pub current: Option<String>,
     pub column_type: EtlColumnType,
-    pub metadata: ColumnMetadata,
+    pub hpo_terms: Option<Vec<HpoTermDuplet>>,
 }
 
 impl EtlColumnHeader {
@@ -82,7 +65,7 @@ impl EtlColumnHeader {
             original: original_column_header.to_string(), 
             current: None, 
             column_type: EtlColumnType::Raw, 
-            metadata: ColumnMetadata::Raw 
+            hpo_terms: None 
         }
     }
 }

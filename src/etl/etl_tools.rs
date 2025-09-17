@@ -1,13 +1,11 @@
 use std::collections::hash_map::Entry;
 use std::{collections::HashMap, fmt, fs, sync::Arc};
-
-use chrono::naive;
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
 
 use crate::dto::cohort_dto::DiseaseData;
-use crate::dto::etl_dto::{EtlColumnType::*, EtlDto};
+use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
 use crate::dto::hpo_term_dto::CellValue;
-use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::{ColumnMetadata, ColumnTableDto}, hpo_term_dto::HpoTermDuplet}, hpo};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
 
 
@@ -64,15 +62,22 @@ impl EtlTools {
     /// Retrieve all HPO Duplets from the Single and Multiple HPO columns
     /// We need this to know how many HPO terms we have altogether for the CohortData
     pub fn all_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
+        println!("Number of columns: {}", self.dto.table.columns.len());
+        for (i, col) in self.dto.table.columns.iter().enumerate().take(30) {
+            println!("col {} header: {:?}", i, col.header);
+        }
+        
         self.dto.table.columns.iter()
             .filter_map(|col| {
-                if let ColumnMetadata::HpoTerms(duplets) = &col.header.metadata {
-                    Some(duplets.clone())
-                } else {
-                    None
+                match col.header.column_type {
+                    EtlColumnType::SingleHpoTerm | EtlColumnType::MultipleHpoTerm => {
+                        col.header.hpo_terms.as_ref()
+                    },
+                    _ => None
                 }
             })
             .flatten()
+            .cloned()
             .collect()
     }
 
@@ -153,21 +158,26 @@ impl EtlTools {
          let mut allele_count_map: HashMap<String, usize> = HashMap::new();
          for col in &self.dto.table.columns {
             if col.header.column_type == SingleHpoTerm {
-                if let ColumnMetadata::HpoTerms(hpo_terms) = &col.header.metadata {
-                    let [single_term] = hpo_terms.as_slice() else {
+                if let Some(hpo_terms) = &col.header.hpo_terms {
+                    if hpo_terms.len() != 1 {
                         return Err(format!(
                             "Expected exactly one HPO term in SingleHpoTerm header '{}' but found {}", 
                             col.header.original, 
                             hpo_terms.len()
                         ));
                     };
+                    let single_term = &hpo_terms[0]; 
                     Self::insert_or_validate(&mut hpo_to_status_map, single_term.clone(), col.values[i].clone())?;
+                } else {
+                    return Err("Could not extract HpoTermDuplet from Single HPO column".to_string());
                 }
             } else if col.header.column_type == MultipleHpoTerm {
-                if let ColumnMetadata::HpoTerms(hpo_terms) = &col.header.metadata {
+                if let Some(hpo_terms) = &col.header.hpo_terms {
                     for hpo_t in hpo_terms {
                         Self::insert_or_validate(&mut hpo_to_status_map, hpo_t.clone(), col.values[i].clone())?;
                     }
+                } else {
+                    return Err("Could not extract HpoTermDuplet from Multiple HPO column".to_string());
                 }
             } else if col.header.column_type == Variant {
                 allele_count_map.entry(col.values[i].clone())
@@ -177,6 +187,7 @@ impl EtlTools {
          }
          let mut values: Vec<CellValue> = Vec::new();
          for hpo_duplet in all_hpo_duplets {
+            println!("HPO dup - {:?}", hpo_duplet);
             match hpo_to_status_map.get(hpo_duplet) {
                 Some(status) => {
                     match status.as_str() {
@@ -220,6 +231,7 @@ impl EtlTools {
     /// Ohter MOIs are too complicated to be reliably imported in this way.
     pub fn get_dto(&self) -> Result<CohortData, String> {
         let hpo_duplets = Self::all_hpo_duplets(&self);
+         println!("Number of columns2: {}", hpo_duplets.len());
         let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
         let disease = match &self.dto.disease {
             Some(d) => d.clone(),
