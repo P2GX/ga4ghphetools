@@ -62,11 +62,6 @@ impl EtlTools {
     /// Retrieve all HPO Duplets from the Single and Multiple HPO columns
     /// We need this to know how many HPO terms we have altogether for the CohortData
     pub fn all_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
-        println!("Number of columns: {}", self.dto.table.columns.len());
-        for (i, col) in self.dto.table.columns.iter().enumerate().take(30) {
-            println!("col {} header: {:?}", i, col.header);
-        }
-        
         self.dto.table.columns.iter()
             .filter_map(|col| {
                 match col.header.column_type {
@@ -150,6 +145,36 @@ impl EtlTools {
             }
             Ok(())
         }
+
+    /** We expect to get a cell value with this format:
+     * HP:0011968-excluded;HP:0008947-observed
+     */
+    fn insert_multiple_hpo_column(
+        map: &mut HashMap<HpoTermDuplet, String>, 
+        duplet_list: &[HpoTermDuplet], 
+        value: String) -> Result<(), String>{
+        println!("Multiple Cell Value: {}", value);
+        let observation_list = value.split(";");
+        let mut observation_map: HashMap<String, String> = HashMap::new();
+        for obs in observation_list {
+            let obs_pair: Vec<&str> = obs.split("-").collect();
+            if obs_pair.len() != 2 {
+                return Err(format!("Malformed observation pair {obs}"))
+            }
+            observation_map.insert(obs_pair[0].to_string(), obs_pair[1].to_string());
+
+        }
+        for hdup in duplet_list {
+        let val = observation_map
+            .get(hdup.hpo_id())
+            .cloned()
+            .unwrap_or_else(|| "na".to_string());
+            map.insert(hdup.clone(), val);
+        }
+        Ok(())
+    }
+
+
     /** TODO */
     pub fn get_row(&self, i: usize, all_hpo_duplets: &[HpoTermDuplet], disease: &DiseaseData) -> Result<RowData, String> {
        
@@ -173,9 +198,8 @@ impl EtlTools {
                 }
             } else if col.header.column_type == MultipleHpoTerm {
                 if let Some(hpo_terms) = &col.header.hpo_terms {
-                    for hpo_t in hpo_terms {
-                        Self::insert_or_validate(&mut hpo_to_status_map, hpo_t.clone(), col.values[i].clone())?;
-                    }
+                    Self::insert_multiple_hpo_column(&mut hpo_to_status_map, hpo_terms, col.values[i].clone());
+                    
                 } else {
                     return Err("Could not extract HpoTermDuplet from Multiple HPO column".to_string());
                 }
@@ -231,7 +255,6 @@ impl EtlTools {
     /// Ohter MOIs are too complicated to be reliably imported in this way.
     pub fn get_dto(&self) -> Result<CohortData, String> {
         let hpo_duplets = Self::all_hpo_duplets(&self);
-         println!("Number of columns2: {}", hpo_duplets.len());
         let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
         let disease = match &self.dto.disease {
             Some(d) => d.clone(),

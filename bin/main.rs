@@ -28,7 +28,7 @@ fn main() {
          .subcommand(
             Command::new("etl")
                 .about("Test converting an EtlDto to CohortData")
-                .arg(Arg::new("input").short('i').long("input"))
+                .arg(Arg::new("input").short('i').long("input").required(true))
                 .arg(Arg::new("hpo").short('o').long("hpo").required(true))
         )
         .subcommand(
