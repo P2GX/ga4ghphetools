@@ -1,3 +1,3 @@
 # README
 
-Files for tests.
+See [Documentation](https://p2gx.github.io/phenoboard/).

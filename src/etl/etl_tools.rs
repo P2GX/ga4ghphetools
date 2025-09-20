@@ -61,7 +61,7 @@ impl EtlTools {
     
     /// Retrieve all HPO Duplets from the Single and Multiple HPO columns
     /// We need this to know how many HPO terms we have altogether for the CohortData
-    pub fn all_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
+    fn all_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
         self.dto.table.columns.iter()
             .filter_map(|col| {
                 match col.header.column_type {
@@ -127,7 +127,11 @@ impl EtlTools {
 
     /// We check if there is already an entry for some HPO term in some row. If yes, we throw an
     /// error if the two values disagree.
-    fn insert_or_validate(map: &mut HashMap<HpoTermDuplet, String>, key: HpoTermDuplet, value: String) -> Result<(), String> {
+    fn insert_or_validate(
+        map: &mut HashMap<HpoTermDuplet, String>, 
+        key: HpoTermDuplet, 
+        value: String) 
+    -> Result<(), String> {
             match map.entry(key) {
                 Entry::Occupied(entry) => {
                     if entry.get() != &value {
@@ -146,9 +150,34 @@ impl EtlTools {
             Ok(())
         }
 
-    /** We expect to get a cell value with this format:
-     * HP:0011968-excluded;HP:0008947-observed
-     */
+    /// Insert multiple HPO term observations into the given map.
+    ///
+    /// The input `value` is expected to be a semicolon-separated list of
+    /// `HPO_ID-status` pairs, for example:
+    ///
+    /// ```text
+    /// HP:0011968-excluded;HP:0008947-observed
+    /// ```
+    ///
+    /// Each pair must contain exactly one `-`.  
+    /// If a pair is malformed (missing `-` or containing more than one), the
+    /// function returns an `Err` with a message indicating the offending observation.
+    ///
+    /// For each `HpoTermDuplet` in `duplet_list`, the function will:
+    /// - Look up its `hpo_id()` in the parsed observation map.
+    /// - If found, insert the associated status string into `map`.
+    /// - If not found, insert `"na"`.
+    ///
+    /// # Arguments
+    ///
+    /// * `map` - A mutable reference to a `HashMap` that will be updated with the results.
+    /// * `duplet_list` - A slice of `HpoTermDuplet` values that should be filled with statuses.
+    /// * `value` - The raw string containing the semicolon-separated HPO observations.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(String)` if any observation pair in `value` does not contain
+    /// exactly one `-`.
     fn insert_multiple_hpo_column(
         map: &mut HashMap<HpoTermDuplet, String>, 
         duplet_list: &[HpoTermDuplet], 
@@ -176,8 +205,12 @@ impl EtlTools {
 
 
     /** TODO */
-    pub fn get_row(&self, i: usize, all_hpo_duplets: &[HpoTermDuplet], disease: &DiseaseData) -> Result<RowData, String> {
-       
+    pub fn get_row(
+        &self, 
+        i: usize, 
+        all_hpo_duplets: &[HpoTermDuplet], 
+        disease: &DiseaseData) 
+    -> Result<RowData, String> {
          let individual = self.get_individual(i)?;
          let mut hpo_to_status_map: HashMap<HpoTermDuplet, String> = HashMap::new();
          let mut allele_count_map: HashMap<String, usize> = HashMap::new();
@@ -198,8 +231,7 @@ impl EtlTools {
                 }
             } else if col.header.column_type == MultipleHpoTerm {
                 if let Some(hpo_terms) = &col.header.hpo_terms {
-                    Self::insert_multiple_hpo_column(&mut hpo_to_status_map, hpo_terms, col.values[i].clone());
-                    
+                    Self::insert_multiple_hpo_column(&mut hpo_to_status_map, hpo_terms, col.values[i].clone())?;
                 } else {
                     return Err("Could not extract HpoTermDuplet from Multiple HPO column".to_string());
                 }

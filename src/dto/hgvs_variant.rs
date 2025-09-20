@@ -69,6 +69,22 @@ impl HgvsVariant {
         }
     }
 
+    pub fn new_from_parts(
+        assembly: String,
+        chromosome: String,
+        pos: u32,
+        reference: String,
+        alternate: String,
+        symbol: String,
+        hgnc_id: String,
+        hgvs: String,
+        transcript: String,
+        g_hgvs: String,
+    ) -> Self {
+        let vcf_var = VcfVar::new(chromosome, pos, reference, alternate);
+        Self::new(assembly, vcf_var, symbol, hgnc_id, hgvs, transcript, g_hgvs)
+    }
+
     pub fn assembly(&self) -> &str {
         self.assembly.as_ref()
     }
