@@ -79,12 +79,17 @@ impl CohortDataQc {
                 seen.insert(duplet);
             }
         }
+        Ok(())
+       
+    }
+
+    pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), String> {
         let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)?;
         if conflicting_pairs.no_conflict() {
             return Ok(())
         } else {
             return Err(conflicting_pairs.report());
-        }
+        }   
     }
 
     /// This function sets to "na" the values that conflict in any row.
@@ -112,7 +117,7 @@ impl CohortDataQc {
                 }
             }
         }
-        Ok(cohort_dto.clone())
+        Ok(cohort)
 
     }
 

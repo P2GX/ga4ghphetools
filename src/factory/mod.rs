@@ -68,16 +68,45 @@ pub fn qc_assessment(
     cohort_dto: &CohortData)
 -> Result<(), String> {
     let cohort_qc = CohortDataQc::new(hpo);
-    cohort_qc.qc_check(cohort_dto)
+    cohort_qc.qc_check(cohort_dto)?;
+    cohort_qc.qc_conflicting_pairs(cohort_dto)
 }
 
-
-pub fn sanitize(hpo: Arc<FullCsrOntology>,
+/// Sanitizes and validates cohort data using HPO ontology validation rules.
+///
+/// This function attempts to clean the provided cohort data by applying
+/// ontology redundancy filters to ensure consistency of the annotations with respect to 
+/// the HPO (Human Phenotype Ontology). If validation
+/// succeeds, it returns the sanitized data; otherwise, it falls back to returning
+/// the original data unchanged.
+///
+/// # Arguments
+///
+/// * `hpo` - A thread-safe reference to the full HPO ontology used for validation
+/// * `cohort_dto` - Reference to the cohort data structure to be sanitized
+///
+/// # Returns
+///
+/// A `CohortData` instance containing either:
+/// - The sanitized and validated cohort data (if validation succeeds)
+/// - A clone of the original cohort data (if validation fails)
+///
+/// # Notes
+///
+/// - This function never panics - it will always return a valid `CohortData` instance
+/// - 1. observed with observed ancestor. If a term (say Nuclear cataract) and an ancestor term (e.g. Cataract) are both present (redudant), change the cell value for the ancestor term to Na.
+/// - 2. observed with excluded ancestors. If some term is observed, then all of its ancestors are inferred to be also observed. If an ancestor is found to be excluded, this is a conflict. We assume that this comes from different columns of the input data, and change the excluded ancestor to Na to remove the conflict.
+/// - 3. excluded with excluded descendent. This is analogous to item 1.
+/// - 4. excluded with observed descendent. This is analogous to item 2.
+///
+/// # See Also
+///
+/// * [`CohortDataQc::new`] - Creates a new quality control validator
+/// * [`CohortDataQc::sanitize`] - Performs the actual sanitization logic
+pub fn sanitize_cohort_data(
+    hpo: Arc<FullCsrOntology>,
     cohort_dto: &CohortData)
--> CohortData {
+-> Result<CohortData, String> {
     let cohort_qc = CohortDataQc::new(hpo);
-    match cohort_qc.sanitize(cohort_dto) {
-        Ok(dto) =>   dto.clone(),
-        Err(_) => cohort_dto.clone()
-    }
+    cohort_qc.sanitize(cohort_dto)
 }
