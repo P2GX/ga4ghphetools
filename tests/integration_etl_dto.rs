@@ -1,4 +1,5 @@
 mod common;
+use std::clone;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -111,6 +112,28 @@ fn delayed_sit_column_valid() -> ColumnDto {
            "na".to_string()
         ]
     }
+}
+
+#[fixture]
+fn delayed_gross_motor() -> ColumnDto {
+    // Delayed gross motor development HP:0002194 -- parent of Delayed ability to sit, this may be redundant
+    ColumnDto {
+        id: "56988503-a04b-4783-ab5c-41afb0eb131a".to_string(),
+        transformed: true,
+        header: EtlColumnHeader{
+            original: "Age of sit".to_string(),
+            current: Some("Delayed gross motor development - HP:0002194".to_string()),
+            column_type: EtlColumnType::SingleHpoTerm,
+            hpo_terms: Some(vec![
+                HpoTermDuplet::new("Delayed gross motor development","HP:0002194" )
+            ]),
+        },
+        values: vec![
+           "observed".to_string(),
+           "na".to_string()
+        ]
+    }
+
 }
 
 
@@ -249,6 +272,23 @@ fn disease_valid() -> DiseaseData {
     }
 }
 
+#[fixture]
+fn columns_with_redudancy(
+    patient_id_column_valid: ColumnDto,
+    variant_column_valid: ColumnDto,
+    age_eval_column_valid: ColumnDto,
+    sex_column_valid: ColumnDto,
+    delayed_sit_column_valid: ColumnDto,
+    gdd_column_valid: ColumnDto,
+    hypertelorism_column_valid: ColumnDto,
+    column_ptosis: ColumnDto,
+    column_strabismus: ColumnDto,
+    delayed_gross_motor: ColumnDto,
+) -> Vec<ColumnDto> {
+    vec![patient_id_column_valid, variant_column_valid, age_eval_column_valid, sex_column_valid, delayed_sit_column_valid, 
+        gdd_column_valid, hypertelorism_column_valid, column_ptosis, column_strabismus, delayed_gross_motor]
+}
+
 
 #[fixture]
 fn hgvs_var_1_valid() -> HgvsVariant {
@@ -347,6 +387,21 @@ fn etl_dto_lacking_hpo(
 }
 
 
+
+#[fixture]
+fn etl_dto_with_redudancy(
+    columns_with_redudancy: Vec<ColumnDto>,
+    disease_valid: DiseaseData,
+    hgvs_map: HashMap<String, HgvsVariant>
+) -> EtlDto {
+    let table: ColumnTableDto = make_table(columns_with_redudancy);
+    let mut etl_dto = make_etl(table, disease_valid);
+    etl_dto.hgvs_variants = hgvs_map;
+    etl_dto
+}
+
+
+
 #[rstest]
 fn test_variant_key(
     hgvs_var_1_valid: HgvsVariant
@@ -359,8 +414,10 @@ fn test_variant_key(
 fn test_valid_etl(
     etl_dto_valid: EtlDto,
     hpo: Arc<FullCsrOntology>) {
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_valid);
-    assert!(result.is_ok())
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_valid);
+    assert!(result.is_ok());
+    let cohort_dto = result.unwrap();
+    let qc = ga4ghphetools::factory::qc_assessment(hpo, &cohort_dto);
 }
 
 #[rstest]
@@ -547,4 +604,23 @@ fn test_malformed_title (
     let err = result.unwrap_err();
     assert_eq!(err, "Malformed title: 'a'")
 }
+
+/** Tests whether we set a redundant entry to "na" */
+#[rstest]
+fn test_column_type_with_redundancy(
+    etl_dto_with_redudancy: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_with_redudancy);
+    assert!(result.is_ok());
+    let cohort_data = result.unwrap();
+    let result = ga4ghphetools::factory::qc_assessment(hpo.clone(), &cohort_data);
+    assert!(result.is_err()); // expect an error because a term and its ancestor are both obeserved
+    let result2 = ga4ghphetools::factory::sanitize_cohort_data(hpo.clone(),  &cohort_data);
+    assert!(result2.is_ok());
+    let sanitized = result2.unwrap();
+    let result3 = ga4ghphetools::factory::qc_assessment(hpo.clone(), &sanitized);
+    assert!(result3.is_ok());
+}
+
 

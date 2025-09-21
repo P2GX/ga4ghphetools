@@ -209,7 +209,6 @@ impl EtlTools {
         map: &mut HashMap<HpoTermDuplet, String>, 
         duplet_list: &[HpoTermDuplet], 
         value: String) -> Result<(), String>{
-        println!("Multiple Cell Value: {}", value);
         let observation_list = value.split(";");
         let mut observation_map: HashMap<String, String> = HashMap::new();
         for obs in observation_list {
@@ -273,7 +272,6 @@ impl EtlTools {
          }
          let mut values: Vec<CellValue> = Vec::new();
          for hpo_duplet in all_hpo_duplets {
-            println!("HPO dup - {:?}", hpo_duplet);
             match hpo_to_status_map.get(hpo_duplet) {
                 Some(status) => {
                     match status.as_str() {

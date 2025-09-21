@@ -8,6 +8,7 @@ use crate::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet}
 
 /// Locally used struct for convenience
 /// These are all of the conflicts that can result from the Ontology structure
+#[derive(Debug)]
 struct ConflictMap {
     observed_with_ancestor: HashMap<TermId, TermId>,
     excluded_with_descendent: HashMap<TermId, TermId>,
@@ -109,7 +110,7 @@ impl CohortDataQc {
                 conflict_map.excluded_with_observed_descendent,
             ];
             for map in maps {
-                for val in map.values() {
+                for val in map.keys() {
                     let idx = term_id_to_index_map
                         .get(val)
                         .ok_or_else(|| format!("Could not get index for {val}"))?;
@@ -192,6 +193,7 @@ impl CohortDataQc {
         for tid1 in &observed {
             for tid2 in &observed {
                 if hpo.is_ancestor_of(tid1, tid2) {
+                    // here, tid1 is the ancestor and tid2 is the descendent
                     observed_with_ancestor.insert(tid1.clone(), tid2.clone());
                 }
             }
