@@ -1,4 +1,5 @@
 use std::collections::hash_map::Entry;
+use std::collections::HashSet;
 use std::{collections::HashMap, fmt, fs, sync::Arc};
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
 
@@ -204,8 +205,8 @@ impl EtlTools {
     }
 
 
-    /** TODO */
-    pub fn get_row(
+   
+    fn get_row(
         &self, 
         i: usize, 
         all_hpo_duplets: &[HpoTermDuplet], 
@@ -282,10 +283,124 @@ impl EtlTools {
         Ok(n_rows)
     }
 
+    /// All all printable ASCII, Latin-1 supplement letters
+    fn is_valid_char(ch: char) -> bool {
+       if ch.is_ascii_graphic() || ch == ' ' {
+            return true;
+        }
+        if ('\u{00C0}'..='\u{00FF}').contains(&ch) && ch.is_alphabetic() {
+            return true;
+        }
+        false
+    }
+
+    pub fn validate_string(s: &str) -> Result<(), String> {
+        for ch in s.chars() {
+            if !Self::is_valid_char(ch) {
+                return Err(format!("Invalid character found: U+{:04X} '{}'", ch as u32, ch));
+            }
+        }
+        Ok(())
+    }
+
+    fn qc_table_cells(&self) -> Result<(), String>{
+        for col in &self.raw_table().table.columns {
+            for cell in &col.values {
+                if cell.starts_with(char::is_whitespace) {
+                    return Err(format!("{}: leading whitespace - '{}'", col.header.original, cell));
+                }
+                if cell.ends_with(char::is_whitespace) {
+                    return Err(format!("{}: trailing whitespace - '{}'", col.header.original, cell));
+                    
+                }
+                for ch in cell.chars() {
+                    if !Self::is_valid_char(ch) {
+                        return Err(format!("{}: Invalid character: U+{:04X} '{}'", col.header.original, ch as u32, ch));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Check that the alleles in the rows have full variant objects in the maps
+    fn qc_variants(&self) -> Result<(), String> {
+        let allele_set: HashSet<String> = self
+            .raw_table()
+            .table
+            .columns
+            .iter()
+            .filter(|col| col.header.column_type == EtlColumnType::Variant)
+            .flat_map(|col| col.values.iter().cloned())
+            .collect();
+        // These alleles must be in either the HGVS or the SV map (i.e., validated)
+        for allele in &allele_set {
+            if ! self.raw_table().hgvs_variants.contains_key(allele) && 
+                ! self.raw_table().structural_variants.contains_key(allele) {
+                    return Err(format!("Unmapped allele: '{allele}'"));
+                }
+        }
+
+        Ok(())
+    }
+
+    /// We need to have at least one of individualId and at least one HPO term.
+    /// Everything else can in principle be added in the Cohort table page
+    fn qc_check_required_columns(&self) -> Result<(), String> {
+        let n_individual = self
+            .raw_table()
+            .table
+            .columns
+            .iter()
+            .filter(|col| col.header.column_type == EtlColumnType::PatientId)
+            .take(2) // we only care about 0, 1, or >1
+            .count();
+
+        match n_individual {
+            0 => return Err("No patient identifier column found".to_string()),
+            2 => return Err("Multiple patient identifier columns found".to_string()),
+            _ => {}
+        }
+        let has_hpo = self
+            .raw_table()
+            .table
+            .columns
+            .iter()
+            .any(|col| matches!(
+                col.header.column_type,
+                EtlColumnType::SingleHpoTerm | EtlColumnType::MultipleHpoTerm
+            ));
+
+        if !has_hpo {
+            return Err("No HPO columns found".to_string());
+        }
+
+        Ok(())
+    }
+
+
+    fn qc(&self) -> Result<(), String> {
+        if self.raw_table().table.columns.is_empty() {
+            return Err("EtlDto table with no columns".to_string());
+        }
+        for col in &self.raw_table().table.columns {
+            if col.header.column_type == EtlColumnType::Raw {
+                return Err(format!("'{}' column type not set (Raw)", col.header.original))
+            }
+        }
+        self.qc_table_cells()?;
+        self.qc_variants()?;
+        self.qc_check_required_columns()?;
+
+        Ok(())
+    }
+
+
 
      /// Note that only Mendelian is supported for Excel file bulk imports
     /// Ohter MOIs are too complicated to be reliably imported in this way.
-    pub fn get_dto(&self) -> Result<CohortData, String> {
+    pub fn get_cohort_data(&self) -> Result<CohortData, String> {
+        self.qc()?;
         let hpo_duplets = Self::all_hpo_duplets(&self);
         let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
         let disease = match &self.dto.disease {

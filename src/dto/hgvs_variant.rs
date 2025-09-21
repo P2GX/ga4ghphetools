@@ -131,7 +131,7 @@ impl HgvsVariant {
 
     /// returns a String key that can be used in HashMaps to unambiguously identify this variant
     pub fn variant_key(&self) -> String {
-        format!("{}_{}_{}", self.hgvs, self.symbol, self.transcript)
+        HgvsVariant::generate_variant_key(self.hgvs(), self.symbol(), self.transcript())
     }
     
     /// Create a key to use in our HashMap. It will also be serialized to JSON 

@@ -72,5 +72,5 @@ pub fn get_cohort_data_from_etl_dto(
     dto: EtlDto,
 ) -> Result<CohortData, String> {
     let etl_tools = EtlTools::from_dto(hpo, &dto);
-    etl_tools.get_dto()
+    etl_tools.get_cohort_data()
 }

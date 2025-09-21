@@ -1,5 +1,6 @@
-
+mod common;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use ga4ghphetools::dto::cohort_dto::GeneTranscriptData;
 use ga4ghphetools::dto::etl_dto::ColumnDto;
@@ -10,18 +11,18 @@ use ga4ghphetools::dto::etl_dto::EtlDto;
 use ga4ghphetools::dto::hgvs_variant::HgvsVariant;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
 use ga4ghphetools::dto::cohort_dto::DiseaseData;
+use common::hpo;
+use ontolius::ontology::csr::FullCsrOntology;
 use rstest::fixture;
 use rstest::rstest;
-use serde_json::json;
-use serde_json::to_string;
-use serde_json::Value;
+
 
 
 
 
 
 #[fixture]
-fn column_1_valid() -> ColumnDto {
+fn patient_id_column_valid() -> ColumnDto {
     ColumnDto {
         id: "86fa387b-2d5c-4f84-9437-f3abe3bd7ba3".to_string(),
         transformed: true,
@@ -33,13 +34,13 @@ fn column_1_valid() -> ColumnDto {
         },
         values: vec![
             "Family 1 (Turkish) BAB11420".to_string(),
-          "Family 2 (Saudi) Proband 1".to_string()
+            "Family 2 (Saudi) Proband 1".to_string()
         ]
     }
 }
 
 #[fixture]
-fn column_2_valid() -> ColumnDto {
+fn variant_column_valid() -> ColumnDto {
     ColumnDto {
         id: "35f95771-74cd-485d-9289-52de83dbe10d".to_string(),
         transformed: true,
@@ -57,14 +58,14 @@ fn column_2_valid() -> ColumnDto {
 }
 
 #[fixture]
-fn column_3_valid() -> ColumnDto {
+fn age_eval_column_valid() -> ColumnDto {
     ColumnDto {
         id: "09e8235b-d9dd-47e0-9831-68981a24fa93".to_string(),
         transformed: true,
         header: EtlColumnHeader{
             original: "Age at evaluation".to_string(),
             current: None,
-            column_type: EtlColumnType::Raw,
+            column_type: EtlColumnType::AgeAtLastEncounter,
             hpo_terms: None,
         },
         values: vec![
@@ -75,7 +76,7 @@ fn column_3_valid() -> ColumnDto {
 }
 
 #[fixture]
-fn column_4_valid() -> ColumnDto {
+fn sex_column_valid() -> ColumnDto {
     ColumnDto {
         id: "194ec5a1-ea0e-429d-a9c0-3af3aaaaadfc".to_string(),
         transformed: true,
@@ -93,7 +94,7 @@ fn column_4_valid() -> ColumnDto {
 }
 
 #[fixture]
-fn column_5_valid() -> ColumnDto {
+fn delayed_sit_column_valid() -> ColumnDto {
  ColumnDto {
         id: "56988503-a04b-4783-ab5c-41afb0eb136f".to_string(),
         transformed: true,
@@ -114,7 +115,7 @@ fn column_5_valid() -> ColumnDto {
 
 
 #[fixture]
-fn column_6_valid() -> ColumnDto {
+fn gdd_column_valid() -> ColumnDto {
  ColumnDto {
         id: "61d07214-abb0-45cf-aa67-3218730416c0".to_string(),
         transformed: true,
@@ -135,7 +136,7 @@ fn column_6_valid() -> ColumnDto {
 
 
 #[fixture]
-fn column_hypo_hyper() -> ColumnDto {
+fn hypertelorism_column_valid() -> ColumnDto {
     ColumnDto {
         id: "5697a6ef-4855-4230-9bb1-a8511acadcb3".to_string(),
         transformed: true,
@@ -185,20 +186,53 @@ fn column_ptosis() -> ColumnDto {
     }
 }
 
+/// This is invalid because the column type is Raw
+#[fixture]
+fn column_ptosis_invalid_raw(column_ptosis: ColumnDto) -> ColumnDto {
+    let mut col = column_ptosis;
+    col.header.column_type = EtlColumnType::Raw;
+    col
+}
+
 #[fixture]
 fn valid_columns(
-    column_1_valid: ColumnDto,
-    column_2_valid: ColumnDto,
-    column_3_valid: ColumnDto,
-    column_4_valid: ColumnDto,
-    column_5_valid: ColumnDto,
-    column_6_valid: ColumnDto,
-    column_hypo_hyper: ColumnDto,
+    patient_id_column_valid: ColumnDto,
+    variant_column_valid: ColumnDto,
+    age_eval_column_valid: ColumnDto,
+    sex_column_valid: ColumnDto,
+    delayed_sit_column_valid: ColumnDto,
+    gdd_column_valid: ColumnDto,
+    hypertelorism_column_valid: ColumnDto,
     column_ptosis: ColumnDto,
     column_strabismus: ColumnDto
 ) -> Vec<ColumnDto> {
-    vec![column_1_valid, column_2_valid, column_3_valid, column_4_valid, column_5_valid, column_6_valid,
-        column_hypo_hyper, column_ptosis, column_strabismus]
+    vec![patient_id_column_valid, variant_column_valid, age_eval_column_valid, sex_column_valid, delayed_sit_column_valid, 
+        gdd_column_valid, hypertelorism_column_valid, column_ptosis, column_strabismus]
+}
+
+#[fixture]
+fn columns_lacking_patient_id(
+    variant_column_valid: ColumnDto,
+    age_eval_column_valid: ColumnDto,
+    sex_column_valid: ColumnDto,
+    delayed_sit_column_valid: ColumnDto,
+    gdd_column_valid: ColumnDto,
+    hypertelorism_column_valid: ColumnDto,
+    column_ptosis: ColumnDto,
+    column_strabismus: ColumnDto
+) -> Vec<ColumnDto> {
+    vec![variant_column_valid, age_eval_column_valid, sex_column_valid, delayed_sit_column_valid, 
+        gdd_column_valid, hypertelorism_column_valid, column_ptosis, column_strabismus]
+}
+
+#[fixture]
+fn columns_lacking_hpo(
+    patient_id_column_valid: ColumnDto,
+    variant_column_valid: ColumnDto,
+    age_eval_column_valid: ColumnDto,
+    sex_column_valid: ColumnDto,
+) -> Vec<ColumnDto> {
+    vec![patient_id_column_valid, variant_column_valid, age_eval_column_valid, sex_column_valid]
 }
 
 #[fixture]
@@ -257,15 +291,24 @@ fn hgvs_map(
 }
 
 
-/* 
-      "symbol": "WDR83OS",
-      "hgncId": "HGNC:30203",
-      "hgvs": "",
-      "transcript": "NM_016145.4",
-      "gHgvs":,
-      "variantKey": "c156_1GtoT_WDR83OS_NM_016145v4"
+fn make_table(columns: Vec<ColumnDto>) -> ColumnTableDto {
+    ColumnTableDto {
+        file_name: "/Users/name/Desktop/stuff/Demo.xlsx".to_string(), 
+        columns,
     }
-  },*/
+}
+
+fn make_etl(table: ColumnTableDto, disease: DiseaseData) -> EtlDto {
+    EtlDto {
+        table,
+        disease: Some(disease),
+        pmid: Some("PMID:39471804".to_string()), 
+        title: Some("Homozygous variants in WDR83OS lead to a neurodevelopmental disorder with hypercholanemia.".to_string()), 
+        hgvs_variants: Default::default(),
+        structural_variants: Default::default(),
+    }
+}
+
 
 #[fixture]
 fn etl_dto_valid(
@@ -273,18 +316,34 @@ fn etl_dto_valid(
     disease_valid: DiseaseData,
     hgvs_map: HashMap<String, HgvsVariant>
 ) -> EtlDto {
-    let table: ColumnTableDto = ColumnTableDto{ 
-        file_name: "/Users/name/Desktop/stuff/Demo.xlsx".to_string(), 
-        columns: valid_columns
-    };
-    EtlDto { 
-        table: table, 
-        disease: Some(disease_valid), 
-        pmid: Some("PMID:39471804".to_string()), 
-        title: Some("Homozygous variants in WDR83OS lead to a neurodevelopmental disorder with hypercholanemia.".to_string()), 
-        hgvs_variants: hgvs_map, 
-        structural_variants: HashMap::new() 
-    }
+    let table: ColumnTableDto = make_table(valid_columns);
+    let mut etl_dto = make_etl(table, disease_valid);
+    etl_dto.hgvs_variants = hgvs_map;
+    etl_dto
+}
+
+#[fixture]
+fn etl_dto_lacking_patient_id(
+    columns_lacking_patient_id: Vec<ColumnDto>,
+    disease_valid: DiseaseData,
+    hgvs_map: HashMap<String, HgvsVariant>
+) -> EtlDto {
+    let table: ColumnTableDto = make_table(columns_lacking_patient_id);
+    let mut etl_dto = make_etl(table, disease_valid);
+    etl_dto.hgvs_variants = hgvs_map;
+    etl_dto
+}
+
+#[fixture]
+fn etl_dto_lacking_hpo(
+    columns_lacking_hpo: Vec<ColumnDto>,
+    disease_valid: DiseaseData,
+    hgvs_map: HashMap<String, HgvsVariant>
+) -> EtlDto {
+    let table: ColumnTableDto = make_table(columns_lacking_hpo);
+    let mut etl_dto = make_etl(table, disease_valid);
+    etl_dto.hgvs_variants = hgvs_map;
+    etl_dto
 }
 
 
@@ -296,3 +355,139 @@ fn test_variant_key(
     assert_eq!(expected_key, hgvs_var_1_valid.variant_key(), "Mismatched variant key");
 }
 
+#[rstest]
+fn test_valid_etl(
+    etl_dto_valid: EtlDto,
+    hpo: Arc<FullCsrOntology>) {
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_valid);
+    assert!(result.is_ok())
+}
+
+#[rstest]
+fn test_invalid_column_type_raw(
+    column_ptosis_invalid_raw: ColumnDto,
+    disease_valid: DiseaseData,
+    hpo: Arc<FullCsrOntology>
+) {
+    let table = make_table(vec![column_ptosis_invalid_raw]);
+    let etl = make_etl(table, disease_valid);
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "'Ptosis' column type not set (Raw)");
+}
+
+#[rstest]
+fn test_empty_columns(
+    disease_valid: DiseaseData,
+    hpo: Arc<FullCsrOntology>
+) {
+    let table: Vec<ColumnDto> = vec![];
+    let table_dto = ColumnTableDto{ file_name: "/Users/fakename.xlsx".to_string(), columns: table };
+    let etl = make_etl(table_dto, disease_valid);
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "EtlDto table with no columns");
+}
+
+
+#[rstest]
+fn test_column_type_with_leading_whitespace(
+    column_ptosis: ColumnDto,
+    disease_valid: DiseaseData,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut ws_ptosis_col = column_ptosis.clone();
+    if let Some(first_val) = ws_ptosis_col.values.get_mut(0) {
+        *first_val = format!(" {}", first_val); // prepend leading whitespace
+    }
+    let table = make_table(vec![ws_ptosis_col]);
+    let etl = make_etl(table, disease_valid);
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "Ptosis: leading whitespace - ' observed'");
+}
+
+#[rstest]
+fn test_column_type_with_trailing_whitespace(
+    column_ptosis: ColumnDto,
+    disease_valid: DiseaseData,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut ws_ptosis_col = column_ptosis.clone();
+    if let Some(first_val) = ws_ptosis_col.values.get_mut(0) {
+        *first_val = format!("{} ", first_val); // prepend leading whitespace
+    }
+    let table = make_table(vec![ws_ptosis_col]);
+    let etl = make_etl(table, disease_valid);
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "Ptosis: trailing whitespace - 'observed '");
+}
+
+/// Insert an invisible whitespace. We find this in HGVS expressions of some external files and need to remove it.
+#[rstest]
+fn test_column_type_with_invalid_char(
+    column_ptosis: ColumnDto,
+    disease_valid: DiseaseData,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut ws_ptosis_col = column_ptosis.clone();
+    if let Some(first_val) = ws_ptosis_col.values.get_mut(0) {
+        // Insert a ZERO WIDTH SPACE (U+200B) after the 2nd character
+        let insert_pos = 2.min(first_val.len()); 
+        first_val.insert(insert_pos, '\u{200B}');
+    }
+    let table = make_table(vec![ws_ptosis_col]);
+    let etl = make_etl(table, disease_valid);
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "Ptosis: Invalid character: U+200B '\u{200b}'");
+}
+
+/// We demand that all alleles (in the Variant columns) are mapped to an HgvsVariant or StructuralVariant.
+#[rstest]
+fn test_missing_hgvs(
+    etl_dto_valid: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut etl_dto = etl_dto_valid.clone();
+    let removed = etl_dto.hgvs_variants
+        .remove("c235CtoT_WDR83OS_NM_016145v4");
+    assert!(removed.is_some(), "Entry was not found in hgvs_variants"); // make sure we actually remove the variant
+    // This should be an error because the Variant row has an allele key that is not in our map
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "Unmapped allele: 'c235CtoT_WDR83OS_NM_016145v4'")
+}
+
+/// PatientId column is required
+#[rstest]
+fn test_missing_patient_id(
+    etl_dto_lacking_patient_id: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_lacking_patient_id);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "No patient identifier column found")
+}
+
+
+/// At least one HPO column required
+#[rstest]
+fn test_no_hpo_column(
+    etl_dto_lacking_hpo: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    println!("{:?}", etl_dto_lacking_hpo);
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_lacking_hpo);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "No HPO columns found")
+}

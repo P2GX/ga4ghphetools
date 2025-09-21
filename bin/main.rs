@@ -74,7 +74,7 @@ fn handle_etl(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let hpo_arc = load_hpo(hpo)?;
    
     let etl_tools = EtlTools::from_json(&input, hpo_arc).unwrap();
-    let cohort = etl_tools.get_dto().unwrap();
+    let cohort = etl_tools.get_cohort_data().unwrap();
     let json = serde_json::to_string_pretty(&cohort).unwrap();
     println!("{}", json);
     Ok(())
