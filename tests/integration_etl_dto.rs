@@ -485,9 +485,66 @@ fn test_no_hpo_column(
     etl_dto_lacking_hpo: EtlDto,
     hpo: Arc<FullCsrOntology>
 ) {
-    println!("{:?}", etl_dto_lacking_hpo);
     let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_lacking_hpo);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "No HPO columns found")
 }
+
+
+
+#[rstest]
+fn test_no_pmid(
+    etl_dto_valid: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut etl = etl_dto_valid.clone();
+    etl.pmid = None;
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "No PMID found")
+}
+
+
+
+#[rstest]
+fn test_malformed_pmid(
+    etl_dto_valid: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut etl = etl_dto_valid.clone();
+    etl.pmid = Some("PMID: 123456".to_string());
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "Malformed PMID found 'PMID: 123456'")
+}
+
+#[rstest]
+fn test_no_title(
+    etl_dto_valid: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut etl = etl_dto_valid.clone();
+    etl.title = None;
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "No title found")
+}
+
+
+#[rstest]
+fn test_malformed_title (
+    etl_dto_valid: EtlDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let mut etl = etl_dto_valid.clone();
+    etl.title = Some("a".to_string());
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err, "Malformed title: 'a'")
+}
+

@@ -2,6 +2,8 @@ use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::{collections::HashMap, fmt, fs, sync::Arc};
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
+use prost_types::Struct;
+use regex::Regex;
 
 use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
@@ -378,6 +380,26 @@ impl EtlTools {
         Ok(())
     }
 
+    fn qc_pmid(&self) -> Result<(), String> {
+        let re = Regex::new(r"\bPMID:(\d+)\b").unwrap();
+        let pmid_str = match &self.raw_table().pmid {
+            Some(p) => p,
+            None => return Err("No PMID found".to_string()),
+        };
+        if !re.is_match(pmid_str) {
+            return Err(format!("Malformed PMID found '{}'", pmid_str));
+        }
+        let title_str = match  &self.raw_table().title  {
+            Some(t) => t,
+            None => return Err("No title found".to_string()),
+        };
+        if title_str.len() < 3 {
+            return Err(format!("Malformed title: '{title_str}'"))
+        }
+
+        Ok(())
+    }
+
 
     fn qc(&self) -> Result<(), String> {
         if self.raw_table().table.columns.is_empty() {
@@ -391,7 +413,7 @@ impl EtlTools {
         self.qc_table_cells()?;
         self.qc_variants()?;
         self.qc_check_required_columns()?;
-
+        self.qc_pmid()?;
         Ok(())
     }
 
