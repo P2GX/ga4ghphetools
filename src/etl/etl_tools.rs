@@ -2,7 +2,6 @@ use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::{collections::HashMap, fmt, fs, sync::Arc};
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
-use prost_types::Struct;
 use regex::Regex;
 
 use crate::dto::cohort_dto::DiseaseData;
@@ -128,6 +127,35 @@ impl EtlTools {
         Ok(individual)
     }
 
+
+    fn resolve_hpo_conflict(val1: &str, val2: &str) -> Result<String, String> {
+        if val1 == "na" {
+            return Ok(val2.to_string());
+        } else if val2 == "na" {
+            return Ok(val1.to_string());
+        }
+        // if we get here, neither value is "na".
+        // if one of the values is excluded and the other is observed or an onset,
+        // then we conclude that the relevant HPO term was reported to be present in one of the columns
+        // and we return the reported one
+        if val1 == "excluded" {
+            return Ok(val2.to_string());
+        } else if val2 == "excluded" {
+            return Ok(val1.to_string());
+        }
+        // if we get here, then either one of the strings is observed and the other is an onset,
+        // or we have two onsets. If one is observed and the other is onset, then we take the
+        // onset, this provides more information
+        if val1 == "observed" {
+            return Ok(val2.to_string());
+        } else if val2 == "observed" {
+            return Ok(val1.to_string());
+        }
+        // if we get here, we have two onset terms.
+        // todo -- choose the earliest onset
+        Err(format!("Conflicting HPO entries: '{}' and '{}'", val1, val2))
+    }
+
     /// We check if there is already an entry for some HPO term in some row. If yes, we throw an
     /// error if the two values disagree.
     fn insert_or_validate(
@@ -136,14 +164,10 @@ impl EtlTools {
         value: String) 
     -> Result<(), String> {
             match map.entry(key) {
-                Entry::Occupied(entry) => {
+                Entry::Occupied(mut entry) => {
                     if entry.get() != &value {
-                        return Err(format!(
-                            "Conflicting values for HPO term {:?}: existing '{}', new '{}'", 
-                            entry.key(), 
-                            entry.get(), 
-                            value
-                        ));
+                        let resolved_val = Self::resolve_hpo_conflict(entry.get(), &value)?;
+                        *entry.get_mut() = resolved_val;
                     }
                 },
                 Entry::Vacant(entry) => {
@@ -180,7 +204,7 @@ impl EtlTools {
     /// # Errors
     ///
     /// Returns `Err(String)` if any observation pair in `value` does not contain
-    /// exactly one `-`.
+    /// exactly one `-` (empty strings are also considered valid -- this would be "na" for all HPOs).
     fn insert_multiple_hpo_column(
         map: &mut HashMap<HpoTermDuplet, String>, 
         duplet_list: &[HpoTermDuplet], 
@@ -189,9 +213,12 @@ impl EtlTools {
         let observation_list = value.split(";");
         let mut observation_map: HashMap<String, String> = HashMap::new();
         for obs in observation_list {
+            if obs.is_empty() {
+                continue;
+            }
             let obs_pair: Vec<&str> = obs.split("-").collect();
             if obs_pair.len() != 2 {
-                return Err(format!("Malformed observation pair {obs}"))
+                return Err(format!("Malformed observation pair '{obs}'"))
             }
             observation_map.insert(obs_pair[0].to_string(), obs_pair[1].to_string());
 

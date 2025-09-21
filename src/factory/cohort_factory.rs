@@ -486,35 +486,7 @@ impl CohortFactory {
 
    
 
-    /// Validate the current template.
-    /// We check that all of the rows are the correct length
-    /// We check whether there are any duplicates in the header
-    /// ? What else. Some qc is necessarily done during construction
-    ///
-    ///  * Returns
-    ///
-    /// - The first error encountered.
-    ///
-    pub fn qc_check(hpo: Arc<FullCsrOntology>, cohort: &CohortData) -> Result<(), String> {
-        let n_hpos = cohort.hpo_headers.len();
-        // check correct length
-        for row in &cohort.rows {
-            if row.hpo_data.len() != n_hpos {
-                return Err(format!("Length mismatch: Header: {} vs. row: {}", n_hpos, row.hpo_data.len()))
-            }
-        }
-        // check for duplicates
-        let mut seen = HashSet::new();
-        for duplet in &cohort.hpo_headers {
-            if seen.contains(duplet) {
-                return Err(format!("Duplicate entry in HPO Header: {} ({})", duplet.hpo_label(), duplet.hpo_id()));
-            } else {
-                seen.insert(duplet);
-            }
-        }
-        Ok(())
-    }
-
+   
 
 
 

@@ -1,5 +1,5 @@
 
-use ga4ghphetools::{dto::{case_dto::CaseDto, cohort_dto::{CohortData, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}}};
+use ga4ghphetools::{dto::{case_dto::CaseDto, cohort_dto::{CohortData, DiseaseData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}}};
 use rstest::fixture;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::{collections::HashMap, fs::File, io::BufReader, sync::Arc};

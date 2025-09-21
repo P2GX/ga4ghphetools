@@ -161,7 +161,6 @@ impl PheTools {
     ) -> Result<CohortData, String> 
         where F: FnMut(u32,u32),{
         let cohort_data = CohortFactory::dto_from_mendelian_template(matrix, self.hpo.clone(), update_hpo_labels, progress_cb)?;
-        CohortFactory::qc_check(self.hpo.clone(), &cohort_data)?;
         Ok(cohort_data)
     }
 
