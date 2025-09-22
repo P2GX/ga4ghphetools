@@ -246,7 +246,7 @@ impl CohortFactory {
         Ok(novel_row_dto)
     }
 
-     /// Given a previous list of `TermId`s and an updated list, this function
+    /// Given a previous list of `TermId`s and an updated list, this function
     /// returns a vector of indices representing where each element of the
     /// `previous_hpo_list` now appears in the `updated_hpo_list`.
     ///
@@ -483,92 +483,6 @@ impl CohortFactory {
 
         Ok(())
     }
-
-   
-
-   
-
-
-
-
-
-    /// Arranges the given HPO terms into a specific order for curation.
-    ///
-    /// # Arguments
-    ///
-    /// * `pmid` - The PubMed identifier for the new phenopacket row.
-    /// * `title` - The title of the article corresponding to the pmid.
-    /// * `individual_id` - The identifier of an individual described in the PMID
-    /// * `hpo_items` - List of [`HpoTermDto`](struct@crate::dto::hpo_term_dto::HpoTermDto) instances describing the observed HPO features
-    ///
-    /// # Returns
-    ///
-    /// - A ``Ok(())`` upon success, otherwise ``Err(String)`.
-    ///
-    /// # Notes
-    ///
-    /// - Client code should retrieve HpoTermDto objects using the function [`Self::get_hpo_term_dto`]. This function will
-    /// additionally rearrange the order of the HPO columns to keep them in "ideal" (DFS) order. Cells for HPO terms (columns) not included
-    /// in the list of items but present in the columns of the previous matrix will be set to "na"
-   /*  pub fn add_row_with_hpo_data(
-        &mut self,
-        individual_dto: IndividualDto,
-        hpo_dto_items: Vec<HpoTermDto>,
-        gene_variant_list: Vec<GeneVariantDto>,
-        disease_gene_dto: DiseaseGeneData
-    ) -> std::result::Result<(), String> {
-        let hpo_util = HpoUtil::new(self.hpo.clone());
-        // === STEP 1: Extract all HPO TIDs from DTO and classify ===
-        let dto_map: HashMap<TermId, String> = hpo_util.term_label_map_from_dto_list(&hpo_dto_items)?;
-        let mut term_id_set: HashSet<TermId>  = dto_map.keys().cloned().collect();
-        let existing_term_ids = self.header.get_hpo_id_list()?;
-        term_id_set.extend(existing_term_ids);
-         // === STEP 2: Arrange TIDs before borrowing template mutably ===
-        let all_tids: Vec<TermId> = term_id_set.into_iter().collect();
-        let mut term_arrager = HpoTermArranger::new(self.hpo.clone());
-        let arranged_terms = term_arrager.arrange_terms(&all_tids)?;
-         // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms set to "na"
-        // 3a. Update the HeaderDupletRow object.
-        let update_hdr = self.header.update_old(&arranged_terms);
-        let updated_hdr_arc = Arc::new(update_hdr);
-        // 3b. Update the existing PpktRow objects
-        let mut updated_ppkt_rows: Vec<PpktRow> = Vec::new();
-        let mut term_id_map: HashMap<TermId, String> = HashMap::new();
-            for term in &arranged_terms {
-                term_id_map.insert(term.identifier().clone(), "na".to_string());
-            }
-        for ppkt in &self.ppkt_rows {
-            let mut tid_map = term_id_map.clone();
-            match ppkt.update(&mut tid_map, updated_hdr_arc.clone()) {
-                Ok(updated_ppkt) => { updated_ppkt_rows.push(updated_ppkt.clone());},
-                Err(e) => {verrs.add_errors(e.errors());}
-            }
-        }
-        // Now add the new phenopacket
-        // 1. get map with TermId and Value (e.g., observed) for the new terms
-        let mut tid_to_value_map: HashMap<TermId, String> = HashMap::new();
-        for dto in   hpo_dto_items {
-            let tid = dto.ontolius_term_id().map_err(|_| 
-                    ValidationErrors::from_one_err(format!("Could not create TermId from {:?}", &dto)))?;
-            tid_to_value_map.insert(tid, dto.entry().to_string());
-        }
-        let new_ppkt_result = PpktRow::from_dtos(updated_hdr_arc.clone(), individual_dto,  gene_variant_list, tid_to_value_map,   disease_gene_dto);
-          println!("{}{} -- result id OK?= n={}\n\n",file!(), line!(), new_ppkt_result.is_ok());
-        let ppkt_row = match new_ppkt_result {
-            Ok(row) => row,
-            Err(msg) => {
-                verrs.push_str(msg);
-                return Err(verrs);
-            }
-        };
-        println!("{}{} -- ppkt_row={:?}\n\n",file!(), line!(), ppkt_row);
-        updated_ppkt_rows.push(ppkt_row);
-        self.header = updated_hdr_arc;
-        self.ppkt_rows = updated_ppkt_rows;
-         println!("{}{} -- ppkt rows n={}\n\n",file!(), line!(), self.ppkt_rows.len());
-        
-        verrs.ok()
-    }*/
 
     
 

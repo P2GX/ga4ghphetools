@@ -237,62 +237,7 @@ impl PpktRow {
         new_indices
     }
 
-    /// Given the old values and a mapping from old indices to new indices,
-    /// return a new vector of the size of the updated list, where each element
-    /// from the original list is moved to its new index, and all other positions
-    /// are filled with `"na"`.
-    ///
-    /// # Arguments
-    /// - `old_values`: The values associated with the old HPO list (same order).
-    /// - `old_to_new_indices`: A vector where `old_to_new_indices[i]` gives the
-    ///                         index in the new list where the `i`th old value should go.
-    /// - `new_size`: The size of the new list (typically, `updated_hpo_list.len()`).
-    ///
-    /// # Returns
-    /// A `Vec<String>` of length `new_size` where old values are in their new positions,
-    /// and new (missing) entries are `"na"`.
-    fn reorder_or_fill_na(
-        old_values: &[String],
-        old_to_new_indices: &[usize],
-        new_size: usize,
-    ) -> Vec<String> {
-        let mut new_values = vec!["na".to_string(); new_size];
-
-        for (old_idx, &new_idx) in old_to_new_indices.iter().enumerate() {
-            new_values[new_idx] = old_values[old_idx].clone();
-        }
-
-        new_values
-    }
-
-
-    pub fn update(
-        &self, 
-        tid_map: &mut HashMap<TermId, String>, 
-        updated_hdr: Arc<HeaderDupletRow>) 
-    -> std::result::Result<Self, String> {
-        // update the tid map with the existing  values
-        let previous_hpo_id_list = self.header.get_hpo_id_list()?;
-        let hpo_cell_content_list = self.hpo_content.clone();
-        if previous_hpo_id_list.len() != hpo_cell_content_list.len() {
-            return Err("Mismatched lengths between HPO ID list and HPO content".to_string()); 
-        }
-        let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
-        let reordering_indices = Self::get_update_vector(&previous_hpo_id_list, &updated_hpo_id_list);
-
-        let updated_hpo = Self::reorder_or_fill_na(&hpo_cell_content_list, 
-        &reordering_indices,
-        updated_hpo_id_list.len());
-        Ok(Self {
-            header: updated_hdr,
-            individual_bundle: self.individual_bundle.clone(),
-            disease_bundle_list: self.disease_bundle_list.clone(),
-            gene_var_bundle_list: self.gene_var_bundle_list.clone(),
-            hpo_content: updated_hpo,
-        })
-    }
-
-
+   
 }
 
 
@@ -301,7 +246,7 @@ impl PpktRow {
 mod test {
     
     use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
-    use crate::dto::case_dto::CaseDto;
+
 
     use super::*;
     use std::{fs::File, io::BufReader, str::FromStr};
@@ -358,51 +303,11 @@ mod test {
 
 
     #[fixture]
-    pub fn case_a_dto() -> CaseDto {
-        CaseDto::new(
-            "PMID:123", 
-            "A Recurrent De Novo Nonsense Variant", 
-            "Individual 7", 
-            "",  // comment
-            "c.2737C>T",  // allele_1
-            "na", // allele_2
-            "",  // variant.comment
-            "Infantile onset", // age_at_onset
-            "P32Y", //  age_at_last_encounter
-            "na", // deceased
-            "M" //sex
-        )
-    }
-
-    #[fixture]
     pub fn hpo_dtos() -> Vec<HpoTermData> {
         vec![HpoTermData::from_str("HP:0001382", "Joint hypermobility", "observed").unwrap(),
         HpoTermData::from_str("HP:0000574", "Thick eyebrow", "observed").unwrap()]
     }
-    
-    #[rstest]
-    fn test_rearrange_vector() {
-        let tid1 = TermId::from_str("HP:0000001").unwrap();
-        let tid2 = TermId::from_str("HP:0000002").unwrap();
-        let tid3 = TermId::from_str("HP:0000003").unwrap();
-        let tid4 = TermId::from_str("HP:0000004").unwrap();
-        let tid5 = TermId::from_str("HP:0000005").unwrap();
-        let tid42 = TermId::from_str("HP:00000042").unwrap();
-        let tid43 = TermId::from_str("HP:00000043").unwrap();
-        let v1 = vec![tid1.clone(), tid2.clone(), tid3.clone(), tid4.clone(), tid5.clone()];
-        let v2 = vec![tid1.clone(), tid2.clone(), tid42.clone(), tid3.clone(), tid43.clone(),tid4.clone(), tid5.clone()];
-        // order of the original TIDs (v1) in the rearranged vector v2
-        let expected_order = vec![0,1,3,5,6];
-        let observed_order = PpktRow::get_update_vector(&v1, &v2);
-        assert_eq!(expected_order, observed_order);
-        // Now check we fill in with na
-        let hpo_values = vec!["observed".to_string(),"observed".to_string(),"observed".to_string(),"observed".to_string(),"observed".to_string()];
-        let expected = vec!["observed".to_string(),"observed".to_string(),"na".to_string(), "observed".to_string(),"na".to_string(), "observed".to_string(),"observed".to_string()];
-        let observed = PpktRow::reorder_or_fill_na(&hpo_values, &expected_order, expected.len());
-        assert_eq!(expected_order, observed_order);
 
-
-    }
 
 
 }

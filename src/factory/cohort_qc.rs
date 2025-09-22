@@ -10,20 +10,14 @@ use crate::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet}
 /// These are all of the conflicts that can result from the Ontology structure
 #[derive(Debug)]
 struct ConflictMap {
-    observed_with_ancestor: HashMap<TermId, TermId>,
-    excluded_with_descendent: HashMap<TermId, TermId>,
-    observed_with_exluded_ancestor: HashMap<TermId, TermId>,
-    excluded_with_observed_descendent: HashMap<TermId, TermId>,
+    na_terms: HashSet<TermId>,
 }
 
 impl ConflictMap {
     
     
     fn conflict_count(&self) -> usize {
-            self.observed_with_ancestor.len() +
-            self.excluded_with_descendent.len() +
-            self.observed_with_exluded_ancestor.len() +
-            self.excluded_with_observed_descendent.len()
+            self.na_terms.len()
     }
     
     pub fn no_conflict(&self) -> bool {
@@ -103,19 +97,11 @@ impl CohortDataQc {
         let mut cohort = cohort_dto.clone();
         for row in cohort.rows.iter_mut() {
             let conflict_map = self.get_conflicting_termid_pairs_for_row(row, hpo_terms)?;
-            let maps = [
-                conflict_map.observed_with_ancestor,
-                conflict_map.excluded_with_descendent,
-                conflict_map.observed_with_exluded_ancestor,
-                conflict_map.excluded_with_observed_descendent,
-            ];
-            for map in maps {
-                for val in map.keys() {
-                    let idx = term_id_to_index_map
-                        .get(val)
-                        .ok_or_else(|| format!("Could not get index for {val}"))?;
-                    row.hpo_data[*idx] = crate::dto::hpo_term_dto::CellValue::Na;
-                }
+            for tid in conflict_map.na_terms {
+                let idx = term_id_to_index_map
+                    .get(&tid)
+                    .ok_or_else(|| format!("Could not get index for {}", tid.to_string()))?;
+                row.hpo_data[*idx] = crate::dto::hpo_term_dto::CellValue::Na;
             }
         }
         Ok(cohort)
@@ -134,32 +120,20 @@ impl CohortDataQc {
 
 
     fn get_conflicting_termid_pairs(&self, cohort: &CohortData) -> Result<ConflictMap, String> {
-        let mut observed_with_ancestor: HashMap<TermId, TermId> = HashMap::new();
-        let mut excluded_with_descendent: HashMap<TermId, TermId> = HashMap::new();
-        let mut observed_with_exluded_ancestor: HashMap<TermId, TermId> = HashMap::new();
-        let mut excluded_with_observed_descendent: HashMap<TermId, TermId> = HashMap::new();
-         let hpo_terms = &cohort.hpo_headers;
+        let mut na_terms: HashSet<TermId> = HashSet::new();
+        let hpo_terms = &cohort.hpo_headers;
         for row in &cohort.rows {
             let conflict_map = self.get_conflicting_termid_pairs_for_row(row, hpo_terms)?;
-            observed_with_ancestor.extend(conflict_map.observed_with_ancestor);
-            excluded_with_descendent.extend(conflict_map.excluded_with_descendent);
-            observed_with_exluded_ancestor.extend(conflict_map.observed_with_exluded_ancestor);
-            excluded_with_observed_descendent.extend(conflict_map.excluded_with_observed_descendent);
+            na_terms.extend(conflict_map.na_terms);
         }
         Ok(ConflictMap { 
-            observed_with_ancestor, 
-            excluded_with_descendent, 
-            observed_with_exluded_ancestor, 
-            excluded_with_observed_descendent
+            na_terms
         })
     }
 
     fn get_conflicting_termid_pairs_for_row(&self, row: &RowData, hpo_terms: &[HpoTermDuplet]) 
     -> Result<ConflictMap, String> {
-        let mut observed_with_ancestor: HashMap<TermId, TermId> = HashMap::new();
-        let mut excluded_with_descendent: HashMap<TermId, TermId> = HashMap::new();
-        let mut observed_with_exluded_ancestor: HashMap<TermId, TermId> = HashMap::new();
-        let mut excluded_with_observed_descendent: HashMap<TermId, TermId> = HashMap::new();
+        let mut na_terms: HashSet<TermId> = HashSet::new();
        
         let hpo = self.hpo.clone();
         let mut observed: Vec<TermId> = Vec::new();
@@ -194,32 +168,30 @@ impl CohortDataQc {
             for tid2 in &observed {
                 if hpo.is_ancestor_of(tid1, tid2) {
                     // here, tid1 is the ancestor and tid2 is the descendent
-                    observed_with_ancestor.insert(tid1.clone(), tid2.clone());
+                    // we keep only the specific term (descendent)
+                    na_terms.insert(tid1.clone());
                 }
             }
             for tid2 in &excluded {
                 if hpo.is_ancestor_of(tid1, tid2) {
-                    observed_with_exluded_ancestor.insert(tid1.clone(), tid2.clone());
+                    // tid1 (observed) is an ancestor of tid2 (excluded)
+                    // we assume that tid2 is incorrect because a specific ancestor was annotate
+                    na_terms.insert(tid2.clone());
                 }
             }
         }
         for tid1 in &excluded {
             for tid2 in &excluded {
                 if hpo.is_descendant_of(tid1, tid2) {
-                    excluded_with_descendent.insert(tid1.clone(), tid2.clone());
-                }
-            }
-            for tid2 in &observed {
-                if hpo.is_descendant_of(tid1, tid2) {
-                    excluded_with_observed_descendent.insert(tid1.clone(), tid2.clone());
+                    // tid1 (descendent) is ancestor of tid2 (anscetor) - both excluded
+                    // for excluded terms, the more general the term is, the more information it has
+                    // therefore, we retain the ancestor
+                    na_terms.insert(tid1.clone());
                 }
             }
         }
         Ok(ConflictMap {
-            observed_with_ancestor,
-            excluded_with_descendent,
-            observed_with_exluded_ancestor,
-            excluded_with_observed_descendent,
+            na_terms
         })
     }
 

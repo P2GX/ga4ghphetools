@@ -14,6 +14,7 @@ use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
 use ga4ghphetools::dto::cohort_dto::DiseaseData;
 use common::hpo;
 use ontolius::ontology::csr::FullCsrOntology;
+use prost_types::field_descriptor_proto;
 use rstest::fixture;
 use rstest::rstest;
 
@@ -53,7 +54,7 @@ fn variant_column_valid() -> ColumnDto {
         },
         values: vec![
             "c235CtoT_WDR83OS_NM_016145v4".to_string(),
-          "c156_1GtoT_WDR83OS_NM_016145v4".to_string()
+            "c156_1GtoT_WDR83OS_NM_016145v4".to_string()
         ]
     }
 }
@@ -206,6 +207,23 @@ fn column_ptosis() -> ColumnDto {
             hpo_terms: Some(vec![HpoTermDuplet::new("Ptosis", "HP:0000508")]),
         },
         values: vec!["observed".to_string(), "excluded".to_string()],
+    }
+}
+
+
+#[fixture]
+fn exclude_abn_eye() -> ColumnDto {
+    //  HP:
+    ColumnDto {
+        id: "c41e1b1c-abdc-4414-a754-ca0e2117816d".to_string(),
+        transformed: true,
+        header: EtlColumnHeader {
+            original: "Abnormality of the eye".to_string(),
+            current: Some("Abnormality of the eye - HP:0000478".to_string()),
+            column_type: EtlColumnType::SingleHpoTerm,
+            hpo_terms: Some(vec![HpoTermDuplet::new("Abnormality of the eye", "HP:0000478")]),
+        },
+        values: vec!["excluded".to_string(), "excluded".to_string()],
     }
 }
 
@@ -399,6 +417,8 @@ fn etl_dto_with_redudancy(
     etl_dto.hgvs_variants = hgvs_map;
     etl_dto
 }
+
+
 
 
 
@@ -624,3 +644,26 @@ fn test_column_type_with_redundancy(
 }
 
 
+#[rstest]
+fn test_with_excluded_redundancy(
+    patient_id_column_valid: ColumnDto,
+    column_ptosis: ColumnDto,
+    column_strabismus: ColumnDto,
+    disease_valid: DiseaseData,
+    hgvs_map: HashMap<String, HgvsVariant>,
+    exclude_abn_eye: ColumnDto,
+    hpo: Arc<FullCsrOntology>
+) {
+    let  columns = vec![patient_id_column_valid, column_ptosis, column_strabismus, exclude_abn_eye];
+    let table = make_table(columns);
+    let etl = make_etl(table, disease_valid);
+    let cohort = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), etl).unwrap();
+    let result = ga4ghphetools::factory::qc_assessment(hpo.clone(), &cohort);
+    assert!(result.is_err());
+    let result2 = ga4ghphetools::factory::sanitize_cohort_data(hpo.clone(),  &cohort);
+    assert!(result2.is_ok());
+    let sanitized = result2.unwrap();
+    let result3 = ga4ghphetools::factory::qc_assessment(hpo.clone(), &sanitized);
+    assert!(result3.is_ok());
+
+}
