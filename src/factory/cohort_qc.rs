@@ -173,7 +173,7 @@ impl CohortDataQc {
                 }
             }
             for tid2 in &excluded {
-                if hpo.is_ancestor_of(tid1, tid2) {
+                if hpo.is_ancestor_of(tid2, tid1) {
                     // tid1 (observed) is an ancestor of tid2 (excluded)
                     // we assume that tid2 is incorrect because a specific ancestor was annotate
                     na_terms.insert(tid2.clone());

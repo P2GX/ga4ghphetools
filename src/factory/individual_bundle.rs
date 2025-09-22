@@ -21,6 +21,19 @@ pub struct IndividualBundle {
     pub(crate) sex: String
 }
 
+/*
+pub struct IndividualData {
+    pub pmid: String,
+    pub title: String,
+    pub individual_id: String,
+    pub comment: String,
+    pub age_of_onset: String,
+    pub age_at_last_encounter: String,
+    pub deceased: String,
+    pub sex: String
+}
+     */
+
 impl IndividualBundle {
     pub fn new(
         pmid: &str, 

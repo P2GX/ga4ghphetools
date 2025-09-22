@@ -8,6 +8,9 @@ static SHARED_HEADER: Lazy<Arc<GeneVariantHeader>> = Lazy::new(|| {
     Arc::new(GeneVariantHeader::new())
 });
 
+
+/// This struct represents six variant-related columns in the legacy Excel pyphetools format.
+/// TODO it can be removed once we have transformed all of the legacy Excel files and replaced them with the corresponding JSON files.
 #[derive(Clone, Debug)]
 pub struct GeneVariantBundle {
     header: Arc<GeneVariantHeader>,
