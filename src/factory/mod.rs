@@ -1,14 +1,16 @@
+//! Factory functions for creating CohortData objects from Excel pyphetools or external input files.
+//! 
+
+
 use std::sync::Arc;
-
 use ontolius::ontology::csr::FullCsrOntology;
+use crate::{dto::{cohort_dto::{CohortData, IndividualData}, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
 
-use crate::{dto::cohort_dto::CohortData, factory::{cohort_qc::CohortDataQc}};
-
-pub mod disease_bundle;
+pub(crate) mod disease_bundle;
 pub mod excel;
 pub mod gene_variant_bundle;
 pub mod header_duplet_row;
-pub mod individual_bundle;
+pub(crate) mod individual_bundle;
 pub mod phetools;
 pub mod cohort_factory;
 mod cohort_qc;
@@ -109,4 +111,41 @@ pub fn sanitize_cohort_data(
 -> Result<CohortData, String> {
     let cohort_qc = CohortDataQc::new(hpo);
     cohort_qc.sanitize(cohort_dto)
+}
+
+
+/// Adds a new phenopacket row to an existing cohort.
+///
+/// This function is called when the user enters information for a new phenopacket
+/// that should be added to an existing cohort.  
+///
+/// The cohort is represented by `cohort_data`, which serves as the source of truth
+/// for cohort information (derived from front end). The data is updated here and then returned to the frontend.  
+///
+/// If no prior data exists, it will be used to seed a new template.  
+///
+/// # Arguments
+///
+/// * `hpo` - Reference to the full HPO ontology.
+/// * `individual_data` - Metadata for the new row, including PMID, individual, and demographics.
+/// * `hpo_annotations` - Observed or excluded HPO terms for the individual.
+/// * `variant_key_list` - List of gene/variant identifiers for the new row.
+/// * `cohort_data` - Existing cohort data (source of truth) to which the new row will be added.  
+///
+/// # Returns
+///
+/// * `Ok(CohortData)` - The updated cohort, if successful.  
+/// * `Err(String)` - An error message if the operation fails (e.g., unsupported cohort type).  
+pub fn add_new_row_to_cohort(
+    hpo: Arc<FullCsrOntology>,
+    individual_data: IndividualData, 
+    hpo_annotations: Vec<HpoTermData>,
+    variant_key_list: Vec<String>,
+    cohort_data: CohortData) 
+-> Result<CohortData, String> {
+    if ! cohort_data.is_mendelian() {
+        return Err("add new row not implmented yet for non-Mendelian".to_string());
+    }
+    let mut builder = CohortFactory::new(hpo);
+    builder.add_new_row_to_cohort(individual_data, hpo_annotations, variant_key_list, cohort_data)
 }

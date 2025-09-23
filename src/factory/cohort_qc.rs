@@ -183,7 +183,7 @@ impl CohortDataQc {
         for tid1 in &excluded {
             for tid2 in &excluded {
                 if hpo.is_descendant_of(tid1, tid2) {
-                    // tid1 (descendent) is ancestor of tid2 (anscetor) - both excluded
+                    // tid1 (descendent) is ancestor of tid2 (ancestor) - both excluded
                     // for excluded terms, the more general the term is, the more information it has
                     // therefore, we retain the ancestor
                     na_terms.insert(tid1.clone());

@@ -242,39 +242,6 @@ impl PheTools {
     }
 
 
-    /// This function is called if the user enters information about a new phenopacket to
-    /// be added to an existing cohort. The existing cohort is represented as cohort_dto
-    /// (the source of truth about the cohort data comes from the frontend, is updated here, and then
-    /// passed back to the frontend)
-    /// Note that disease_gene_dto should match with the genes/diseases information if previous rows
-    /// are present, otherwise it will seed a new template
-    /// # Arguments
-    ///
-    /// * `individual_dto` - Information about the PMID, individual, demographics for the new row
-    /// * `hpo_annotations` - list of observed/excluded HPO terms for the new row
-    /// * `gene_variant_list` - list of genes/variants for the new row
-    /// * `disease_gene_dto` - diseases and genes/transcripts required for the new row 
-    /// * `cohort_dto` - previous cohort (source of truth), to which the new data will be added
-    /// 
-    /// # Returns updated cohort DTO if successful, otherwise list of strings representing errors
-    pub fn add_new_row_to_cohort(
-        &mut self,
-        individual_data: IndividualData, 
-        hpo_annotations: Vec<HpoTermData>,
-        variant_key_list: Vec<String>,
-        cohort_data: CohortData) 
-    -> Result<CohortData, String> {
-        if ! cohort_data.is_mendelian() {
-            return Err("add new row not implmented yet for non-Mendelian".to_string());
-        }
-       /* let disease_data = match cohort_dto.disease_list.first() {
-            Some(data) => data.clone(),
-            None => {return Err("add new row not implmented yet for non-Mendelian".to_string()); },
-        }; */
-        let mut builder = CohortFactory::new(self.hpo.clone());
-        builder.add_new_row_to_cohort(individual_data, hpo_annotations, variant_key_list, cohort_data)
-    }
-
     /// Return information about the version and number of terms of the HPO 
     pub fn get_hpo_data(&self) -> HashMap<String, String> {
         let hpo_clone = Arc::clone(&self.hpo);
