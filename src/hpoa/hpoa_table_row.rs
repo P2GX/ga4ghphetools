@@ -17,7 +17,10 @@ pub static VALID_MODES_OF_INHERITANCE: Lazy<HashMap<String, String>> = Lazy::new
         ("HP:0001419", "X-linked recessive inheritance"),
         ("HP:0001427", "Mitochondrial inheritance"),
         ("HP:0010984", "Digenic inheritance"),
-        ("HP:0001450", "Y-linked inheritance")];
+        ("HP:0001450", "Y-linked inheritance"),
+        ("HP:0034340", "Pseudoautosomal dominant inheritance"),
+        ("HP:0034341", "Pseudoautosomal recessive inheritance"),
+        ];
     for tpl in moi_terms {
         moi_map.insert(tpl.0.to_string(), tpl.1.to_string());
     }
@@ -161,6 +164,7 @@ mod tests {
     #[rstest]
     #[case("Y-linked inheritance", "HP:0001450")]
     #[case("Autosomal recessive inheritance", "HP:0000007")]
+    #[case("Pseudoautosomal recessive inheritance", "qHP:0034341")]
     fn tes_valid_moi(#[case] label: &str, #[case] hpo_id: &str, disease_data: DiseaseData) {
         let biocurator = "0000-0000-0000-0001";
         let pmid = "PMID:123".to_string();
@@ -195,7 +199,6 @@ mod tests {
         };
         let result = HpoaTableRow::from_moi(&disease_data, &moi, biocurator);
         assert!(result.is_err());
-    
     }
 
 
