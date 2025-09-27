@@ -20,14 +20,6 @@ static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
 });
 
 
-
-pub static ALLOWED_STRUCTURAL_PREFIX: Lazy<HashSet<String>> = Lazy::new(|| {
-    ["DEL", "DUP", "INV", "INS", "TRANSL"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect()
-});
-
 /// TODO -- remove from here, this should go to HpoCellValue
 pub static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
     [
@@ -222,18 +214,6 @@ impl DupletItem {
         }
     }
 
-
-    fn check_valid_structural(value: &str) -> Result<(), String>  {
-        let parts: Vec<&str> = value.split(':').collect();
-        let prefix = parts[0];
-        let suffix = parts[1..].join(":"); // in case the original string contains ":"
-        let structural_var = suffix.trim();
-        match  ALLOWED_STRUCTURAL_PREFIX.contains(prefix) {
-            true => Ok(()),
-            false => Err(format!("Malformed structural variant '{value}'")),
-        }
-    }
-
     fn check_valid_age_string(cell_value: &str) -> Result<(), String> {
         if cell_value.is_empty() {
             return Err("Empty age string not allowed (use na)".to_string());
@@ -340,9 +320,7 @@ impl DupletItem {
             if ! allele_util::is_plausible_hgvs(cell_contents) {
                 return Err(format!("Malformed Allele1 HGVS string '{cell_contents}'"));
             }
-        } else {
-            Self::check_valid_structural(cell_contents)?;
-        }
+        } 
         Ok(())
     }
 
@@ -355,9 +333,7 @@ impl DupletItem {
             if ! allele_util::is_plausible_hgvs(cell_contents) {
                 return Err(format!("Malformed Allele2 HGVS string '{cell_contents}'"));
             }
-        } else {
-            Self::check_valid_structural(cell_contents)?;
-        }
+        } 
         Ok(())
     }
     

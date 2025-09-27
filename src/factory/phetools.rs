@@ -318,7 +318,7 @@ impl PheTools {
         &mut self,
         external_excel_path: &str,
         row_based: bool) -> Result<ColumnTableDto, String> {
-        let etl_tools =  excel::read_external_excel_to_df(external_excel_path, row_based)?;
+        let etl_tools =  excel::read_external_excel_to_dto(external_excel_path, row_based)?;
         Ok(etl_tools)
     }
 

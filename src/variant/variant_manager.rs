@@ -249,6 +249,7 @@ impl VariantManager {
     /// be called multiple times to get all variants (one a variant string is validated, it is skipped in this function)
     pub fn validate_sv(&mut self, sv: &str) -> bool {
         let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        println!("{}{} {:?}", file!(), line!(), vv_dto);
         let sv_type = SvType::try_from(vv_dto.variant_type);
         if sv_type.is_err() {
             eprint!("Could not extract SvType from variant {sv}");

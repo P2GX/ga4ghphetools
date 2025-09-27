@@ -173,7 +173,7 @@ pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, Stri
 /// Returns `Err(String)` if:
 /// - The file cannot be opened or read (from `get_list_of_rows_from_excel`)
 /// - The file has fewer than 3 rows
-pub fn read_external_excel_to_df(
+pub fn read_external_excel_to_dto(
     file_path: &str, 
     row_based: bool) 
 -> Result<ColumnTableDto, String> {

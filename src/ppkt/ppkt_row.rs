@@ -58,6 +58,7 @@ impl PpktRow {
         let ibundle = IndividualBundle::from_row(&content, DEMOGRAPHIC_IDX)?;
         let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
         let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
+        println!("{}{}: {:?}", file!(), line!(), gene_variant_bundle);
         let mut hpo_content: Vec<String> = Vec::new();
         let number_of_constant_cells_to_skip = 17;
         // HPO data begins at cell 17 in the legacy Excel files -- need to skip 17 (zero based)

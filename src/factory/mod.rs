@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use ontolius::ontology::csr::FullCsrOntology;
-use crate::{dto::{cohort_dto::{CohortData, IndividualData}, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
+use crate::{dto::{cohort_dto::{CohortData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
 
 pub(crate) mod disease_bundle;
 pub mod excel;
@@ -148,4 +148,43 @@ pub fn add_new_row_to_cohort(
     }
     let mut builder = CohortFactory::new(hpo);
     builder.add_new_row_to_cohort(individual_data, hpo_annotations, variant_key_list, cohort_data)
+}
+
+/// Reads an **external Excel file** for ETL purposes and converts it into
+/// a `ColumnTableDto` suitable for further transformation in the ETL pipeline.
+///
+/// This function is intended for external Excel files (**Not the internal phenopacket-store templates**).
+/// The output separates columns into DTOs that include:
+/// - `column_type` (initially set to `Raw`)
+/// - `transformed` flag (initially `false`)
+/// - `header` string
+/// - `values` vector for each column
+///
+/// # Parameters
+/// - `file_path`: Path to the Excel file to read.
+/// - `row_based`: Determines whether the Excel file is already **row-based** (`true`) or **column-major** (`false`).
+///   - If `false`, the function will **transpose** the matrix so that each vector represents a column.
+///
+/// # Behavior
+/// 1. Reads the first worksheet from the Excel file via [`get_list_of_rows_from_excel`].
+/// 2. Ensures the file has at least 3 rows; otherwise returns an error.
+/// 3. Optionally transposes the matrix if `row_based` is `false`.
+/// 4. Uses the first row as headers.
+/// 5. Remaining rows are treated as data, mapped into `ColumnDto` structs.
+/// 6. Each column gets a `Vec<String>` of values, maintaining order.
+///
+/// # Returns
+/// On success, returns a `ColumnTableDto` containing:
+/// - `file_name`: the input file path as string
+/// - `columns`: vector of `ColumnDto`, each representing a column with header and values.
+///
+/// # Errors
+/// Returns `Err(String)` if:
+/// - The file cannot be opened or read (from `get_list_of_rows_from_excel`)
+/// - The file has fewer than 3 rows
+pub fn read_external_excel_file(
+    file_path: &str, 
+    row_based: bool
+) -> Result<ColumnTableDto, String> {
+    excel::read_external_excel_to_dto(file_path, row_based)
 }

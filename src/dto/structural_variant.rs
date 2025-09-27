@@ -309,4 +309,19 @@ mod tests {
     }
 
 
+    #[test]
+    pub fn test_sv_ingest() {
+        // test ingest of the following SV from a legacy Excel file
+        let cell_contents = "NC_000014.9:g.21220392_21352183del(NM_004500.4:c.-82945_366-7272del)";
+        let sv = crate::dto::structural_variant::StructuralVariant::chromosomal_structure_variation(
+            cell_contents, 
+            "HNRNPC",
+            "NM_004500.4", 
+            "HGNC:5035", 
+            "15".to_string()
+        ).unwrap();
+        assert_eq!("HNRNPC_SV_NC_000014_9_g_21220392_21352183del_NM_004500_4_c__82945_366_7272del_", sv.variant_key);
+    }
+
+
 }

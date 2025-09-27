@@ -74,6 +74,7 @@ impl StructuralValidator {
                 .map_err(|e| format!("Could not map {gene}: {e}"))?
                 .json()
                 .map_err(|e| format!("Could not retrieve JSON for {gene}: {e}"))?;
+        println!("{}{}{:?}", file!(), line!(), response);
         let transcripts = response
             .get("transcripts")
             .and_then(|t| t.as_array())
@@ -184,7 +185,38 @@ mod tests {
         assert_eq!(expected_chr, chr);
       }
 
-      
+    #[test]
+    #[ignore = "API call"]
+    pub fn test_sv_ingest() {
+         let expected_chr = "14";
+         let validator = StructuralValidator::hg38();
+        let chr = validator.get_chromosome_from_vv("HNRNPC");
+        assert!(chr.is_ok());
+        let chr = chr.unwrap();
+        assert_eq!(expected_chr, chr);
+    }
+
+    #[test]
+    fn validate_sv_complicated() {
+        let cell_contents = "NC_000014.9:g.21220392_21352183del(NM_004500.4:c.-82945_366-7272del)";
+        let symbol= "HNRNPC";
+        let transcript = "NM_004500.4";
+        let hgnc = "HGNC:5035";
+        let expected_chr = "14";
+        let dto = VariantDto{
+            variant_string: cell_contents.to_string(),
+            variant_key: None,
+            transcript: transcript.to_string(),
+            hgnc_id:  "HGNC:5035".to_string(),
+            gene_symbol: symbol.to_string(),
+            variant_type: VariantType::Sv,
+            is_validated: false,
+            count: 0,
+        };
+        let validator = StructuralValidator::hg38();
+        let result = validator.validate(dto);
+        assert!(result.is_ok())
+    }
     
 }
 
