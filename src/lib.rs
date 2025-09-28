@@ -17,7 +17,7 @@
 //#![allow(unused_imports)]
 
 mod header;
-mod persistence;
+
 
 
 
@@ -30,6 +30,7 @@ pub mod hpo;
 pub mod hpoa;
 pub use factory::phetools::PheTools;
 pub mod factory;
+pub mod persistence;
 pub mod ppkt;
 pub mod variant;
 

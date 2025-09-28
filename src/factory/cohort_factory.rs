@@ -390,10 +390,7 @@ impl CohortFactory {
     ///
     /// # Returns
     ///
-    /// A CohortDto constructed from the given legacy Excel template.
-    /// 
-    /// 
-    /// 
+    /// A CohortDto constructed from the given legacy Excel template. 
     pub fn dto_from_mendelian_template<F>(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,

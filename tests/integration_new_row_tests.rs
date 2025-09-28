@@ -4,12 +4,11 @@ use std::sync::Arc;
 
 use ga4ghphetools::factory::cohort_factory::CohortFactory;
 use ontolius::ontology::csr::FullCsrOntology;
-use ga4ghphetools::PheTools;
 use rstest::rstest;
 use common::hpo;
 use common::matrix;
 
-use ga4ghphetools::ppkt::ppkt_exporter;
+
 use serde_json::Value;
 
 

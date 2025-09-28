@@ -3,8 +3,8 @@
 
 
 use std::sync::Arc;
-use ontolius::ontology::csr::FullCsrOntology;
-use crate::{dto::{cohort_dto::{CohortData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
+use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
 
 pub(crate) mod disease_bundle;
 pub mod excel;
@@ -232,4 +232,85 @@ pub fn load_pyphetools_excel_template<F>(
 where F: FnMut(u32,u32) {
     let matrix = excel::read_excel_to_dataframe( phetools_template_path)?;
     CohortFactory::dto_from_mendelian_template(matrix, hpo.clone(), update_hpo_labels, progress_cb)
+}
+
+
+ /// Load JSON serialization of a cohort.
+pub fn load_json_cohort(
+    json_template_path: &str
+) -> Result<CohortData, String> {
+    let file_data = std::fs::read_to_string(json_template_path)
+        .map_err(|e| 
+            format!("Could not extract string data from {}: {}", json_template_path, e.to_string()))?;
+    let cohort: CohortData = serde_json::from_str(&file_data)
+        .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
+            file_data, e.to_string()))?;
+    Ok(cohort)
+}
+
+
+
+    /// Add a new HPO term to the template with initial value "na". Client code can edit the new column
+    ///
+    /// # Arguments
+    ///
+    /// * `hpo_id` - HPO identifier
+    /// * `hpo_label` - Corresponding HPO label
+    ///
+    /// # Returns
+    ///
+    /// ``Ok(())`` if successful, otherwise ``Err(String)``
+    /// # Notes
+    /// 
+    /// The method returns an error if an attempt is made to add an existing HPO term. The method rearranged terms in DFS order
+    pub fn add_hpo_term_to_cohort(
+        hpo_id: &str,
+        hpo_label: &str,
+        hpo: Arc<FullCsrOntology>,
+        cohort_dto: CohortData) 
+    -> std::result::Result<CohortData, String> {
+        let mut builder = CohortFactory::new(hpo.clone());
+        let newcohort = builder.add_hpo_term_to_cohort(hpo_id, hpo_label, cohort_dto)?;
+        Ok(newcohort)
+    }
+
+
+
+/// Creates a new [`CohortData`] object to be used for curating phenopackets.
+/// The generated cohort is initialized with the provided disease, gene, and 
+/// transcript information, along with any associated HPO terms.
+///
+/// # Arguments
+///
+/// * `template_type` - The type of cohort to create. Only 
+///   [`CohortType::Mendelian`] is supported.
+/// * `disease_data` - Metadata describing the disease and its associated 
+///   gene/transcript context.
+/// * `hpo_term_ids` - A vector of [`TermId`]s representing associated 
+///   Human Phenotype Ontology (HPO) terms.
+/// * `hpo` - An [`Arc`] reference to the loaded [`FullCsrOntology`], used for 
+///   validating and resolving ontology terms.
+///
+/// # Returns
+///
+/// * `Ok(CohortData)` - A new cohort data object ready for adding phenopacket 
+///   information.
+/// * `Err(String)` - An error message if template generation fails or if 
+///   the requested `template_type` is not supported.
+pub fn create_cohort_dto_from_seeds(
+    template_type: CohortType,
+    disease_data: DiseaseData,
+    hpo_term_ids: Vec<TermId>,
+    hpo: Arc<FullCsrOntology>,
+) -> std::result::Result<CohortData, String> {
+    if template_type != CohortType::Mendelian {
+        return Err(format!("CohortData generation not supported for {:?} cohorts", template_type));
+    }
+    let cohort_dto = CohortFactory::create_pyphetools_template(
+        template_type, 
+        disease_data,
+        hpo_term_ids, 
+        hpo.clone()
+    ).map_err(|e| e.to_string())?;
+    Ok(cohort_dto)
 }

@@ -47,14 +47,14 @@ impl IndividualBundle {
     -> Self {
         Self { 
             header: SHARED_HEADER.clone(), 
-            pmid: pmid.to_string(), 
-            title: title.to_string(), 
-            individual_id: individual_id.to_string(), 
-            comment: comment.to_string(),
-            age_of_onset: age_of_onset.to_string(),
-            age_at_last_encounter: age_at_last_encounter.to_string(),
-            deceased: deceased.to_string(),
-            sex: sex.to_string()
+            pmid: pmid.trim().to_string(), 
+            title: title.trim().to_string(), 
+            individual_id: individual_id.trim().to_string(), 
+            comment: comment.trim().to_string(),
+            age_of_onset: age_of_onset.trim().to_string(),
+            age_at_last_encounter: age_at_last_encounter.trim().to_string(),
+            deceased: deceased.trim().to_string(),
+            sex: sex.trim().to_string()
         }
     }
 

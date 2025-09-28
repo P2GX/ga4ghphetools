@@ -3,23 +3,21 @@
 
 
 
-use crate::dto::etl_dto::{ColumnTableDto, EtlDto};
-use crate::dto::cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData};
+use crate::dto::etl_dto::{EtlDto};
+use crate::dto::cohort_dto::{CohortData, GeneTranscriptData};
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::dto::variant_dto::VariantDto;
 use crate::etl::etl_tools::EtlTools;
-use crate::persistence::dir_manager::DirManager;
 use crate::dto::{hpo_term_dto::HpoTermData};
+use crate::persistence::dir_manager::DirManager;
 use crate::variant::variant_manager::VariantManager;
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use ontolius::term::MinimalTerm;
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
-use crate::factory::cohort_factory::CohortFactory;
 use crate::factory::excel;
 use core::option::Option::Some;
 use std::collections::HashMap;
 use std::fmt::{self};
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -70,7 +68,7 @@ impl PheTools {
         }
     }
 
-
+/* 
     /// Creates a new template to be used for curating phenopackets, initializing the disease/gene/transcript columns with the data provided.
     ///
     /// A 2D matrix of Strings is provided for curation with the intention that curation software will
@@ -113,40 +111,7 @@ impl PheTools {
         self.manager = Some(dirman);
         Ok(cohort_dto)
     }
-
-    /// Arranges the given HPO terms into a specific order for curation.
-    ///
-    /// # Arguments
-    ///
-    /// * `hpo_terms_for_curation` - A vector reference containing `TermId` elements that need to be arranged.
-    ///
-    /// # Returns
-    ///
-    /// A `Vec<TermId>` containing the reordered HPO terms.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let phetools = PheTools::new(&ontology);
-    /// let terms = vec![TermId::from_str("HP:0001250"), TermId::from_str("HP:0004322")];
-    /// let arranged_terms = phetools.arrange_terms(&terms);
-    /// ```
-    ///
-    /// # Notes
-    ///
-    /// - Terms are ordered using depth-first search (DFS) over the HPO hierarchy so that related terms are displayed near each other
-    /* 
-    pub fn arrange_terms(&self, hpo_terms_for_curation: &Vec<TermId>) -> Vec<TermId> {
-        let hpo_arc = Arc::clone(&self.hpo);
-        let mut term_arrager = HpoTermArranger::new(hpo_arc);
-        
-        term_arrager.arrange_term_ids(hpo_terms_for_curation)
-    }*/
-
-    pub fn initialize_project_dir(&mut self, project_dir: PathBuf) -> Result<(), String> {
-        self.manager = Some(DirManager::new(project_dir)?);
-        Ok(())
-    }
+*/
 
     /// Load a two dimensional String matrix representing the entire PheTools template
     /// # Arguments
@@ -194,19 +159,7 @@ impl PheTools {
         self.load_matrix(matrix, update_hpo_labels, progress_cb)
     } */
 
-    /// Load JSON serialization of a cohort.
-    pub fn load_json_cohort(
-        &mut self,
-        json_template_path: &str
-    ) -> Result<CohortData, String> {
-        let file_data = fs::read_to_string(json_template_path)
-            .map_err(|e| 
-                format!("Could not extract string data from {}: {}", json_template_path, e.to_string()))?;
-        let cohort: CohortData = serde_json::from_str(&file_data)
-            .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
-                file_data, e.to_string()))?;
-        Ok(cohort)
-    }
+   
 
     /// Todo: update documentation
     pub fn set_external_template_dto(
@@ -216,32 +169,6 @@ impl PheTools {
         let etl = EtlTools::from_dto(self.hpo.clone(), dto);
         self.etl_tools = Some(etl);
         Ok(())
-    }
-
-
-
-    /// Add a new HPO term to the template with initial value "na". Client code can edit the new column
-    ///
-    /// # Arguments
-    ///
-    /// * `hpo_id` - HPO identifier
-    /// * `hpo_label` - Corresponding HPO label
-    ///
-    /// # Returns
-    ///
-    /// ``Ok(())`` if successful, otherwise ``Err(String)``
-    /// # Notes
-    /// 
-    /// The method returns an error if an attempt is made to add an existing HPO term. The method rearranged terms in DFS order
-    pub fn add_hpo_term_to_cohort(
-        &mut self,
-        hpo_id: &str,
-        hpo_label: &str,
-        cohort_dto: CohortData) 
-    -> std::result::Result<CohortData, String> {
-        let mut builder = CohortFactory::new(self.hpo.clone());
-        let newcohort = builder.add_hpo_term_to_cohort(hpo_id, hpo_label, cohort_dto)?;
-        Ok(newcohort)
     }
 
 
