@@ -153,6 +153,7 @@ impl PheTools {
     ///
     /// * `matrix` - A 2D vector of strings representing the Mendelian template (extracted from Excel template file).
     /// * `update_hpo_labels` - Whether to update HPO labels automatically.
+    /*
     pub fn load_matrix<F>(
         &mut self, 
         matrix: Vec<Vec<String>>,
@@ -163,6 +164,8 @@ impl PheTools {
         let cohort_data = CohortFactory::dto_from_mendelian_template(matrix, self.hpo.clone(), update_hpo_labels, progress_cb)?;
         Ok(cohort_data)
     }
+ */
+   
 
     /// Transform an excel file (representing a PheTools template) into a matrix of Strings
     /// This is used to create the CohortDto object
@@ -174,7 +177,7 @@ impl PheTools {
         excel::read_excel_to_dataframe(phetools_template_path)
     }
 
-    /// Load an Excel file representing a legacy Pyphentools template (Mendelian).
+ /*   /// Load an Excel file representing a legacy Pyphentools template (Mendelian).
     /// This function can be removed once we have transformed all legacy templates.
     /// # Arguments
     ///
@@ -189,7 +192,7 @@ impl PheTools {
     where F: FnMut(u32,u32) {
         let matrix = Self::excel_template_to_matrix( phetools_template_path)?;
         self.load_matrix(matrix, update_hpo_labels, progress_cb)
-    }
+    } */
 
     /// Load JSON serialization of a cohort.
     pub fn load_json_cohort(
@@ -310,7 +313,7 @@ impl PheTools {
         self.manager.as_ref().map(|dirman| dirman.get_cohort_dir())
     }
 
-    /// Load an excel file with a table of information that can be
+   /*  /// Load an excel file with a table of information that can be
     /// transformed into a collection of phenopackets (e.g. a Supplementary Table)
     /// row_based is true of the data for an individual is arranged in a row,
     /// and it is false if the data is arranged as a column
@@ -320,7 +323,7 @@ impl PheTools {
         row_based: bool) -> Result<ColumnTableDto, String> {
         let etl_tools =  excel::read_external_excel_to_dto(external_excel_path, row_based)?;
         Ok(etl_tools)
-    }
+    }*/
 
     pub fn analyze_variants(&self, cohort_dto: CohortData) 
     -> Result<Vec<VariantDto>, String> {

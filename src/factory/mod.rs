@@ -188,3 +188,48 @@ pub fn read_external_excel_file(
 ) -> Result<ColumnTableDto, String> {
     excel::read_external_excel_to_dto(file_path, row_based)
 }
+
+
+
+
+/// Loads a legacy Pyphetools Excel template (Mendelian) into a [`CohortData`] object.
+///
+/// This function is intended only for backward compatibility with older
+/// Pyphetools templates and can be removed once all legacy templates have
+/// been migrated to the current format.
+///
+/// # Arguments
+///
+/// * `phetools_template_path` - Path to the Excel file containing the legacy Pyphetools cohort template.
+/// * `update_hpo_labels` - If `true`, HPO labels will be updated automatically during import.
+/// * `hpo` - Shared reference to the loaded [`FullCsrOntology`], used for resolving HPO terms.
+/// * `progress_cb` - Callback function to report progress (`current`, `total`).
+///
+/// # Returns
+///
+/// Returns a [`CohortData`] object parsed from the Excel template, or an error message if parsing fails.
+///
+/// # Errors
+///
+/// Returns an `Err(String)` if the Excel file cannot be read or if the template format is invalid.
+///
+/// # Example
+///
+/// ```ignore
+/// let cohort = load_pyphetools_excel_template(
+///     "legacy_template.xlsx",
+///     true,
+///     hpo,
+///     |cur, total| println!("Progress: {}/{}", cur, total),
+/// )?;
+/// ```
+pub fn load_pyphetools_excel_template<F>(
+    phetools_template_path: &str,
+    update_hpo_labels: bool,
+    hpo: Arc<FullCsrOntology>,
+    progress_cb: F
+) -> Result<CohortData, String> 
+where F: FnMut(u32,u32) {
+    let matrix = excel::read_excel_to_dataframe( phetools_template_path)?;
+    CohortFactory::dto_from_mendelian_template(matrix, hpo.clone(), update_hpo_labels, progress_cb)
+}

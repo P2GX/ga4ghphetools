@@ -164,8 +164,8 @@ mod tests {
     #[rstest]
     #[case("Y-linked inheritance", "HP:0001450")]
     #[case("Autosomal recessive inheritance", "HP:0000007")]
-    #[case("Pseudoautosomal recessive inheritance", "qHP:0034341")]
-    fn tes_valid_moi(#[case] label: &str, #[case] hpo_id: &str, disease_data: DiseaseData) {
+    #[case("Pseudoautosomal recessive inheritance", "HP:0034341")]
+    fn test_valid_moi(#[case] label: &str, #[case] hpo_id: &str, disease_data: DiseaseData) {
         let biocurator = "0000-0000-0000-0001";
         let pmid = "PMID:123".to_string();
         let moi = ModeOfInheritance { 

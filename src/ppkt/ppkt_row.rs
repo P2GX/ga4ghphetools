@@ -250,8 +250,8 @@ mod test {
 
 
     use super::*;
-    use std::{fs::File, io::BufReader, str::FromStr};
-    use rstest::{fixture, rstest};
+    use std::{fs::File, io::BufReader};
+    use rstest::fixture;
     use flate2::bufread::GzDecoder;
 
     #[fixture]
