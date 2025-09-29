@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant}, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
 mod acmg;
 mod structural_validator;
 pub mod variant_manager;
@@ -151,4 +151,23 @@ pub fn validate_all_sv(
     vmanager.validate_all_sv(all_alleles, |p,q|{
         println!("{}/{} variants validated", p, q)})?;
     Ok(vmanager.sv_map())
+}
+
+
+/// Get summaries of all variants for display
+pub fn analyze_variants(cohort_dto: CohortData) -> Result<Vec<VariantDto>, String> {
+    if ! cohort_dto.is_mendelian() {
+        return Err(format!("analyze_variants is only implemented for Mendelian"));
+    }
+    let disease_data = match cohort_dto.disease_list.first() {
+        Some(data) => data.clone(),
+        None =>  { return Err(format!("Unable to extract DiseaseData")); },
+    };
+    
+    let gt_data: GeneTranscriptData = match disease_data.gene_transcript_list.first() {
+        Some(data) => data.clone(),
+        None =>  { return Err(format!("Unable to extract GeneTranscriptData")); }
+    };
+    let vmanager = VariantManager::from_gene_transcript_dto(&gt_data);
+    vmanager.analyze_variants(cohort_dto)
 }

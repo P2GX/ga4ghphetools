@@ -1,14 +1,16 @@
 //! # PheTools
 //!
-//! Users interact with the library via the PheTools structure.
-//! The library does not expose custom datatypes, and errors are translated
-//! into strings to simplify the use of phetools in applications
+//! A library for curating GA4GH Phenopackets from case or cohort reports.
 //! 
 //! ## Features
 //! 
-//! - Quality assessment of phenopackets template files
+//! - Human Phenotype Ontology (HPO) text mining
+//! - Semiautomated import of external tables (e.g., Supplemental Material) with data on cohorts
+//! - Quality control of variant data (HGVS; symbolic structural variants)
 //! - Generation of GA4GH Phenopackets
-//! - API for curation tools
+//! - Serialization with bespoke JSON format
+//! - Output of aggregate tabular format suitable for HPO phenotype.hpoa pipeline
+//! - API for graphical user interface (GUI) curation tools
 
 
 // for development allow this
@@ -18,17 +20,11 @@
 
 mod header;
 
-
-
-
-
-
 pub mod age;
 pub mod dto;
 pub mod etl;
 pub mod hpo;
 pub mod hpoa;
-pub use factory::phetools::PheTools;
 pub mod factory;
 pub mod persistence;
 pub mod ppkt;

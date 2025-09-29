@@ -623,6 +623,71 @@ impl CohortFactory {
         updated_cohort.rows = updated_ppkt_rows;
         Ok(updated_cohort)
     }
+
+
+ 
+    pub fn disease_data_identity_validation(previous: &CohortData, transformed: &CohortData) -> Result<(), String>{
+        if previous.disease_list.len() != transformed.disease_list.len() {
+            return Err(format!("Disease list length mismatch: previous {}, transformed {}",
+                previous.disease_list.len(), transformed.disease_list.len()));
+        }
+        for (prev, transf) in previous.disease_list.iter().zip(transformed.disease_list.iter()) {
+            if *prev != *transf {
+                return Err(format!("Previous disease {:?}; transformed: {:?}", prev, transf));
+            }
+        }
+        Ok(())
+    }
+
+    /// Get the combined HPO TermId list (filter out duplicates) from both cohorts
+    fn get_combined_tids(previous: &CohortData, transformed: &CohortData) -> Result<Vec<TermId>, String> {
+        let new_tids: Vec<TermId> = transformed
+            .hpo_headers
+            .iter()
+            .map(|duplet| duplet.to_term_id())
+            .collect::<Result<Vec<_>, _>>()?;
+        let prev_tids: Vec<TermId> = previous
+            .hpo_headers
+            .iter()
+            .map(|duplet| duplet.to_term_id())
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut seen = HashSet::new();
+        let combined: Vec<TermId> = new_tids
+            .into_iter()
+            .chain(prev_tids.into_iter())
+            .filter(|tid| seen.insert(tid.clone())) // only keep if not seen before
+            .collect();
+        Ok(combined)
+    }
+
+    /// With this function, we are added data from a new cohort (transformed from an ETL) to an existing cohort
+    /// We need to alter the HPO headers to include terms from both cohorts
+    /// We need to add an "NA" for columns where the previous row does not have data
+    pub fn merge_cohort_data(self, previous: CohortData, transformed: CohortData) -> Result<CohortData, String>{
+        let all_tids: Vec<TermId> = Self::get_combined_tids(&previous, &transformed)?;
+        let arranged_hpo_duplets = hpo::hpo_terms_to_dfs_order_duplets(self.hpo.clone(), &all_tids)?;
+        // === Step 3: Rearrange the existing RowData objects to have the new HPO terms and set the new terms to "na"
+        // This will be modified so that the new rows have the old value for the old terms and na for the new terms.
+        let mut term_id_to_na_map: HashMap<TermId, CellValue> = HashMap::new(); 
+        for duplet in &arranged_hpo_duplets {
+            term_id_to_na_map.insert(duplet.to_term_id()?.clone(), CellValue::Na);
+        }
+        // strategy: Make a HashMap with all of the new terms, initialize the values to na. Update the map with the current values. The remaining (new) terms will be "na". 
+        let mut updated_cohort = previous.clone();
+        updated_cohort.hpo_headers = arranged_hpo_duplets;
+        let mut updated_ppkt_rows: Vec<RowData> = Vec::new();
+        for oldrow in &previous.rows {
+            let newrow = self.update_hpo_row_with_new_term(oldrow, &previous.hpo_headers, &updated_cohort.hpo_headers, &term_id_to_na_map)?;
+            updated_ppkt_rows.push(newrow);
+        }
+        // Now the same for the transformed rows!
+        for tr_row in &transformed.rows {
+            let newrow = self.update_hpo_row_with_new_term(tr_row, &transformed.hpo_headers, &updated_cohort.hpo_headers, &term_id_to_na_map)?;
+            updated_ppkt_rows.push(newrow);
+        }
+        updated_cohort.rows = updated_ppkt_rows;
+        Ok(updated_cohort)
+    }
 }
 
 

@@ -1,7 +1,6 @@
 // src/main.rs
 use clap::{Arg, ArgMatches, Command};
 use ga4ghphetools::etl::etl_tools::EtlTools;
-use ga4ghphetools::PheTools;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::sync::Arc;
 
@@ -89,9 +88,8 @@ fn load_hpo(json_path: &str) -> Result<Arc<FullCsrOntology>, Box<dyn std::error:
 
 
 
-fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
-    let mut phetools = PheTools::new(hpo_arc);
-    match phetools.load_excel_template(template, false, |p,q|{
+fn test_load_template(hpo: Arc<FullCsrOntology>, template: &str) {
+    match ga4ghphetools::factory::load_pyphetools_excel_template(template, false, hpo,|p,q|{
         println!("{}/{} variants validated", p, q);}) {
         Ok(cohort_dto) => {
            println!("[INFO] No errors identified for {:?}\n\n\n", template);
@@ -101,12 +99,4 @@ fn test_load_template(hpo_arc: Arc<FullCsrOntology>, template: &str) {
             return;
         }
     }
-}
-
-
-fn test_load_etl(hpo_arc: Arc<FullCsrOntology>) {
-    let template_path = "/Users/robin/data/hpo/etlTest.xlsx";
-    //let etl_tools = EtlTools::(hpo_arc, template_path, false).unwrap();
-    println!("Created etl_tools");
-    //println!("{}", etl_tools.raw_table());
 }

@@ -11,7 +11,6 @@ pub mod excel;
 pub mod gene_variant_bundle;
 pub mod header_duplet_row;
 pub(crate) mod individual_bundle;
-pub mod phetools;
 pub mod cohort_factory;
 mod cohort_qc;
 
@@ -313,4 +312,19 @@ pub fn create_cohort_dto_from_seeds(
         hpo.clone()
     ).map_err(|e| e.to_string())?;
     Ok(cohort_dto)
+}
+
+
+
+
+/// This command merges a CohortData object that was created f rom the current EtlDto (transformed)
+/// and merges it with the previous CohortData (previous)
+pub fn merge_cohort_data_from_etl_dto(
+    previous: CohortData,
+    transformed: CohortData,
+    hpo: Arc<FullCsrOntology>,
+) -> Result<CohortData, String> {
+    let factory = CohortFactory::new(hpo);
+    CohortFactory::disease_data_identity_validation(&previous, &transformed)?;
+    factory.merge_cohort_data(previous, transformed)
 }
