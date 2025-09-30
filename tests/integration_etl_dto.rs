@@ -12,9 +12,8 @@ use ga4ghphetools::dto::etl_dto::EtlDto;
 use ga4ghphetools::dto::hgvs_variant::HgvsVariant;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
 use ga4ghphetools::dto::cohort_dto::DiseaseData;
-use common::hpo;
+use common::hpo_fixture::hpo;
 use ontolius::ontology::csr::FullCsrOntology;
-use prost_types::field_descriptor_proto;
 use rstest::fixture;
 use rstest::rstest;
 

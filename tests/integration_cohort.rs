@@ -15,14 +15,14 @@ use ga4ghphetools::factory::cohort_factory::CohortFactory;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::MetadataAware;
 use rstest::rstest;
-use common::hpo;
+use common::hpo_fixture::hpo;
 
 
-use crate::common::acvr1_cohort;
-use crate::common::acvr1_disease_data;
-use crate::common::cell_values_two_terms;
-use crate::common::hpo_headers_two_terms;
-use crate::common::individual_data;
+use crate::common::matrix_fixtures::acvr1_cohort;
+use crate::common::matrix_fixtures::acvr1_disease_data;
+use crate::common::matrix_fixtures::cell_values_two_terms;
+use crate::common::matrix_fixtures::hpo_headers_two_terms;
+use crate::common::matrix_fixtures::individual_data;
 
 
 

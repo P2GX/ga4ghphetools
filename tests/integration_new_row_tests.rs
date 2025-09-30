@@ -5,8 +5,8 @@ use std::sync::Arc;
 use ga4ghphetools::factory::cohort_factory::CohortFactory;
 use ontolius::ontology::csr::FullCsrOntology;
 use rstest::rstest;
-use common::hpo;
-use common::matrix;
+use common::hpo_fixture::hpo;
+use common::matrix_fixtures::matrix;
 
 
 use serde_json::Value;
