@@ -332,26 +332,3 @@ mod test {
         assert_eq!(expected_error_msg, err);
     }
 }
-
-
-/*
-
-  
-    #[case(4, "MIM:135100", "Disease id has invalid prefix: 'MIM:135100'")]
-    #[case(4, "OMIM: 135100", "Contains stray whitespace: 'OMIM: 135100'")]
-    #[case(4, "OMIM:13510", "OMIM identifiers must have 6 digits: 'OMIM:13510'")]
-    #[case(5, "Fibrodysplasia ossificans progressiva ", "Trailing whitespace in 'Fibrodysplasia ossificans progressiva '")]
-    #[case(6, "HGNC:171 ", "Contains stray whitespace: 'HGNC:171 '")]
-    #[case(6, "HGNC171", "Invalid CURIE with no colon: 'HGNC171'")]
-    #[case(6, "HGNG:171", "HGNC id has invalid prefix: 'HGNG:171'")]
-    #[case(7, "ACVR1 ", "Trailing whitespace in 'ACVR1 '")]
-    #[case(8, "NM_001111067", "Transcript 'NM_001111067' is missing a version")]
-    #[case(9, "617G>A", "Malformed allele '617G>A'")]
-    #[case(10, "", "Value must not be empty")]
-   
-  
-  
-    #[case(18, "Observed", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'Observed'")]
-    #[case(18, "yes", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'yes'")]
-    #[case(18, "exc.", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'exc.'")]
-     */

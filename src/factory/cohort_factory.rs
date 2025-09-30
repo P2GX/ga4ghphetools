@@ -772,16 +772,6 @@ mod test {
         rows
     }
 
-    /// Make sure that our test matrix is valid before we start changing fields to check if we pick up errors
-    #[rstest]
-    fn test_factory_valid_input(
-        original_matrix: Vec<Vec<String>>, 
-        hpo: Arc<FullCsrOntology>) {
-       // let factory = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
-       // assert!(factory.is_ok());
-    }
-
-
     /// The second HPO entry is Hallux valgus HP:0001822
     /// The third is Short 1st metacarpal HP:0010034
     /// We replace the entry in column 19

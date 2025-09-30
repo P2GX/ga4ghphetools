@@ -81,3 +81,67 @@ impl DiseaseBundle {
     }
 
 }
+
+
+#[cfg(test)]
+mod test {
+    use rstest::{fixture, rstest};
+    use crate::factory::disease_bundle::DiseaseBundle;
+
+
+    #[fixture]
+    fn disease_id() -> &'static str {
+        return "OMIM:605407";
+    }
+
+    #[fixture]
+    fn disease_label() -> &'static str {
+        return "Segawa syndrome, recessive";
+    }
+
+    #[rstest]
+    fn test_valid_disease_bundle(
+        disease_id: &str,
+        disease_label: &str) 
+    {
+        let db = DiseaseBundle::new(disease_id, disease_label);
+        let result = db.do_qc();
+        assert!(result.is_ok());
+    }
+
+
+    #[rstest]
+    #[case( "MIM:135100", "Disease id has invalid prefix: 'MIM:135100'")]
+    #[case( "OMIM: 135100", "Contains stray whitespace: 'OMIM: 135100'")]
+    #[case( "OMIM:13510", "OMIM identifiers must have 6 digits: 'OMIM:13510'")]
+    fn test_malformed_disease_id(
+        disease_id: &str,
+        disease_label: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let db = DiseaseBundle::new(entry, disease_label);
+        let result = db.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    }
+
+    #[rstest]
+    #[case( "Fibrodysplasia ossificans progressiva ", "Trailing whitespace in 'Fibrodysplasia ossificans progressiva '")]
+    fn test_malformed_malformed_label(
+        disease_id: &str,
+        disease_label: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let db = DiseaseBundle::new(disease_id, entry);
+        let result = db.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    }
+
+
+}
+
