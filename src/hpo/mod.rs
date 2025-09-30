@@ -166,3 +166,12 @@ pub fn arrange_hpo_duplets(
     let mut arranger = HpoTermArranger::new(hpo.clone());
     arranger.arrange_terms(&hpo_tids)
 }
+
+
+pub fn check_hpo_duplets(
+    hpo: Arc<FullCsrOntology>,  
+    hpo_duplets: &Vec<HpoTermDuplet>
+) -> Result<(), String> {
+    let hpo_util = HpoUtil::new(hpo.clone());
+    hpo_util.check_hpo_duplets(hpo_duplets)
+}

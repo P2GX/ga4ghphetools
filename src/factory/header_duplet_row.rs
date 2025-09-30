@@ -98,6 +98,7 @@ impl HeaderDupletRow {
             let hdup = HpoTermDuplet::new(&matrix[0][i], &matrix[1][i]);
             hpo_duplet_list.push(hdup);
         }
+        hpo::check_hpo_duplets(hpo.clone(), &hpo_duplet_list)?;
         Self::check_separator(matrix)?;
         if update_hpo_labels {
             hpo_duplet_list = hpo::update_hpo_duplets(hpo.clone(), &hpo_duplet_list)?;

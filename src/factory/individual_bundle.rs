@@ -1,3 +1,6 @@
+/// IndividualBundle
+/// Used to ingest the legacy Excel pyphetools templates
+/// We will refactor this to use the IndividualDto
 use std::sync::Arc;
 use once_cell::sync::Lazy;
 
@@ -21,18 +24,7 @@ pub struct IndividualBundle {
     pub(crate) sex: String
 }
 
-/*
-pub struct IndividualData {
-    pub pmid: String,
-    pub title: String,
-    pub individual_id: String,
-    pub comment: String,
-    pub age_of_onset: String,
-    pub age_at_last_encounter: String,
-    pub deceased: String,
-    pub sex: String
-}
-     */
+
 
 impl IndividualBundle {
     pub fn new(
@@ -121,3 +113,245 @@ impl IndividualBundle {
     }
 
 }
+
+#[cfg(test)]
+mod test {
+    use rstest::{fixture, rstest};
+    use crate::factory::individual_bundle::IndividualBundle;
+
+
+    #[fixture]
+    fn pmid() -> &'static str {
+        return "PMID:29482508";
+    }
+
+    #[fixture]
+    fn title() -> &'static str {
+        return "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report";
+    }
+  #[fixture]
+    fn individual_id() -> &'static str {
+        return "individual A";
+    }
+
+    #[fixture]
+    fn comment() -> &'static str {
+        return "comment";
+    }
+
+    #[fixture]
+    fn age_of_onset() -> &'static str {
+        return "P2Y";
+    }
+
+    #[fixture]
+    fn age_at_last_encounter() -> &'static str {
+        return "Adult onset";
+    }
+
+    #[fixture]
+    fn deceased() ->  &'static str {
+        return "no";
+    }
+
+      #[fixture]
+    fn sex() -> &'static str {
+        return "F";
+    }
+    
+
+    #[rstest]
+    fn test_valid_individual_bundle(pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,) {
+            let ib = IndividualBundle::new(pmid, title, individual_id, comment, age_of_onset, age_at_last_encounter, deceased, sex);
+            let result = ib.do_qc();
+            assert!(result.is_ok());
+    }
+
+
+    #[rstest]
+    #[case("PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
+    #[case("PMID: 29482508", "Contains stray whitespace: 'PMID: 29482508'")]
+    #[case("", "Empty CURIE")]
+    fn test_malformed_pmid(
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let ib = IndividualBundle::new(entry, title, individual_id, comment, age_of_onset, age_at_last_encounter, deceased, sex);
+        let result = ib.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    
+    }
+
+     #[rstest]
+     #[case("Difficult diagnosis and genetic analysis of fibrodysplasia  ossificans progressiva: a case report", 
+        "Consecutive whitespace in 'Difficult diagnosis and genetic analysis of fibrodysplasia  ossificans progressiva: a case report'")]
+    fn test_malformed_title(
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let ib = IndividualBundle::new(pmid, entry, individual_id, comment, age_of_onset, age_at_last_encounter, deceased, sex);
+        let result = ib.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    
+    }
+
+    #[rstest]
+    #[case("individual(1)", "Forbidden character '(' found in label 'individual(1)'")]
+    #[case("individual  A", "Consecutive whitespace in 'individual  A'")]
+    fn test_malformed_individual(
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let ib = IndividualBundle::new(pmid, title, entry, comment, age_of_onset, age_at_last_encounter, deceased, sex);
+        let result = ib.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    
+    }
+
+    #[rstest]
+    #[case("P2", "Malformed age string 'P2'")]
+    fn test_malformed_age_of_onset(
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let ib = IndividualBundle::new(pmid, title, individual_id, comment, entry, age_at_last_encounter, deceased, sex);
+        let result = ib.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    }
+
+    #[rstest]
+    #[case("P22", "Malformed age string 'P22'")]
+    #[case("Adultonset", "Malformed age string 'Adultonset'")]
+    fn test_malformed_age_at_last_encounter(
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let ib = IndividualBundle::new(pmid, title, individual_id, comment, age_of_onset, entry, deceased, sex);
+        let result = ib.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    }
+
+    #[rstest]
+    #[case("?", "Malformed deceased entry: '?'")]
+    #[case("alive", "Malformed deceased entry: 'alive'")]
+    fn test_malformed_deceased(
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let ib = IndividualBundle::new(pmid, title, individual_id, comment, age_of_onset, age_at_last_encounter, entry, sex);
+        let result = ib.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    }
+
+    #[rstest]
+    #[case("male", "Malformed sex entry: 'male'")]
+    #[case("f", "Malformed sex entry: 'f'")]
+    fn test_malformed_sex(
+        pmid: &str,
+        title: &str,
+        individual_id: &str,
+        comment: &str,
+        age_of_onset: &str,
+        age_at_last_encounter: &str,
+        deceased: &str,
+        sex: &str,
+        #[case] entry: &str,
+        #[case] expected_error_msg: &str) 
+    {
+        let ib = IndividualBundle::new(pmid, title, individual_id, comment, age_of_onset, age_at_last_encounter, deceased, entry);
+        let result = ib.do_qc();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(expected_error_msg, err);
+    }
+}
+
+
+/*
+
+  
+    #[case(4, "MIM:135100", "Disease id has invalid prefix: 'MIM:135100'")]
+    #[case(4, "OMIM: 135100", "Contains stray whitespace: 'OMIM: 135100'")]
+    #[case(4, "OMIM:13510", "OMIM identifiers must have 6 digits: 'OMIM:13510'")]
+    #[case(5, "Fibrodysplasia ossificans progressiva ", "Trailing whitespace in 'Fibrodysplasia ossificans progressiva '")]
+    #[case(6, "HGNC:171 ", "Contains stray whitespace: 'HGNC:171 '")]
+    #[case(6, "HGNC171", "Invalid CURIE with no colon: 'HGNC171'")]
+    #[case(6, "HGNG:171", "HGNC id has invalid prefix: 'HGNG:171'")]
+    #[case(7, "ACVR1 ", "Trailing whitespace in 'ACVR1 '")]
+    #[case(8, "NM_001111067", "Transcript 'NM_001111067' is missing a version")]
+    #[case(9, "617G>A", "Malformed allele '617G>A'")]
+    #[case(10, "", "Value must not be empty")]
+   
+  
+  
+    #[case(18, "Observed", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'Observed'")]
+    #[case(18, "yes", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'yes'")]
+    #[case(18, "exc.", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'exc.'")]
+     */

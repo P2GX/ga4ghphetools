@@ -127,30 +127,28 @@ impl HpoUtil {
         Ok(updated_duplets)
     }
 
-    pub fn check_hpo_duplets(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> std::result::Result<(), ValidationErrors> {
-        let mut verrs = ValidationErrors::new();
+    pub fn check_hpo_duplets(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> std::result::Result<(), String> {
         for hpo_dup in hpo_dup_list {
-           
             match hpo_dup.to_term_id() {
                 Ok(tid) => {
                     match self.hpo.term_by_id(&tid) {
                         Some(term) => {
                             if term.name() != hpo_dup.hpo_label() {
-                                verrs.push_str(format!("Expected label '{}' but got '{}' for TermId '{}'",
+                                return Err(format!("Expected label '{}' but got '{}' for TermId '{}'",
                                                 term.name(), hpo_dup.hpo_label(), tid.to_string()));
                             }
                         },
                         None => {
-                            verrs.push_str( format!("No HPO Term found for '{}'", &tid));
+                            return Err( format!("No HPO Term found for '{}'", &tid));
                         },
                     }
                 },
                 Err(_) => {
-                    verrs.push_str(format!("Failed to parse TermId: {}", hpo_dup.hpo_id()));
+                    return Err(format!("Failed to parse TermId: {}", hpo_dup.hpo_id()));
                 },
             }
         }
-        verrs.ok()
+        Ok(())
     }
 
 }

@@ -781,7 +781,7 @@ mod test {
        // assert!(factory.is_ok());
     }
 
-/*
+
     /// The second HPO entry is Hallux valgus HP:0001822
     /// The third is Short 1st metacarpal HP:0010034
     /// We replace the entry in column 19
@@ -789,16 +789,17 @@ mod test {
     fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
         // "Hallux valgus" has extra white space
         original_matrix[0][20] = "Hallux  valgus".to_string(); 
-        let factory = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
-        assert!(&factory.is_err());
-        assert!(matches!(&factory, Err(String { .. })));
-        let err_msg = factory.err().unwrap();
-        let expected = "HP:0011987: expected 'Ectopic ossification in muscle tissue' but got 'Hallux  valgus'";
+        let update_hpo_labels = false;
+        let header_result = HeaderDupletRow::mendelian(&original_matrix, hpo.clone(), update_hpo_labels);
+        assert!(&header_result.is_err());
+        assert!(matches!(&header_result, Err(String { .. })));
+        let err_msg = header_result.err().unwrap();
+        let expected = "Expected label 'Ectopic ossification in muscle tissue' but got 'Hallux  valgus' for TermId 'HP:0011987'";
         assert_eq!(expected, err_msg);
     }
- */
+ 
 
-/* TODO refactor test
+
     /// Test that we detect errors in labels of headings
     #[rstest]
     #[case(0, "PMI", "PMID")]
@@ -828,7 +829,7 @@ mod test {
         #[case] expected_label: &str) {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
-        let result = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
+        let result = HeaderDupletRow::mendelian(&original_matrix, hpo, false);
         if result.is_ok() {
             println!("{}{} {}", idx, label, expected_label);
         }
@@ -840,51 +841,7 @@ mod test {
         assert_eq!(expected, err_msg); 
     }
 
-    // test malformed entries
-    // we change entries in the third row (which is the first and only data row)
-    // and introduce typical potential errors
-    #[rstest]
-    #[case(0, "PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
-    #[case(0, "PMID: 29482508", "Contains stray whitespace: 'PMID: 29482508'")]
-    #[case(1, "", "Value must not be empty")]
-    #[case(1, "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report ", 
-        "Trailing whitespace in 'Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report '")]
-    #[case(2, "individual(1)", "Forbidden character '(' found in label 'individual(1)'")]
-    #[case(2, " individual A", "Leading whitespace in ' individual A'")]
-    #[case(4, "MIM:135100", "Disease id has invalid prefix: 'MIM:135100'")]
-    #[case(4, "OMIM: 135100", "Contains stray whitespace: 'OMIM: 135100'")]
-    #[case(4, "OMIM:13510", "OMIM identifiers must have 6 digits: 'OMIM:13510'")]
-    #[case(5, "Fibrodysplasia ossificans progressiva ", "Trailing whitespace in 'Fibrodysplasia ossificans progressiva '")]
-    #[case(6, "HGNC:171 ", "Contains stray whitespace: 'HGNC:171 '")]
-    #[case(6, "HGNC171", "Invalid CURIE with no colon: 'HGNC171'")]
-    #[case(6, "HGNG:171", "HGNC id has invalid prefix: 'HGNG:171'")]
-    #[case(7, "ACVR1 ", "Trailing whitespace in 'ACVR1 '")]
-    #[case(8, "NM_001111067", "Transcript 'NM_001111067' is missing a version")]
-    #[case(9, "617G>A", "Malformed allele '617G>A'")]
-    #[case(10, "", "Value must not be empty")]
-    #[case(12, "P2", "Malformed age_of_onset 'P2'")]
-    #[case(13, "Adultonset", "Malformed age_at_last_encounter 'Adultonset'")]
-    #[case(14, "?", "Malformed deceased entry: '?'")]
-    #[case(14, "alive", "Malformed deceased entry: 'alive'")]
-    #[case(15, "male", "Malformed entry in sex field: 'male'")]
-    #[case(15, "f", "Malformed entry in sex field: 'f'")]
-    #[case(18, "Observed", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'Observed'")]
-    #[case(18, "yes", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'yes'")]
-    #[case(18, "exc.", "Malformed entry for Ectopic ossification in muscle tissue (HP:0011987): 'exc.'")]
-    fn test_malformed_entry(
-        mut original_matrix: Vec<Vec<String>>, 
-        hpo: Arc<FullCsrOntology>, 
-        #[case] idx: usize, 
-        #[case] entry: &str,
-        #[case] expected_error_msg: &str) 
-    {
-        original_matrix[2][idx] = entry.to_string();
-        let result = CohortDtoBuilder::from_mendelian_template(original_matrix, hpo, false);
-        assert!(result.is_err());
-        let err = result.err().unwrap();
-        // TODO revise error strings, but let's do this as needed.
-        //assert_eq!(expected_error_msg, err.to_string());
-    }
- */
+   
+ 
 
 }
