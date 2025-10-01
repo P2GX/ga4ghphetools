@@ -102,8 +102,8 @@ impl EtlTools {
    
          for col in &self.dto.table.columns {
             match &col.header.column_type {
-                Raw | FamilyId | SingleHpoTerm | MultipleHpoTerm |
-                GeneSymbol | Variant | Ignore => {}
+                Raw | FamilyId | SingleHpoTerm | MultipleHpoTerm | HpoTextMining |
+                GeneSymbol | Variant | Ignore  => {}
                 PatientId => {
                     individual.individual_id = Self::extract_value(&col.values, i, "individual ID")?;
                 }

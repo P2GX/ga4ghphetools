@@ -26,6 +26,7 @@ pub enum EtlColumnType {
     AgeAtLastEncounter,
     Sex,
     Deceased,
+    HpoTextMining,
     Ignore
 }
 
@@ -68,6 +69,15 @@ impl EtlColumnHeader {
             hpo_terms: None 
         }
     }
+
+    pub fn new_hpo_mining() -> Self {
+        Self { 
+            original: "HPO Text Mining".to_string(), 
+            current: None, 
+            column_type: EtlColumnType::HpoTextMining, 
+            hpo_terms: None 
+        }
+    }
 }
 
  #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -88,6 +98,15 @@ impl ColumnDto {
             id: Uuid::new_v4().to_string(),
             transformed:false, 
             header: EtlColumnHeader::new_raw(original_header_contents), 
+            values: Vec::with_capacity(size) 
+        }
+    }
+
+    pub fn new_hpo_text_mining(size: usize) -> Self {
+        Self { 
+            id: Uuid::new_v4().to_string(),
+            transformed:false, 
+            header: EtlColumnHeader::new_hpo_mining(), 
             values: Vec::with_capacity(size) 
         }
     }

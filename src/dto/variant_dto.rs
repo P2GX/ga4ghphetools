@@ -178,45 +178,6 @@ static IMPRECISE_SV_TYPE_SET: Lazy<HashSet<VariantType>> = Lazy::new(|| {
 });
 
 
-/// A Data Transfer Object for information about a Variant that we want to validate.
-/// There are currently two categories of variant
-/// 1. HGVS: "Small" variants, such as single nucleotide variants, that are represented with Human Genome Variation Society (HGVS) nomenclature, e.g., c. 123G>T
-/// 2. Structural variant: "Large" variants, such as chromosomal deletions, that are represented by free text (DEL of exon 5) and Sequence Ontology (SO) codes
-/// As technology and genomic data science progress, it is possible that publicatiohs and databases will have more precise notation about many "large"
-/// variants, but the genetics literature contains lots of data with imprecide, non-standardized descriptions of structural variants that we want to capture.
-/// This struct encapsulates all of the data we expect to get from the front end about either of the variant categories
-
-/*
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct VariantValidationDto {
-    /// either an HGVS String (e.g., c.123T>G) or a SV String: DEL: deletion of exon 5
-    pub variant_string: String,
-    /// transcript of reference for the gene of interest (usually MANE) with version number, e.g. NM_000123.2 
-    pub transcript: String,
-    /// HUGO Gene Nomenclature Committee identifier, e.g., HGNC:123
-    pub hgnc_id: String,
-    /// Symbol recommended by HGNC, e.g. FBN1
-    pub gene_symbol: String,
-    /// type of variant category
-    pub validation_type: VariantValidationType
-} 
-
-impl VariantValidationDto {
-    
-
-    
-
-    pub fn is_hgvs(&self) -> bool {
-        return self.validation_type == VariantValidationType::Hgvs
-    }
-
-    pub fn is_sv(&self) -> bool {
-        return IMPRECISE_SV_TYPE_SET.contains(&self.validation_type);
-    }
-}
-*/
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct StructuralVariantDto {

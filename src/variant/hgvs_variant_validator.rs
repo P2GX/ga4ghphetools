@@ -75,7 +75,7 @@ impl HgvsVariantValidator {
             .ok_or_else(|| "Missing variant key".to_string())?;
 
         let var = &response[variant_key];
-        //println!("{}", serde_json::to_string_pretty(var).unwrap());
+        println!("{}", serde_json::to_string_pretty(var).unwrap());
 
         let hgnc = var.get("gene_ids")
             .and_then(|ids| ids.get("hgnc_id"))
@@ -87,6 +87,12 @@ impl HgvsVariantValidator {
             .and_then(|s| s.as_str())
             .map(|s| s.to_string())
             .ok_or_else(|| "Missing gene_symbol".to_string())?;
+
+        // The following will either be a String or None, and can be assigned to an Option<String>
+        let hgvs_predicted_protein_consequence = var.get("hgvs_predicted_protein_consequence")
+            .and_then(|hgvs_protein| hgvs_protein.get("tlr"))
+            .and_then(|tlr| tlr.as_str())
+            .map(|s| s.to_string());
 
         let assemblies = var.get("primary_assembly_loci")
             .ok_or_else(|| "Missing primary_assembly_loci".to_string())?;
@@ -133,6 +139,7 @@ impl HgvsVariantValidator {
             symbol,
             hgnc,
             vv_dto.variant_string,
+            hgvs_predicted_protein_consequence,
             transcript.to_string(),
             genomic_hgvs,
         );

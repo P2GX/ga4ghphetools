@@ -32,6 +32,8 @@ pub struct HgvsVariant {
     transcript: String,
     /// Genomic HGVS nomenclature, e.g., NC_000015.10:g.48411364C>A
     g_hgvs: String,
+    /// Protein level HGVS, if available
+    p_hgvs: Option<String>,
     /// Key to specify this variant in the HGVS HashMap of the CohortDto
     /// In our implementation for PubMed curation we will also use the key as the variant_id
     /// to export to phenopacket
@@ -45,6 +47,7 @@ impl HgvsVariant {
         symbol: String,
         hgnc_id: String,
         hgvs: String,
+        p_hgvs: Option<String>,
         transcript: String,
         g_hgvs: String,
     ) -> Self {
@@ -63,6 +66,7 @@ impl HgvsVariant {
             symbol,
             hgnc_id,
             hgvs,
+            p_hgvs,
             transcript,
             g_hgvs,
             variant_key: v_key
@@ -82,7 +86,7 @@ impl HgvsVariant {
         g_hgvs: String,
     ) -> Self {
         let vcf_var = VcfVar::new(chromosome, pos, reference, alternate);
-        Self::new(assembly, vcf_var, symbol, hgnc_id, hgvs, transcript, g_hgvs)
+        Self::new(assembly, vcf_var, symbol, hgnc_id, hgvs, None, transcript, g_hgvs)
     }
 
     pub fn assembly(&self) -> &str {

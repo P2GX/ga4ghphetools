@@ -207,6 +207,9 @@ pub fn read_external_excel_to_dto(
             col.values.push(value);
         }
     }
+
+     columns.insert(1, ColumnDto::new_hpo_text_mining(total_rows));
+     
     Ok(ColumnTableDto {
         file_name: file_path.to_string(),
         columns,
