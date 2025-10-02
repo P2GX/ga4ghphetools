@@ -5,8 +5,9 @@ use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
 use regex::Regex;
 
 use crate::dto::cohort_dto::DiseaseData;
+use crate::dto::etl_dto::ColumnDto;
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
-use crate::dto::hpo_term_dto::CellValue;
+use crate::dto::hpo_term_dto::{CellValue, HpoTermData};
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
 
@@ -59,23 +60,37 @@ impl EtlTools {
     }
 
 
-
+    fn get_hpo_term_data_from_json(cell_contents: &str)
+    -> Result<Vec<HpoTermData>, String> {
+        if (cell_contents.is_empty()) {
+            return Ok(Vec::new());
+        }
+        serde_json::from_str::<Vec<HpoTermData>>(cell_contents)
+            .map_err(|e| e.to_string())
+    }
     
     /// Retrieve all HPO Duplets from the Single and Multiple HPO columns
     /// We need this to know how many HPO terms we have altogether for the CohortData
     fn all_hpo_duplets(&self) -> Vec<HpoTermDuplet> {
-        self.dto.table.columns.iter()
-            .filter_map(|col| {
-                match col.header.column_type {
-                    EtlColumnType::SingleHpoTerm | EtlColumnType::MultipleHpoTerm => {
-                        col.header.hpo_terms.as_ref()
-                    },
-                    _ => None
+        let mut duplets = Vec::new();        
+        for col in &self.dto.table.columns {
+            match col.header.column_type {
+                EtlColumnType::SingleHpoTerm | EtlColumnType::MultipleHpoTerm => {
+                    if let Some(terms) = &col.header.hpo_terms {
+                        duplets.extend(terms.clone());
+                    }
                 }
-            })
-            .flatten()
-            .cloned()
-            .collect()
+                EtlColumnType::HpoTextMining => {
+                    for val in &col.values {
+                        if let Ok(terms) = Self::get_hpo_term_data_from_json(val) {
+                            duplets.extend(terms.into_iter().map(|t| t.term_duplet));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        duplets
     }
 
     /// Extract the string value of of table cell
@@ -243,6 +258,7 @@ impl EtlTools {
          let individual = self.get_individual(i)?;
          let mut hpo_to_status_map: HashMap<HpoTermDuplet, String> = HashMap::new();
          let mut allele_count_map: HashMap<String, usize> = HashMap::new();
+         let mut textMiningColumn: Option<ColumnDto> = None;
          for col in &self.dto.table.columns {
             if col.header.column_type == SingleHpoTerm {
                 if let Some(hpo_terms) = &col.header.hpo_terms {
@@ -264,6 +280,8 @@ impl EtlTools {
                 } else {
                     return Err("Could not extract HpoTermDuplet from Multiple HPO column".to_string());
                 }
+            } else if col.header.column_type == HpoTextMining {
+                textMiningColumn = Some(col.clone());
             } else if col.header.column_type == Variant {
                 allele_count_map.entry(col.values[i].clone())
                     .and_modify(|count| *count += 1)
@@ -286,14 +304,31 @@ impl EtlTools {
                 }
             }
          }
+         // We let the HPO Text mining override any other annotations
+         // on the theory that this results from manual revision of 
+         // detailed clinical data in addition to whatever data was gleaned
+         // from a supplemental table
+         if let Some(col) = textMiningColumn {
+            let cell_value = col.values[i].clone();
+            let hpo_hits = Self::get_hpo_term_data_from_json(&cell_value)?;
+            if ! hpo_hits.is_empty() {
+                let hpo_map: HashMap<HpoTermDuplet, CellValue> =
+                    hpo_hits.into_iter()
+                        .map(|htd| (htd.term_duplet, htd.entry))
+                        .collect();
+                for (i, hpo_duplet) in all_hpo_duplets.iter().enumerate() { 
+                    if let Some(cell_val) = hpo_map.get(hpo_duplet) {
+                        values[i] = cell_val.clone();
+                    }
+                }
+            }
+         }
          let row = RowData{
             individual_data: individual,
             disease_id_list: vec![disease.disease_id.clone()],
             allele_count_map,
             hpo_data: values,
         };
-               
-
         Ok(row)
     }
 

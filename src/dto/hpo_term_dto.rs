@@ -324,6 +324,23 @@ mod test {
             CellValue::Modifier(ref hpo) => assert!(false, "Modifier not yet implemented"),
         }
     }
+
+    /// Our EtlDto will include cells that have JSON content similar to the below
+    /// Here we just perform a sanity test.
+    #[rstest]
+    fn matest_deserilaize()  {
+        // Example JSON string from the frontend
+        let json_cell = r#"
+        [
+            { "termDuplet": { "hpoLabel": "Vomiting", "hpoId": "HP:0002013" }, "entry": { "type": "Observed" } },
+            { "termDuplet": { "hpoLabel": "Nausea", "hpoId": "HP:0002015" }, "entry": { "type": "OnsetAge", "data": "P3Y" } }
+        ]
+        "#;
+
+        let hpo_terms: Vec<HpoTermData> = serde_json::from_str(json_cell).unwrap();
+        assert_eq!(2, hpo_terms.len());
+    }
+
  
 
 }

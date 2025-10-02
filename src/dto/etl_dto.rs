@@ -107,7 +107,7 @@ impl ColumnDto {
             id: Uuid::new_v4().to_string(),
             transformed:false, 
             header: EtlColumnHeader::new_hpo_mining(), 
-            values: Vec::with_capacity(size) 
+            values: vec![String::new(); size],
         }
     }
 }
