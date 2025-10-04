@@ -110,7 +110,7 @@ impl PpktExporter {
         let last_enc = &individual_dto.age_at_last_encounter;
         if last_enc != "na" {
             let age = time_element_from_str(last_enc)
-                .map_err(|e| format!("malformed_time_element {}",e.to_string()))?;
+                .map_err(|e| format!("malformed time_element for last encounter '{}':{}",last_enc, e.to_string()))?;
             idvl.time_at_last_encounter = Some(age);
         }
         if individual_dto.deceased == "yes" {
@@ -215,7 +215,7 @@ impl PpktExporter {
         let onset = &ppkt_row.individual_data.age_of_onset;
         if onset != "na" {
             let age = time_element_from_str(onset)
-                .map_err(|e| format!("malformed_time_element {}",e.to_string()))?;
+                .map_err(|e| format!("malformed time_elementfor onset '{}': {}", onset, e.to_string()))?;
             disease.onset = Some(age);
         };
         Ok(disease)
@@ -446,7 +446,7 @@ impl PpktExporter {
             };
             if cell_contents.has_onset() {
                 let ost = time_element_from_str(&cell_contents.to_string())
-                    .map_err(|e| format!("malformed_time_element{}", cell_contents))?;
+                    .map_err(|e| format!("malformed time_element for cell '{}': {}", cell_contents, e.to_string()))?;
                 pf.onset = Some(ost);
             }
             ppkt_feature_list.push(pf);

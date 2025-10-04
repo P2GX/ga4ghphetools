@@ -84,7 +84,7 @@ impl HpoaTable {
     }
 
 
-    /// Create the filename for the cohort, something like MFS-FBN1.tsv
+    /// Create the filename for the cohort, something like OMIM-615432.tab to match existing small-file convention
     fn get_hpoa_filename(cohort: &CohortData) -> Result<String, String> {
          if ! cohort.is_mendelian() {
             return Err(format!("HPOA export only supported for Mendelian. Invalid for '{:?}'", cohort.cohort_type));
@@ -93,17 +93,9 @@ impl HpoaTable {
             Some(data) => data.clone(),
             None => { return Err("Could not extract disease data".to_string()) },
         };
-        let gt_data = match disease_data.gene_transcript_list.first() {
-             Some(gt) => gt.clone(),
-            None => { return Err("Could not extract GeneTranscriptData".to_string()) },
-        };
-        match &cohort.cohort_acronym {
-            Some(acronym) => {
-                let outfile = format!("{}-{}.tsv", gt_data.gene_symbol, acronym);
-                Ok(outfile)
-            },
-            None =>  Err(format!("HPOA export requires cohort acronym but got '{:?}'", cohort.cohort_acronym))
-        }
+        let omim_id = disease_data.disease_id.clone().replace(":", "-");
+        let outfile = format!("{}.tab", omim_id);
+        Ok(outfile)  
     }
 
     /// Output the HPOA-format file representing data from the entire cohort.

@@ -62,7 +62,7 @@ impl EtlTools {
 
     fn get_hpo_term_data_from_json(cell_contents: &str)
     -> Result<Vec<HpoTermData>, String> {
-        if (cell_contents.is_empty()) {
+        if cell_contents.is_empty() {
             return Ok(Vec::new());
         }
         serde_json::from_str::<Vec<HpoTermData>>(cell_contents)
