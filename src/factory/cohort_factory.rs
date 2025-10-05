@@ -687,6 +687,12 @@ impl CohortFactory {
             updated_ppkt_rows.push(newrow);
         }
         updated_cohort.rows = updated_ppkt_rows;
+
+        // Merge HashMaps - entries from 'transformed' will overwrite conflicting keys in 'self'
+        // but they should be the same from the way we construct the map
+        updated_cohort.hgvs_variants.extend(transformed.hgvs_variants);
+        updated_cohort.structural_variants.extend(transformed.structural_variants); 
+
         Ok(updated_cohort)
     }
 }
