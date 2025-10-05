@@ -100,6 +100,16 @@ impl EtlTools {
             .ok_or_else(|| format!("Could not extract {} from column", field))
     }
 
+    /// Extract the string value of of table cell, providing a default value if the cell is empty
+    fn extract_value_or_default(values: &[String], i: usize, field: &str, default: &str) -> Result<String, String> {
+        let val = Self::extract_value(values, i, field)?;
+        if val.is_empty() {
+            Ok(default.to_string())
+        } else {
+            Ok(val)
+        }
+    }
+
     /// Get the individual Data for row i
     fn get_individual(&self, i: usize) -> Result<IndividualData, String> {
          let pmid = self.dto.pmid.clone().ok_or_else(|| format!("Could not extract pmid for individual {i}"))?;
@@ -123,16 +133,16 @@ impl EtlTools {
                     individual.individual_id = Self::extract_value(&col.values, i, "individual ID")?;
                 }
                 AgeOfOnset => {
-                    individual.age_of_onset = Self::extract_value(&col.values, i, "age_of_onset")?;
+                    individual.age_of_onset = Self::extract_value_or_default(&col.values, i, "age_of_onset", "na")?;
                 }
                 AgeAtLastEncounter => {
-                    individual.age_at_last_encounter = Self::extract_value(&col.values, i, "age_at_last_encounter")?;
+                    individual.age_at_last_encounter = Self::extract_value_or_default(&col.values, i, "age_at_last_encounter", "na")?;
                 }
                 Sex => {
-                    individual.sex = Self::extract_value(&col.values, i, "sex")?;
+                    individual.sex = Self::extract_value_or_default(&col.values, i, "sex", "U")?;
                 }
                 Deceased => {
-                    individual.deceased = Self::extract_value(&col.values, i, "deceased")?;
+                    individual.deceased = Self::extract_value_or_default(&col.values, i, "deceased", "na")?;
                 }
             }
         }
@@ -258,7 +268,7 @@ impl EtlTools {
          let individual = self.get_individual(i)?;
          let mut hpo_to_status_map: HashMap<HpoTermDuplet, String> = HashMap::new();
          let mut allele_count_map: HashMap<String, usize> = HashMap::new();
-         let mut textMiningColumn: Option<ColumnDto> = None;
+         let mut text_mining_column: Option<ColumnDto> = None;
          for col in &self.dto.table.columns {
             if col.header.column_type == SingleHpoTerm {
                 if let Some(hpo_terms) = &col.header.hpo_terms {
@@ -281,7 +291,7 @@ impl EtlTools {
                     return Err("Could not extract HpoTermDuplet from Multiple HPO column".to_string());
                 }
             } else if col.header.column_type == HpoTextMining {
-                textMiningColumn = Some(col.clone());
+                text_mining_column = Some(col.clone());
             } else if col.header.column_type == Variant {
                 allele_count_map.entry(col.values[i].clone())
                     .and_modify(|count| *count += 1)
@@ -308,7 +318,7 @@ impl EtlTools {
          // on the theory that this results from manual revision of 
          // detailed clinical data in addition to whatever data was gleaned
          // from a supplemental table
-         if let Some(col) = textMiningColumn {
+         if let Some(col) = text_mining_column {
             let cell_value = col.values[i].clone();
             let hpo_hits = Self::get_hpo_term_data_from_json(&cell_value)?;
             if ! hpo_hits.is_empty() {
@@ -479,8 +489,8 @@ impl EtlTools {
 
 
 
-     /// Note that only Mendelian is supported for Excel file bulk imports
-    /// Ohter MOIs are too complicated to be reliably imported in this way.
+    /// Note that only Mendelian is supported for Excel file bulk imports
+    /// Other MOIs are too complicated to be reliably imported in this way.
     pub fn get_cohort_data(&self) -> Result<CohortData, String> {
         self.qc()?;
         let hpo_duplets = Self::all_hpo_duplets(&self);
@@ -504,7 +514,8 @@ impl EtlTools {
             structural_variants: self.dto.structural_variants.clone(), 
             phetools_schema_version: CohortData::phenopackets_schema_version(), 
             hpo_version: self.hpo.version().to_string(), 
-            cohort_acronym: None 
+            cohort_acronym: None,
+            curation_history: vec![]
         })
     }
   

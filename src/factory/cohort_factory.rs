@@ -169,7 +169,8 @@ impl CohortFactory {
             structural_variants: cohort_dto.structural_variants,
             phetools_schema_version: cohort_dto.phetools_schema_version,
             hpo_version: self.hpo.version().to_string(),
-            cohort_acronym: cohort_dto.cohort_acronym
+            cohort_acronym: cohort_dto.cohort_acronym,
+            curation_history: cohort_dto.curation_history
         };
         Ok(updated_cohort_dto)
         

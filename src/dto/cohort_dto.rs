@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::CellValue;
@@ -242,6 +243,24 @@ impl FromStr for CohortType {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurationEvent {
+    /// ORCID identifier of the curator
+    pub orcid: String,
+    /// Date of curation in YYYY-MM-DD format
+    pub date: String,
+}
+
+impl CurationEvent {
+    pub fn new(orcid: &str) -> Self {
+        Self { 
+            orcid: orcid.to_string(), 
+            date: Local::now().format("%Y-%m-%d").to_string()
+        }
+    }
+}
+
 
 
 /// This is the representation of the cohort (source of truth)
@@ -267,6 +286,9 @@ pub struct CohortData {
     pub hpo_version: String,
     /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
     pub cohort_acronym: Option<String>,
+    /// History of biocuration events in chronological order
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub curation_history: Vec<CurationEvent>,
 }
 
 /// Version of the Cohort JSON schema
@@ -286,6 +308,15 @@ impl CohortData {
         Self::mendelian_with_variants(dg_data, hpo_headers, rows, hpo_version, HashMap::new(), HashMap::new())
     }
 
+    /// We will mark the existing (Excel legacy) curation events using the date of publication of the 
+    /// Phenopacket Store article
+    fn legacy_curation() -> CurationEvent {
+        CurationEvent { 
+            orcid: "0000-0002-0736-9199".to_string(), 
+            date: "2025-01-09".to_string(),
+        }
+    }
+
     pub fn mendelian_with_variants(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
@@ -303,7 +334,8 @@ impl CohortData {
             structural_variants,
             phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
             hpo_version: hpo_version.to_string(),
-            cohort_acronym: None
+            cohort_acronym: None,
+            curation_history: vec![Self::legacy_curation()],
         }
     }
 
