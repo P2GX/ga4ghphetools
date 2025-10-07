@@ -121,6 +121,13 @@ impl HgvsVariant {
         self.hgvs.as_ref()
     }
 
+    pub fn p_hgvs(&self) -> Option<String> {
+        match &self.p_hgvs {
+            Some(phgvs) => Some(phgvs.to_string()),
+            None => None
+        }
+    }
+
     pub fn transcript(&self) -> &str {
         self.transcript.as_ref()
     }

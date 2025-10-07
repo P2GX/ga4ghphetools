@@ -293,7 +293,7 @@ impl PpktExporter {
         let gene_ctxt = GeneDescriptor{ 
             value_id: hgvs.hgnc_id().to_string(), 
             symbol: hgvs.symbol().to_string(), 
-            description: String::default(), 
+            description: String::default(),
             alternate_ids: vec![] , 
             alternate_symbols: vec![] , 
             xrefs: vec![] 
@@ -322,7 +322,14 @@ impl PpktExporter {
                     version: String::default(),
                 };
         expression_list.push(hgvs_g);
-         
+        if let Some(hgsvp) = hgvs.p_hgvs() {
+            let hgvs_p = Expression{
+                syntax: "hgvs.p".to_string(),
+                value: hgsvp,
+                version: String::default(),
+            };
+                expression_list.push(hgvs_p);
+        };  
         let allelic_state = Self::get_allele_term(allele_count, hgvs.is_x_chromosomal());
         let vdesc = VariationDescriptor{ 
             id: hgvs.variant_key().to_string(), 
@@ -356,8 +363,40 @@ impl PpktExporter {
             .map(char::from)
             .collect()
     }
+
     
-    /// TODO, for melded, we need to assign genes to diseases
+    fn extract_gene_symbol(vi: &VariantInterpretation) -> Result<String, String> {
+        vi
+            .variation_descriptor
+            .as_ref()
+            .and_then(|vd| vd.gene_context.as_ref())
+            .map(|gc| gc.symbol.clone())
+            .ok_or_else(|| format!(
+                "Missing gene symbol for variant interpretation: {:?}",
+                vi.variation_descriptor
+            ))
+    }
+    
+    /// Builds a list of `Interpretation` objects for a given phenopacket row.
+    ///
+    /// This function performs the following steps:
+    /// 1. Iterates through each allele in the input `RowData` and constructs corresponding
+    ///    `VariantInterpretation` objects based on HGVS or structural variant information.
+    /// 2. Ensures allele counts are valid (1 or 2). Returns an error if invalid or if a matching
+    ///    validated variant cannot be found.
+    /// 3. Validates that only one disease is present (melded/multiple diseases not implemented yet).
+    /// 4. Extracts disease information and maps `GenomicInterpretation` objects to gene symbols.
+    /// 5. For each disease, builds a `Diagnosis` linking its known genes to the corresponding
+    ///    genomic interpretations (if available).
+    /// 6. Wraps all constructed diagnoses into `Interpretation` objects.
+    ///
+    /// # Arguments
+    /// * `ppkt_row` - A `RowData` object containing per-patient genotype and phenotype information.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Interpretation>)` if all data were valid and interpretable.
+    /// * `Err(String)` if any validation, mapping, or extraction step failed (e.g., missing allele, 
+    ///   missing gene symbol, inconsistent disease data).
     pub fn get_interpretation_list(
         &self, 
         ppkt_row: &RowData) 
@@ -365,8 +404,8 @@ impl PpktExporter {
         let mut v_interpretation_list: Vec<VariantInterpretation> = Vec::new();
         for (allele, count) in &ppkt_row.allele_count_map {
             let allele_count = *count;
-            if allele_count > 2 || allele_count < 1 {
-                return Err(format!("Invalid count ({}) for allele '{}'", count, allele));
+            if  allele_count == 0 {
+                return Err(format!("No alleles found in row {:?}", ppkt_row));
             }
             if let Some(hgvs) = self.cohort_dto.hgvs_variants.get(allele) {
                 let vinterp = Self::get_hgvs_variant_interpretation( hgvs, allele_count);
@@ -378,42 +417,44 @@ impl PpktExporter {
                 return Err(format!("Could not find validated variant for allele {}", allele));
             }
         }
-        if self.cohort_dto.disease_list.len() != 1 {
-            return Err(format!("Melded disease interpretation not implemented yet: {:?}", self.cohort_dto));
+        if self.cohort_dto.disease_list.is_empty() {
+            return Err(format!("No disease objects found"));
         }
-        let disease_id = match ppkt_row.disease_id_list.first()  {
-            Some(did) => did,
-            None => {return  Err(format!("Could not extract disease id from RowData: {:?}", ppkt_row));},
-        };
-        let disease_data = match self.disease_id_map.get(disease_id) {
-            Some(data) => data.clone(),
-            None => {return  Err(format!("Could not extract disease data from disease_data_map for id: {}", disease_id));},
-        };
-    
-        let disease_clz = OntologyClass{
-            id: disease_data.disease_id.clone(),
-            label: disease_data.disease_label.clone(),
-        };
-        let mut g_interpretations: Vec<GenomicInterpretation> = Vec::new();
+       
+        let mut g_interpretation_map: HashMap<String, GenomicInterpretation> = HashMap::new();
         for vi in v_interpretation_list {
             let gi = GenomicInterpretation{
                 subject_or_biosample_id: ppkt_row.individual_data.individual_id.to_string(),
                 interpretation_status: InterpretationStatus::Causative.into(),
-                call: Some(Call::VariantInterpretation(vi))
+                call: Some(Call::VariantInterpretation(vi.clone()))
             };
-            g_interpretations.push(gi);
+            let symbol = Self::extract_gene_symbol(&vi)?;
+            g_interpretation_map.insert(symbol, gi);
         }
-        let diagnosis = Diagnosis{
-            disease: Some(disease_clz),
-            genomic_interpretations: g_interpretations,
-        };
-        let i = Interpretation{
-            id: Self::generate_id(),
-            progress_status: ProgressStatus::Solved.into(),
-            diagnosis: Some(diagnosis),
-            summary: String::default(),
-        };
-        let interpretation_list: Vec<Interpretation> = vec![i];
+        let mut interpretation_list: Vec<Interpretation> = vec![];
+        for disease in &self.cohort_dto.disease_list {
+            let disease_clz = OntologyClass{
+                id: disease.disease_id.clone(),
+                label: disease.disease_label.clone(),
+            };
+            let mut diagnosis = Diagnosis{
+                disease: Some(disease_clz),
+                genomic_interpretations: vec![],
+            };
+            for gene in  &disease.gene_transcript_list {
+                let symbol = gene.gene_symbol.to_string();
+                if let Some(g_interp) = g_interpretation_map.get(&symbol) {
+                   diagnosis.genomic_interpretations.push(g_interp.clone());
+                }
+            }
+            let i = Interpretation{
+                id: Self::generate_id(),
+                progress_status: ProgressStatus::Solved.into(),
+                diagnosis: Some(diagnosis),
+                summary: String::default(),
+            };
+            interpretation_list.push(i);
+        }
         Ok(interpretation_list)
     }
 
@@ -459,9 +500,6 @@ impl PpktExporter {
         &self, 
         ppkt_row_dto: &RowData, 
     ) -> Result<Phenopacket, String> {
-        if ! self.cohort_dto.is_mendelian() {
-            return Err(format!("Non Mendelian PPKT extraction not yet implemented"));
-        }
         let interpretation_list = self.get_interpretation_list(ppkt_row_dto)?;
         let ppkt = Phenopacket{ 
             id: self.get_phenopacket_id(ppkt_row_dto), 
