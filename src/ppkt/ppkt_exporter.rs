@@ -190,35 +190,43 @@ impl PpktExporter {
         sanitized
     }
 
-    /// TODO extend for multiple diseases
-    pub fn get_disease(&self, ppkt_row: &RowData) -> Result<Disease, String> {
-        let disease_list = &ppkt_row.disease_id_list;
-        if disease_list.is_empty() {
+    pub fn get_disease_list(&self, ppkt_row: &RowData) -> Result<Vec<Disease>, String> {
+        let disease_id_list = &ppkt_row.disease_id_list;
+        if disease_id_list.is_empty() {
             return Err(format!("todo empty disease"));
         }
-        let disease_id = disease_list[0].clone();
-        let d_data = self.disease_id_map.get(&disease_id)
-            .ok_or_else(|| format!("Disease with id {} not found", disease_id))?;
-        let dx_id = OntologyClass { 
-            id:d_data.disease_id.clone(), label: d_data.disease_label.clone() };
-        let mut disease = Disease{ 
-            term: Some(dx_id), 
-            excluded: false, 
-            onset: None, 
-            resolution: None, 
-            disease_stage: vec![], 
-            clinical_tnm_finding: vec![], 
-            primary_site: None, 
-            laterality: None 
-        };
-        let idl_dto = ppkt_row.individual_data.individual_id.clone();
-        let onset = &ppkt_row.individual_data.age_of_onset;
-        if onset != "na" {
-            let age = time_element_from_str(onset)
-                .map_err(|e| format!("malformed time_elementfor onset '{}': {}", onset, e.to_string()))?;
-            disease.onset = Some(age);
-        };
-        Ok(disease)
+        let has_multiple_dx = disease_id_list.len() > 1;
+        let mut disease_list: Vec<Disease> = Vec::new();
+        for dx_id in disease_id_list {
+            let d_data = self.disease_id_map.get(dx_id)
+                .ok_or_else(|| format!("Disease with id {} not found", dx_id))?;
+            let dx_clz = OntologyClass { 
+                id:d_data.disease_id.clone(), 
+                label: d_data.disease_label.clone()
+            };
+            let mut disease = Disease{ 
+                term: Some(dx_clz), 
+                excluded: false, 
+                onset: None, 
+                resolution: None, 
+                disease_stage: vec![], 
+                clinical_tnm_finding: vec![], 
+                primary_site: None, 
+                laterality: None 
+            };
+            // If we have multiple diseases, we cannot automatically say when the disease onset was (which disease has the earliest onset)
+            if ! has_multiple_dx {
+                let idl_dto = ppkt_row.individual_data.individual_id.clone();
+                let onset = &ppkt_row.individual_data.age_of_onset;
+                if onset != "na" {
+                    let age = time_element_from_str(onset)
+                        .map_err(|e| format!("malformed time_element for onset '{}': {}", onset, e.to_string()))?;
+                    disease.onset = Some(age);
+                };
+            }
+            disease_list.push(disease);
+        }
+        Ok(disease_list)
     }
 
     fn allele_not_contained(allele: &str) -> String {
@@ -508,7 +516,7 @@ impl PpktExporter {
             measurements: vec![], 
             biosamples: vec![], 
             interpretations: interpretation_list, 
-            diseases: vec![self.get_disease(ppkt_row_dto)?], 
+            diseases: self.get_disease_list(ppkt_row_dto)?, 
             medical_actions: vec![], 
             files: vec![], 
             meta_data: Some(self.get_meta_data(ppkt_row_dto)?) 
