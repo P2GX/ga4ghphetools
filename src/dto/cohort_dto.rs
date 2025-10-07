@@ -308,6 +308,26 @@ impl CohortData {
         Self::mendelian_with_variants(dg_data, hpo_headers, rows, hpo_version, HashMap::new(), HashMap::new())
     }
 
+    /// Initialize a new CohortData object for a Melded Phenotype case.
+    /// All fields will be empty expect the DiseaseData
+    pub fn melded(
+        disease_list: Vec<DiseaseData>,
+        hpo_version: &str
+    ) -> Self {
+        Self {
+            cohort_type: CohortType::Melded,
+            disease_list: disease_list,
+            hpo_headers: vec![],
+            rows: vec![],
+            hgvs_variants: HashMap::new(),
+            structural_variants: HashMap::new(),
+            phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
+            hpo_version: hpo_version.to_string(),
+            cohort_acronym: None,
+            curation_history: vec![],
+        }
+    }
+
     /// We will mark the existing (Excel legacy) curation events using the date of publication of the 
     /// Phenopacket Store article
     fn legacy_curation() -> CurationEvent {

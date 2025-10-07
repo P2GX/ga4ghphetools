@@ -34,23 +34,11 @@ impl CohortFactory {
 
     /// Create the initial pyphetools template using HPO seed terms
     pub fn create_pyphetools_template_mendelian(
-        hpo_term_ids: Vec<TermId>,
         // Reference to the Ontolius Human Phenotype Ontology Full CSR object
         hpo: Arc<FullCsrOntology>,
         disease_gene_dto: DiseaseData,
     ) -> std::result::Result<CohortData, String> {
-        let mut hp_header_duplet_list: Vec<HpoTermDuplet> = Vec::new();
-        for hpo_id in hpo_term_ids {
-            match hpo.term_by_id(&hpo_id) {
-                Some(term) => {
-                    let hpo_duplet = HpoTermDuplet::new(term.name(), term.identifier().to_string());
-                    hp_header_duplet_list.push(hpo_duplet);
-                }
-                None => {
-                    return Err(format!("Could not find HPO identifier '{}'", hpo_id.to_string()));
-                }
-            }
-        }
+        let hp_header_duplet_list: Vec<HpoTermDuplet> = Vec::new();
          Ok(CohortData::mendelian(disease_gene_dto, hp_header_duplet_list, vec![], hpo.version() ))
     }
 
@@ -315,24 +303,11 @@ impl CohortFactory {
     pub fn create_pyphetools_template(
         template_type: CohortType,
         disease_data: DiseaseData,
-        hpo_term_ids: Vec<TermId>,
         hpo: Arc<FullCsrOntology>,
     ) -> std::result::Result<CohortData, String> {
-        let mut smt_list: Vec<SimpleMinimalTerm> = Vec::new();
-        for hpo_id in &hpo_term_ids {
-            match hpo.term_by_id(hpo_id) {
-                Some(term) => {
-                    let smt =
-                        SimpleMinimalTerm::new(term.identifier().clone(), term.name(), vec![], false);
-                    smt_list.push(smt);
-                }
-                None => {
-                    return Err(format!("Could not find HPO identifier '{}'", hpo_id.to_string()));
-                }
-            }
-        }
+        let smt_list: Vec<SimpleMinimalTerm> = Vec::new();
         if template_type == CohortType::Mendelian {
-            let cohort_dto = Self::create_pyphetools_template_mendelian( hpo_term_ids, hpo, disease_data)?;
+            let cohort_dto = Self::create_pyphetools_template_mendelian(hpo, disease_data)?;
             Ok(cohort_dto)
         } else {
             Err(format!("Creation of template of type {:?} not supported", template_type))
@@ -626,15 +601,22 @@ impl CohortFactory {
     }
 
 
- 
+    /// Basic sanity check that we are not merging the wrong cohort, but this should actually never happen.
     pub fn disease_data_identity_validation(previous: &CohortData, transformed: &CohortData) -> Result<(), String>{
         if previous.disease_list.len() != transformed.disease_list.len() {
-            return Err(format!("Disease list length mismatch: previous {}, transformed {}",
+            return Err(format!("Disease list length mismatch: previous {}, new {}",
                 previous.disease_list.len(), transformed.disease_list.len()));
         }
         for (prev, transf) in previous.disease_list.iter().zip(transformed.disease_list.iter()) {
-            if *prev != *transf {
-                return Err(format!("Previous disease {:?}; transformed: {:?}", prev, transf));
+            if prev.disease_id != transf.disease_id {
+                return Err(format!("Previous disease ID '{:?}'; new disease ID: '{:?}'", prev.disease_id, transf.disease_id));
+            }
+            if prev.disease_label != transf.disease_label {
+                return Err(format!("Previous disease label '{:?}'; new disease label: '{:?}'", prev.disease_label, transf.disease_label));
+            }
+            // note we do not care if the MOI list matches, this can be adjusted as needed
+            if prev.gene_transcript_list.len() != transf.gene_transcript_list.len() {
+                return Err(format!("Previous disease genes '{:?}'; new disease genes: '{:?}'", prev.gene_transcript_list.len(), transf.gene_transcript_list.len()));
             }
         }
         Ok(())

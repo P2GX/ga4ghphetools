@@ -142,9 +142,6 @@ pub fn add_new_row_to_cohort(
     variant_key_list: Vec<String>,
     cohort_data: CohortData) 
 -> Result<CohortData, String> {
-    if ! cohort_data.is_mendelian() {
-        return Err("add new row not implmented yet for non-Mendelian".to_string());
-    }
     let mut builder = CohortFactory::new(hpo);
     builder.add_new_row_to_cohort(individual_data, hpo_annotations, variant_key_list, cohort_data)
 }
@@ -296,10 +293,9 @@ pub fn load_json_cohort(
 ///   information.
 /// * `Err(String)` - An error message if template generation fails or if 
 ///   the requested `template_type` is not supported.
-pub fn create_cohort_dto_from_seeds(
+pub fn create_new_cohort_data(
     template_type: CohortType,
     disease_data: DiseaseData,
-    hpo_term_ids: Vec<TermId>,
     hpo: Arc<FullCsrOntology>,
 ) -> std::result::Result<CohortData, String> {
     if template_type != CohortType::Mendelian {
@@ -308,10 +304,17 @@ pub fn create_cohort_dto_from_seeds(
     let cohort_dto = CohortFactory::create_pyphetools_template(
         template_type, 
         disease_data,
-        hpo_term_ids, 
         hpo.clone()
     ).map_err(|e| e.to_string())?;
     Ok(cohort_dto)
+}
+
+
+pub fn create_new_melded_cohort(
+    disease_list: Vec<DiseaseData>,
+    hpo_version: &str
+) -> CohortData {
+    CohortData::melded(disease_list, hpo_version)
 }
 
 
