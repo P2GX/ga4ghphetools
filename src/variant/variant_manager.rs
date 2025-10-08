@@ -150,6 +150,9 @@ impl VariantManager {
 
         while n_validated < n_alleles && attempts < max_attempts {
             for allele in all_alleles {
+                if self.validated_hgvs.contains_key(allele) || self.validated_sv.contains_key(allele) {
+                    continue; // already validated, skip.
+                }
                 if allele.starts_with("c.") || allele.starts_with("n.") {
                     if self.validate_hgvs(allele) {
                         n_validated += 1;
@@ -195,11 +198,9 @@ impl VariantManager {
         let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
         let variant_key = HgvsVariant::generate_variant_key(hgvs, &self.gene_symbol, &self.transcript);
         if self.validated_hgvs.contains_key(&variant_key) {
-            println!("Previously validated {}", variant_key);
             return true;
         }
         if let Ok(hgvs) = self.hgvs_validator.validate(vv_dto) {
-            println!("Validated {}:{:?}", variant_key, hgvs);
             self.validated_hgvs.insert(variant_key, hgvs.clone());
             return true;
         } else {
@@ -249,7 +250,6 @@ impl VariantManager {
     /// be called multiple times to get all variants (one a variant string is validated, it is skipped in this function)
     pub fn validate_sv(&mut self, sv: &str) -> bool {
         let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-        println!("{}{} {:?}", file!(), line!(), vv_dto);
         let sv_type = SvType::try_from(vv_dto.variant_type);
         if sv_type.is_err() {
             eprint!("Could not extract SvType from variant {sv}");
@@ -258,7 +258,6 @@ impl VariantManager {
         let sv_type = sv_type.unwrap();
         let variant_key = StructuralVariant::generate_variant_key(sv, &self.gene_symbol, sv_type);
         if self.validated_sv.contains_key(&variant_key) {
-            println!("Previously validated {}", variant_key);
             return true;
         }
         if let Ok(sv) = self.structural_validator.validate(vv_dto) {
@@ -300,28 +299,6 @@ impl VariantManager {
         }
     }
 
-    /// Extract a list of the variant DTOs sorted such that the HGVS variants come first and are sorted
-    /// by gene symbol and then alphanumerbetically by HGVS nomenclature
-    /*
-    pub fn sorted_variant_dtos(&self) -> Vec<VariantDto> {
-        let mut variant_list: Vec<VariantDto> = self.hgvs_validator.values().cloned().collect();
-        variant_list.sort_by(|a, b| {
-            (
-                a.is_structural(), // false < true
-                a.gene_symbol(),
-                a.numerical_key(),
-                a.variant_string(),
-            )
-            .cmp(&(
-                b.is_structural(),
-                b.gene_symbol(),
-                b.numerical_key(),
-                b.variant_string(),
-            ))
-        });
-        variant_list
-    }
- */
 
 
     /// Columns 6,7,8 "HGNC_id",	"gene_symbol", 

@@ -193,8 +193,9 @@ impl PpktExporter {
     pub fn get_disease_list(&self, ppkt_row: &RowData) -> Result<Vec<Disease>, String> {
         let disease_id_list = &ppkt_row.disease_id_list;
         if disease_id_list.is_empty() {
-            return Err(format!("todo empty disease"));
+            return Err("No disease data found".to_string());
         }
+        println!("{}{}: ppkt:row-{:?}", file!(), line!(), ppkt_row);
         let has_multiple_dx = disease_id_list.len() > 1;
         let mut disease_list: Vec<Disease> = Vec::new();
         for dx_id in disease_id_list {
@@ -615,7 +616,7 @@ mod tests {
         });
 
         PpktExporter::strip_phenopacket_defaults(&mut packet);
-        println!("{}", packet);
+        //println!("{}", packet);
 
         assert!(! packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
         assert_eq!(packet["subject"]["vitalStatus"]["status"], "DECEASED");

@@ -3,7 +3,7 @@
 
 
 use std::sync::Arc;
-use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use ontolius::ontology::csr::FullCsrOntology;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
 
 pub(crate) mod disease_bundle;
@@ -46,22 +46,53 @@ mod cohort_qc;
 /// // e.g., "ACVR1_FOP_individuals.json"
 /// ```
 pub fn extract_template_name(cohort_dto: &CohortData) -> Result<String, String> {
-    if ! cohort_dto.is_mendelian() {
-        return Err(format!("Templates are not supported for non-Mendelian inheritance.")); 
+    if cohort_dto.is_melded() {
+        let name = melded_cohort_name(cohort_dto)?;
+        return Ok(format!("{}_individuals.json", name));
     };
     let disease_data = match cohort_dto.disease_list.first() {
         Some(data) => data.clone(),
         None => { return Err(format!("Could not extract disease data from Mendelian cohort"));},
     };
-    if disease_data.gene_transcript_list.len() != 1 {
-        return Err(format!("Todo-code logic for non-Mendelian templates.")); 
+     if disease_data.gene_transcript_list.is_empty() {
+        return Err(format!("No gene/transcript objects found for.")); 
     };
-    let symbol = &disease_data.gene_transcript_list[0].gene_symbol;
+    // one or multiple gene symbols: YFG1 or YFG1-YFG2
+    // this will work for Mendelian and digenic
+    let symbol_str = disease_data
+        .gene_transcript_list
+        .iter()
+        .map(|gtd| gtd.gene_symbol.to_string())
+        .collect::<Vec<_>>()
+        .join("-");
     match &cohort_dto.cohort_acronym {
-        Some(acronym) => Ok(format!("{}_{}_individuals.json", symbol, acronym)),
+        Some(acronym) => Ok(format!("{}_{}_individuals.json", symbol_str, acronym)),
         None => Err(format!("Cannot get template name if acronym is missing.")),
     }
 }
+
+
+/// For melded cohorts, we will name them according to the involved
+/// genes. For instance, if we have ["TP53", "BRCA2", "BRCA1"], then 
+/// the cohort name will be "BRCA1-BRCA2-TP53" (alphabetical).
+pub fn melded_cohort_name(cohort_data: &CohortData) -> Result<String, String> {
+    if cohort_data.disease_list.len() < 2 {
+        return Err(format!("Insufficient disease count ({}) for melded cohort", cohort_data.disease_list.len()));
+    };
+    let mut genes = cohort_data
+        .disease_list
+        .iter()
+        .flat_map(|dx| dx.gene_transcript_list.iter().map(|gt| gt.gene_symbol.as_str()))
+        .collect::<Vec<_>>();
+    genes.sort_unstable();
+    return Ok(genes.join("-"));
+}
+
+
+
+
+
+
 
 
 pub fn qc_assessment(

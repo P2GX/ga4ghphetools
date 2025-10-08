@@ -187,7 +187,6 @@ mod tests {
         let result = vvalidator.validate(vv_dto);
         assert!(result.is_ok());
         let hgvs_var = result.unwrap();
-        println!("{:?}", hgvs_var);
         assert_eq!("hg38", hgvs_var.assembly());
         assert_eq!("chr15", hgvs_var.chr());
         assert_eq!(48411364, hgvs_var.position());

@@ -61,7 +61,6 @@ impl GestationalAgeValidator {
             // Embryonal onset HP:0011460
             PRENATAL_ONSET_TERM_DICT.get("Embryonal onset")
         };
-        println!("LEN IS {}", PRENATAL_ONSET_TERM_DICT.len());
         match term_option {
             Some(prenatal_term) => Ok(prenatal_term.clone()),
             None => Err(format!("Could not find HPO Onset term for '{}'", gestational_age))

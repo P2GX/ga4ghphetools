@@ -74,7 +74,6 @@ impl StructuralValidator {
                 .map_err(|e| format!("Could not map {gene}: {e}"))?
                 .json()
                 .map_err(|e| format!("Could not retrieve JSON for {gene}: {e}"))?;
-        println!("{}{}{:?}", file!(), line!(), response);
         let transcripts = response
             .get("transcripts")
             .and_then(|t| t.as_array())

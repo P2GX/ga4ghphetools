@@ -134,17 +134,17 @@ impl CohortFactory {
             }
         }
 
-        let disease_data = match cohort_dto.disease_list.first() {
-            Some(data) => data.clone(),
-            None => {return  Err(format!("Could not extract DiseaseData"));},
-        };
+        if cohort_dto.disease_list.is_empty() {
+            return Err("Could not add new row because disease list is empty".to_string());
+        }
+
       
         let novel_row = Self::new_row_dto(
             &updated_header_duplet_dto_list, 
             individual_data, 
             variant_key_list, 
             tid_to_value_map, 
-            disease_data)?;
+            &cohort_dto.disease_list)?;
             
         updated_row_dto_list.push(novel_row);
         
@@ -201,13 +201,13 @@ impl CohortFactory {
     /// * `individual_dto` - DTO with demographic information about the new individual
     /// * `variant_key_list` - List of variant keys (one per allele) for this individual
     /// * `tid_to_value_map` - this has values (e.g., observed, na, P32Y2M) for which we have information in the new phenopacket
-    /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
+    /// * `dg_data`- list of diseases diagnosed in this cohort/individual
     fn new_row_dto(
         header_dto_list:  &Vec<HpoTermDuplet>, 
         individual_dto: IndividualData,
         variant_key_list: Vec<String>,
         tid_to_value_map: HashMap<TermId, String>, 
-        dg_data: DiseaseData
+        disease_data_list: &Vec<DiseaseData>
     ) -> std::result::Result<RowData, String> {
         // Create a list of CellDto objects that matches the new order of HPO headers
         let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
@@ -217,10 +217,7 @@ impl CohortFactory {
             let cell_value = CellValue::from_str(&value)?;
             hpo_cell_list.push(cell_value);
         }
-        if dg_data.gene_transcript_list.len() != 1 {
-            return Err(format!("Only implemented for Mendelian but gene transcript length was {}", dg_data.gene_transcript_list.len()));
-        }
-        let disease_id_list: Vec<String> = vec![dg_data.disease_id.clone()];
+        let disease_id_list: Vec<String> = disease_data_list.iter().map(|d| d.disease_id.clone()).collect();
         // Could the alleles
         let mut allele_count_map: HashMap<String, usize> = HashMap::new();
         for allele in variant_key_list {
@@ -383,7 +380,6 @@ impl CohortFactory {
         let mut vmanager = VariantManager::from_mendelian_matrix(&matrix, progress_cb)?;
         let mut row_dto_list: Vec<RowData> = Vec::new();
         for row in matrix.into_iter().skip(HEADER_ROWS) {
-            println!(" {:?}", row);
             let hdr_clone = hdr_arc.clone();
             let ppkt_row = PpktRow::from_mendelian_row(hdr_clone, row)?;
             if ppkt_row.hpo_count() != header_hpo_count {
@@ -809,9 +805,6 @@ mod test {
         // Test that we catch malformed labels for the first row
         original_matrix[0][idx] = label.to_string(); 
         let result = HeaderDupletRow::mendelian(&original_matrix, hpo, false);
-        if result.is_ok() {
-            println!("{}{} {}", idx, label, expected_label);
-        }
         assert!(&result.is_err());
         assert!(matches!(&result, Err(String { .. })));
         let err_msg = result.err().unwrap();
