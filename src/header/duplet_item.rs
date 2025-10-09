@@ -1,6 +1,6 @@
 //! DupletItem
 //! 
-//! These structures represent the duplet headers of our template
+//! These structures represent the duplet headers of our legacy Excel template
 //!    "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id",	"gene_symbol", 
 //!     "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", 
 //!      "deceased", "sex", "HPO", "Clinodactyly of the 5th finger", (etc., arbitrarily many HPO columns)
@@ -16,7 +16,7 @@ use crate::header::allele_util;
 
 
 static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
-    ['/', '\\', '(', ')'].iter().copied().collect()
+    ['/', '\\'].iter().copied().collect()
 });
 
 

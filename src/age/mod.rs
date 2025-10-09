@@ -22,13 +22,6 @@ pub mod hpo_age;
 pub mod iso_age;
 
 
-/*
-static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
-    ['/', '\\', '(', ')'].iter().copied().collect()
-});
- */
-
-
 use crate::{age::{gestational_age::GestationalAgeValidator, hpo_age::HpoTermAge, iso_age::Iso8601Age}, dto::hpo_term_dto::HpoTermDuplet};
 
 pub fn is_valid_age_string(cell_value: &str) -> bool {
