@@ -3,7 +3,7 @@
 //! Convenience functions for working with HPO data
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-use ontolius::{ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks}, TermId};
+use ontolius::{ontology::csr::FullCsrOntology, TermId};
 
 use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::{HpoTermData, HpoTermDuplet}}, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
 
@@ -230,9 +230,8 @@ pub fn check_hpo_duplets(
 /// This function will return an error if the ontology cannot be queried,
 /// or if a required HPO term cannot be found within the ontology structure.
 pub fn get_hpo_terms_by_toplevel(
-    cohort_dto: &CohortData,
+    cohort_dto: CohortData,
     hpo: Arc<FullCsrOntology>
-) -> Result<HashMap<HpoTermDuplet, Vec<HpoTermDuplet>>, String> {
-    let hpo_duplets = cohort_dto.hpo_headers.clone();
-    hpo_hierarchizer::get_hpo_terms_by_toplevel(hpo_duplets, hpo)
+) -> Result<HashMap<String, Vec<HpoTermDuplet>>, String> {
+    hpo_hierarchizer::get_hpo_terms_by_toplevel(cohort_dto.hpo_headers, hpo)
 }

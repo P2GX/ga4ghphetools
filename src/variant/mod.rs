@@ -1,6 +1,6 @@
 //! A module to work with HGVS (small) and structural variants.
 
-use std::{collections::{HashMap, HashSet}, fmt::format};
+use std::collections::{HashMap, HashSet};
 
 use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
 mod acmg;
@@ -87,7 +87,7 @@ pub fn validate_one_hgvs_variant(
     vmanager.get_validated_hgvs(allele)
 }
 
-
+/* 
 /// Validates a structural variant in the given string.
 ///
 /// This function is intended for use with symbol structural variant strings such as DEL ex 5
@@ -112,7 +112,7 @@ pub fn validate_one_structural_variant(
     vmanager.get_validated_sv(allele)
 }
 
-
+*/
 pub fn validate_structural_variant(
     variant_dto: VariantDto
 ) -> Result<StructuralVariant, String> {

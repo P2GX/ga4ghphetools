@@ -43,8 +43,8 @@ fn get_triplet_from_tid(
 pub fn get_hpo_terms_by_toplevel(
     hpo_duplets: Vec<HpoTermDuplet>,
     hpo: Arc<FullCsrOntology>
-) -> Result<HashMap<HpoTermDuplet, Vec<HpoTermDuplet>>, String> {
-    let mut by_top_level_map: HashMap<HpoTermDuplet, Vec<HpoTermDuplet>> = HashMap::new();
+) -> Result<HashMap<String, Vec<HpoTermDuplet>>, String> {
+    let mut by_top_level_map: HashMap<String, Vec<HpoTermDuplet>> = HashMap::new();
     let pheno_abnormality = TermId::from_str("HP:0000118").map_err(|e| e.to_string())?;
     let top_level_terms: Vec<HpoTriplet> = hpo
         .iter_child_ids(&pheno_abnormality)
@@ -58,7 +58,7 @@ pub fn get_hpo_terms_by_toplevel(
         for top_level in &top_level_terms {
             if hpo.is_descendant_of(&cohort_term.tid, &top_level.tid) {
                 by_top_level_map
-                    .entry(top_level.duplet.clone())
+                    .entry(top_level.duplet.hpo_label().to_string())
                     .or_insert_with(Vec::new)
                     .push(cohort_term.duplet.clone());
             }
@@ -119,14 +119,14 @@ mod test {
        println!("{:?}", hpo_map);
   
        assert_eq!(3, hpo_map.len());
-       assert!(hpo_map.contains_key(&musculoskel));
-       let skel_vec = hpo_map.get(&musculoskel).unwrap();
+       assert!(hpo_map.contains_key(musculoskel.hpo_label()));
+       let skel_vec = hpo_map.get(musculoskel.hpo_label()).unwrap();
        assert_eq!(1, skel_vec.len());
-       assert!(hpo_map.contains_key(&limbs));
-       let limbs_vec = hpo_map.get(&limbs).unwrap();
+       assert!(hpo_map.contains_key(limbs.hpo_label()));
+       let limbs_vec = hpo_map.get(limbs.hpo_label()).unwrap();
        assert_eq!(1, limbs_vec.len());
-       assert!(hpo_map.contains_key(&cv));
-       let cv_vec = hpo_map.get(&cv).unwrap();
+       assert!(hpo_map.contains_key(cv.hpo_label()));
+       let cv_vec = hpo_map.get(cv.hpo_label()).unwrap();
        assert_eq!(1, cv_vec.len());
     }
 
