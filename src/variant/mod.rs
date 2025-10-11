@@ -1,6 +1,6 @@
 //! A module to work with HGVS (small) and structural variants.
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, fmt::format};
 
 use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
 mod acmg;
@@ -110,6 +110,22 @@ pub fn validate_one_structural_variant(
 -> Result<StructuralVariant, String> {
     let vmanager = VariantManager::new(symbol, hgnc, transcript);
     vmanager.get_validated_sv(allele)
+}
+
+
+pub fn validate_structural_variant(
+    variant_dto: VariantDto
+) -> Result<StructuralVariant, String> {
+    if variant_dto.is_hgvs() {
+        return Err(format!("Expecting to validate structural variant, but got {:?}", variant_dto));
+    }
+    let symbol = variant_dto.gene_symbol;
+    let transcript = variant_dto.transcript;
+    let hgnc = variant_dto.hgnc_id;
+    let allele = variant_dto.variant_string;
+    let var_type = variant_dto.variant_type;
+    let vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
+    vmanager.get_validated_structural_variant(&allele, var_type)
 }
 
 

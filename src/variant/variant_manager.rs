@@ -220,14 +220,26 @@ impl VariantManager {
         }
     }
 
-     pub fn get_validated_sv(&self, sv: &str) 
+    pub fn get_validated_sv(&self, sv: &str) 
     -> Result<StructuralVariant, String> {
-         let vv_dto = VariantDto::hgvs_c(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-         let sv_type = SvType::Sv; // needs to be made more precise in GUI
+         let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+         let sv_type = SvType::Sv; // Should be adjusted by the user in the GUI
         let variant_key = StructuralVariant::generate_variant_key(sv, &self.gene_symbol, sv_type);
         if let Some(var) = self.validated_sv.get(&variant_key) {
             Ok(var.clone())
         } else {
+            self.structural_validator.validate(vv_dto)
+        }
+    }
+
+    pub fn get_validated_structural_variant(&self, allele: &str, var_type: VariantType)
+    -> Result<StructuralVariant, String> {
+        let sv_type = SvType::try_from(var_type)?;
+        let variant_key = StructuralVariant::generate_variant_key(allele, &self.gene_symbol, sv_type);
+        if let Some(var) = self.validated_sv.get(&variant_key) {
+            Ok(var.clone())
+        } else {
+            let vv_dto = VariantDto::sv(allele, &self.transcript, &self.hgnc_id, &self.gene_symbol);
             self.structural_validator.validate(vv_dto)
         }
     }

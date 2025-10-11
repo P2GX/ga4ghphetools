@@ -223,7 +223,7 @@ mod test {
     }
 
     #[rstest]
-    #[case("individual(1)", "Forbidden character '(' found in label 'individual(1)'")]
+    #[case("individual\\1", "Forbidden character '\\' found in label 'individual\\1'")]
     #[case("individual  A", "Consecutive whitespace in 'individual  A'")]
     fn test_malformed_individual(
         pmid: &str,

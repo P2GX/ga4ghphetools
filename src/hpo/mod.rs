@@ -3,10 +3,11 @@
 //! Convenience functions for working with HPO data
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use ontolius::{ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks}, TermId};
 
-use crate::{dto::hpo_term_dto::{HpoTermData, HpoTermDuplet}, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
+use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::{HpoTermData, HpoTermDuplet}}, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
 
+mod hpo_hierarchizer;
 mod hpo_term_arranger;
 mod hpo_util;
 
@@ -167,11 +168,71 @@ pub fn arrange_hpo_duplets(
     arranger.arrange_terms(&hpo_tids)
 }
 
-
+/// Validates that all provided HPO term duplets have consistent IDs and labels.
+///
+/// This function checks that each [`HpoTermDuplet`] in the provided list
+/// corresponds to a valid term in the given [`FullCsrOntology`].
+/// It ensures that the `hpo_id` exists in the ontology and that its label
+/// (`hpo_label`) matches the ontology term’s official name.
+///
+/// Internally, this function creates an [`HpoUtil`] helper to perform
+/// the validation.
+///
+/// # Arguments
+///
+/// * `hpo` — A shared reference to the [`FullCsrOntology`], representing
+///   the complete HPO graph structure.
+/// * `hpo_duplets` — A vector of [`HpoTermDuplet`]s to validate.
+///
+/// # Returns
+///
+/// Returns [`Ok(())`] if all HPO IDs and labels are valid and consistent.
+///
+/// Returns [`Err(String)`] with an error message if:
+/// - An HPO ID is not found in the ontology.
+/// - A label does not match the ontology term’s canonical name.
+/// - The ontology cannot be accessed or queried.
 pub fn check_hpo_duplets(
     hpo: Arc<FullCsrOntology>,  
     hpo_duplets: &Vec<HpoTermDuplet>
 ) -> Result<(), String> {
     let hpo_util = HpoUtil::new(hpo.clone());
     hpo_util.check_hpo_duplets(hpo_duplets)
+}
+
+
+/// Groups a cohort’s HPO terms by their top-level categories in the HPO hierarchy.
+///
+/// This function takes the HPO terms annotated in a [`CohortData`] object
+/// and groups them according to their top-level HPO term
+/// (i.e. direct children of *HP:0000118 Phenotypic abnormality*).
+///
+/// It delegates the actual hierarchy computation to
+/// [`hpo_hierarchizer::get_hpo_terms_by_toplevel`].
+///
+/// # Arguments
+///
+/// * `cohort_dto` — A reference to the [`CohortData`] object containing the
+///   list of HPO term headers to organize.
+/// * `hpo` — A shared [`FullCsrOntology`] instance representing the full
+///   HPO ontology graph.
+///
+/// # Returns
+///
+/// Returns a [`HashMap`] where each key is a *top-level HPO term*
+/// (as an [`HpoTermDuplet`]), and each value is a list of all HPO terms
+/// from the cohort that belong under that top-level term in the ontology.
+///
+/// Returns an [`Err(String)`] if any ontology lookups fail.
+///
+/// # Errors
+///
+/// This function will return an error if the ontology cannot be queried,
+/// or if a required HPO term cannot be found within the ontology structure.
+pub fn get_hpo_terms_by_toplevel(
+    cohort_dto: &CohortData,
+    hpo: Arc<FullCsrOntology>
+) -> Result<HashMap<HpoTermDuplet, Vec<HpoTermDuplet>>, String> {
+    let hpo_duplets = cohort_dto.hpo_headers.clone();
+    hpo_hierarchizer::get_hpo_terms_by_toplevel(hpo_duplets, hpo)
 }
