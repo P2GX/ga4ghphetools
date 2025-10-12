@@ -25,6 +25,7 @@ pub mod dto;
 pub mod etl;
 pub mod hpo;
 pub mod hpoa;
+pub mod html;
 pub mod factory;
 pub mod persistence;
 pub mod ppkt;

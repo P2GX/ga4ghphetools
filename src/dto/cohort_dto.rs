@@ -175,26 +175,6 @@ impl DiseaseData {
 }
 
 
-
-
-
-/// Genes and Diseases of reference for a cohort 
-/// We use this to act as a seed when we create a new row (phenopacket) 
-/// It can be used for Mendelian, Melded, Digenic
-/// Mendelian: disease_dto_list and gene_variant_dto_list must both be of length 1
-/// Melded: both of length two
-/// Digenic: disease_dto of length 1, gene_variant_dto of length 2
-/* 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DiseaseGeneData {
-    /// Key is a disease identifier (e.g., OMIM:157000) that is also used in the RowData objects
-    pub disease_data_map: HashMap<String, DiseaseData>,
-    /// Key is a Gene symbol that is also used for the variants
-    pub gene_transcript_data_map: HashMap<String, GeneTranscriptData>,
-}*/
-
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowData {
@@ -240,6 +220,18 @@ impl FromStr for CohortType {
             "digenic" => Ok(CohortType::Digenic),
             _ => Err(format!("Unrecognized template type {s}")),
         }
+    }
+}
+
+
+impl std::fmt::Display for CohortType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            CohortType::Mendelian => "mendelian",
+            CohortType::Melded => "melded",
+            CohortType::Digenic => "digenic",
+        };
+        write!(f, "{}", s)
     }
 }
 
