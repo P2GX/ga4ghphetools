@@ -1,7 +1,6 @@
 use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
-use rand::rand_core::impls;
 use serde::{Deserialize,Serialize};
 
 use crate::dto::{cohort_dto::{CohortData, DiseaseData}, hpo_term_dto::HpoTermDuplet};
@@ -25,7 +24,13 @@ pub struct RenderCell {
 
 impl RenderCell {
     pub fn new_pmid(pmid: String) -> Self {
-        Self { cell_contents: pmid, cell_type: RenderCellType::Pmid }
+        let pm_number: &str = pmid.strip_prefix("PMID:")
+            .map(|x| x.trim()) // remove extra whitespace
+            .filter(|x| x.chars().all(|c| c.is_ascii_digit())) // ensure it's all digits
+            .unwrap_or(&pmid);
+
+    
+        Self { cell_contents: pm_number.to_string(), cell_type: RenderCellType::Pmid }
     }
     pub fn new_individual(id: String) -> Self {
         Self { cell_contents: id, cell_type: RenderCellType::IndividualData }

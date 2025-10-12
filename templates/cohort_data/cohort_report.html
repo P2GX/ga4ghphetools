@@ -2,27 +2,67 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Cohort {{ cohort.cohortAcronym | default(value="(no acronym)") }}</title>
+  <title>Cohort {{ cohort.acronym  }}</title>
   <style>
-
-  .rotate-header {
-  height: 80px;
-  vertical-align: bottom;
-  position: relative;
+body {
+  font-family: system-ui, sans-serif;
+  background-color: #f9fafb;
+  color: #1f2937;
+  margin: 2rem;
 }
 
-.hpo-col {
-  position: relative;
-  width: auto;
-  max-width: 3.5rem;
-  white-space: nowrap;
-  text-align: center;
+/* --- Section containers --- */
+section {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin: 1.5rem auto;
+  padding: 1.5rem;
+  overflow-x: auto;
+  max-width: 1200px;
+}
+
+section h2 {
+  margin-bottom: 0.75rem;
+  font-size: 1.2rem;
+  color: #111827;
+}
+
+/* --- Table layout --- */
+table {
+  border-collapse: collapse;
+  border: none;
+  margin: 0 auto;
+  table-layout: fixed; /* prevents stretching */
+  width: auto; /* only as wide as content */
+  min-width: 600px;
+}
+
+/* No visible table borders */
+th, td {
+  border: none;
+}
+
+/* --- Header styling --- */
+thead,
+th,
+.hpo-col-th,
+.rotate-header {
+  overflow: visible !important;
+}
+
+.rotate-header {
+  height: 110px;
   vertical-align: bottom;
-  overflow: visible;
+  position: relative;
+  background-color: transparent; /* no gray background */
+  border-bottom: 1px solid #e5e7eb; /* subtle separator line */
+  overflow: visible; /* ensure rotated text is not cut off */
 }
 
 .hpo-col-th {
-  height: 200px;
+  height: 110px;
+  overflow: visible;
 }
 
 .hpo-col .rotated-text {
@@ -30,85 +70,45 @@
   transform-origin: left bottom;
   white-space: nowrap;
   position: absolute;
-  bottom: 5px;
+  bottom: 8px;
   left: 45%;
-  font-size: 10px;
+  font-size: 0.75rem;
   line-height: 1;
   text-overflow: ellipsis;
-  max-width: 100px;
+  max-width: 120px;
+  overflow: visible;
 }
 
-.hover-underline {
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 2px;
-}
-
-/* Popup styling */
-.hpo-popup {
-  position: absolute;
-  top: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #f9f9f9;
-  border: 1px solid #ccc;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  z-index: 100;
-  white-space: nowrap;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-  display: none;
-}
-
-th.group:hover .hpo-popup {
-  display: block;
-}
-
-    .hpo-col {
+/* --- Row + cell look --- */
+td {
+  padding: 6px 8px;
   text-align: center;
   vertical-align: middle;
-  transition: background-color 0.1s ease-in;
+  overflow: visible;
 }
 
+/* --- Individual cell types --- */
 .observed-cell {
   background-color: #d1fadf;
   font-weight: bold;
-  color: #1a7f37; /* Dark green */
+  color: #1a7f37;
 }
 
 .excluded-cell {
   background-color: #fde8e8;
   font-weight: bold;
-  color: #b91c1c; /* Dark red */
-}
-
-.onset-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 4rem;
-  border-radius: 6px;
-  background-color: inherit;
-  color: #1e40af;
-  font-weight: 500;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.1s ease-in;
-  padding: 2px 4px;
+  color: #b91c1c;
 }
 
 .onset-cell {
-  align-items: center;
-  justify-content: center;
-  max-width: 4rem;
-  border-radius: 6px;
   background-color: #dbeafe;
   color: #1e40af;
   font-weight: 500;
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.1s ease-in;
+  border-radius: 6px;
+  max-width: 4rem;
 }
 
 .onset-cell:hover {
@@ -116,32 +116,54 @@ th.group:hover .hpo-popup {
   box-shadow: 0 0 3px rgba(30, 64, 175, 0.4);
 }
 
-.onset-cell .onset-text {
-  display: none;
-}
-
-.onset-cell:hover .onset-text {
-  display: inline;
-}
-
-.onset-cell:hover .onset-icon {
-  display: none;
-}
-
 .na-cell {
   background-color: #f5f5f5;
   color: #999;
   font-style: italic;
 }
-  </style>
+
+/* --- Wide special cells --- */
+.pmid-cell {
+  background-color: #f8fafc;
+  font-family: monospace;
+  color: #0f172a;
+  font-size: 0.85rem;
+  text-align: left;
+  padding: 4px 10px;
+  min-width: 8rem;
+  max-width: 10rem;
+}
+
+.individual-cell {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  font-weight: 500;
+  text-align: left;
+  padding: 4px 10px;
+  min-width: 10rem;
+  max-width: 14rem;
+}
+
+/* Hover highlight */
+.pmid-cell:hover,
+.individual-cell:hover {
+  background-color: #e2e8f0;
+}
+
+/* --- Headings --- */
+h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+</style>
+
 </head>
 <body>
   <h1>Cohort Overview</h1>
-<pre>{{ __tera_context | json_encode(pretty=true) }}</pre>
-
   </p>
   <div class="text-sm text-gray-700 space-y-2">
-    <h2>{{ cohort.cohortAcronym | default(value="(n/a)")}}</h2>  
+    <h2>{{ cohort.acronym }}</h2>  
     <p>
         <ul>
           <li>HPO version: {{ cohort.hpoVersion }}</li>
@@ -171,31 +193,27 @@ th.group:hover .hpo-popup {
 
     </div>
     {% for top_level in cohort.topLevelList %}
-  <section class="my-8 p-4 bg-white rounded-lg shadow">
-    <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+  <section class="my-8 bg-gray-50 border border-gray-200 rounded-xl shadow-md overflow-hidden">
+  <div class="p-4 pb-2">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-2">
       {{ top_level.topLevelName }}
     </h2>
-
+  </div>  
     <div class="overflow-x-auto">
       <table class="min-w-full border border-gray-300 text-sm">
         <thead>
           <tr>
-            <th class="border px-3 py-2 text-left font-semibold text-gray-700">PMID</th>
-            <th class="border px-3 py-2 text-left font-semibold text-gray-700">Individual</th>
+            <th class="border px-3 py-2 text-left font-semibold text-gray-700"></th>
+            <th class="border px-3 py-2 text-left font-semibold text-gray-700"></th>
 
             {% for header in top_level.hpoHeader %}
               <th class="rotate-header hpo-col hpo-col-th border relative group">
                 <div class="rotated-text hover-underline">
-                  {{ header.hpoLabel }}
-                </div>
-
-                <!-- Popup shown on hover -->
-                <div class="hpo-popup hidden group-hover:block">
-                  <a href="https://hpo.jax.org/browse/term/{{ header.hpoId }}"
+                   <a href="https://hpo.jax.org/browse/term/{{ header.hpoId }}"
                     target="_blank"
                     rel="noopener"
                     class="text-blue-600 underline">
-                    🔗 {{ header.hpoId }}
+                    🔗 {{ header.hpoLabel }}
                   </a>
                 </div>
               </th>
@@ -211,9 +229,12 @@ th.group:hover .hpo-popup {
               {% for cell in row %}
                 <td class="
                   hpo-col
+                  
                   {% if cell.cellType == 'Observed' %}observed-cell{% endif %}
                   {% if cell.cellType == 'Excluded' %}excluded-cell{% endif %}
                   {% if cell.cellType == 'OnsetAge' %}onset-cell{% endif %}
+                   {% if cell.cellType == 'Pmid' %}pmid-cell{% endif %}
+                    {% if cell.cellType == 'IndividualData' %}individual-cell{% endif %}
                   {% if cell.cellType == 'Na' %}na-cell{% endif %}
                   border px-3 py-2
                 ">
@@ -228,6 +249,14 @@ th.group:hover .hpo-popup {
                       <span class="onset-icon">🕒</span>
                       <span class="onset-text">{{ cell.cellContents }}</span>
                     </div>
+                    {% elif cell.cellType == 'Pmid' %} <a href="https://pubmed.ncbi.nlm.nih.gov/{{ cell.cellContents  }}/"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-blue-600 underline">
+                    🔗 PMID:{{ cell.cellContents  }}
+                  </a>
+                  {% elif cell.cellType == 'IndividualData' %}
+                    {{ cell.cellContents }}
                   {% else %}
                     <span>Unknown</span>
                   {% endif %}
