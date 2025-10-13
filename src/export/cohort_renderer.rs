@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::{Deserialize,Serialize};
 
-use crate::dto::{cohort_dto::{CohortData, DiseaseData}, hpo_term_dto::HpoTermDuplet};
+use crate::dto::{cohort_dto::{CohortData, DiseaseData, RowData}, hpo_term_dto::HpoTermDuplet};
 
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -50,14 +50,37 @@ impl RenderCell {
 }
 
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CohortRow {
+    pub individual_id: String,
+    pub pmid: String,
+    pub title: String,
+    pub values: Vec<RenderCell>
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndividualRow {
+    pub individual_id: String,
+    pub pmid: String,
+    pub title: String,
+    pub onset_age: String,
+    pub last_encounter: String,
+    pub sex: String,
+    pub deceased: String,
+    pub alleles: Vec<String>,
+}
 
 /// Data class for rendering HTML
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TopLevelHpoRenderer {
     pub top_level_name: String,
+    pub anchor: String,
     pub hpo_header: Vec<HpoTermDuplet>,
-    pub rows: Vec<Vec<RenderCell>>
+    pub n_hpo: usize,
+    pub rows: Vec<CohortRow>
 }
 
 
@@ -65,12 +88,20 @@ impl TopLevelHpoRenderer  {
     pub fn new(
         top_level_name: &str,
         hpo_header: &Vec<HpoTermDuplet>,
-        rows: Vec<Vec<RenderCell>>) -> Self {
+        rows: Vec<CohortRow>) -> Self {
         Self { 
             top_level_name: top_level_name.to_string(), 
+            anchor: Self::make_anchor_id(top_level_name),
             hpo_header: hpo_header.clone(), 
+            n_hpo: hpo_header.len(),
             rows: rows 
         }
+    }
+
+    fn make_anchor_id(name: &str) -> String {
+        name.replace(' ', "_")
+            .replace(['/', ',', '(', ')'], "")
+            .to_lowercase()
     }
 }
 
@@ -88,6 +119,7 @@ pub struct CohortRenderer {
     pub n_distinct_hpo_terms: usize,
     pub disease_list: Vec<DiseaseData>,
     pub top_level_list: Vec<TopLevelHpoRenderer>,
+    pub individuals: Vec<IndividualRow>
 }
 
 
@@ -117,7 +149,7 @@ impl CohortRenderer {
                 .map_err(|e|e.to_string())?;
             top_level_list.push(top_level);
         }
-
+        let individuals = Self::get_individuals(cohort);
         
     
         Ok(Self {  
@@ -128,10 +160,76 @@ impl CohortRenderer {
             n_phenopackets: cohort.rows.len(),
             n_distinct_hpo_terms: cohort.hpo_headers.len(),
             disease_list: cohort.disease_list.clone(),
-            top_level_list
+            top_level_list,
+            individuals
         })
+    }
+
+
+    fn get_individuals(cohort: &CohortData) -> Vec<IndividualRow> {
+        let mut individuals = Vec::new();
+        for row in &cohort.rows {
+            let pmid = row.individual_data.pmid.clone();
+            let pmid = pmid.strip_prefix("PMID:")
+                .map(|x| x.trim()) // remove extra whitespace
+                .filter(|x| x.chars().all(|c| c.is_ascii_digit())) // ensure it's all digits
+                .unwrap_or(&pmid);
+            let title = row.individual_data.title.clone();
+            let onset_age = row.individual_data.age_of_onset.clone();
+            let last_encounter = row.individual_data.age_at_last_encounter.clone();
+            let deceased = row.individual_data.deceased.clone();
+            let sex = row.individual_data.sex.clone();
+            let indi_id = row.individual_data.individual_id.clone();
+            let alleles = Self::get_alleles(row, cohort);
+            let indi = IndividualRow{
+                individual_id: indi_id,
+                pmid: pmid.to_string(),
+                title,
+                onset_age,
+                last_encounter,
+                sex,
+                deceased,
+                alleles,
+            };
+            individuals.push(indi);
+        }
+        individuals
 
     }
+
+
+    fn get_alleles(row: &RowData, cohort: &CohortData) -> Vec<String> {
+        row.allele_count_map
+            .iter()
+            .filter_map(|(allele, &count)| {
+                if let Some(hgvs) = cohort.hgvs_variants.get(allele) {
+                    let transcript = hgvs.transcript();
+                    let symbol = hgvs.symbol();
+                    let hgvs_p = match hgvs.p_hgvs() {
+                        Some(phgvs) => phgvs,
+                        None => "n/a".to_string()
+                    };
+                    let allele_string = format!(
+                        "{}({}):{}; {}: {}",
+                        transcript, symbol, hgvs.hgvs(), hgvs_p, count
+                    );
+                    Some(allele_string)
+                } else if let Some(sv) = cohort.structural_variants.get(allele) {
+                    let svtext = sv.label();
+                    let symbol = sv.gene_symbol();
+                    let svtype = sv.get_sequence_ontology_term().label;
+                    let allele_string = format!(
+                        "{} ({}), {}: {}",
+                        svtext, symbol, svtype, count
+                    );
+                    Some(allele_string)
+                } else {
+                    None
+                }
+            })
+        .collect()
+    }
+
 
 
     fn get_top_level_section(
@@ -140,13 +238,16 @@ impl CohortRenderer {
         cohort: &CohortData
     ) -> Result<TopLevelHpoRenderer, String> {
         let duplet_set: HashSet<HpoTermDuplet> = duplets.clone().into_iter().collect();
-        let mut rows: Vec<Vec<RenderCell>> = Vec::new();
+        let mut rows: Vec<CohortRow> = Vec::new();
         for row in &cohort.rows {
             let mut data_row: Vec<RenderCell> = Vec::new();
             let pmid = row.individual_data.pmid.clone();
+            let pmid = pmid.strip_prefix("PMID:")
+                .map(|x| x.trim()) // remove extra whitespace
+                .filter(|x| x.chars().all(|c| c.is_ascii_digit())) // ensure it's all digits
+                .unwrap_or(&pmid);
+            let title = row.individual_data.title.clone();
             let indi_id = row.individual_data.individual_id.clone();
-            data_row.push(RenderCell::new_pmid(pmid));
-            data_row.push(RenderCell::new_individual(indi_id));
             for (duplet, cell) in cohort.hpo_headers.iter().zip(&row.hpo_data) {
                 if duplet_set.contains(duplet) {
                     match &cell {
@@ -158,11 +259,19 @@ impl CohortRenderer {
                     }
                 }
             }
-            rows.push(data_row);
+            let row = CohortRow{
+                individual_id: indi_id,
+                pmid: pmid.to_string(),
+                title,
+                values: data_row,
+            };
+            rows.push(row);
         }
         let top = TopLevelHpoRenderer{
             top_level_name: top_level.to_string(),
+            anchor: TopLevelHpoRenderer::make_anchor_id(top_level),
             hpo_header: duplets.clone(),
+            n_hpo: duplets.len(),
             rows,
         };
         Ok(top)

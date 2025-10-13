@@ -1,5 +1,4 @@
 use std::{path::PathBuf};
-
 use tera::{Tera, Context};
 
 pub struct HtmlRenderer {
@@ -47,7 +46,7 @@ mod tests {
     use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
     use rstest::{fixture, rstest};
     use super::*;
-    use crate::{dto::cohort_dto::CohortData, html::cohort_renderer::CohortRenderer};
+    use crate::{dto::cohort_dto::CohortData, export::cohort_renderer::CohortRenderer};
 
     
 
