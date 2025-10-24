@@ -145,14 +145,9 @@ impl StructuralVariant {
         if gene_id.is_empty() {
             return Err(format!("Malformed structural variant {cell_contents}: Need to pass a valid HGNC gene id!"));
         }
-        let label: String = cell_contents
-            .trim()
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect();
-        let v_key = Self::generate_variant_key(&label, &gene_symbol, sv_type);
+        let v_key = Self::generate_variant_key(&cell_contents, &gene_symbol, sv_type);
         Ok(Self {
-            label: label,
+            label: cell_contents.to_string(),
             gene_symbol,
             transcript,
             hgnc_id: gene_id,
@@ -164,6 +159,11 @@ impl StructuralVariant {
 
      /* provide a key for the variant that we will use for the HashMap */
     pub fn generate_variant_key(label: &str, symbol: &str, sv_type: SvType) -> String {
+         let label: String = label
+            .trim()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
+            .collect();
         format!("{}_{}_{}", symbol, sv_type, label )
     } 
 

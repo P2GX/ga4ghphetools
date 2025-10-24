@@ -164,9 +164,7 @@ impl VariantManager {
             }
             latency += 250;
             attempts += 1;
-        }
-        //println!("Round {}: validated: {}", attempts, n_validated);
-        
+        }       
         // When we get here, we will have all variants that could be validated. If some were not validated, either we had not
         // internet or there is actually an error. We will enter their variantKey as na, and the front end will need to do something.
         Ok(())
@@ -274,6 +272,7 @@ impl VariantManager {
         }
         if let Ok(sv) = self.structural_validator.validate(vv_dto) {
             self.validated_sv.insert(variant_key, sv.clone());
+            
             return true;
         } else {
             eprint!("Could not validate {sv}/{variant_key}");
@@ -441,7 +440,20 @@ impl VariantManager {
 
 #[cfg(test)]
 mod tests {
+    use crate::{dto::structural_variant::StructuralVariant, variant::variant_manager::VariantManager};
+
     
+
+    #[test]
+    fn test_sv_key_is_identical() {
+        let label = "deletion of exons 2-9";
+        let mut manager = VariantManager::new("CNTNAP2", "HGNC:13830", "NM_014141.6");
+        let sv = manager.validate_sv(label);
+        let sv = manager.get_validated_sv(label).unwrap();
+        let vkey = StructuralVariant::generate_variant_key(label, "CNTNAP2", crate::dto::structural_variant::SvType::Sv);
+        assert_eq!(sv.variant_key(), vkey);
+    }   
+
 
     /*
     #[rstest]
