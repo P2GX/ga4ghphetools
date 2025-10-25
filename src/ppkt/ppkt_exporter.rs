@@ -110,7 +110,7 @@ impl PpktExporter {
         let last_enc = &individual_dto.age_at_last_encounter;
         if last_enc != "na" {
             let age = time_element_from_str(last_enc)
-                .map_err(|e| format!("malformed time_element for last encounter '{}':{}",last_enc, e.to_string()))?;
+                .map_err(|e| format!("malformed time_element for last encounter '{}':{} for {}",last_enc, e.to_string(), idvl.id))?;
             idvl.time_at_last_encounter = Some(age);
         }
         if individual_dto.deceased == "yes" {
