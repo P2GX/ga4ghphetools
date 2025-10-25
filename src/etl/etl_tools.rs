@@ -293,9 +293,12 @@ impl EtlTools {
             } else if col.header.column_type == HpoTextMining {
                 text_mining_column = Some(col.clone());
             } else if col.header.column_type == Variant {
-                allele_count_map.entry(col.values[i].clone())
+                if col.values[i] != "na" {
+                    allele_count_map.entry(col.values[i].clone())
                     .and_modify(|count| *count += 1)
                     .or_insert(1);
+                }
+                
             }   
          }
          let mut values: Vec<CellValue> = Vec::new();
@@ -396,6 +399,8 @@ impl EtlTools {
     }
 
     /// Check that the alleles in the rows have full variant objects in the maps
+    /// Note that we allow na because some cohorts have a mix of mono- and biallelic cases, meaning that
+    /// one of the allele columns may contain "na" (not available).
     fn qc_variants(&self) -> Result<(), String> {
         let allele_set: HashSet<String> = self
             .raw_table()
@@ -407,8 +412,10 @@ impl EtlTools {
             .collect();
         // These alleles must be in either the HGVS or the SV map (i.e., validated)
         for allele in &allele_set {
-            if ! self.raw_table().hgvs_variants.contains_key(allele) && 
-                ! self.raw_table().structural_variants.contains_key(allele) {
+            if allele != "na" &&
+                ! self.raw_table().hgvs_variants.contains_key(allele) && 
+                ! self.raw_table().structural_variants.contains_key(allele) 
+                 {
                     return Err(format!("Unmapped allele: '{allele}'"));
                 }
         }
