@@ -65,7 +65,7 @@ impl PpktRow {
             let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency
             match dto::hpo_term_dto::CellValue::is_valid_cell_value(cell) {
                 true => hpo_content.push(item.clone()),
-                false => { return Err(format!("Invalid table cell '{cell}'y"));},
+                false => { return Err(format!("Invalid table cell '{cell}' for {}", ibundle.individual_id()));},
             }
         }
 
