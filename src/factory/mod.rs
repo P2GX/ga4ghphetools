@@ -313,6 +313,7 @@ pub fn load_json_cohort(
 ///   [`CohortType::Mendelian`] is supported.
 /// * `disease_data` - Metadata describing the disease and its associated 
 ///   gene/transcript context.
+/// * `acronym` - Disease acronym, e.g., MFS for Marfan syndrome
 /// * `hpo_term_ids` - A vector of [`TermId`]s representing associated 
 ///   Human Phenotype Ontology (HPO) terms.
 /// * `hpo` - An [`Arc`] reference to the loaded [`FullCsrOntology`], used for 
@@ -327,25 +328,30 @@ pub fn load_json_cohort(
 pub fn create_new_cohort_data(
     template_type: CohortType,
     disease_data: DiseaseData,
+    acronym: String,
     hpo: Arc<FullCsrOntology>,
 ) -> std::result::Result<CohortData, String> {
     if template_type != CohortType::Mendelian {
         return Err(format!("CohortData generation not supported for {:?} cohorts", template_type));
     }
-    let cohort_dto = CohortFactory::create_pyphetools_template(
+    let mut cohort_dto = CohortFactory::create_pyphetools_template(
         template_type, 
         disease_data,
         hpo.clone()
     ).map_err(|e| e.to_string())?;
+    cohort_dto.cohort_acronym = Some(acronym);
     Ok(cohort_dto)
 }
 
 
 pub fn create_new_melded_cohort(
     disease_list: Vec<DiseaseData>,
+    acronym: String,
     hpo_version: &str
 ) -> CohortData {
-    CohortData::melded(disease_list, hpo_version)
+    let mut dto = CohortData::melded(disease_list, hpo_version);
+    dto.cohort_acronym = Some(acronym);
+    dto
 }
 
 
