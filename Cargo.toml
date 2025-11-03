@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.4.130"
+version = "0.4.131"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"

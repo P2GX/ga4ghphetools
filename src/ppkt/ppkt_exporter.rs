@@ -105,7 +105,7 @@ impl PpktExporter {
             "F" => idvl.sex = Sex::Female.into(),
             "O" => idvl.sex = Sex::OtherSex.into(),
             "U" => idvl.sex = Sex::UnknownSex.into(),
-            _ => { return Err(format!("Did not recognize sex string '{}' for individual {}", idvl.sex, idvl.id)); }
+            _ => { return Err(format!("Did not recognize sex string '{}' for '{}' ({})", idvl.sex, idvl.id, ppkt_row.individual_data.pmid)); }
         };
         let last_enc = &individual_dto.age_at_last_encounter;
         if last_enc != "na" {
