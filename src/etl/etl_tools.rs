@@ -378,8 +378,12 @@ impl EtlTools {
         Ok(())
     }
 
+    /// Throw an error if a table cell has a leading/trailing whitespace or has an invalid character
     fn qc_table_cells(&self) -> Result<(), String>{
         for col in &self.raw_table().table.columns {
+            if col.header.column_type == EtlColumnType::Ignore {
+                continue; // Don't worry about columns that will not be ingested (Ignore)
+            }
             for cell in &col.values {
                 if cell.starts_with(char::is_whitespace) {
                     return Err(format!("{}: leading whitespace - '{}'", col.header.original, cell));
