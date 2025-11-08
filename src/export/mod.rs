@@ -6,11 +6,12 @@ use std::{path::Path, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use tera::Context;
 
-use crate::{dto::cohort_dto::CohortData, export::{cohort_renderer::CohortRenderer, html_renderer::HtmlRenderer}};
+use crate::{dto::cohort_dto::CohortData, export::{cohort_renderer::CohortRenderer, html_renderer::HtmlRenderer, table_compare::TableCompare}, factory};
 
 
 mod cohort_renderer;
 mod html_renderer;
+mod table_compare;
 
 
 /// Render a cohort report as an HTML file.
@@ -56,3 +57,99 @@ pub fn render_html(
     std::fs::write(output_path, html).map_err(|e|e.to_string())?;
     Ok(())
 }
+
+
+/// Generate a tab-separated comparison table summarizing HPO term frequencies between two cohorts.
+///
+/// This function compares two cohorts annotated with HPO terms and produces
+/// a table summarizing how often each term was observed or excluded in each cohort.
+/// The table is organized by top-level HPO categories (e.g. “Abnormality of the cardiovascular system”),
+/// and only includes terms that have been measured at least `threshold` times in total.
+///
+/// # Arguments
+///
+/// * `cohort_1_path` - Path to the first cohort file (JSON format).
+/// * `cohort_2_path` - Path to the second cohort file (JSON format).
+/// * `output_path` - Path to write the output table (tab-separated text file).
+/// * `hpo` - An [`Arc<FullCsrOntology>`] containing the HPO ontology used to determine term hierarchy.
+/// * `threshold` - Minimum total number of measurements (across both cohorts)
+///                 required for a term to be included in the output.
+///
+/// # Output Format
+///
+/// The output is a tab-separated table with the following columns:
+///
+/// | HPO | HPO.id | Cohort 1 | Cohort 2 | Total |
+/// |------|---------|-----------|-----------|--------|
+/// | *term label* | *term ID* | `obs/measured (percent)` | `obs/measured (percent)` | `obs/measured (percent)` |
+///
+/// The table is grouped by top-level HPO categories. Each group starts with a subheader row
+/// identifying the organ system or top-level category.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the table was successfully written to `output_path`,
+/// or an `Err(String)` describing the error (for example, if one of the input files
+/// could not be loaded or an HPO term lookup failed).
+///
+/// # Errors
+///
+/// * If either cohort JSON file cannot be read or parsed.
+/// * If any HPO terms in the cohorts cannot be resolved in the provided ontology.
+/// * If the output file cannot be created or written.
+///
+/// # Notes
+///
+/// This function internally:
+/// - Loads both cohorts from JSON using [`factory::load_json_cohort`].
+/// - Uses [`TableCompare`] to aggregate and compare per-term counts.
+/// - Writes only rows where the total number of measurements (`observed + excluded`)
+///   across both cohorts meets or exceeds `threshold`.
+///
+/// See also: [`TableCompare`], [`TermCounter`], [`RowCounter`].
+pub fn output_comparison_table(
+    cohort_1_path: &str,
+    cohort_2_path: &str,
+    output_path: &str,
+    hpo: Arc<FullCsrOntology>,
+    threshold: usize) -> Result<(), String> {
+        let cohort_1 = factory::load_json_cohort(cohort_1_path)?;
+        let cohort_2 = factory::load_json_cohort(cohort_2_path)?;
+        let table_compare = TableCompare::new(cohort_1, cohort_2, hpo)?;
+        table_compare.output_table(output_path, threshold)?;
+        Ok(())
+    }
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::File, io::BufReader, sync::Arc};
+    use flate2::bufread::GzDecoder;
+    use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
+    use rstest::{fixture, rstest};
+    use super::*;
+
+
+     #[fixture]
+    fn hpo() -> Arc<FullCsrOntology> {
+        let path = "resources/hp.v2025-03-03.json.gz";
+        let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
+        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
+        let hpo = loader.load_from_read(reader).unwrap();
+        Arc::new(hpo)
+    }
+
+    #[rstest]
+    fn write_compare(hpo: Arc<FullCsrOntology>) {
+        let cohort_1 = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/SPINK5_NETH_individuals-NL.json";
+        let cohort_2 = "/Users/robin/GIT/phenopacket-store/notebooks/SPINK5/SPINK5_NETH_individuals.json";
+        let output_path = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/comparison.txt";
+        let threshold = 20;
+        output_comparison_table(cohort_1, cohort_2, output_path, hpo, threshold).unwrap();
+    }
+
+
+}
+
