@@ -2,10 +2,12 @@
 
 
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 
+use ontolius::{Identified, TermId};
 use ontolius::ontology::csr::FullCsrOntology;
-use ontolius::ontology::MetadataAware;
+use ontolius::ontology::{MetadataAware, OntologyTerms};
 use phenopacket_tools::builders::time_elements::time_element_from_str;
 use phenopackets::ga4gh::vrsatile::v1::{Expression, GeneDescriptor, MoleculeContext, VariationDescriptor, VcfRecord};
 use phenopackets::schema::v2::core::genomic_interpretation::{Call, InterpretationStatus};
@@ -21,6 +23,7 @@ use serde_json::Value;
 use crate::dto::cohort_dto::{CohortData, DiseaseData, RowData};
 
 use crate::dto::hgvs_variant::HgvsVariant;
+use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::dto::structural_variant::StructuralVariant;
 use phenopacket_tools;
 use phenopacket_tools::builders::builder::Builder;
@@ -468,7 +471,24 @@ impl PpktExporter {
     }
 
     
-
+    fn get_ontology_class(&self, term: &HpoTermDuplet) -> Result<OntologyClass, String> {
+        let hpo_id = term.hpo_id();
+        let hpo_label = term.hpo_label();
+        let hpo_term_id = TermId::from_str(hpo_id).map_err(|e| e.to_string())?;
+        let hpo_term = match self.hpo.term_by_id(&hpo_term_id) {
+            Some(term) => term.clone(),
+            None => {
+                return Err(format!("Could not find HPO term for {hpo_id}"));
+            }
+        };
+        if hpo_term.identifier() != &hpo_term_id {
+            return Err(format!("{} is not the primary id ({}) for{}",
+                hpo_term_id, hpo_term.identifier(), hpo_label));
+        }
+        let hpo_term = Builder::ontology_class(term.hpo_id(), term.hpo_label())
+                .map_err(|e| format!("termid_parse_error '{:?}'", term))?;
+        Ok(hpo_term)
+    }
 
     pub fn get_phenopacket_features(&self, ppkt_row: &RowData) -> Result<Vec<PhenotypicFeature>, String> {
         let hpo_term_list = &self.cohort_dto.hpo_headers;
@@ -482,8 +502,7 @@ impl PpktExporter {
             if ! cell_contents.is_ascertained() {
                 continue;
             }
-            let hpo_term = Builder::ontology_class(term.hpo_id(), term.hpo_label())
-                .map_err(|e| format!("termid_parse_error '{:?}'", term))?;
+            let hpo_term = self.get_ontology_class(term)?;
             let mut pf = PhenotypicFeature{ 
                 description: String::default(), 
                 r#type: Some(hpo_term), 

@@ -159,12 +159,12 @@ impl StructuralVariant {
 
      /* provide a key for the variant that we will use for the HashMap */
     pub fn generate_variant_key(label: &str, symbol: &str, sv_type: SvType) -> String {
-         let label: String = label
+        let label: String = label
             .trim()
             .chars()
             .map(|c| if c.is_alphanumeric() { c } else { '_' })
             .collect();
-        format!("{}_{}_{}", symbol, sv_type, label )
+        format!("{}_{}_{}", symbol, sv_type, label)
     } 
 
     // Static Constructors for Specific Variants

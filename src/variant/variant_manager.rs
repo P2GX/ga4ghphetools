@@ -86,11 +86,14 @@ impl VariantManager {
         self.allele_set = all_alleles.clone();
         while n_validated < n_alleles && attempts < max_attempts {
             for allele in all_alleles {
+                if ! allele.is_ascii() {
+                    return Err(format!("Non-ASCII character in allele label: '{allele}'"));
+                }
                 if allele.starts_with("c.") || allele.starts_with("n.") {
                     if self.validate_hgvs(allele) {
                         n_validated += 1;
                     }
-                } else if  self.validate_sv(&allele) {
+                } else if self.validate_sv(&allele) {
                      n_validated += 1;
                 }
                 // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
@@ -119,6 +122,9 @@ impl VariantManager {
         self.allele_set = all_alleles.clone();
         while n_validated < n_alleles && attempts < max_attempts {
             for allele in all_alleles {
+                if ! allele.is_ascii() {
+                    return Err(format!("Non-ASCII character in allele label: '{allele}'"));
+                }
                 if ! allele.starts_with("c.") && ! allele.starts_with("n.") {
                     if  self.validate_sv(&allele) {
                         n_validated += 1;
@@ -135,7 +141,7 @@ impl VariantManager {
     }
 
 
-     pub fn validate_all_hgvs<F>(
+   pub fn validate_all_hgvs<F>(
         &mut self, all_alleles: &HashSet<String>,
         mut progress_cb: F)  
     -> Result<(), String> 
@@ -454,15 +460,20 @@ mod tests {
         assert_eq!(sv.variant_key(), vkey);
     }   
 
+    #[test]
+    fn test_malformed_sv() {
+        // Note this test does not make it to the API and thus does not touch the network
+        let label = "deletion:c.[6236 + 1_6237–1]_[6432 + 1_6433–1]del";
+        let hgnc = "HGNC:15625";
+        let symbol = "NBAS";
+        let transcript = "NM_015909.4";
+        let mut manager = VariantManager::new(symbol, hgnc, transcript);
+        let sv = manager.validate_sv(label);
+        let result = manager.get_validated_sv(label);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert_eq!( "'deletion:c.[6236\u{2009}+\u{2009}1_6237–1]_[6432\u{2009}+\u{2009}1_6433–1]del': Non-ASCII character '\u{2009}' at index 16", err_msg);
+    }
 
-    /*
-    #[rstest]
-    fn test_check_all_vars() {
-        let template = "/Users/robin/GIT/phenopacket-store/notebooks/ATP6V0C/input/ATP6V0C_EPEO3_individuals.xlsx";
-        let matrix = excel::read_excel_to_dataframe(template).unwrap();
-        let mut vmanager = VariantManager::new( "ATP6V0C","HGNC:855", "NM_001694.4");
-        vmanager.from_path(template).unwrap();
-        
-    }*/
 
 }

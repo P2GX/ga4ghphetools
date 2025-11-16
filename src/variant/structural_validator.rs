@@ -48,9 +48,9 @@ impl StructuralValidator {
     pub fn validate(&self,  vv_dto: VariantDto) ->
      
         Result<StructuralVariant, String> {
+            Self::check_ascii(&vv_dto.variant_string)?;
             let chrom = self.get_chromosome_from_vv(&vv_dto.gene_symbol)?;
             let sv_type: SvType = vv_dto.variant_type.try_into()?;
-            Self::check_ascii(&vv_dto.variant_string)?;
             match sv_type {
                 SvType::Del => StructuralVariant::code_as_chromosomal_deletion(vv_dto, chrom),
                 SvType::Inv => StructuralVariant::code_as_chromosomal_inversion(vv_dto, chrom),
@@ -166,7 +166,7 @@ mod tests {
       #[ignore = "API call"]
       fn test_extract_chromosome17() {
         let expected_chr = "17";
-         let validator = StructuralValidator::hg38();
+        let validator = StructuralValidator::hg38();
         let chr = validator.get_chromosome_from_vv("COL1A1");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
@@ -177,7 +177,7 @@ mod tests {
        #[ignore = "API call"]
       fn test_extract_chromosome_x() {
         let expected_chr = "X";
-         let validator = StructuralValidator::hg38();
+        let validator = StructuralValidator::hg38();
         let chr = validator.get_chromosome_from_vv("FMR1");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
@@ -215,6 +215,29 @@ mod tests {
         let validator = StructuralValidator::hg38();
         let result = validator.validate(dto);
         assert!(result.is_ok())
+    }
+
+    #[rstest]
+    fn test_cv() {
+        let sv = "Chr9:108,331,353–110,707,332(hg19)";
+        let transcript = "NM_021224.6)";
+        let hgnc = "HGNC:21684";
+        let symbol = "ZNF462";
+         let expected_chr = "9";
+        let dto = VariantDto{
+            variant_string: sv.to_string(),
+            variant_key: None,
+            transcript: transcript.to_string(),
+            hgnc_id:  hgnc.to_string(),
+            gene_symbol: symbol.to_string(),
+            variant_type: VariantType::Del,
+            is_validated: false,
+            count: 0,
+        };
+         let validator = StructuralValidator::hg38();
+        let result = validator.validate(dto);
+        println!("{:?}", result);
+        assert!(result.is_err())
     }
     
 }
