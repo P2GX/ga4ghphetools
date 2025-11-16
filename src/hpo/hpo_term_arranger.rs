@@ -126,18 +126,14 @@ impl HpoTermArranger {
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
-
-    use ontolius::{
-        io::OntologyLoaderBuilder,
-        ontology::OntologyTerms,
-        term::MinimalTerm,
-    };
+    use crate::test_utils::fixtures::hpo;
+    use rstest::rstest;
 
     use super::*;
 
-    #[test]
+    #[rstest]
     #[ignore]
-    fn test_term_rerrange() {
+    fn test_term_rerrange(hpo: Arc<FullCsrOntology>) {
         let liver_leiomyoma = "HP:4000154".parse().unwrap();
         let renal_cortical_hyperechogenicity = TermId::from_str("HP:0033132").unwrap();
         let gait_ataxia = TermId::from_str("HP:0002066").unwrap();
@@ -171,18 +167,11 @@ mod tests {
             portal_vein_hypoplasia,
         ];
         let start = Instant::now();
-        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
-        let hp_json = "/Users/robin/data/hpo/hp.json";
-        let hpo: FullCsrOntology = loader.load_from_path(hp_json).expect("could not unwrap");
-        let duration = start.elapsed();
-        let start = Instant::now();
-        let hpo_arc = Arc::new(hpo);
-        let hpo_arc2 = hpo_arc.clone();
-        let mut arranger = HpoTermArranger::new(hpo_arc);
+        let mut arranger = HpoTermArranger::new(hpo.clone());
         let ordered_terms = arranger.arrange_term_ids(&term_list);
         let duration = start.elapsed();
         for t in ordered_terms {
-            let result = hpo_arc2.term_by_id(&t);
+            let result = hpo.term_by_id(&t);
             match result {
                 Some(term) => println!("{} ({})", term.name(), t),
                 None => eprint!("Could not retrieve term for {}.", t),

@@ -48,9 +48,4 @@ impl HpoTermCounter {
         Ok(counted_term_list)
     }
 
-
-
-
-
-
 }

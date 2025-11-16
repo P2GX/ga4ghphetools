@@ -31,3 +31,5 @@ pub mod persistence;
 pub mod ppkt;
 pub mod variant;
 
+#[cfg(test)]
+pub mod test_utils;

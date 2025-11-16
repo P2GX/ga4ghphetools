@@ -1,6 +1,6 @@
-use std::{collections::{HashMap, HashSet}, sync::Arc};
+use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc};
 
-use ontolius::{ontology::{csr::FullCsrOntology, HierarchyQueries}, TermId};
+use ontolius::{Identified, TermId, ontology::{HierarchyQueries, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
 
 
 use crate::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet};
@@ -74,8 +74,8 @@ impl CohortDataQc {
                 seen.insert(duplet);
             }
         }
+        self.check_hpo_ids_and_labels(cohort)?;
         Ok(())
-       
     }
 
     pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), String> {
@@ -87,16 +87,49 @@ impl CohortDataQc {
         }   
     }
 
+    /// Check that the TermId and labels are up to date. Fail on the first error.
+    fn check_hpo_ids_and_labels(&self, cohort: &CohortData) -> Result<(), String> {
+        for hpo_duplet in &cohort.hpo_headers {
+            let hpo_term_id = TermId::from_str(&hpo_duplet.hpo_id)
+                .map_err(|e| e.to_string())?;
+            let term = self.hpo.term_by_id(&hpo_term_id)
+                    .ok_or_else(|| format!("Could not find HPO term for {}", hpo_term_id))?;
+            if term.identifier() != &hpo_term_id {
+                return Err(format!("{} is not the primary id ({}) for {}",
+                    hpo_term_id, term.identifier(), hpo_duplet.hpo_label()));
+            }
+            if term.name() != hpo_duplet.hpo_label() {
+                 return Err(format!("{} is not the current label ({}) for {}",
+                    hpo_duplet.hpo_label(), term.name(), hpo_term_id));
+            }
+        }
+        Ok(())
+    }
+
+
+    pub fn sanitize_header(&self, duplets: &Vec<HpoTermDuplet>) -> Result<Vec<HpoTermDuplet>, String> {
+        let mut sanitized: Vec<HpoTermDuplet> = Vec::new();
+        for duplet in duplets {
+            let hpo_term_id = TermId::from_str(duplet.hpo_id()).map_err(|e|e.to_string())?;
+            let hpo_term = self.hpo.term_by_id(&hpo_term_id)
+                .ok_or_else(|| format!("Could not retrieve term for {}", hpo_term_id))?;
+            let sanitized_duplet = HpoTermDuplet::new(hpo_term.name(), hpo_term.identifier().to_string());
+            sanitized.push(sanitized_duplet);
+        }
+        Ok(sanitized)
+    }
+
     /// This function sets to "na" the values that conflict in any row.
     pub fn sanitize(&self, 
         cohort_dto: &CohortData) 
     -> Result<CohortData, String> {
-        self.qc_check(cohort_dto)?;
+       
         let term_id_to_index_map = self.generate_term_id_to_index_map(cohort_dto)?;
-        let hpo_terms = &cohort_dto.hpo_headers;
+        let hpo_terms = self.sanitize_header(&cohort_dto.hpo_headers)?;
         let mut cohort = cohort_dto.clone();
+        cohort.hpo_headers = hpo_terms.clone();
         for row in cohort.rows.iter_mut() {
-            let conflict_map = self.get_conflicting_termid_pairs_for_row(row, hpo_terms)?;
+            let conflict_map = self.get_conflicting_termid_pairs_for_row(row, &hpo_terms)?;
             for tid in conflict_map.na_terms {
                 let idx = term_id_to_index_map
                     .get(&tid)
@@ -104,6 +137,8 @@ impl CohortDataQc {
                 row.hpo_data[*idx] = crate::dto::hpo_term_dto::CellValue::Na;
             }
         }
+        // One more check!
+        self.qc_check(&cohort)?;
         Ok(cohort)
 
     }
@@ -194,5 +229,49 @@ impl CohortDataQc {
             na_terms
         })
     }
+
+}
+
+
+#[cfg(test)]
+mod tests {
+    use rstest::{fixture, rstest};
+    use crate::test_utils::fixtures::hpo;
+    use super::*;
+
+
+    #[fixture]
+    fn duplets_with_outdated_hpo_id() -> Vec<HpoTermDuplet> {
+        let mut duplets: Vec<HpoTermDuplet> = Vec::new();
+        // The correct primary id for Gait Disturbance is  HP:0001288, and
+        // HP:0002355 is an alternate_id
+        let gait_disturbance = HpoTermDuplet::new("Gait disturbance", "HP:0002355");
+        let intoeing = HpoTermDuplet::new("Intoeing", "HP:6001054");
+        let dystonia = HpoTermDuplet::new("Dystonia", "HP:0001332");
+        duplets.push(gait_disturbance);
+        duplets.push(intoeing);
+        duplets.push(dystonia);
+        duplets
+    }
+
+
+    #[rstest]
+    fn test_sanitize_duplets(
+        hpo: Arc<FullCsrOntology>,
+        duplets_with_outdated_hpo_id: Vec<HpoTermDuplet>
+    ) {
+        let qc = CohortDataQc::new(hpo.clone());
+        let result = qc.sanitize_header(&duplets_with_outdated_hpo_id);
+        assert!(result.is_ok());
+        let sanitized = result.unwrap();
+        assert_eq!(duplets_with_outdated_hpo_id.len(), sanitized.len());
+        let duplet_0 = sanitized[0].clone(); // should have updated HPO id
+        assert_eq!("HP:0001288", duplet_0.hpo_id());
+        assert_eq!("Gait disturbance", duplet_0.hpo_label());
+        // the other two terms should be unchanged
+        assert_eq!(duplets_with_outdated_hpo_id[1], sanitized[1]);
+        assert_eq!(duplets_with_outdated_hpo_id[2], sanitized[2]);
+    }
+
 
 }

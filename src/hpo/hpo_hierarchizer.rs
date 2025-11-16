@@ -70,21 +70,10 @@ pub fn get_hpo_terms_by_toplevel(
 
 #[cfg(test)]
 mod test {
-    use ontolius::{io::OntologyLoaderBuilder};
     use super::*;
-    use std::{fs::File, io::BufReader};
-    use rstest::{fixture, rstest};
-    use flate2::bufread::GzDecoder;
+    use rstest::rstest;
+    use crate::test_utils::fixtures::hpo;
 
-
-  #[fixture]
-    fn hpo() -> Arc<FullCsrOntology> {
-        let path = "resources/hp.v2025-03-03.json.gz";
-        let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
-        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
-        let hpo = loader.load_from_read(reader).unwrap();
-        Arc::new(hpo)
-    }
 
     #[rstest]
     fn test_hierarchizer(

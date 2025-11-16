@@ -648,7 +648,6 @@ fn test_with_excluded_redundancy(
     column_ptosis: ColumnDto,
     column_strabismus: ColumnDto,
     disease_valid: DiseaseData,
-    hgvs_map: HashMap<String, HgvsVariant>,
     exclude_abn_eye: ColumnDto,
     hpo: Arc<FullCsrOntology>
 ) {

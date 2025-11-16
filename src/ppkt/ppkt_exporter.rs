@@ -482,7 +482,7 @@ impl PpktExporter {
             }
         };
         if hpo_term.identifier() != &hpo_term_id {
-            return Err(format!("{} is not the primary id ({}) for{}",
+            return Err(format!("{} is not the primary id ({}) for {}",
                 hpo_term_id, hpo_term.identifier(), hpo_label));
         }
         let hpo_term = Builder::ontology_class(term.hpo_id(), term.hpo_label())

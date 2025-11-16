@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use ga4ghphetools::dto::{case_dto::CaseDto, cohort_dto::{CohortData, DiseaseData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}};
 use rstest::fixture;
-
 /// A matrix representing a PheTools template for OMIM:617865
 #[fixture]
 pub fn matrix() -> Vec<Vec<String>> {

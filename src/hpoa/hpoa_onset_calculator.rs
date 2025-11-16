@@ -57,7 +57,3 @@ impl HpoaOnsetCalculator {
    
 
 }
-
-// region:    --- Tests
-
-// endregion: --- Tests
