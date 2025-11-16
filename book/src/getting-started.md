@@ -1,15 +1,15 @@
 # Getting Started
 
-Add this crate to your project:
+Add the crate to your project:
 
 ```toml
 [dependencies]
-your-crate = "0.1"
+ga4ghphetools = { git = 'https://github.com/P2GX/ga4ghphetools.git', tag = '0.4.136' }
+```
 
-**`book/src/api.md`:**
-```markdown
-# API Reference
+Note that while ga4ghphetools is still in development, it will be available from github;
+you should go to the Releases page and choose the latest version.
 
-The full Rust API documentation is available here:
+## API documentation
 
-👉 [API Documentation](./api/your_crate/index.html)
+👉 [API Documentation](../api/doc/ga4ghphetools/index.html)

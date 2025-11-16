@@ -6,3 +6,4 @@ description = "This library was created to support GA4GH Phenoboard, a Tauri (GU
 [output.html]
 additional-js = ["open_external.js"]
 additional-css = ["style.css"]
+site-url = "/ga4ghphetools/book/"
