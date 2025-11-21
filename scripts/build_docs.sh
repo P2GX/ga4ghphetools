@@ -1,69 +1,76 @@
-#!/usr/bin/env bash
-set -euo pipefail
+name: Docs
 
-# Script location and project root
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-PROJECT_ROOT="$SCRIPT_DIR/.."
-cd "$PROJECT_ROOT"
+on:
+  push:
+    branches: [ main ]
 
-# Where to poll for mdBook being ready
-SERVER_URL="http://localhost:3000/"
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
-echo "📚 Building Rust API docs..."
-cargo doc --no-deps --release
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# Decide where mdBook will write its output after build
-# If you have the canonical layout (book/book/) use that; otherwise fallback to book/
-if [ -d "book/book" ]; then
-  MD_OUT="book/book"
-else
-  MD_OUT="book"
-fi
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-echo "📘 Starting mdBook server (it will build once at start)..."
-# Start mdbook serve in background so we can wait for it then copy API docs
-# Write logs so we can show them if something goes wrong
-MDLOG="$(mktemp)"
-mdbook serve book --open >"$MDLOG" 2>&1 &
-MDB_PID=$!
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          override: true
 
-# wait for server to respond (max 60s)
-echo "⏳ Waiting for mdBook to be ready at $SERVER_URL (will timeout after 60s)..."
-TRIES=0
-MAX_TRIES=60
-until curl -sSf "$SERVER_URL" >/dev/null 2>&1 || [ $TRIES -ge $MAX_TRIES ]; do
-  TRIES=$((TRIES+1))
-  sleep 1
-done
+      - name: Install mdBook
+        run: cargo install mdbook --version 0.4.40 --locked
 
-if [ $TRIES -ge $MAX_TRIES ]; then
-  echo "❌ mdBook did not become ready within timeout. Dumping mdBook log:"
-  echo "------ mdBook log start ------"
-  sed -n '1,200p' "$MDLOG"
-  echo "------- mdBook log end -------"
-  kill $MDB_PID 2>/dev/null || true
-  rm -f "$MDLOG"
-  exit 1
-fi
+      - name: Build API docs
+        run: cargo doc --no-deps --release
 
-echo "✅ mdBook is up (took ${TRIES}s). Copying API docs into '$MD_OUT/api/doc'..."
+      # 1. Build mdBook: The output is usually `./book/`.
+      - name: Build mdBook
+        run: mdbook build book
 
-# Remove any old API dir and copy the whole target/doc (preserves search files etc.)
-rm -rf "$MD_OUT/api"
-mkdir -p "$MD_OUT/api"
-cp -r target/doc "$MD_OUT/api/doc"
+      # 2. Copy API docs into the mdBook output directory.
+      # mdBook's output is *inside* the 'book' directory you ran the command on.
+      # If your project structure is:
+      # project/
+      # ├── book/ <--- this is your source for mdbook
+      # └── target/
+      #
+      # Then 'mdbook build book' creates:
+      # project/
+      # ├── book/
+      # │   └── book/ <--- This is the final static output directory
+      # └── target/
+      #
+      # We put the API docs inside the final static output directory.
+      - name: Copy API docs into mdBook output
+        run: |
+          # The static output directory is 'book/book/'
+          mkdir -p book/book/api
+          # Copy the generated documentation (target/doc) into the new api directory
+          cp -r target/doc book/book/api/doc
 
-echo "📂 Copied API docs. API index should be available at:"
-echo "   $SERVER_URL/api/doc/ga4ghphetools/index.html"
+      # 3. Upload the *final static output* directory.
+      # The directory 'book/book' contains your index.html and all assets.
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # This should point to the directory containing index.html.
+          # Based on your setup, this is likely 'book/book'.
+          path: ./book/book
 
-# Tail mdbook log and wait for the server process — so script keeps running
-echo "📖 Tailing mdBook server log (press Ctrl-C to stop)"
-tail -n +1 -f "$MDLOG" &
-TAIL_PID=$!
-
-# Wait for mdbook to exit; when it does, clean up
-wait $MDB_PID || true
-
-# Clean up
-kill $TAIL_PID 2>/dev/null || true
-rm -f "$MDLOG"
+  # The 'deploy' job is correct. It uses the artifact uploaded in 'build'.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
