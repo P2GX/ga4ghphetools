@@ -19,6 +19,14 @@ static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
     ['/', '\\'].iter().copied().collect()
 });
 
+/// We allow RefSeq (NM_, NR_) or Ensembl (ENST) transcript identifiers
+static ALLOWED_TRANSCRIPT_PREFIXES: &[&str] = &[
+    "NM_",
+    "NR_",
+    "ENST",
+];
+
+
 
 /// TODO -- remove from here, this should go to HpoCellValue
 pub static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
@@ -296,7 +304,9 @@ impl DupletItem {
 
     fn check_transcript(&self, cell_contents: &str) -> Result<(), String> {
         Self::check_empty(cell_contents)?;
-        if ! cell_contents.starts_with("ENST") && ! cell_contents.starts_with("NM_") {
+        if !ALLOWED_TRANSCRIPT_PREFIXES
+            .iter()
+            .any(|prefix| cell_contents.starts_with(prefix)) {
             return Err(format!("Unrecognized transcript prefix '{cell_contents}'"));
         }  
         if ! cell_contents.contains(".") {

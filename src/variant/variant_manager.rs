@@ -451,6 +451,7 @@ mod tests {
     
 
     #[test]
+    #[ignore = "API call"]
     fn test_sv_key_is_identical() {
         let label = "deletion of exons 2-9";
         let mut manager = VariantManager::new("CNTNAP2", "HGNC:13830", "NM_014141.6");

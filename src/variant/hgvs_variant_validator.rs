@@ -197,6 +197,15 @@ mod tests {
             "FBN1")
     }
 
+    #[fixture]
+    fn rnu4_2() -> VariantDto {
+        VariantDto::hgvs_c(
+            "n.64_65insT",
+            "NR_003137.2", 
+            "HGNC:10193", 
+            "NU4-2")
+    }
+
     /// Invalid version of the above with the wrong nucleotide (G instead of C) 
     /// Designed to elicit an error from VariantValidator
     #[fixture]
@@ -235,6 +244,21 @@ mod tests {
             assert_eq!("NM_000138.5:c.8230G>T: Variant reference (G) does not agree with reference sequence (C)", e);
         } 
     }
+
+    /// Check we can retrieve an n. noncoding variant
+    #[rstest]
+    #[ignore = "runs with API"]
+    fn test_variant_validator_noncoding(rnu4_2: VariantDto) {
+        let vvalidator = HgvsVariantValidator::hg38();
+        // This is an invalid HGVS because the reference base should be C and not G
+        let result = vvalidator.validate(rnu4_2);
+        assert!(result.is_ok());
+        let hgvs = result.unwrap();
+        print!("{:?}", hgvs);
+    }
+
+
+
 }
 
 // endregion: --- Tests
