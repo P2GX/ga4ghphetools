@@ -89,9 +89,11 @@ impl HgvsVariantValidator {
             .ok_or_else(|| "Missing gene_symbol".to_string())?;
 
         // The following will either be a String or None, and can be assigned to an Option<String>
+        // if we have a non-coding RNA variant, e.g., n.4G>A, then this will evaluate to None
         let hgvs_predicted_protein_consequence = var.get("hgvs_predicted_protein_consequence")
             .and_then(|hgvs_protein| hgvs_protein.get("tlr"))
             .and_then(|tlr| tlr.as_str())
+            .filter(|s| !s.is_empty())   // this will turn empty string ("") into None
             .map(|s| s.to_string());
 
         let assemblies = var.get("primary_assembly_loci")
