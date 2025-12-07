@@ -9,6 +9,8 @@ use ga4ghphetools::dto::etl_dto::EtlColumnHeader;
 use ga4ghphetools::dto::etl_dto::EtlColumnType;
 use ga4ghphetools::dto::etl_dto::EtlDto;
 use ga4ghphetools::dto::hgvs_variant::HgvsVariant;
+use ga4ghphetools::dto::hpo_term_dto::CellValue;
+use ga4ghphetools::dto::hpo_term_dto::HpoTermData;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
 use ga4ghphetools::dto::cohort_dto::DiseaseData;
 use common::hpo_fixture::hpo;
@@ -664,3 +666,29 @@ fn test_with_excluded_redundancy(
     assert!(result3.is_ok());
 
 }
+
+
+/// Sanity check that the serde conversion is working for Ultra-low vision with retained light perception (last entry)
+#[rstest]
+fn test_conversion() {
+    let cell_contents = "[{\"termDuplet\":{\"hpoLabel\":\"Nystagmus\",\"hpoId\":\"HP:0000639\"},\"entry\":{\"type\":\"OnsetAge\",\"data\":\"Neonatal onset\"}},{\"termDuplet\":{\"hpoLabel\":\"Secondary microcephaly\",\"hpoId\":\"HP:0005484\"},\"entry\":{\"type\":\"OnsetAge\",\"data\":\"P9M\"}},{\"termDuplet\":{\"hpoLabel\":\"Hypertonia\",\"hpoId\":\"HP:0001276\"},\"entry\":{\"type\":\"OnsetAge\",\"data\":\"P9M\"}},{\"termDuplet\":{\"hpoLabel\":\"Global developmental delay\",\"hpoId\":\"HP:0001263\"},\"entry\":{\"type\":\"OnsetAge\",\"data\":\"P9M\"}},{\"termDuplet\":{\"hpoLabel\":\"Esotropia\",\"hpoId\":\"HP:0000565\"},\"entry\":{\"type\":\"Observed\"}},{\"termDuplet\":{\"hpoLabel\":\"Hypermetropia\",\"hpoId\":\"HP:0000540\"},\"entry\":{\"type\":\"Observed\"}},{\"termDuplet\":{\"hpoLabel\":\"Ataxia\",\"hpoId\":\"HP:0001251\"},\"entry\":{\"type\":\"OnsetAge\",\"data\":\"P2Y\"}},{\"termDuplet\":{\"hpoLabel\":\"Cerebellar atrophy\",\"hpoId\":\"HP:0001272\"},\"entry\":{\"type\":\"OnsetAge\",\"data\":\"P2Y\"}},{\"termDuplet\":{\"hpoLabel\":\"Febrile seizure (within the age range of 3 months to 6 years)\",\"hpoId\":\"HP:0002373\"},\"entry\":{\"type\":\"OnsetAge\",\"data\":\"P9M\"}},{\"termDuplet\":{\"hpoLabel\":\"Slow pupillary light response\",\"hpoId\":\"HP:0030211\"},\"entry\":{\"type\":\"Observed\"}},{\"termDuplet\":{\"hpoLabel\":\"Ultra-low vision with retained light perception\",\"hpoId\":\"HP:0032286\"},\"entry\":{\"type\":\"Observed\"}}]";
+    let result = serde_json::from_str::<Vec<HpoTermData>>(cell_contents)
+            .map_err(|e| e.to_string());
+    assert!(result.is_ok());
+    let hpo_term_data_list = result.unwrap();
+    assert_eq!(11, hpo_term_data_list.len());
+    let last = hpo_term_data_list.last().unwrap();
+    assert_eq!(
+        last.term_duplet.hpo_label,
+        "Ultra-low vision with retained light perception"
+    );
+    assert_eq!(
+        last.term_duplet.hpo_id,
+        "HP:0032286"
+    );
+    assert_eq!(
+        last.entry, CellValue::Observed
+    )
+}
+
+

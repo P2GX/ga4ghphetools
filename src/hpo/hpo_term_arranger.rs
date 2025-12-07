@@ -112,6 +112,7 @@ impl HpoTermArranger {
             match self.hpo.term_by_id(&tid) {
                 Some(term) => {
                     arranged_terms.push(HpoTermDuplet::new(term.name(), tid.to_string()));
+                    println!("{}{} arrange terms--{:?}", file!(), line!(), term);
                 },
                 None => {
                     return Err(format!("arrange_terms, could not find {}", &tid));

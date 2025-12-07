@@ -83,6 +83,14 @@ impl EtlTools {
                 EtlColumnType::HpoTextMining => {
                     for val in &col.values {
                         if let Ok(terms) = Self::get_hpo_term_data_from_json(val) {
+                           
+                            for t in &terms {
+                                if t.label().contains("Ultra") {
+                                    println!("all_hpo_duplets");
+                                    println!("{:?}", t);
+                                }
+                                
+                            }
                             duplets.extend(terms.into_iter().map(|t| t.term_duplet));
                         }
                     }
@@ -505,7 +513,19 @@ impl EtlTools {
     pub fn get_cohort_data(&self) -> Result<CohortData, String> {
         self.qc()?;
         let hpo_duplets = Self::all_hpo_duplets(&self);
+        let ultra_terms: Vec<_> = hpo_duplets
+            .iter()
+            .filter(|d| d.hpo_label().contains("Ultra"))
+            .collect();
+        println!("ultra terms {:?}", ultra_terms);
+        dbg!(&ultra_terms);
         let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
+        let ultra_terms2: Vec<_> = arranged_duplets
+            .iter()
+            .filter(|d| d.hpo_label().contains("Ultra"))
+            .collect();
+         println!("ultra terms2 {:?}", ultra_terms2);
+        dbg!(&ultra_terms2);
         let disease = match &self.dto.disease {
             Some(d) => d.clone(),
             None => { return Err(format!("Cannot create CohortData if ETL does not have disease data"))},
@@ -549,3 +569,30 @@ impl fmt::Display for ColumnTableDto {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+    use crate::test_utils::fixtures::hpo;
+    
+    #[rstest]
+    fn sanity(hpo: Arc<FullCsrOntology>) {
+        let etl_path = "/Users/robin/GIT/phenopacket-store/notebooks/FDXR/external_template.json";
+        let result = EtlTools::from_json( etl_path, hpo.clone());
+        assert!(result.is_ok());
+        let etl_t = result.unwrap();
+        println!("{:?}", etl_t.dto);
+        let duplets = etl_t.all_hpo_duplets();
+        for dup in duplets {
+            if dup.hpo_id().contains("Ultra") || dup.hpo_label().contains("Ultra") {
+                println!("{:?}", dup);
+            }
+            
+        }
+
+    }
+
+
+
+
+}
