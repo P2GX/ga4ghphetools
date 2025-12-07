@@ -105,9 +105,9 @@ impl HpoUtil {
     ) -> std::result::Result<Vec<HpoTermDuplet>, String> {
         let mut updated_duplets = vec![];
         for duplet in hpo_duplets {
-            let tid = match  duplet.to_term_id() {
+            let tid = match duplet.to_term_id() {
                 Ok(tid) => tid,
-                Err(e) => { return Err(format!("Failed to parse TermId from row2: {}", duplet.hpo_id())); },
+                Err(e) => { return Err(format!("Failed to parse TermId from row2: {} (converting duplet: {:?})", duplet.hpo_id(), duplet)); },
             };
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 if term.name() != duplet.hpo_label() {
