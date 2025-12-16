@@ -598,6 +598,7 @@ pub fn strip_phenopacket_defaults(root: &mut Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
     use serde_json::json;
 
     /// Remove the redundant field while leaving all else intact
@@ -683,7 +684,7 @@ mod tests {
         assert_eq!(packet["subject"]["vitalStatus"]["survivalTimeInDays"], 365);
     }
 
-    #[test]
+    #[rstest]
     fn test_strip_removes_2_invalid_values() {
         let mut packet = json!({
             "subject": {
@@ -701,4 +702,29 @@ mod tests {
         assert!(!packet["subject"].get("karyotypicSex").is_some());
         assert!(!packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
     }
+
+    /// This test is actually making sure that function from phenopacket_tools is doing what we expect it to
+    /// i.e., it is a sanity check
+    #[rstest]
+    #[case("Antenatal onset", true)]
+    #[case("Antenatl onset", false)]
+    #[case("P43Y2D", true)]
+    #[case("P43Y2", false)]
+    #[case("G34w2d", true)]
+    #[case("G34w7d", false)]
+    #[case("G34w", true)]
+    fn test_age_strings(
+        #[case] onset_string: &str,
+        #[case] is_valid: bool
+    ) {
+        let result = time_element_from_str(onset_string);
+        if is_valid {
+            assert!(result.is_ok());
+        } else {
+            assert!(result.is_err())
+        }
+
+    }
+
+
 }

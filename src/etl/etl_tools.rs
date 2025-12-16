@@ -568,31 +568,3 @@ impl fmt::Display for ColumnTableDto {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rstest::rstest;
-    use crate::test_utils::fixtures::hpo;
-    
-    #[rstest]
-    fn sanity(hpo: Arc<FullCsrOntology>) {
-        let etl_path = "/Users/robin/GIT/phenopacket-store/notebooks/FDXR/external_template.json";
-        let result = EtlTools::from_json( etl_path, hpo.clone());
-        assert!(result.is_ok());
-        let etl_t = result.unwrap();
-        println!("{:?}", etl_t.dto);
-        let duplets = etl_t.all_hpo_duplets();
-        for dup in duplets {
-            if dup.hpo_id().contains("Ultra") || dup.hpo_label().contains("Ultra") {
-                println!("{:?}", dup);
-            }
-            
-        }
-
-    }
-
-
-
-
-}
