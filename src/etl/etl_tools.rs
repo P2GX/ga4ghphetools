@@ -10,7 +10,8 @@ use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
 use crate::dto::hpo_term_dto::{CellValue, HpoTermData};
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
-
+const UNKNOWN_SEX: &str = "U";
+const NOT_AVAILABLE: &str = "na";
 
 pub struct EtlTools {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
@@ -127,10 +128,10 @@ impl EtlTools {
             title: title, 
             individual_id: String::default(), 
             comment: String::default(), 
-            age_of_onset: "na".to_string(), 
-            age_at_last_encounter: "na".to_string(), 
-            deceased: "na".to_string(), 
-            sex: "na".to_string(), 
+            age_of_onset: NOT_AVAILABLE.to_string(), 
+            age_at_last_encounter: NOT_AVAILABLE.to_string(), 
+            deceased: NOT_AVAILABLE.to_string(), 
+            sex: UNKNOWN_SEX.to_string(), 
          };
    
          for col in &self.dto.table.columns {
