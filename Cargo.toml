@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.4.144"
+version = "0.4.145"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -11,8 +11,7 @@ readme = "README.md"
 name = "ga4ghphetools"
 path = "src/lib.rs"
 
-[features]
-cli = ["dep:clap"]
+
 
 [[bin]]
 name = "rpt"
@@ -43,6 +42,11 @@ clap = { version = "4.5.53", features = ["derive"], optional = true }
 rayon = "=1.10.0"
 tera = "1.20.1"
 uuid = { version = "1.18", features = ["v4"] }
+rust_xlsxwriter = { version = "0.92.2", optional = true }
+
+[features]
+cli = ["dep:clap"]
+excel_export = ["rust_xlsxwriter"]
 
 [lints.rust]
 unsafe_code = "forbid"

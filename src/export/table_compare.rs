@@ -16,6 +16,31 @@ use std::{
     sync::Arc,
 };
 
+
+/// SImple struct to keep track of PMID references
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct Citation {
+    pmid: String,
+    title: String
+}
+
+impl Citation {
+    pub fn new (pmid: String, title: String) -> Self {
+        Self {
+            pmid,
+            title
+        }
+    }
+
+    pub fn pmid(&self) -> &str {
+        &self.pmid
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+}
+
 /// Count the observed/excluded observations for an HPO term in a cohort
 #[derive(Clone, Debug)]
 pub struct TermCounter {
@@ -112,7 +137,7 @@ impl RowCounter {
         self.counter_1.hpo_duplet.hpo_id()
     }
 
-    fn duplet(&self) -> &HpoTermDuplet {
+    pub(crate) fn duplet(&self) -> &HpoTermDuplet {
         &self.counter_1.hpo_duplet
     }
 
@@ -148,7 +173,7 @@ impl RowCounter {
 #[derive(Clone, Debug)]
 pub struct CategoryCounter {
     top_term: HpoTermDuplet,
-    row_counter_list: Vec<RowCounter>,
+    pub(crate) row_counter_list: Vec<RowCounter>,
 }
 
 impl CategoryCounter {
@@ -187,6 +212,8 @@ pub struct TableCompare {
     category_map: HashMap<HpoTermDuplet, CategoryCounter>,
     /// Key, an HPO Term; Value: total number of times the term was mentioned explicitly in both groups
     total_term_count_map: HashMap<HpoTermDuplet, usize>,
+    /// List of PMID references used in the cohort
+    citation_list: Vec<Citation>,
     /// Reference to the Human Phenotype Ontology
     hpo: Arc<FullCsrOntology>,
 }
@@ -197,14 +224,16 @@ impl TableCompare {
         cohort_2: CohortData,
         hpo: Arc<FullCsrOntology>,
     ) -> Result<Self, String> {
+        let citations = Self::extract_pmid_citations(&cohort_1, &cohort_2);
         let total_term_count_map = Self::calculate_total_counts(&cohort_1, &cohort_2);
         let cohort_1_map = TableCompare::term_count_map(cohort_1, hpo.clone())?;
         let cohort_2_map = TableCompare::term_count_map(cohort_2, hpo.clone())?;
         let category_map = Self::create_category_map(cohort_1_map, cohort_2_map, hpo.clone())?;
-
+      
         Ok(Self {
             category_map,
             total_term_count_map,
+            citation_list: citations,
             hpo: hpo.clone(),
         })
     }
@@ -272,6 +301,30 @@ impl TableCompare {
         count_map
     }
 
+    fn extract_pmid_citations(cohort_1: &CohortData, cohort_2: &CohortData) 
+        -> Vec<Citation> {
+        let mut citation_set: HashSet<Citation> = HashSet::new();
+        for row in cohort_1.rows.iter() {
+            let pmid = row.individual_data.pmid.clone();
+            let title = row.individual_data.title.clone();
+            let citation = Citation::new(pmid, title);
+            citation_set.insert(citation);
+        };
+        for row in cohort_2.rows.iter() {
+            let pmid = row.individual_data.pmid.clone();
+            let title = row.individual_data.title.clone();
+            let citation = Citation::new(pmid, title);
+            citation_set.insert(citation);
+        };
+        let citation_list: Vec<Citation> = citation_set.into_iter().collect();
+        return citation_list;
+    }
+
+    pub fn get_citations(&self) -> Vec<Citation> {
+        return self.citation_list.clone();
+    }
+
+
     pub fn create_category_map(
         cohort_1_map: HashMap<HpoTermDuplet, TermCounter>,
         cohort_2_map: HashMap<HpoTermDuplet, TermCounter>,
@@ -318,6 +371,18 @@ impl TableCompare {
         }
         Ok(category_map)
     }
+
+    pub fn get_category_counters(&self) -> Vec<CategoryCounter> {
+        return self.category_map.values().cloned().collect()
+    }
+
+    pub(crate) fn get_count(&self, duplet: &HpoTermDuplet) -> usize {
+        return match self.total_term_count_map.get(duplet) {
+            Some(c) => *c,
+            None => 0,
+        };
+    }
+
 
     pub fn output_table(&self, output_path: &str, threshold: usize) -> Result<(), String> {
         let file = File::create(output_path).map_err(|e| e.to_string())?;

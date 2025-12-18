@@ -12,6 +12,8 @@ use crate::{dto::cohort_dto::CohortData, export::{cohort_renderer::CohortRendere
 mod cohort_renderer;
 mod html_renderer;
 mod table_compare;
+#[cfg(feature = "excel_export")]
+mod excel_export;
 
 
 /// Render a cohort report as an HTML file.
@@ -122,6 +124,66 @@ pub fn output_comparison_table(
 
 
 
+/// Export a comparison of two cohorts to an Excel file.
+///
+/// This function loads two cohorts from JSON files, compares them using the
+/// provided HPO ontology, and writes the results to an Excel workbook.
+/// The output may include merged cells and threshold-based filtering,
+/// depending on the implementation of the Excel exporter.
+///
+/// # Feature flags
+///
+/// This function is only available when the `excel_export` feature is enabled.
+///
+/// # Parameters
+///
+/// * `cohort_1_path` - Path to the first cohort JSON file.
+/// * `cohort_2_path` - Path to the second cohort JSON file.
+/// * `output_path` - Path where the Excel file will be written.
+/// * `hpo` - Shared reference to the full HPO ontology used for comparison.
+/// * `threshold` - Minimum count or cutoff used to filter reported terms.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * Either cohort cannot be loaded from disk
+/// * The Excel file cannot be created or written
+///
+/// # Examples
+///
+/// ```ignore
+/// # use std::sync::Arc;
+/// # use your_crate::output_excel_comparison;
+/// # use your_crate::FullCsrOntology;
+/// # let hpo = Arc::new(FullCsrOntology::default());
+/// output_excel_comparison(
+///     "cohort_a.json",
+///     "cohort_b.json",
+///     "comparison.xlsx",
+///     hpo,
+///     5,
+/// )?;
+/// # Ok::<(), String>(())
+/// ```
+///
+/// # See also
+///
+/// * [`factory::load_json_cohort`]
+/// * [`excel_export::create_excel_with_merged_cells`]
+#[cfg(feature = "excel_export")]
+pub fn output_excel_comparison(
+    cohort_1_path: &str,
+    cohort_2_path: &str,
+    output_path: &str,
+    hpo: Arc<FullCsrOntology>,
+    threshold: usize
+)-> Result<(), String> {
+        let cohort_1 = factory::load_json_cohort(cohort_1_path)?;
+        let cohort_2 = factory::load_json_cohort(cohort_2_path)?;
+        excel_export::create_excel_with_merged_cells(output_path, cohort_1, cohort_2, hpo, threshold)?;
+        Ok(())
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -142,6 +204,7 @@ mod tests {
     }
 
     #[rstest]
+    #[ignore = "local file, just for testing"]
     fn write_compare(hpo: Arc<FullCsrOntology>) {
         let cohort_1 = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/SPINK5_NETH_individuals-NL.json";
         let cohort_2 = "/Users/robin/GIT/phenopacket-store/notebooks/SPINK5/SPINK5_NETH_individuals.json";
@@ -150,6 +213,17 @@ mod tests {
         output_comparison_table(cohort_1, cohort_2, output_path, hpo, threshold).unwrap();
     }
 
+
+    #[cfg(feature = "excel_export")]
+    #[rstest]
+    //#[ignore = "local file, just for testing"]
+    fn write_compare_excel(hpo: Arc<FullCsrOntology>) {
+        let cohort_1 = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/SPINK5_NETH_individuals-NL.json";
+        let cohort_2 = "/Users/robin/GIT/phenopacket-store/notebooks/SPINK5/SPINK5_NETH_individuals.json";
+        let output_path = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/comparison.xlsx";
+        let threshold = 20;
+        output_excel_comparison(cohort_1, cohort_2, output_path, hpo, threshold).unwrap();
+    }
 
 }
 

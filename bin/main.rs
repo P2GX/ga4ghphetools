@@ -5,7 +5,8 @@ use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::sync::Arc;
 
 
-
+#[cfg(feature = "excel_export")]
+use ga4ghphetools::export::output_excel_comparison;
 
 
 fn main() {
@@ -35,6 +36,19 @@ fn main() {
                 .about("Show library version")
                 .arg(Arg::new("version").short('v').long("version"))
         )
+        .subcommand(
+    Command::new("excel")
+                .about("Compare two cohorts and export to Excel")
+                .arg(Arg::new("cohort1").long("cohort1").required(true))
+                .arg(Arg::new("cohort2").long("cohort2").required(true))
+                .arg(Arg::new("output").long("output").required(true))
+                .arg(Arg::new("hpo").long("hpo").required(true))
+                .arg(
+                    Arg::new("threshold")
+                        .long("threshold")
+                        .default_value("1"),
+                )
+        )
         .get_matches();
     match matches.subcommand() {
         Some(("excel", sub_matches)) => handle_excel(sub_matches).expect("Could not start excel command"),
@@ -46,9 +60,51 @@ fn main() {
         Some(("version", sub_matches)) => {
              println!("Version: {}", env!("CARGO_PKG_VERSION"));
         },
+        Some(("compare", sub_matches)) => {
+            #[cfg(feature = "excel_export")]
+            handle_compare(sub_matches).expect("Excel comparison failed");
+
+            #[cfg(not(feature = "excel_export"))]
+            eprintln!("This binary was built without the `excel_export` feature");
+        }
         _ => println!("No subcommand was used"),
     }
       
+}
+
+#[cfg(feature = "excel_export")]
+fn handle_compare(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
+    let cohort_1 = sub_matches
+        .get_one::<String>("cohort1")
+        .expect("cohort1 is required");
+
+    let cohort_2 = sub_matches
+        .get_one::<String>("cohort2")
+        .expect("cohort2 is required");
+
+    let output = sub_matches
+        .get_one::<String>("output")
+        .expect("output is required");
+
+    let hpo_path = sub_matches
+        .get_one::<String>("hpo")
+        .expect("hpo is required");
+
+    let threshold: usize = sub_matches
+        .get_one::<String>("threshold")
+        .unwrap()
+        .parse()?;
+
+    let hpo = load_hpo(hpo_path)?;
+
+    output_excel_comparison(
+        cohort_1,
+        cohort_2,
+        output,
+        hpo,
+        threshold,
+    )
+    .map_err(|e| e.into())
 }
 
 fn handle_excel(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
