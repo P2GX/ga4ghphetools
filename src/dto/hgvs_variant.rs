@@ -35,8 +35,6 @@ pub struct HgvsVariant {
     /// Protein level HGVS, if available
     p_hgvs: Option<String>,
     /// Key to specify this variant in the HGVS HashMap of the CohortDto
-    /// In our implementation for PubMed curation we will also use the key as the variant_id
-    /// to export to phenopacket
     variant_key: String 
 }
 

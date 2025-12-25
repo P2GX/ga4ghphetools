@@ -62,9 +62,7 @@ impl TryFrom<VariantType> for SvType {
             VariantType::Inv => Ok(Self::Inv),
             VariantType::Transl => Ok(Self::Transl),
             VariantType::Sv => Ok(Self::Sv),
-            VariantType::Hgvs => Err("Cannot convert ValidationType HGVS into SV type".to_string()),
-            VariantType::PreciseSv => Err("Cannot convert ValidationType PreciseSv into SV type".to_string()),
-            VariantType::Unknown => Err("Cannot convert unknown into SvType".to_string())
+            _ => Err(format!("Cannot convert ValidationType {:?} into SV type", vvt))
         }
     }
 }

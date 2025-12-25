@@ -7,6 +7,8 @@ mod acmg;
 mod structural_validator;
 pub mod variant_manager;
 pub(crate) mod hgvs_variant_validator;
+pub(crate) mod intergenic_hgvs_validator;
+pub(crate) mod variant_validation_handler;
 pub(crate) mod vcf_var;
 
 

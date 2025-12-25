@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 /// There are currently two categories of variant
 /// 1. HGVS: "Small" variants, such as single nucleotide variants, that are represented with Human Genome Variation Society (HGVS) nomenclature, e.g., c. 123G>T
 /// 2. Structural variant: "Large" variants, such as chromosomal deletions, that are represented by free text (DEL of exon 5) and Sequence Ontology (SO) codes
-/// As technology and genomic data science progress, it is possible that publicatiohs and databases will have more precise notation about many "large"
-/// variants, but the genetics literature contains lots of data with imprecide, non-standardized descriptions of structural variants that we want to capture.
+/// As technology and genomic data science progress, it is possible that publications and databases will have more precise notation about many "large"
+/// variants, but the genetics literature contains lots of data with imprecise, non-standardized descriptions of structural variants that we want to capture.
 /// This struct encapsulates all of the data we expect to get from the front end about either of the variant categories
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,6 +71,26 @@ impl VariantDto {
             count: 0
         }
     }
+
+    /// Create a VariantDto object for an intergenic variant with gene information
+    /// that is, we associated with variant with a certain gene even through it is not located in a transcript
+    pub fn hgvs_g(
+        hgvs: &str, 
+        hgnc: &str,
+        symbol: &str
+    ) -> Self {
+        Self {
+            variant_string: hgvs.to_string(),
+            variant_key: None,
+            transcript: String::default(),
+            hgnc_id: hgnc.to_string(),
+            gene_symbol: symbol.to_string(),
+            variant_type: VariantType::IntergenicHgvs,
+            is_validated: false,
+            count: 0
+        }
+    }
+
 
      pub fn variant_string(&self) -> &str {
         &self.variant_string
@@ -151,6 +171,8 @@ impl VariantDto {
 pub enum VariantType {
     /// Small variant represented as HGVS, must start with c. or n.
     Hgvs,
+    /// Intergenic HGVS, e.g., promoter or enhancer
+    IntergenicHgvs,
     /// chromosomal_deletion
     Del ,
     /// chromosomal_inversion

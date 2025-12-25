@@ -313,6 +313,9 @@ impl VariantManager {
                 cohort_dto.structural_variants.insert(sv.variant_key().to_string(), sv);
                 return Ok(cohort_dto);
             }
+            VariantType::IntergenicHgvs => {
+                return Err("Intergenic not yet implemented".to_string())
+            }
         }
     }
 

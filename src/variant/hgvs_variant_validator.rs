@@ -1,5 +1,4 @@
-// This is a Rust port of the Python VariantValidator class
-// Dependencies: reqwest = { version = "0.11", features = ["blocking", "json"] }, serde, serde_json, anyhow
+//! Leverage the VariantValidator API to check HGVS strings
 
 
 use reqwest::blocking::get;
@@ -181,7 +180,7 @@ impl HgvsVariantValidator {
 }
 
 
-// region:    --- Tests
+
 
 #[cfg(test)]
 mod tests {
