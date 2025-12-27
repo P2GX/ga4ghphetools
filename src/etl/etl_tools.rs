@@ -5,9 +5,10 @@ use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
 use regex::Regex;
 
 use crate::dto::cohort_dto::DiseaseData;
-use crate::dto::etl_dto::ColumnDto;
+use crate::dto::etl_dto::{ColumnDto, EtlCellStatus, EtlCellValue};
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
 use crate::dto::hpo_term_dto::{CellValue, HpoTermData};
+use crate::etl;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
 const UNKNOWN_SEX: &str = "U";
@@ -83,7 +84,7 @@ impl EtlTools {
                 }
                 EtlColumnType::HpoTextMining => {
                     for val in &col.values {
-                        if let Ok(terms) = Self::get_hpo_term_data_from_json(val) {
+                        if let Ok(terms) = Self::get_hpo_term_data_from_json(&val.current) {
                            
                             for t in &terms {
                                 if t.label().contains("Ultra") {
@@ -103,14 +104,14 @@ impl EtlTools {
     }
 
     /// Extract the string value of of table cell
-    fn extract_value(values: &[String], i: usize, field: &str) -> Result<String, String> {
+    fn extract_value(values: &[EtlCellValue], i: usize, field: &str) -> Result<String, String> {
         values.get(i)
-            .map(|v| v.to_string())
+            .map(|v| v.current.clone())
             .ok_or_else(|| format!("Could not extract {} from column", field))
     }
 
     /// Extract the string value of of table cell, providing a default value if the cell is empty
-    fn extract_value_or_default(values: &[String], i: usize, field: &str, default: &str) -> Result<String, String> {
+    fn extract_value_or_default(values: &[EtlCellValue], i: usize, field: &str, default: &str) -> Result<String, String> {
         let val = Self::extract_value(values, i, field)?;
         if val.is_empty() {
             Ok(default.to_string())
@@ -289,21 +290,21 @@ impl EtlTools {
                         ));
                     };
                     let single_term = &hpo_terms[0]; 
-                    Self::insert_or_validate(&mut hpo_to_status_map, single_term.clone(), col.values[i].clone())?;
+                    Self::insert_or_validate(&mut hpo_to_status_map, single_term.clone(), col.values[i].current.clone())?;
                 } else {
                     return Err("Could not extract HpoTermDuplet from Single HPO column".to_string());
                 }
             } else if col.header.column_type == MultipleHpoTerm {
                 if let Some(hpo_terms) = &col.header.hpo_terms {
-                    Self::insert_multiple_hpo_column(&mut hpo_to_status_map, hpo_terms, col.values[i].clone())?;
+                    Self::insert_multiple_hpo_column(&mut hpo_to_status_map, hpo_terms, col.values[i].current.clone())?;
                 } else {
                     return Err("Could not extract HpoTermDuplet from Multiple HPO column".to_string());
                 }
             } else if col.header.column_type == HpoTextMining {
                 text_mining_column = Some(col.clone());
             } else if col.header.column_type == Variant {
-                if col.values[i] != "na" {
-                    allele_count_map.entry(col.values[i].clone())
+                if col.values[i].current != "na" {
+                    allele_count_map.entry(col.values[i].current.clone())
                     .and_modify(|count| *count += 1)
                     .or_insert(1);
                 }
@@ -332,7 +333,7 @@ impl EtlTools {
          // from a supplemental table
          if let Some(col) = text_mining_column {
             let cell_value = col.values[i].clone();
-            let hpo_hits = Self::get_hpo_term_data_from_json(&cell_value)?;
+            let hpo_hits = Self::get_hpo_term_data_from_json(&cell_value.current)?;
             if ! hpo_hits.is_empty() {
                 let hpo_map: HashMap<HpoTermDuplet, CellValue> =
                     hpo_hits.into_iter()
@@ -394,14 +395,15 @@ impl EtlTools {
                 continue; // Don't worry about columns that will not be ingested (Ignore)
             }
             for cell in &col.values {
-                if cell.starts_with(char::is_whitespace) {
+                let cell_val = &cell.current;
+                if cell_val.starts_with(char::is_whitespace) {
                     return Err(format!("{}: leading whitespace - '{}'", col.header.original, cell));
                 }
-                if cell.ends_with(char::is_whitespace) {
+                if cell_val.ends_with(char::is_whitespace) {
                     return Err(format!("{}: trailing whitespace - '{}'", col.header.original, cell));
                     
                 }
-                for ch in cell.chars() {
+                for ch in cell_val.chars() {
                     if !Self::is_valid_char(ch) {
                         return Err(format!("{}: Invalid character: U+{:04X} '{}'", col.header.original, ch as u32, ch));
                     }
@@ -422,6 +424,7 @@ impl EtlTools {
             .iter()
             .filter(|col| col.header.column_type == EtlColumnType::Variant)
             .flat_map(|col| col.values.iter().cloned())
+            .map(|etl_val| etl_val.current)
             .collect();
         // These alleles must be in either the HGVS or the SV map (i.e., validated)
         for allele in &allele_set {
@@ -491,6 +494,26 @@ impl EtlTools {
     }
 
 
+    fn check_is_completely_transformed(&self) -> Result<(), String> {
+         if self.raw_table().table.columns.is_empty() {
+            return Err("EtlDto table with no columns".to_string());
+        }
+        for col in &self.raw_table().table.columns {
+            if col.header.column_type == EtlColumnType::Raw {
+                return Err(format!("'{}' column type not set (Raw)", col.header.original))
+            }
+            for etl_cell in &col.values {
+                if etl_cell.status != EtlCellStatus::Transformed {
+                    return Err(format!("'{}' not transformed", etl_cell))
+                }
+            }
+        }
+
+
+        Ok(())
+    }
+
+
     fn qc(&self) -> Result<(), String> {
         if self.raw_table().table.columns.is_empty() {
             return Err("EtlDto table with no columns".to_string());
@@ -512,6 +535,7 @@ impl EtlTools {
     /// Note that only Mendelian is supported for Excel file bulk imports
     /// Other MOIs are too complicated to be reliably imported in this way.
     pub fn get_cohort_data(&self) -> Result<CohortData, String> {
+        self.check_is_completely_transformed()?;
         self.qc()?;
         let hpo_duplets = Self::all_hpo_duplets(&self);
         let ultra_terms: Vec<_> = hpo_duplets
@@ -562,7 +586,7 @@ impl fmt::Display for ColumnTableDto {
         writeln!(f, "Columns:")?;
 
         for column in &self.columns {
-            let first_value = column.values.first().cloned().unwrap_or_else(|| "<empty>".to_string());
+            let first_value = column.values.first().cloned().unwrap_or_else(|| EtlCellValue::new());
             writeln!(f, "- {}: {}", column.header.original, first_value)?;
         }
 
