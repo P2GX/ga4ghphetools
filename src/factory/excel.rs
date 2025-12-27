@@ -13,7 +13,7 @@
 
 use calamine::{open_workbook, Reader, Xlsx, XlsxError};
 
-use crate::dto::etl_dto::{ColumnDto, ColumnTableDto};
+use crate::dto::etl_dto::{ColumnDto, ColumnTableDto, EtlCellValue};
 
 
 /// Reads the **first worksheet** from an Excel `.xlsx` file and returns its contents
@@ -204,7 +204,7 @@ pub fn read_external_excel_to_dto(
     for row in data_rows {
         for (col_index, col) in columns.iter_mut().enumerate() {
             let value = row.get(col_index).cloned().unwrap_or_default();
-            col.values.push(value);
+            col.values.push(EtlCellValue::from_string(value));
         }
     }
 

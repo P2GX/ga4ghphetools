@@ -1,4 +1,5 @@
 
+use core::fmt;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,60 @@ use uuid::Uuid;
 use crate::dto::{cohort_dto::DiseaseData, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDuplet, structural_variant::StructuralVariant};
 
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")] // ensures JSON uses "raw", "transformed", "error"
+pub enum EtlCellStatus {
+    Raw,
+    Transformed,
+    Error,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct EtlCellValue {
+    pub original: String,
+    pub current: String,
+    pub status: EtlCellStatus,
+    pub error: Option<String>,
+}
+
+impl EtlCellValue {
+    pub fn new() -> Self {
+        Self {
+            original: String::default(),
+            current: String::default(),
+            status: EtlCellStatus::Raw,
+            error: None,
+        }
+    }
+
+    pub fn from_string(val: String) -> Self {
+        Self { 
+            original: val, 
+            current: String::default(), 
+            status: EtlCellStatus::Raw,
+            error: None }
+    }
+}
+
+
+impl fmt::Display for EtlCellValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(err) = &self.error {
+            write!(
+                f,
+                "Original: {} - Transformed: {} - Status: {:?} - Error: {}",
+                self.original, self.current, self.status, err
+            )
+        } else {
+            write!(
+                f,
+                "Original: {} - Transformed: {} - Status: {:?}",
+                self.original, self.current, self.status
+            )
+        }
+    }
+}
 
 
 /// DTOs for transforming external Excel tables 
@@ -88,7 +143,7 @@ impl EtlColumnHeader {
     /// true if the cell contents have been transformed
     pub transformed: bool,
     pub header: EtlColumnHeader,
-    pub values: Vec<String>,
+    pub values: Vec<EtlCellValue>,
 }
 
 
@@ -107,7 +162,7 @@ impl ColumnDto {
             id: Uuid::new_v4().to_string(),
             transformed:false, 
             header: EtlColumnHeader::new_hpo_mining(), 
-            values: vec![String::new(); size],
+            values: vec![EtlCellValue::new(); size],
         }
     }
 }
