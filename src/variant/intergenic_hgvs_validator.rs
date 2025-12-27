@@ -1,7 +1,7 @@
 
 
-use std::collections::HashMap;
-
+use std::collections::{HashMap, HashSet};
+use once_cell::sync::Lazy;
 use reqwest::blocking::get;
 use serde_json::Value;
 use crate::{dto::{intergenic_variant::IntergenicHgvsVariant, variant_dto::VariantDto}, variant::variant_validation_handler::VariantValidatorHandler};
@@ -11,6 +11,25 @@ use crate::{dto::{intergenic_variant::IntergenicHgvsVariant, variant_dto::Varian
 const BASE_URL: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator";
 
 
+/// Valid Mode of inheritance terms that can be used for outputting HPOA files
+pub static VALID_HG38_CHROMOSOMES: Lazy<HashSet<String>> = Lazy::new(|| {
+    let mut chromset: HashSet<String> = HashSet::new();
+    let chroms = [
+        "NC_000001.11", "NC_000002.12", "NC_000003.12", "NC_000004.12", "NC_000005.10", "NC_000006.12",
+            "NC_000007.14", "NC_000008.11", "NC_000009.12", "NC_000010.11", "NC_000011.10", "NC_000012.12",
+            "NC_000013.11", "NC_000014.9", "NC_000015.10", "NC_000016.10", "NC_000017.11", "NC_000018.10",
+            "NC_000019.10", "NC_000020.11", "NC_000021.9", "NC_000022.11", "NC_000023.11", "NC_000024.10",
+            "NC_012920.1"
+        ];
+    for c in chroms.into_iter() {
+        chromset.insert(c.to_string());
+    }
+    chromset
+});
+
+fn is_valid_chromosome(chrom: &str) -> bool {
+    VALID_HG38_CHROMOSOMES.contains(chrom)
+}
 
 
 const GENOME_ASSEMBLY_HG38: &str = "hg38";
@@ -59,12 +78,12 @@ impl IntergenicHgvsValidator {
     /// 
     /// # Returns
     /// 
-    /// - `Ok(HgvsVariant)` - An object with information about the variant derived from VariantValidator
+    /// - `Ok(())` (the Intergenic Variant object is stored in a map)
     /// - `Err(Error)` - An error if the API call fails (which may happen because of malformed input or network issues).
     pub fn validate(
         &mut self, 
         vv_dto: VariantDto
-    ) -> Result<IntergenicHgvsVariant, String> 
+    ) -> Result<(), String> 
     {
         let hgvs = &vv_dto.variant_string;
         let url = get_variant_validator_url(&self.genome_assembly, hgvs);
@@ -72,7 +91,10 @@ impl IntergenicHgvsValidator {
             .map_err(|e| format!("Could not map {hgvs}: {e}"))?
             .json()
             .map_err(|e| format!("Could not parse JSON for {hgvs}: {e}"))?;
-        self.from_json(response)
+        let ig = self.from_json(response)?;
+        self.validated_intergenic_hgvs.insert(ig.variant_key().to_string(), ig);
+        Ok(())
+
     }
 
 
@@ -107,7 +129,19 @@ impl IntergenicHgvsValidator {
 
     }
 
-
+    pub fn get_validated_hgvs(&mut self, vv_dto: &VariantDto) 
+    -> Result<IntergenicHgvsVariant, String> {
+        let variant_key = IntergenicHgvsVariant::generate_variant_key(&vv_dto.variant_string);
+        if let Some(ig) = self.validated_intergenic_hgvs.get(&variant_key) {
+            return Ok(ig.clone());
+        }
+       // If not found, validate it. 
+      self.validate(vv_dto.clone())?;
+      self.validated_intergenic_hgvs
+        .get(&variant_key)
+        .cloned()
+        .ok_or_else(|| "Internal error: IntergenicVariant missing after validation".to_string())
+    }
     
 
 }
@@ -283,6 +317,35 @@ response
         let expected_var_key= "NC_000019_10_g_12887294GtoA";
         assert_eq!(expected_var_key, intergen.variant_key());
 
+    }
+
+
+    #[test]
+    fn test_valid_chromosomes() {
+        let valid = [
+            "NC_000001.11", // chr1
+            "NC_000023.11", // chrX
+            "NC_000024.10", // chrY
+            "NC_012920.1",  // MT
+        ];
+
+        for acc in valid {
+            assert!(is_valid_chromosome(acc), "{} should be valid", acc);
+        }
+    }
+
+    #[test]
+    fn test_invalid_chromosomes() {
+        let invalid = [
+            "NC_000025.1",   // nonexistent chromosome
+            "NC_000001.10",  // old version of chr1
+            "NC_012919.1",   // wrong MT version
+            "NC_000000.1",   // invalid number
+        ];
+
+        for acc in invalid {
+            assert!(!is_valid_chromosome(acc), "{} should be invalid", acc);
+        }
     }
 
 

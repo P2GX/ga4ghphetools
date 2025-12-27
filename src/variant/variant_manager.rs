@@ -92,6 +92,10 @@ impl VariantManager {
                     if self.validate_hgvs(allele).is_ok() {
                         n_validated += 1;
                     }
+                } else if allele.starts_with("NC_") {
+                    if self.validate_intergenic(allele).is_ok() {
+                        n_validated += 1;
+                    }
                 } else if self.validate_sv(&allele).is_ok() {
                      n_validated += 1;
                 }
@@ -180,7 +184,11 @@ impl VariantManager {
     fn validate_hgvs(&mut self, hgvs: &str) -> Result<(), String> {
         let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
         self.hgvs_validator.validate(vv_dto)
-        
+    }
+
+    fn validate_intergenic(&mut self, intergenic: &str) -> Result<(), String> {
+        let vv_dto = VariantDto::hgvs_g(intergenic, &self.hgnc_id, &self.gene_symbol);
+        self.intergenic_validator.validate(vv_dto)
     }
 
     pub(crate) fn get_validated_hgvs(&mut self, hgvs: &str) 
@@ -193,6 +201,12 @@ impl VariantManager {
     -> Result<StructuralVariant, String> {
         let vv_dto = VariantDto::sv(allele, &self.transcript, &self.hgnc_id, &self.gene_symbol, var_type);
         self.structural_validator.get_validated_sv(&vv_dto)
+    }
+
+    pub(crate) fn get_validated_intergenic_hgvs(&mut self, hgvs: &str) 
+    -> Result<IntergenicHgvsVariant, String> {
+        let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        self.intergenic_validator.get_validated_hgvs(&vv_dto)
     }
 
 
@@ -224,39 +238,7 @@ impl VariantManager {
         self.structural_validator.validate(vv_dto)
     }
 
-/* 
-    /// Validate a single variant (either HGVS or structural)
-    /// Precise SV not yet implemented.
-    pub fn validate_variant(
-        &self, 
-        vv_dto: VariantDto, 
-        mut cohort_dto: CohortData)
-    -> Result<CohortData, String> {
-        match &vv_dto.variant_type {
-            VariantType::Hgvs => {
-                let hgvs = self.hgvs_validator.validate(vv_dto)?;
-                cohort_dto.hgvs_variants.insert(hgvs.variant_key(), hgvs);
-                return Ok(cohort_dto);
-            } 
-            VariantType::PreciseSv 
-            | VariantType::Unknown=> {
-                return Err(format!("validation not implemented for '{:?}'", vv_dto.variant_type));
-            }
-            VariantType::Del 
-            | VariantType::Inv 
-            | VariantType::Transl 
-            | VariantType::Dup
-            | VariantType::Sv => {
-                let sv = self.structural_validator.validate(vv_dto)?;
-                cohort_dto.structural_variants.insert(sv.variant_key().to_string(), sv);
-                return Ok(cohort_dto);
-            }
-            VariantType::IntergenicHgvs => {
-                return Err("Intergenic not yet implemented".to_string())
-            }
-        }
-    }
-*/
+
 
 
     /// Columns 6,7,8 "HGNC_id",	"gene_symbol",  "transcript"
