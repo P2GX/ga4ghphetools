@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
+use crate::dto::{hgvs_variant::HgvsVariant, structural_variant::{StructuralVariant, SvType}};
+
 /// A Data Transfer Object for information about a Variant that we want to validate.
 /// There are currently two categories of variant
 /// 1. HGVS: "Small" variants, such as single nucleotide variants, that are represented with Human Genome Variation Society (HGVS) nomenclature, e.g., c. 123G>T
@@ -58,7 +60,8 @@ impl VariantDto {
         label: &str, 
         transcript: &str,
         hgnc: &str,
-        symbol: &str
+        symbol: &str,
+        sv_type: VariantType
     ) -> Self {
         Self {
             variant_string: label.to_string(),
@@ -66,7 +69,7 @@ impl VariantDto {
             transcript: transcript.to_string(),
             hgnc_id: hgnc.to_string(),
             gene_symbol: symbol.to_string(),
-            variant_type: VariantType::Sv,
+            variant_type: sv_type,
             is_validated: false,
             count: 0
         }
@@ -92,7 +95,7 @@ impl VariantDto {
     }
 
 
-     pub fn variant_string(&self) -> &str {
+    pub fn variant_string(&self) -> &str {
         &self.variant_string
     }
 
@@ -130,14 +133,16 @@ impl VariantDto {
         }
     }
 
-    /// Sort - c. comes first, then n., then structural
+    /// Sort - c. comes first, then n., then intergenic (g.), then structural
     fn variant_string_sort_key(s: &str) -> u8 {
         if s.starts_with("c.") {
             0
         } else if s.starts_with("n.") {
             1
-        } else {
+        } else if s.starts_with("g"){
             2
+        } else {
+            3
         }
     }
 
@@ -160,6 +165,51 @@ impl VariantDto {
     pub fn is_hgvs(&self) -> bool {
         self.variant_type == VariantType::Hgvs
     }
+
+    pub fn is_intergenic_hgvs(&self) -> bool {
+        self.variant_type == VariantType::IntergenicHgvs
+    }
+
+    pub fn from_hgvs(hgvs: &HgvsVariant, allele_key: &str) -> Self {
+        Self {
+            variant_string: hgvs.hgvs().to_string(),
+            variant_key: Some(allele_key.to_string()),
+            transcript: hgvs.transcript().to_string(),
+            hgnc_id: hgvs.hgnc_id().to_string(),
+            gene_symbol: hgvs.symbol().to_string(),
+            variant_type: VariantType::Hgvs,
+            is_validated: false,
+            count: 0,
+        }
+    }
+
+    pub fn not_validated(allele_key: &str) -> Self {
+        Self {
+            variant_string: format!("na:{}",allele_key),
+            variant_key: Some(allele_key.to_string()),
+            transcript: String::default(),
+            hgnc_id: String::default(),
+            gene_symbol: String::default(),
+            variant_type: VariantType::Unknown,
+            is_validated: false,
+            count: 1,
+        }
+    }
+
+    pub fn from_sv(sv: &StructuralVariant, allele_key: &str) -> Self {
+        Self {
+            variant_string: sv.label().to_string(),
+            variant_key: Some(allele_key.to_string()),
+            transcript: sv.transcript().to_string(),
+            hgnc_id: sv.hgnc_id().to_string(),
+            gene_symbol: sv.gene_symbol().to_string(),
+            variant_type: VariantType::Sv,
+            is_validated: true,
+            count: 0    
+        }
+    }
+
+
 }
 
 
@@ -214,11 +264,6 @@ pub struct StructuralVariantDto {
 
 impl VariantDto {
     
-
-
-   
-
-  
 
 }
 

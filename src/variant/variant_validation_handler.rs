@@ -1,5 +1,8 @@
-use serde_json::Value;
+//! Some shared functions for the variant validators
+//! 
+//! The HGVS and intergenic-HGVS validators share some of the same JSON-extraction code here
 
+use serde_json::Value;
 use crate::variant::vcf_var::VcfVar;
 
 pub trait VariantValidatorHandler {
@@ -92,6 +95,16 @@ pub trait VariantValidatorHandler {
         var_data.get("gene_ids")
             .and_then(|ids| ids.get("hgnc_id"))
             .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    }
+
+       // The following will either be a String or None, and can be assigned to an Option<String>
+        // if we have a non-coding RNA variant, e.g., n.4G>A, then this will evaluate to None
+    fn get_hgvs_predicted_protein_consequence(&self, var_data: &serde_json::Value) -> Option<String> {
+        var_data.get("hgvs_predicted_protein_consequence")
+            .and_then(|hgvs_protein| hgvs_protein.get("tlr"))
+            .and_then(|tlr| tlr.as_str())
+            .filter(|s| !s.is_empty())   // this will turn empty string ("") into None
             .map(|s| s.to_string())
     }
 

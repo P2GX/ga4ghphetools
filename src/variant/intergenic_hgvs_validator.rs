@@ -1,8 +1,10 @@
 
 
+use std::collections::HashMap;
+
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{dto::{hgvs_variant::HgvsVariant, intergenic_variant::IntergenicHgvsVariant, variant_dto::VariantDto}, variant::{variant_validation_handler::VariantValidatorHandler, vcf_var::VcfVar}};
+use crate::{dto::{intergenic_variant::IntergenicHgvsVariant, variant_dto::VariantDto}, variant::variant_validation_handler::VariantValidatorHandler};
 
 
 
@@ -15,6 +17,8 @@ const GENOME_ASSEMBLY_HG38: &str = "hg38";
 
 pub struct IntergenicHgvsValidator {
     genome_assembly: String,
+    /// Map with successfully validated Intergenic HGVS variants
+    validated_intergenic_hgvs: HashMap<String, IntergenicHgvsVariant>
 }
 
 /// Construct the VariantValidator request from the genome assembly and the g.HGVS
@@ -42,6 +46,7 @@ impl IntergenicHgvsValidator {
     pub fn hg38() -> Self {
         Self {
             genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
+            validated_intergenic_hgvs: HashMap::new(),
         }
     }
 
@@ -57,7 +62,7 @@ impl IntergenicHgvsValidator {
     /// - `Ok(HgvsVariant)` - An object with information about the variant derived from VariantValidator
     /// - `Err(Error)` - An error if the API call fails (which may happen because of malformed input or network issues).
     pub fn validate(
-        &self, 
+        &mut self, 
         vv_dto: VariantDto
     ) -> Result<IntergenicHgvsVariant, String> 
     {
@@ -71,7 +76,7 @@ impl IntergenicHgvsValidator {
     }
 
 
-    pub fn from_json(&self, response: Value) -> Result<IntergenicHgvsVariant, String> {
+    pub fn from_json(&mut self, response: Value) -> Result<IntergenicHgvsVariant, String> {
         self.extract_variant_validator_warnings(&response)?;
         if let Some(flag) = response.get("flag") {
             if flag != "intergenic" {
@@ -97,6 +102,7 @@ impl IntergenicHgvsValidator {
             g_hgvs,
             gene_hgvs,
         );
+        self.validated_intergenic_hgvs.insert(intergenic_v.variant_key().clone(), intergenic_v.clone());
         Ok(intergenic_v)
 
     }
@@ -255,7 +261,7 @@ response
     fn test_decode(
         vv_response: String
     ) {
-        let validator = IntergenicHgvsValidator::hg38();
+        let mut validator = IntergenicHgvsValidator::hg38();
         let json_value: serde_json::Value = serde_json::from_str(&vv_response)
             .expect("Fixture should be valid JSON");
         let result = validator.from_json(json_value);

@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, etl_dto::EtlDto, hgvs_variant::HgvsVariant, structural_variant::{StructuralVariant, SvType}, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
 mod acmg;
 mod structural_validator;
 pub mod variant_manager;
@@ -85,7 +85,7 @@ pub fn validate_one_hgvs_variant(
     transcript: &str,
     allele: &str) 
 -> Result<HgvsVariant, String> {
-    let vmanager = VariantManager::new(symbol, hgnc, transcript);
+    let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
     vmanager.get_validated_hgvs(allele)
 }
 
@@ -126,7 +126,7 @@ pub fn validate_structural_variant(
     let hgnc = variant_dto.hgnc_id;
     let allele = variant_dto.variant_string;
     let var_type = variant_dto.variant_type;
-    let vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
+    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
     vmanager.get_validated_structural_variant(&allele, var_type)
 }
 
@@ -171,8 +171,50 @@ pub fn validate_all_sv(
     Ok(vmanager.sv_map())
 }
 
+pub fn validate_etl_dto(
+    etl_dto: EtlDto,
+    transcript: String,
+    hgnc: String,
+    symbol: String) -> Result<EtlDto, String> {
+    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);  
 
-/// Get summaries of all variants for display
+    Err("Not implemented yet".to_string())
+}
+
+
+/// Analyze and summarize genetic variants for a Mendelian cohort.
+///
+/// This function extracts the relevant disease and gene–transcript context
+/// from the provided [`CohortData`] and delegates variant analysis to
+/// [`VariantManager`]. The result is a list of [`VariantDto`] values suitable
+/// for downstream display or reporting.
+///
+/// # Requirements
+///
+/// * The cohort **must** represent a Mendelian disease model.
+/// * At least one [`DiseaseData`] entry must be present in the cohort.
+/// * The first disease must contain at least one [`GeneTranscriptData`] entry.
+///
+/// # Arguments
+///
+/// * `cohort_dto` – Input cohort containing disease and gene–transcript data.
+///
+/// # Returns
+///
+/// * `Ok(Vec<VariantDto>)` on successful analysis.
+/// * `Err(String)` if:
+///   * the cohort is not Mendelian,
+///   * no disease data is available, or
+///   * no gene–transcript data can be extracted.
+///
+/// # Errors
+///
+/// This function returns a string-based error if required structural data
+/// is missing or if the cohort model is unsupported.
+///
+/// # Notes
+///
+/// Currently, only Mendelian cohorts are supported
 pub fn analyze_variants(cohort_dto: CohortData) -> Result<Vec<VariantDto>, String> {
     if ! cohort_dto.is_mendelian() {
         return Err(format!("analyze_variants is only implemented for Mendelian"));

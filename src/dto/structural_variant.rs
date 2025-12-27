@@ -53,6 +53,26 @@ impl FromStr for SvType {
     }
 }
 
+/// Convert a general [`VariantType`] into a structural-variant-specific [`SvType`].
+///
+/// This conversion is used to restrict variant handling to symbolic
+/// structural variants (SVs). Only variant types that represent
+/// structural events can be converted successfully.
+///
+/// # Supported conversions
+///
+/// The following [`VariantType`] values are accepted:
+///
+/// * [`VariantType::Del`] → [`SvType::Del`]
+/// * [`VariantType::Dup`] → [`SvType::Dup`]
+/// * [`VariantType::Inv`] → [`SvType::Inv`]
+/// * [`VariantType::Transl`] → [`SvType::Transl`]
+/// * [`VariantType::Sv`] → [`SvType::Sv`]
+///
+/// # Errors
+///
+/// Returns an error if the input [`VariantType`] does not represent a
+/// structural variant (e.g. SNV, indel, or other non-SV types).
 impl TryFrom<VariantType> for SvType {
     type Error = String;
     fn try_from(vvt: VariantType) -> Result<Self, Self::Error> {

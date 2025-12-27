@@ -1,9 +1,22 @@
-//! Leverage the VariantValidator API to check HGVS strings
+//! # VariantValidator Integration
+//! 
+//! This module provides a high-level interface to the [VariantValidator REST API](https://variantvalidator.org/),
+//! specifically designed to validate and normalize HGVS (Human Genome Variation Society) variant strings.
+//! 
+//! ## Features
+//! - **Validation**: Confirms if an HGVS string is mathematically and biologically consistent with the reference genome.
+//! - **Normalization**: Maps transcript-level HGVS (c. or n.) to genomic coordinates (g.) and VCF format.
+//! - **Memoization**: Uses an internal `HashMap` to cache results, preventing redundant network calls for 
+//!   the same variant within a single validator session.
+//! - **Error Handling**: Gracefully extracts specific biological validation errors (e.g., reference mismatches) 
+//!   from the API response.
 
+
+use std::{collections::HashMap, mem};
 
 use reqwest::blocking::get;
 use serde_json::Value;
-use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantDto}, variant::vcf_var::VcfVar};
+use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantDto}, variant::{variant_validation_handler::VariantValidatorHandler, vcf_var::VcfVar}};
 
 const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
 
@@ -11,6 +24,8 @@ const GENOME_ASSEMBLY_HG38: &str = "hg38";
 
 pub struct HgvsVariantValidator {
     genome_assembly: String,
+    /// HGVS Variants that could be validated. The key is the original allele denomination (e.g., c.1234A>T), not the variantKey
+    validated_hgvs: HashMap<String, HgvsVariant>,
 }
 
 fn get_variant_validator_url(
@@ -33,6 +48,7 @@ impl HgvsVariantValidator {
     pub fn hg38() -> Self {
         Self {
             genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
+            validated_hgvs: HashMap::new(),
         }
     }
 
@@ -48,138 +64,86 @@ impl HgvsVariantValidator {
     /// - `Ok(HgvsVariant)` - An object with information about the variant derived from VariantValidator
     /// - `Err(Error)` - An error if the API call fails (which may happen because of malformed input or network issues).
     pub fn validate(
-        &self, 
+        &mut self, 
         vv_dto: VariantDto
-    ) -> Result<HgvsVariant, String> 
+    ) -> Result<(), String>
     {
         let hgvs = &vv_dto.variant_string;
-        let transcript = &vv_dto.transcript;
-        let url = get_variant_validator_url(&self.genome_assembly, transcript, hgvs);
+        let allele_key = HgvsVariant::generate_variant_key(hgvs, &vv_dto.gene_symbol, &vv_dto.transcript);
+        if self.validated_hgvs.contains_key(&allele_key) {
+            return Ok(());
+        }
+        let url = get_variant_validator_url(&self.genome_assembly, &vv_dto.transcript, hgvs);
         let response: Value = get(&url)
             .map_err(|e| format!("Could not map {hgvs}: {e}"))?
             .json()
             .map_err(|e| format!("Could not parse JSON for {hgvs}: {e}"))?;
-        Self::extract_variant_validator_warnings(&response)?;
+        self.extract_variant_validator_warnings(&response)?;
 
         if let Some(flag) = response.get("flag") {
             if flag != "gene_variant" {
                 return Err(format!("Expecting to get a gene_variant but got {}", flag));
             }
         }
-
-        let variant_key = response.as_object()
-            .unwrap()
-            .keys()
-            .find(|&k| k != "flag" && k != "metadata")
-            .ok_or_else(|| "Missing variant key".to_string())?;
-
-        let var = &response[variant_key];
-        println!("{}", serde_json::to_string_pretty(var).unwrap());
-
-        let hgnc = var.get("gene_ids")
-            .and_then(|ids| ids.get("hgnc_id"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .ok_or_else(|| "Missing hgnc_id".to_string())?;
-
-        let symbol = var.get("gene_symbol")
-            .and_then(|s| s.as_str())
-            .map(|s| s.to_string())
+        let var = self.get_variant_data(&response)?;
+        let hgnc = self.get_hgnc(var)
+            .ok_or_else(|| "could not extract hgnc from c_hgvs".to_string())?;
+        let symbol = self.get_gene_symbol(var) 
             .ok_or_else(|| "Missing gene_symbol".to_string())?;
-
+        let assembly = self.get_assembly_block(var, &self.genome_assembly)?;
         // The following will either be a String or None, and can be assigned to an Option<String>
         // if we have a non-coding RNA variant, e.g., n.4G>A, then this will evaluate to None
-        let hgvs_predicted_protein_consequence = var.get("hgvs_predicted_protein_consequence")
-            .and_then(|hgvs_protein| hgvs_protein.get("tlr"))
-            .and_then(|tlr| tlr.as_str())
-            .filter(|s| !s.is_empty())   // this will turn empty string ("") into None
-            .map(|s| s.to_string());
-
-        let assemblies = var.get("primary_assembly_loci")
-            .ok_or_else(|| "Missing primary_assembly_loci".to_string())?;
-
-        let assembly = assemblies.get(&self.genome_assembly)
-            .ok_or_else(|| format!("Could not identify {} in response", self.genome_assembly))?;
-
+        let p_hgvs = self.get_hgvs_predicted_protein_consequence(var);
+        
+        
         let hgvs_transcript_var = var.get("hgvs_transcript_variant")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .ok_or_else(|| "Missing field: hgvs_transcript_variant".to_string())?;
         // this field is like NM_000138.5:c.8242G>T - let's just take the first part
         let transcript = hgvs_transcript_var.split(':').next().unwrap_or("");
-        println!("transcript: {transcript} hgvs var tr {hgvs_transcript_var}");
-
-        let genomic_hgvs = assembly.get("hgvs_genomic_description")
-            .and_then(|v| v.as_str())
-            .map(str::to_string)
-            .ok_or_else(|| "Missing field: hgvs_genomic_description".to_string())?;
-
-        let vcf = assembly.get("vcf")
-            .ok_or_else(|| "Could not identify vcf element".to_string())?;
-        let chrom: String = vcf.get("chr")
-                .and_then(Value::as_str)
-                .ok_or_else(|| format!("Malformed chr: {:?}", vcf))? 
-                .to_string();
-            let position: u32 = vcf.get("pos")
-            .and_then(Value::as_str) // "pos" is stored as a string
-            .ok_or_else(|| format!("Malformed pos: {:?}", vcf))? 
-            .parse() 
-            .map_err(|e| format!("Error '{}'", e))?; 
-        let reference = vcf.get("ref").
-            and_then(Value::as_str)
-            .ok_or_else(|| format!("Malformed REF: '{:?}'", vcf))?
-            .to_string();
-        let alternate = vcf.get("alt").
-            and_then(Value::as_str)
-            .ok_or_else(|| format!("Malformed ALT: '{:?}'", vcf))?
-            .to_string();
-        let vcf_var = VcfVar::new(chrom, position, reference, alternate);
+        let g_hgvs = self.get_genomic_hgvs(assembly)?;
+        let vcf_var = self.get_vcf_var(assembly)?;
+        
         let hgvs_v = HgvsVariant::new(
             self.genome_assembly.clone(),
             vcf_var, 
             symbol,
             hgnc,
             vv_dto.variant_string,
-            hgvs_predicted_protein_consequence,
+            p_hgvs,
             transcript.to_string(),
-            genomic_hgvs,
+            g_hgvs,
         );
-        Ok(hgvs_v)
+        self.validated_hgvs.insert(hgvs_v.variant_key().clone(), hgvs_v);
+        Ok(())
+    }
+
+    pub fn get_validated_hgvs(&mut self, vv_dto: &VariantDto) 
+    -> Result<HgvsVariant, String> {
+        let variant_key = HgvsVariant::generate_variant_key(&vv_dto.variant_string, &vv_dto.gene_symbol, &vv_dto.transcript);
+        if let Some(hgvs) = self.validated_hgvs.get(&variant_key) {
+            return Ok(hgvs.clone());
+        }
+       // If not found, validate it. 
+      self.validate(vv_dto.clone())?;
+      self.validated_hgvs
+        .get(&variant_key)
+        .cloned()
+        .ok_or_else(|| "Internal error: Variant missing after validation".to_string())
     }
 
     
-    fn extract_variant_validator_warnings(response: &Value) -> Result<(), String> {
-        if let Some(flag) = response.get("flag").and_then(|f| f.as_str()) {
-            if flag == "warning" {
-                if let Some(warnings) = response
-                    .get("validation_warning_1")
-                    .and_then(|v| v.get("validation_warnings"))
-                    .and_then(|w| w.as_array())
-                {
-                    let warning_strings: Vec<String> = warnings
-                        .iter()
-                        .filter_map(|w| w.as_str().map(|s| s.to_string()))
-                        .collect();
-                    if let Some(first_warning) = warning_strings.into_iter().next() {
-                        return Err(first_warning);
-                    } else {
-                        // Should never happen, if it does, we need to check parsing of variant validator API.
-                        return Err(format!(
-                            "[variant_validator: {}:{}] invalid HGVS",
-                            file!(),
-                            line!()
-                        ));
-                    }
-                }
-            }
-        }
-        Ok(())
+     /// Take ownership of the map of validated HGVS variants (map is replaced with empty map in the struct)
+    pub fn hgvs_map(&mut self) -> HashMap<String, HgvsVariant> {
+         mem::take(&mut self.validated_hgvs)
     }
 
   
 }
 
-
+impl VariantValidatorHandler for HgvsVariantValidator {
+}
 
 
 #[cfg(test)]
@@ -227,7 +191,7 @@ mod tests {
     #[rstest]
     #[ignore = "runs with API"]
     fn test_variant_validator(vvdto: VariantDto) {
-        let vvalidator = HgvsVariantValidator::hg38();
+        let mut vvalidator = HgvsVariantValidator::hg38();
         let json = vvalidator.validate(vvdto);
         assert!(json.is_ok());
         let json = json.unwrap();
@@ -237,7 +201,7 @@ mod tests {
     #[rstest]
     #[ignore = "runs with API"]
     fn test_variant_validator_invalid(invalid_vvdto: VariantDto) {
-        let vvalidator = HgvsVariantValidator::hg38();
+        let mut vvalidator = HgvsVariantValidator::hg38();
         // This is an invalid HGVS because the reference base should be C and not G
         let result = vvalidator.validate(invalid_vvdto);
         assert!(result.is_err());
@@ -250,7 +214,7 @@ mod tests {
     #[rstest]
     #[ignore = "runs with API"]
     fn test_variant_validator_noncoding(rnu4_2: VariantDto) {
-        let vvalidator = HgvsVariantValidator::hg38();
+        let mut vvalidator = HgvsVariantValidator::hg38();
         // This is an invalid HGVS because the reference base should be C and not G
         let result = vvalidator.validate(rnu4_2);
         assert!(result.is_ok());

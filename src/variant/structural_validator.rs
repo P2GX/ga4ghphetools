@@ -1,3 +1,5 @@
+use std::{collections::HashMap, mem};
+
 use reqwest::blocking::get;
 use serde_json::Value;
 
@@ -13,6 +15,7 @@ const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
 
 pub struct StructuralValidator {
     genome_assembly: String,
+    validated_sv: HashMap<String, StructuralVariant>,
 }
 
 impl StructuralValidator {
@@ -23,12 +26,14 @@ impl StructuralValidator {
         }
         Ok(Self {
             genome_assembly: genome_build.to_string(),
+            validated_sv: HashMap::new(),
         })
     }
 
     pub fn hg38() -> Self {
         Self {
             genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
+            validated_sv: HashMap::new(),
         }
     }
 
@@ -42,22 +47,63 @@ impl StructuralValidator {
         Ok(())
     }
 
-    /// Validate a structural variant (symbolic, non-precise)
-    /// If successful, add the StructuralVariant object to the cohort_dto, otherwise return an error
-    /// Calling code should update the cohort dto in the front end if successful
-    pub fn validate(&self,  vv_dto: VariantDto) ->
-     
-        Result<StructuralVariant, String> {
+    /// Validate and register a symbolic (non-precise) structural variant.
+    ///
+    /// This method performs basic syntactic and semantic validation of a
+    /// structural variant represented by a [`VariantDto`]. The variant is
+    /// interpreted as a *symbolic* structural variant (e.g. DEL, DUP, INV,
+    /// TRANSLOC) rather than a breakpoint-precise event.
+    ///
+    /// On successful validation, the variant is converted into a
+    /// [`StructuralVariant`] and stored internally as a validated entry.
+    ///
+    /// # Arguments
+    ///
+    /// * `vv_dto` – Variant descriptor containing symbolic SV information.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if the variant is successfully validated and registered.
+    /// * `Err(String)` if validation or conversion fails.
+    ///
+    /// # Validation steps
+    ///
+    /// * Ensures the variant string contains only valid ASCII characters.
+    /// * Resolves the chromosome from the associated gene symbol.
+    /// * Converts the declared variant type into an [`SvType`].
+    /// * Constructs the corresponding symbolic [`StructuralVariant`] variant.
+    ///
+    /// # Errors
+    ///
+    /// This method returns an error if:
+    ///
+    /// * the variant string is malformed,
+    /// * the chromosome cannot be resolved,
+    /// * the variant type is unsupported or inconsistent, or
+    /// * construction of the structural variant fails.
+    ///
+    /// # Side Effects
+    ///
+    /// On success, the validated structural variant is inserted into the
+    /// internal `validated_sv` collection, keyed by its variant identifier.
+    ///
+    /// # Notes
+    ///
+    /// * Breakpoint-precise structural variants are not supported by this method.
+    /// * The input [`VariantDto`] is consumed during validation.
+    pub fn validate(&mut self,  vv_dto: VariantDto) -> Result<(), String> {
             Self::check_ascii(&vv_dto.variant_string)?;
             let chrom = self.get_chromosome_from_vv(&vv_dto.gene_symbol)?;
             let sv_type: SvType = vv_dto.variant_type.try_into()?;
-            match sv_type {
-                SvType::Del => StructuralVariant::code_as_chromosomal_deletion(vv_dto, chrom),
-                SvType::Inv => StructuralVariant::code_as_chromosomal_inversion(vv_dto, chrom),
-                SvType::Transl => StructuralVariant::code_as_chromosomal_translocation(vv_dto, chrom),
-                SvType::Dup => StructuralVariant::code_as_chromosomal_duplication(vv_dto, chrom),
-                SvType::Sv => StructuralVariant::code_as_chromosomal_structure_variation(vv_dto, chrom)
-            }
+            let sv = match sv_type {
+                SvType::Del => StructuralVariant::code_as_chromosomal_deletion(vv_dto, chrom)?,
+                SvType::Inv => StructuralVariant::code_as_chromosomal_inversion(vv_dto, chrom)?,
+                SvType::Transl => StructuralVariant::code_as_chromosomal_translocation(vv_dto, chrom)?,
+                SvType::Dup => StructuralVariant::code_as_chromosomal_duplication(vv_dto, chrom)?,
+                SvType::Sv => StructuralVariant::code_as_chromosomal_structure_variation(vv_dto, chrom)?
+            };
+            self.validated_sv.insert(sv.variant_key().to_string(), sv);
+            Ok(())
     }
 
 
@@ -96,6 +142,25 @@ impl StructuralValidator {
                 "Could not extract chromosome from annotations map (VariantValidator) for '{gene}'"
             ))?;
         return Ok(chrom.to_string());
+    }
+
+    pub fn get_validated_sv(&mut self, vv_dto: &VariantDto) 
+    -> Result<StructuralVariant, String> {
+        let sv_type = SvType::try_from(vv_dto.variant_type)?;
+        let variant_key = StructuralVariant::generate_variant_key(&vv_dto.variant_string, &vv_dto.gene_symbol, sv_type);
+        if let Some(sv) = self.validated_sv.get(&variant_key) {
+            return Ok(sv.clone());
+        }
+       // If not found, validate it. 
+        self.validate(vv_dto.clone())?;
+        self.validated_sv
+            .get(&variant_key)
+            .cloned()
+            .ok_or_else(|| "Internal error: Variant missing after validation".to_string())
+    }
+
+    pub fn sv_map(&mut self) -> HashMap<String, StructuralVariant> {
+         mem::take(&mut self.validated_sv)
     }
 
 }
@@ -144,7 +209,7 @@ mod tests {
     #[ignore = "API call"]
     fn test_valid_sv()  {
         let dto = valid_sv1();
-        let validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38();
         let result = validator.validate(dto);
         assert!(result.is_ok());
     }
@@ -154,7 +219,7 @@ mod tests {
     #[ignore = "API call"]
     fn test_invalid_sv()  {
         let dto = invalid_sv1();
-        let validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38();
         let result = validator.validate(dto);
         assert!(result.is_err());
         let msg = result.err().unwrap();
@@ -187,8 +252,8 @@ mod tests {
     #[test]
     #[ignore = "API call"]
     pub fn test_sv_ingest() {
-         let expected_chr = "14";
-         let validator = StructuralValidator::hg38();
+        let expected_chr = "14";
+        let validator = StructuralValidator::hg38();
         let chr = validator.get_chromosome_from_vv("HNRNPC");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
@@ -212,7 +277,7 @@ mod tests {
             is_validated: false,
             count: 0,
         };
-        let validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38();
         let result = validator.validate(dto);
         assert!(result.is_ok())
     }
@@ -234,7 +299,7 @@ mod tests {
             is_validated: false,
             count: 0,
         };
-         let validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38();
         let result = validator.validate(dto);
         println!("{:?}", result);
         assert!(result.is_err())

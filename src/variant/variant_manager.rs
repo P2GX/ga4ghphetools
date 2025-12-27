@@ -14,18 +14,16 @@
 //! Note that we know there is exactly one gene symbol, HGNC id, and transcript for all of our legacy 
 //! variants, so we add them here to the struct.
 use std::collections::{HashMap, HashSet};
-use std::{mem, thread};
+use std::{thread};
 use std::time::Duration;
 
 use crate::dto::cohort_dto::{CohortData, GeneTranscriptData};
-
-
+use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::variant_dto::{VariantDto, VariantType};
 use crate::dto::hgvs_variant::HgvsVariant;
+use crate::variant::intergenic_hgvs_validator::IntergenicHgvsValidator;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::{variant::hgvs_variant_validator::HgvsVariantValidator};
-
-
 use crate::dto::structural_variant::{StructuralVariant, SvType};
 
 
@@ -33,6 +31,7 @@ use crate::dto::structural_variant::{StructuralVariant, SvType};
 pub struct VariantManager {
     hgvs_validator: HgvsVariantValidator,
     structural_validator: StructuralValidator,
+    intergenic_validator: IntergenicHgvsValidator,
     /// Gene symbol for the variants we are validating
     gene_symbol: String,
     /// HUGO Gene Nomenclature Committee (HGNS) identifier for the above gene
@@ -40,11 +39,7 @@ pub struct VariantManager {
     /// Transcript of reference for theabove gene
     transcript: String,
     /// Set of all allele strings (e.g., c.123A>T or DEL Ex 5)
-    allele_set: HashSet<String>,
-    /// HGVS Variants that could be validated. The key is the original allele denomination (e.g., c.1234A>T), not the variantKey
-    validated_hgvs: HashMap<String, HgvsVariant>,
-    /// HGStructural Variants that could be validated. The key is the original allele denomination (e.g., DEL Ex 5), not the variantKey
-    validated_sv: HashMap<String, StructuralVariant>,
+    allele_set: HashSet<String>,   
 }
 
 
@@ -52,16 +47,20 @@ pub struct VariantManager {
 
 impl VariantManager {
     /// Construct a VariantManager object for a specific gene/HGNC/transcript
+    /// # Arguments
+    ///
+    /// * `symbol`     – Gene symbol (e.g. `"BRCA1"`).
+    /// * `hgnc`       – HGNC identifier for the gene (e.g., `"HGNC:123"``).
+    /// * `transcript` – Transcript identifier against which the variants should be validated (e.g., `"NM_123.1"`).
     pub fn new(symbol: &str, hgnc: &str, transcript: &str) -> Self {
         Self {
             hgvs_validator: HgvsVariantValidator::hg38(),
             structural_validator: StructuralValidator::hg38(),
+            intergenic_validator: IntergenicHgvsValidator::hg38(),
             gene_symbol: symbol.to_string(),
             hgnc_id: hgnc.to_string(),
             transcript: transcript.to_string(),
             allele_set: HashSet::new(),
-            validated_hgvs: HashMap::new(),
-            validated_sv: HashMap::new(),
         }
     }
 
@@ -90,10 +89,10 @@ impl VariantManager {
                     return Err(format!("Non-ASCII character in allele label: '{allele}'"));
                 }
                 if allele.starts_with("c.") || allele.starts_with("n.") {
-                    if self.validate_hgvs(allele) {
+                    if self.validate_hgvs(allele).is_ok() {
                         n_validated += 1;
                     }
-                } else if self.validate_sv(&allele) {
+                } else if self.validate_sv(&allele).is_ok() {
                      n_validated += 1;
                 }
                 // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
@@ -126,7 +125,7 @@ impl VariantManager {
                     return Err(format!("Non-ASCII character in allele label: '{allele}'"));
                 }
                 if ! allele.starts_with("c.") && ! allele.starts_with("n.") {
-                    if  self.validate_sv(&allele) {
+                    if  self.validate_sv(&allele).is_ok() {
                         n_validated += 1;
                     }
                 }
@@ -156,12 +155,10 @@ impl VariantManager {
 
         while n_validated < n_alleles && attempts < max_attempts {
             for allele in all_alleles {
-                if self.validated_hgvs.contains_key(allele) || self.validated_sv.contains_key(allele) {
-                    continue; // already validated, skip.
-                }
                 if allele.starts_with("c.") || allele.starts_with("n.") {
-                    if self.validate_hgvs(allele) {
-                        n_validated += 1;
+                    match self.validate_hgvs(allele) {
+                        Ok(_) => n_validated += 1,
+                        Err(e) => {eprintln!("{e}");} 
                     }
                 } 
                 // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
@@ -176,117 +173,58 @@ impl VariantManager {
         Ok(())
     }
 
-    ///When we get here, the construction of the CohortDto has proceeded with the addition of the
-    /// HashMaps of validated variants. We now need to replace the allele entries (e.g., c.8242G>T) 
-    /// with the corresponding keys that we use in the JSON serialization (e.g., c8242GtoT_FBN1_NM_000138v5)
-    /// If validation was not successful for some allele, then we return "na" for the variant key (and there will
-    /// be no Variant in the HashMaps of the CohortDto); in this case, the user will need to manually edit the
-    /// unvalidated variant and validate it from the GUI. This step will be needed both for transforming the
-    /// legacy Excel templates and also moving forward for important external supplemental tables.
-    pub fn get_variant_key(&self, allele: &str) -> Option<String> {
-        if let Some(hgvs) = self.validated_hgvs.get(allele) {
-            return Some(hgvs.variant_key());
-        }
-        if let Some(sv) = self.validated_sv.get(allele) {
-            return Some(sv.variant_key().to_string());
-        }
-        None
-    }
+   
 
-    pub fn allele_set(&self) -> HashSet<String> {
-        self.allele_set.clone()
-    }
 
     /// Completely analogous to validate_all_sv, see there for documentation
-    pub fn validate_hgvs(&mut self, hgvs: &str) -> bool {
+    fn validate_hgvs(&mut self, hgvs: &str) -> Result<(), String> {
         let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-        let variant_key = HgvsVariant::generate_variant_key(hgvs, &self.gene_symbol, &self.transcript);
-        if self.validated_hgvs.contains_key(&variant_key) {
-            return true;
-        }
-        if let Ok(hgvs) = self.hgvs_validator.validate(vv_dto) {
-            self.validated_hgvs.insert(variant_key, hgvs.clone());
-            return true;
-        } else {
-            eprint!("Could not validate {hgvs}/{variant_key}");
-            return false;
-        }
+        self.hgvs_validator.validate(vv_dto)
+        
     }
 
-    pub fn get_validated_hgvs(&self, hgvs: &str) 
+    pub(crate) fn get_validated_hgvs(&mut self, hgvs: &str) 
     -> Result<HgvsVariant, String> {
-         let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-        let variant_key = HgvsVariant::generate_variant_key(hgvs, &self.gene_symbol, &self.transcript);
-        if let Some(var) = self.validated_hgvs.get(&variant_key) {
-            Ok(var.clone())
-        } else {
-            self.hgvs_validator.validate(vv_dto)
-        }
+        let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
+        self.hgvs_validator.get_validated_hgvs(&vv_dto)
     }
 
-    pub fn get_validated_sv(&self, sv: &str) 
+    pub fn get_validated_structural_variant(&mut self, allele: &str, var_type: VariantType)
     -> Result<StructuralVariant, String> {
-         let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-         let sv_type = SvType::Sv; // Should be adjusted by the user in the GUI
-        let variant_key = StructuralVariant::generate_variant_key(sv, &self.gene_symbol, sv_type);
-        if let Some(var) = self.validated_sv.get(&variant_key) {
-            Ok(var.clone())
-        } else {
-            self.structural_validator.validate(vv_dto)
-        }
-    }
-
-    pub fn get_validated_structural_variant(&self, allele: &str, var_type: VariantType)
-    -> Result<StructuralVariant, String> {
-        let sv_type = SvType::try_from(var_type)?;
-        let variant_key = StructuralVariant::generate_variant_key(allele, &self.gene_symbol, sv_type);
-        if let Some(var) = self.validated_sv.get(&variant_key) {
-            Ok(var.clone())
-        } else {
-            let vv_dto = VariantDto::sv(allele, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-            self.structural_validator.validate(vv_dto)
-        }
+        let vv_dto = VariantDto::sv(allele, &self.transcript, &self.hgnc_id, &self.gene_symbol, var_type);
+        self.structural_validator.get_validated_sv(&vv_dto)
     }
 
 
-    /// Validates all structural variants in the given set.
+    /// Validates a single structural variant (SV) string.
+    ///
+    /// This function creates a `VariantDto` from the provided SV string and
+    /// uses the `structural_validator` to perform validation. Validation
+    /// includes checking the variant format and encoding it as a
+    /// chromosomal structural variant.
     ///
     /// # Arguments
     ///
-    /// * `variants` - A set of variant strings (`String`) to validate (allele strings, e.g., c.123A>C or DEL Ex 5).
-    /// * `latency` - A latency value (in seconds?) that controls how long to wait between VariantValidator calls
+    /// * `sv` - A structural variant string, e.g., `DEL Ex 5` or other symbolic non-precise SVs.
     ///
     /// # Returns
     ///
-    /// The number of successfully validated variants.
+    /// * `Ok(())` if the variant was successfully validated and added to the
+    ///   set of validated structural variants.
+    /// * `Err(String)` if validation failed (e.g., invalid format or
+    ///   unsupported variant type).
     ///
-    /// # Errors
+    /// # Notes
     ///
-    /// Errors are silently skipped under the assumption they may be network errors and this function can 
-    /// be called multiple times to get all variants (one a variant string is validated, it is skipped in this function)
-    pub fn validate_sv(&mut self, sv: &str) -> bool {
-        let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-        let sv_type = SvType::try_from(vv_dto.variant_type);
-        if sv_type.is_err() {
-            eprint!("Could not extract SvType from variant {sv}");
-            return false;
-        }
-        let sv_type = sv_type.unwrap();
-        let variant_key = StructuralVariant::generate_variant_key(sv, &self.gene_symbol, sv_type);
-        if self.validated_sv.contains_key(&variant_key) {
-            return true;
-        }
-        if let Ok(sv) = self.structural_validator.validate(vv_dto) {
-            self.validated_sv.insert(variant_key, sv.clone());
-            
-            return true;
-        } else {
-            eprint!("Could not validate {sv}/{variant_key}");
-            return false;
-        }
+    /// This function is intended to be called multiple times for multiple
+    /// variants. Once a variant is validated, it is stored internally and
+    /// will be skipped in subsequent calls.
+    pub fn validate_sv(&mut self, sv: &str) -> Result<(), String> {
+        let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol, VariantType::Sv);
+        self.structural_validator.validate(vv_dto)
     }
 
-
+/* 
     /// Validate a single variant (either HGVS or structural)
     /// Precise SV not yet implemented.
     pub fn validate_variant(
@@ -318,11 +256,12 @@ impl VariantManager {
             }
         }
     }
+*/
 
 
-
-    /// Columns 6,7,8 "HGNC_id",	"gene_symbol", 
-    ///    "transcript"
+    /// Columns 6,7,8 "HGNC_id",	"gene_symbol",  "transcript"
+    ///   'Legacy' method for transforming the Excel files. 
+    /// TODO delete after last legacy file has been transformed!
     pub fn from_mendelian_matrix<F>(
         matrix: &Vec<Vec<String>>,  
         progress_cb: F) 
@@ -376,16 +315,47 @@ impl VariantManager {
     
     /// Take ownership of the map of validated HGVS variants (map is replaced with empty map in the struct)
     pub fn hgvs_map(&mut self) -> HashMap<String, HgvsVariant> {
-         mem::take(&mut self.validated_hgvs)
+        self.hgvs_validator.hgvs_map()
     }
     /// Take ownership of the map of validated Structural variants
     pub fn sv_map(&mut self) -> HashMap<String, StructuralVariant> {
-         mem::take(&mut self.validated_sv)
+        self.structural_validator.sv_map()
     }
 
-    /// Check if the variants in the cohort are all validated
-    /// Return a dto that will allow the front end to see what
-    /// variants remain to be validated
+    /// Analyze cohort variants and report their validation status.
+    ///
+    /// This method iterates over all alleles observed in the cohort and
+    /// aggregates them into a per-variant summary. Each unique variant is
+    /// represented by a [`VariantDto`] that records how often it occurs and
+    /// whether it has been validated.
+    ///
+    /// The resulting DTOs are intended for consumption by the front end,
+    /// allowing it to identify which variants still require validation.
+    ///
+    /// # Arguments
+    ///
+    /// * `cohort_dto` – Cohort data containing observed alleles and variant definitions.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<VariantDto>)` containing one entry per unique variant observed
+    ///   in the cohort.
+    /// * `Err(String)` if variant analysis cannot be completed.
+    ///
+    /// # Behavior
+    ///
+    /// * Variants are keyed by allele identifier.
+    /// * If a variant can be resolved to an HGVS or structural variant, the
+    ///   corresponding [`VariantDto`] is created from that representation.
+    /// * If a variant cannot be resolved, it is marked as
+    ///   [`VariantType::Unknown`] and flagged as not validated.
+    ///
+    /// # Notes
+    ///
+    /// * Variant counts reflect the total number of times an allele appears across
+    ///   all cohort rows (i.e., biallelic variants in a sample are counted 2 times).
+    /// * Unknown or unresolved variants are still included in the output to
+    ///   ensure completeness.
     pub fn analyze_variants(&self, cohort_dto: CohortData)
     -> Result<Vec<VariantDto>, String> {
         let mut var_ana_map: HashMap<String, VariantDto> = HashMap::new();
@@ -397,43 +367,16 @@ impl VariantManager {
                         .and_modify(|existing| {
                             existing.count += 1; 
                         })
-                        .or_insert_with(|| VariantDto {
-                            variant_string: hgvs.hgvs().to_string(),
-                            variant_key: Some(allele_key.to_string()),
-                            transcript: hgvs.transcript().to_string(),
-                            hgnc_id: hgvs.hgnc_id().to_string(),
-                            gene_symbol: hgvs.symbol().to_string(),
-                            variant_type: VariantType::Hgvs,
-                            is_validated: false,
-                            count: 0,
-                        });
+                        .or_insert_with(|| VariantDto::from_hgvs(hgvs, allele_key));
                 } else if let Some(sv) = cohort_dto.structural_variants.get(allele_key) {
-                     var_ana_map
-                        .entry(allele_key.to_string()) // key type = String
+                    var_ana_map
+                        .entry(allele_key.to_string()) 
                         .and_modify(|existing| {
                             existing.count += 1; 
                         })
-                        .or_insert_with(|| VariantDto {
-                            variant_string: sv.label().to_string(),
-                            variant_key: Some(allele_key.to_string()),
-                            transcript: sv.transcript().to_string(),
-                            hgnc_id: sv.hgnc_id().to_string(),
-                            gene_symbol: sv.gene_symbol().to_string(),
-                            variant_type: VariantType::Sv,
-                            is_validated: true,
-                            count: 0
-                        });   
+                        .or_insert_with(|| VariantDto::from_sv(sv, allele_key));   
                 } else {
-                     let v_ana = VariantDto {
-                        variant_string: format!("na:{}",allele_key),
-                        variant_key: Some(allele_key.to_string()),
-                        transcript: String::default(),
-                        hgnc_id: String::default(),
-                        gene_symbol: String::default(),
-                        variant_type: VariantType::Unknown,
-                        is_validated: false,
-                        count: 1,
-                    };
+                    let v_ana = VariantDto::not_validated(allele_key);
                     var_ana_map.insert(allele_key.to_string(), v_ana);
                 }
             }
@@ -449,7 +392,7 @@ impl VariantManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dto::structural_variant::StructuralVariant, variant::variant_manager::VariantManager};
+    use crate::{dto::{structural_variant::StructuralVariant, variant_dto::VariantType}, variant::variant_manager::VariantManager};
 
     
 
@@ -459,7 +402,7 @@ mod tests {
         let label = "deletion of exons 2-9";
         let mut manager = VariantManager::new("CNTNAP2", "HGNC:13830", "NM_014141.6");
         let sv = manager.validate_sv(label);
-        let sv = manager.get_validated_sv(label).unwrap();
+        let sv = manager.get_validated_structural_variant(label, VariantType::Del).unwrap();
         let vkey = StructuralVariant::generate_variant_key(label, "CNTNAP2", crate::dto::structural_variant::SvType::Sv);
         assert_eq!(sv.variant_key(), vkey);
     }   
@@ -472,8 +415,8 @@ mod tests {
         let symbol = "NBAS";
         let transcript = "NM_015909.4";
         let mut manager = VariantManager::new(symbol, hgnc, transcript);
-        let sv = manager.validate_sv(label);
-        let result = manager.get_validated_sv(label);
+        let sv = manager.get_validated_structural_variant(label, VariantType::Del);
+        let result = manager.validate_sv(label);
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
         assert_eq!( "'deletion:c.[6236\u{2009}+\u{2009}1_6237–1]_[6432\u{2009}+\u{2009}1_6433–1]del': Non-ASCII character '\u{2009}' at index 16", err_msg);
