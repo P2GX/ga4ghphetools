@@ -35,8 +35,6 @@ pub struct HgvsVariant {
     /// Protein level HGVS, if available
     p_hgvs: Option<String>,
     /// Key to specify this variant in the HGVS HashMap of the CohortDto
-    /// In our implementation for PubMed curation we will also use the key as the variant_id
-    /// to export to phenopacket
     variant_key: String 
 }
 
@@ -182,9 +180,9 @@ mod tests {
     #[rstest]
     #[ignore = "testing API"]
     fn test_hgvs_c_fbn1() {
-        let vvalidator = HgvsVariantValidator::hg38();
+        let mut vvalidator = HgvsVariantValidator::hg38();
         let vv_dto = VariantDto::hgvs_c("c.8242G>T", "NM_000138.5", "HGNC:3603", "FBN1");
-        let result = vvalidator.validate(vv_dto);
+        let result = vvalidator.get_validated_hgvs(&vv_dto);
         assert!(result.is_ok());
         let hgvs_var = result.unwrap();
         assert_eq!("hg38", hgvs_var.assembly());

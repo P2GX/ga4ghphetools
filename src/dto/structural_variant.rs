@@ -53,6 +53,26 @@ impl FromStr for SvType {
     }
 }
 
+/// Convert a general [`VariantType`] into a structural-variant-specific [`SvType`].
+///
+/// This conversion is used to restrict variant handling to symbolic
+/// structural variants (SVs). Only variant types that represent
+/// structural events can be converted successfully.
+///
+/// # Supported conversions
+///
+/// The following [`VariantType`] values are accepted:
+///
+/// * [`VariantType::Del`] → [`SvType::Del`]
+/// * [`VariantType::Dup`] → [`SvType::Dup`]
+/// * [`VariantType::Inv`] → [`SvType::Inv`]
+/// * [`VariantType::Transl`] → [`SvType::Transl`]
+/// * [`VariantType::Sv`] → [`SvType::Sv`]
+///
+/// # Errors
+///
+/// Returns an error if the input [`VariantType`] does not represent a
+/// structural variant (e.g. SNV, indel, or other non-SV types).
 impl TryFrom<VariantType> for SvType {
     type Error = String;
     fn try_from(vvt: VariantType) -> Result<Self, Self::Error> {
@@ -62,9 +82,7 @@ impl TryFrom<VariantType> for SvType {
             VariantType::Inv => Ok(Self::Inv),
             VariantType::Transl => Ok(Self::Transl),
             VariantType::Sv => Ok(Self::Sv),
-            VariantType::Hgvs => Err("Cannot convert ValidationType HGVS into SV type".to_string()),
-            VariantType::PreciseSv => Err("Cannot convert ValidationType PreciseSv into SV type".to_string()),
-            VariantType::Unknown => Err("Cannot convert unknown into SvType".to_string())
+            _ => Err(format!("Cannot convert ValidationType {:?} into SV type", vvt))
         }
     }
 }

@@ -218,9 +218,9 @@ mod tests {
     #[rstest]
     //#[ignore = "local file, just for testing"]
     fn write_compare_excel(hpo: Arc<FullCsrOntology>) {
-        let cohort_1 = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/SPINK5_NETH_individuals-NL.json";
+        let cohort_1 = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/SPINK5_NETH_individuals-DEC19.json";
         let cohort_2 = "/Users/robin/GIT/phenopacket-store/notebooks/SPINK5/SPINK5_NETH_individuals.json";
-        let output_path = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/comparison.xlsx";
+        let output_path = "/Users/robin/Desktop/HPOstuff/Netherton/NL-cohort/comparisonDEC19.xlsx";
         let threshold = 20;
         output_excel_comparison(cohort_1, cohort_2, output_path, hpo, threshold).unwrap();
     }
