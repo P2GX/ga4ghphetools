@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, intergenic_variant::IntergenicHgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
 mod acmg;
 mod structural_validator;
 pub mod variant_manager;
@@ -79,7 +79,7 @@ pub fn validate_all_hgvs(
 ///
 /// * `Ok(HgvsVariant)` – The successfully parsed [`HgvsVariant`].
 /// * `Err(String)` – If validation fails, returns an error message describing the problem.
-pub fn validate_one_hgvs_variant(
+pub fn validate_hgvs_variant(
     symbol: &str,
     hgnc: &str,
     transcript: &str,
@@ -91,27 +91,7 @@ pub fn validate_one_hgvs_variant(
 
 /* 
 /// Validates a structural variant in the given string.
-///
-/// This function is intended for use with symbol structural variant strings such as DEL ex 5
-/// # Arguments
-///
-/// * `symbol`     – Gene symbol (e.g. `"BRCA1"`).
-/// * `hgnc`       – HGNC identifier for the gene.
-/// * `transcript` – Transcript identifier against which the variants should be validated.
-/// * `allele` – A string that represents a SV, e.g., DUP ex 9-10.
-///
-/// # Returns
-///
-/// * `Ok(StructuralVariant)` – The successfully parsed [`StructuralVariant`].
-/// * `Err(String)` – If validation fails, returns an error message describing the problem.
-pub fn validate_one_structural_variant(
-    symbol: &str,
-    hgnc: &str,
-    transcript: &str,
-    allele: &str) 
--> Result<StructuralVariant, String> {
-    let vmanager = VariantManager::new(symbol, hgnc, transcript);
-    vmanager.get_validated_sv(allele)
+//
 }
 
 */
@@ -128,6 +108,20 @@ pub fn validate_structural_variant(
     let var_type = variant_dto.variant_type;
     let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
     vmanager.get_validated_structural_variant(&allele, var_type)
+}
+
+pub fn validate_intergenic_variant(
+    variant_dto: VariantDto
+) -> Result<IntergenicHgvsVariant, String> {
+    if ! variant_dto.is_intergenic_hgvs() {
+        return Err(format!("Expecting to validate intergenic HGVS variant, but got {:?}", variant_dto));
+    }
+    let symbol = variant_dto.gene_symbol;
+    let transcript = variant_dto.transcript;
+    let hgnc = variant_dto.hgnc_id;
+    let allele = variant_dto.variant_string;
+    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
+    vmanager.get_validated_intergenic_hgvs(&allele)
 }
 
 
