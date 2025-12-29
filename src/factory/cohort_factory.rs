@@ -155,6 +155,7 @@ impl CohortFactory {
             rows: updated_row_dto_list,
             hgvs_variants: cohort_dto.hgvs_variants,
             structural_variants: cohort_dto.structural_variants,
+            intergenic_variants: cohort_dto.intergenic_variants,
             phetools_schema_version: cohort_dto.phetools_schema_version,
             hpo_version: self.hpo.version().to_string(),
             cohort_acronym: cohort_dto.cohort_acronym,

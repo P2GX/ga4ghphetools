@@ -180,7 +180,8 @@ pub fn cohort_data_1(
         rows: vec![individual_1, individual_2],
         hgvs_variants: HashMap::new(),
         structural_variants: HashMap::new(),
-        phetools_schema_version: "0.2".to_string(),
+        intergenic_variants: HashMap::new(),
+        phetools_schema_version: "0.3".to_string(),
         hpo_version: "2024-01-01".to_string(),
         cohort_acronym: Some("COHORT1".to_string()),
         curation_history: vec![]
@@ -204,7 +205,8 @@ pub fn cohort_data_2(
         rows: vec![individual_3, individual_4],
         hgvs_variants: HashMap::new(),
         structural_variants: HashMap::new(),
-        phetools_schema_version: "0.2".to_string(),
+        intergenic_variants: HashMap::new(),
+        phetools_schema_version: "0.3".to_string(),
         hpo_version: "2024-01-01".to_string(),
         cohort_acronym: Some("COHORT2".to_string()),
         curation_history: vec![]

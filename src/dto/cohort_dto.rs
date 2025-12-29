@@ -10,6 +10,7 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::CellValue;
+use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::ppkt::ppkt_row::PpktRow;
@@ -272,6 +273,9 @@ pub struct CohortData {
     pub hgvs_variants: HashMap<String, HgvsVariant>,
     /// Validated structural (symbolic) variants
     pub structural_variants: HashMap<String, StructuralVariant>,
+    /// Validated intergenic variants
+    #[serde(default)]
+    pub intergenic_variants: HashMap<String, IntergenicHgvsVariant>,
     /// Version of this DTO JSON
     pub phetools_schema_version: String,
     /// Version of HPO used to create the current version of this cohort
@@ -284,7 +288,7 @@ pub struct CohortData {
 }
 
 /// Version of the Cohort JSON schema
-const PHETOOLS_SCHEMA_VERSION: &str = "0.2";
+const PHETOOLS_SCHEMA_VERSION: &str = "0.3";
 
 impl CohortData {
     /// Initialize a new CohortData object for Mendelian cohorts. 
@@ -313,6 +317,7 @@ impl CohortData {
             rows: vec![],
             hgvs_variants: HashMap::new(),
             structural_variants: HashMap::new(),
+            intergenic_variants: HashMap::new(),
             phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
             hpo_version: hpo_version.to_string(),
             cohort_acronym: None,
@@ -329,6 +334,9 @@ impl CohortData {
         }
     }
 
+    /// Legacy function for the old Excel files.
+    /// These files do not have intergenic variants, thus we just create an empty HashMap
+    /// There are less than 10 files that still need work to transform TODO -- after that DELETE this function.
     pub fn mendelian_with_variants(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
@@ -344,6 +352,7 @@ impl CohortData {
             rows,
             hgvs_variants,
             structural_variants,
+            intergenic_variants: HashMap::new(),
             phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
             hpo_version: hpo_version.to_string(),
             cohort_acronym: None,

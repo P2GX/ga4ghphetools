@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::dto::{cohort_dto::DiseaseData, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDuplet, structural_variant::StructuralVariant};
+use crate::dto::{cohort_dto::DiseaseData, hgvs_variant::HgvsVariant, hpo_term_dto::HpoTermDuplet, intergenic_variant::IntergenicHgvsVariant, structural_variant::StructuralVariant};
 
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -193,6 +193,7 @@ pub struct EtlDto {
     pub hgvs_variants: HashMap<String, HgvsVariant>,
     /// Validated structural (symbolic) variants
     pub structural_variants: HashMap<String, StructuralVariant>,
+    pub intergenic_variants: HashMap<String, IntergenicHgvsVariant>,
 }
 
 

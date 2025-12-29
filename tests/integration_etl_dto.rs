@@ -358,6 +358,7 @@ fn make_etl(table: ColumnTableDto, disease: DiseaseData) -> EtlDto {
         title: Some("Homozygous variants in WDR83OS lead to a neurodevelopmental disorder with hypercholanemia.".to_string()), 
         hgvs_variants: Default::default(),
         structural_variants: Default::default(),
+        intergenic_variants: Default::default(),
     }
 }
 

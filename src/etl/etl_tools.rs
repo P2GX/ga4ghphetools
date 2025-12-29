@@ -576,6 +576,7 @@ impl EtlTools {
             rows: row_list, 
             hgvs_variants: self.dto.hgvs_variants.clone(), 
             structural_variants: self.dto.structural_variants.clone(), 
+            intergenic_variants: self.dto.intergenic_variants.clone(),
             phetools_schema_version: CohortData::phenopackets_schema_version(), 
             hpo_version: self.hpo.version().to_string(), 
             cohort_acronym: None,
@@ -586,7 +587,7 @@ impl EtlTools {
 
    pub fn process_allele_column(&self, column: usize) -> Result<EtlDto, String> {
     let all_alleles: HashSet<String> = self.dto.table.columns[column].values.iter()
-        .map(|cell| cell.current.clone())
+        .map(|cell| cell.original.clone())
         .collect();
     let (symbol, hgnc, transcript) = if let Some(disease) = &self.dto.disease {
         if disease.gene_transcript_list.len() == 1 {
@@ -598,6 +599,7 @@ impl EtlTools {
     } else {
         return Err("No disease data available".to_string());
     };
+    println!("process_allele_column {} - {} - {}", symbol, hgnc, transcript);
     let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
     let pb = |p:u32,q:u32|{ println!("{}/{} variants validated", p, q)};
     vmanager.validate_all_variants(&all_alleles, pb)?;
@@ -605,28 +607,31 @@ impl EtlTools {
     let sv_d = vmanager.sv_map();
     let intergenic_d = vmanager.intergenic_map();
     let mut allele_key_map: HashMap<String, String> = HashMap::new();
-    for (key, val) in hgvs_d.into_iter() {
-        allele_key_map.insert(val.hgvs().to_string(), key);
+    for (key, val) in hgvs_d.iter() {
+        allele_key_map.insert(val.hgvs().to_string(), val.variant_key().to_string());
     };
-    for (key, val) in sv_d.into_iter() {
-        allele_key_map.insert(val.label().to_string(), key);
+    for (key, val) in sv_d.iter() {
+        allele_key_map.insert(val.label().to_string(), val.variant_key().to_string());
     }
-    for (key, val) in intergenic_d.into_iter() {
-        allele_key_map.insert(val.g_hgvs().to_string(), key);
+    for (key, val) in intergenic_d.iter() {
+        allele_key_map.insert(val.g_hgvs().to_string(), val.variant_key().to_string());
     }
     let mut etl_n = self.dto.clone();
        for cell in etl_n.table.columns[column].values.iter_mut() {
-        let allele = &cell.current;
-        if let Some(new_val) = allele_key_map.get(&cell.current) {
+        let allele = &cell.original;
+        if let Some(new_val) = allele_key_map.get(allele) {
             cell.current = new_val.to_string();
             cell.status = EtlCellStatus::Transformed;
             cell.error = None;
         } else {
             cell.status = EtlCellStatus::Error;
-            cell.error = Some(format!("Unknown allele: '{}'", cell.current));
+            cell.error = Some(format!("Unknown allele: '{}'", allele));
         }
     }
     etl_n.table.columns[column].header.column_type = EtlColumnType::Variant;
+    etl_n.hgvs_variants = hgvs_d;
+    etl_n.structural_variants = sv_d;
+    etl_n.intergenic_variants = intergenic_d;
     Ok(etl_n)
    }
   
