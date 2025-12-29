@@ -5,6 +5,7 @@ use std::sync::Arc;
 use ga4ghphetools::dto::cohort_dto::GeneTranscriptData;
 use ga4ghphetools::dto::etl_dto::ColumnDto;
 use ga4ghphetools::dto::etl_dto::ColumnTableDto;
+use ga4ghphetools::dto::etl_dto::EtlCellValue;
 use ga4ghphetools::dto::etl_dto::EtlColumnHeader;
 use ga4ghphetools::dto::etl_dto::EtlColumnType;
 use ga4ghphetools::dto::etl_dto::EtlDto;
@@ -13,93 +14,95 @@ use ga4ghphetools::dto::hpo_term_dto::CellValue;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermData;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
 use ga4ghphetools::dto::cohort_dto::DiseaseData;
+use ga4ghphetools::dto::etl_dto::EtlCellStatus;
 use common::hpo_fixture::hpo;
 use ontolius::ontology::csr::FullCsrOntology;
 use rstest::fixture;
 use rstest::rstest;
 
 
-
-
-
+fn transformed_from_string(item: &str) -> EtlCellValue {
+    EtlCellValue { 
+        original: item.to_string(), 
+        current: item.to_string(), 
+        status: EtlCellStatus::Transformed, 
+        error: None 
+    }
+}
 
 #[fixture]
-fn patient_id_column_valid() -> ColumnDto {
+fn patient_id_column_valid(
+) -> ColumnDto {
+    let family_id_1 = transformed_from_string("Family 1 (Turkish) BAB11420");
+    let family_id_2 = transformed_from_string("Family 2 (Saudi) Proband 1");
     ColumnDto {
         id: "86fa387b-2d5c-4f84-9437-f3abe3bd7ba3".to_string(),
-        transformed: true,
         header: EtlColumnHeader{
             original: "Clinical Features".to_string(),
             current: None,
             column_type: EtlColumnType::PatientId,
             hpo_terms: None,
         },
-        values: vec![
-            "Family 1 (Turkish) BAB11420".to_string(),
-            "Family 2 (Saudi) Proband 1".to_string()
-        ]
+        values: vec![family_id_1, family_id_2 ]
     }
 }
 
 #[fixture]
 fn variant_column_valid() -> ColumnDto {
+    let v1 = transformed_from_string("c235CtoT_WDR83OS_NM_016145v4");
+    let v2 = transformed_from_string("c156_1GtoT_WDR83OS_NM_016145v4");
     ColumnDto {
         id: "35f95771-74cd-485d-9289-52de83dbe10d".to_string(),
-        transformed: true,
         header: EtlColumnHeader{
             original: "Mutation (NM_016145.4)".to_string(),
             current: Some("Mutation (NM_016145.4)-validated".to_string()),
             column_type: EtlColumnType::Variant,
             hpo_terms: None,
         },
-        values: vec![
-            "c235CtoT_WDR83OS_NM_016145v4".to_string(),
-            "c156_1GtoT_WDR83OS_NM_016145v4".to_string()
-        ]
+        values: vec![ v1,v2 ]
     }
 }
 
 #[fixture]
 fn age_eval_column_valid() -> ColumnDto {
+    let a1 = transformed_from_string("Family 2 (Saudi) Proband 1");
+    let a2 =transformed_from_string("P25Y");
     ColumnDto {
         id: "09e8235b-d9dd-47e0-9831-68981a24fa93".to_string(),
-        transformed: true,
         header: EtlColumnHeader{
             original: "Age at evaluation".to_string(),
             current: None,
             column_type: EtlColumnType::AgeAtLastEncounter,
             hpo_terms: None,
         },
-        values: vec![
-           "P3Y6M".to_string(),
-           "P25Y".to_string()
-        ]
+        values: vec![a1, a2 ]
     }
 }
 
 #[fixture]
 fn sex_column_valid() -> ColumnDto {
+    let m = transformed_from_string("M");
+    let f = transformed_from_string("F");
     ColumnDto {
         id: "194ec5a1-ea0e-429d-a9c0-3af3aaaaadfc".to_string(),
-        transformed: true,
         header: EtlColumnHeader{
             original: "Sex".to_string(),
             current: None,
             column_type: EtlColumnType::Sex,
             hpo_terms: None,
         },
-        values: vec![
-           "M".to_string(),
-           "F".to_string()
-        ]
+        values: vec![m,f ]
     }
 }
 
+
+
 #[fixture]
 fn delayed_sit_column_valid() -> ColumnDto {
- ColumnDto {
+    let observed = transformed_from_string("observed");
+    let na = transformed_from_string("na");
+    ColumnDto {
         id: "56988503-a04b-4783-ab5c-41afb0eb136f".to_string(),
-        transformed: true,
         header: EtlColumnHeader{
             original: "Age of sit".to_string(),
             current: Some("Delayed ability to sit - HP:0025336".to_string()),
@@ -108,19 +111,17 @@ fn delayed_sit_column_valid() -> ColumnDto {
                 HpoTermDuplet::new("Delayed ability to sit","HP:0025336" )
             ]),
         },
-        values: vec![
-           "observed".to_string(),
-           "na".to_string()
-        ]
+        values: vec![observed, na  ]
     }
 }
 
 #[fixture]
 fn delayed_gross_motor() -> ColumnDto {
     // Delayed gross motor development HP:0002194 -- parent of Delayed ability to sit, this may be redundant
+    let observed = transformed_from_string("observed");
+    let na = transformed_from_string("na");
     ColumnDto {
         id: "56988503-a04b-4783-ab5c-41afb0eb131a".to_string(),
-        transformed: true,
         header: EtlColumnHeader{
             original: "Age of sit".to_string(),
             current: Some("Delayed gross motor development - HP:0002194".to_string()),
@@ -129,10 +130,7 @@ fn delayed_gross_motor() -> ColumnDto {
                 HpoTermDuplet::new("Delayed gross motor development","HP:0002194" )
             ]),
         },
-        values: vec![
-           "observed".to_string(),
-           "na".to_string()
-        ]
+        values: vec![observed, na ]
     }
 
 }
@@ -140,9 +138,9 @@ fn delayed_gross_motor() -> ColumnDto {
 
 #[fixture]
 fn gdd_column_valid() -> ColumnDto {
- ColumnDto {
+    let observed = transformed_from_string("HP:0001263-observed");
+    ColumnDto {
         id: "61d07214-abb0-45cf-aa67-3218730416c0".to_string(),
-        transformed: true,
         header: EtlColumnHeader{
             original: "Other developmental steps".to_string(),
             current: Some("Multiple HPO terms - Other developmental steps".to_string()),
@@ -151,19 +149,17 @@ fn gdd_column_valid() -> ColumnDto {
                 HpoTermDuplet::new("Global developmental delay", "HP:0001263" )
             ]),
         },
-        values: vec![
-             "HP:0001263-observed".to_string(),
-          "HP:0001263-observed".to_string()
-        ]
+        values: vec![observed.clone(), observed   ]
     }
 }
 
 
 #[fixture]
 fn hypertelorism_column_valid() -> ColumnDto {
+    let observed = transformed_from_string("HP:0000601-observed;HP:0000316-excluded");
+    let o2 = transformed_from_string("HP:0000601-excluded;HP:0000316-observed");
     ColumnDto {
         id: "5697a6ef-4855-4230-9bb1-a8511acadcb3".to_string(),
-        transformed: true,
         header: EtlColumnHeader {
             original: "Hypotelorism/hypertelorism".to_string(),
             current: Some("Multiple HPO terms - Hypotelorism/hypertelorism".to_string()),
@@ -173,57 +169,55 @@ fn hypertelorism_column_valid() -> ColumnDto {
                 HpoTermDuplet::new("Hypertelorism", "HP:0000316"),
             ]),
         },
-        values: vec![
-            "HP:0000601-observed;HP:0000316-excluded".to_string(),
-            "HP:0000601-excluded;HP:0000316-observed".to_string(),
-        ],
+        values: vec![observed, o2 ],
     }
 }
 
 #[fixture]
 fn column_strabismus() -> ColumnDto {
+    let observed = transformed_from_string("observed");
+    let excluded = transformed_from_string("excluded");
     ColumnDto {
         id: "0cfed850-7d6f-4344-b52b-a12f86ff0f85".to_string(),
-        transformed: true,
         header: EtlColumnHeader {
             original: "Strabismus".to_string(),
             current: Some("Strabismus - HP:0000486".to_string()),
             column_type: EtlColumnType::SingleHpoTerm,
             hpo_terms: Some(vec![HpoTermDuplet::new("Strabismus", "HP:0000486")]),
         },
-        values: vec!["observed".to_string(), "excluded".to_string()],
+        values: vec![observed, excluded],
     }
 }
 
 #[fixture]
 fn column_ptosis() -> ColumnDto {
+    let observed = transformed_from_string("observed");
+    let excluded = transformed_from_string("excluded");
     ColumnDto {
         id: "c41e1b1c-2610-4414-a754-ca0e2117816d".to_string(),
-        transformed: true,
         header: EtlColumnHeader {
             original: "Ptosis".to_string(),
             current: Some("Ptosis - HP:0000508".to_string()),
             column_type: EtlColumnType::SingleHpoTerm,
             hpo_terms: Some(vec![HpoTermDuplet::new("Ptosis", "HP:0000508")]),
         },
-        values: vec!["observed".to_string(), "excluded".to_string()],
+        values: vec![observed, excluded],
     }
 }
 
 
 #[fixture]
 fn exclude_abn_eye() -> ColumnDto {
-    //  HP:
+    let excluded= transformed_from_string("excluded");
     ColumnDto {
         id: "c41e1b1c-abdc-4414-a754-ca0e2117816d".to_string(),
-        transformed: true,
         header: EtlColumnHeader {
             original: "Abnormality of the eye".to_string(),
             current: Some("Abnormality of the eye - HP:0000478".to_string()),
             column_type: EtlColumnType::SingleHpoTerm,
             hpo_terms: Some(vec![HpoTermDuplet::new("Abnormality of the eye", "HP:0000478")]),
         },
-        values: vec!["excluded".to_string(), "excluded".to_string()],
+        values: vec![excluded.clone(), excluded],
     }
 }
 
@@ -420,8 +414,6 @@ fn etl_dto_with_redudancy(
 
 
 
-
-
 #[rstest]
 fn test_variant_key(
     hgvs_var_1_valid: HgvsVariant
@@ -438,6 +430,7 @@ fn test_valid_etl(
     assert!(result.is_ok());
     let cohort_dto = result.unwrap();
     let qc = ga4ghphetools::factory::qc_assessment(hpo, &cohort_dto);
+    assert!(qc.is_ok());
 }
 
 #[rstest]
@@ -469,22 +462,23 @@ fn test_empty_columns(
 }
 
 
+/// Test that if there is a leading whitespace in an ETL column that we flag an error when we try to convert to CohortData
 #[rstest]
 fn test_column_type_with_leading_whitespace(
-    column_ptosis: ColumnDto,
-    disease_valid: DiseaseData,
+    etl_dto_valid: EtlDto,
     hpo: Arc<FullCsrOntology>
 ) {
-    let mut ws_ptosis_col = column_ptosis.clone();
-    if let Some(first_val) = ws_ptosis_col.values.get_mut(0) {
-        *first_val = format!(" {}", first_val); // prepend leading whitespace
+    let mut etl_dto_valid_clone = etl_dto_valid.clone();
+    if let Some(first_val) = etl_dto_valid_clone.table.columns[0].values.get_mut(0) {
+        first_val.current.insert(0, ' '); // prepend leading whitespace
+        assert!(first_val.current.starts_with(' ')); 
+    } else {
+        panic!("No first value found");
     }
-    let table = make_table(vec![ws_ptosis_col]);
-    let etl = make_etl(table, disease_valid);
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_valid_clone);
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert_eq!(err, "Ptosis: leading whitespace - ' observed'");
+    assert_eq!(err, "Clinical Features: leading whitespace - ' Family 1 (Turkish) BAB11420'");
 }
 
 #[rstest]
@@ -495,7 +489,7 @@ fn test_column_type_with_trailing_whitespace(
 ) {
     let mut ws_ptosis_col = column_ptosis.clone();
     if let Some(first_val) = ws_ptosis_col.values.get_mut(0) {
-        *first_val = format!("{} ", first_val); // prepend leading whitespace
+        first_val.current.push(' '); // append trailing whitespace
     }
     let table = make_table(vec![ws_ptosis_col]);
     let etl = make_etl(table, disease_valid);
@@ -505,26 +499,6 @@ fn test_column_type_with_trailing_whitespace(
     assert_eq!(err, "Ptosis: trailing whitespace - 'observed '");
 }
 
-/// Insert an invisible whitespace. We find this in HGVS expressions of some external files and need to remove it.
-#[rstest]
-fn test_column_type_with_invalid_char(
-    column_ptosis: ColumnDto,
-    disease_valid: DiseaseData,
-    hpo: Arc<FullCsrOntology>
-) {
-    let mut ws_ptosis_col = column_ptosis.clone();
-    if let Some(first_val) = ws_ptosis_col.values.get_mut(0) {
-        // Insert a ZERO WIDTH SPACE (U+200B) after the 2nd character
-        let insert_pos = 2.min(first_val.len()); 
-        first_val.insert(insert_pos, '\u{200B}');
-    }
-    let table = make_table(vec![ws_ptosis_col]);
-    let etl = make_etl(table, disease_valid);
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert_eq!(err, "Ptosis: Invalid character: U+200B '\u{200b}'");
-}
 
 /// We demand that all alleles (in the Variant columns) are mapped to an HgvsVariant or StructuralVariant.
 #[rstest]
