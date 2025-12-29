@@ -61,7 +61,7 @@ fn disease_data() -> DiseaseData {
 
 // Fixture for first individual with HPO terms [0, 1, 2]
 #[fixture]
-fn individual_1(hpo_term_pool: Vec<HpoTermDuplet>) -> RowData {
+fn individual_1() -> RowData {
     let hpo_data = vec![
         CellValue::Observed,
         CellValue::Observed,
@@ -87,7 +87,7 @@ fn individual_1(hpo_term_pool: Vec<HpoTermDuplet>) -> RowData {
 
 // Fixture for second individual with HPO terms [1, 3, 4]
 #[fixture]
-fn individual_2(hpo_term_pool: Vec<HpoTermDuplet>) -> RowData {
+fn individual_2() -> RowData {
     let hpo_data = vec![
         CellValue::Observed,
         CellValue::Excluded,
@@ -113,7 +113,7 @@ fn individual_2(hpo_term_pool: Vec<HpoTermDuplet>) -> RowData {
 
 // Fixture for third individual with HPO terms [0, 2, 4]
 #[fixture]
-fn individual_3(hpo_term_pool: Vec<HpoTermDuplet>) -> RowData {
+fn individual_3() -> RowData {
     let hpo_data = vec![
         CellValue::Observed,
         CellValue::Excluded,
@@ -139,7 +139,7 @@ fn individual_3(hpo_term_pool: Vec<HpoTermDuplet>) -> RowData {
 
 // Fixture for fourth individual with HPO terms [2, 3, 4]
 #[fixture]
-fn individual_4(hpo_term_pool: Vec<HpoTermDuplet>) -> RowData {
+fn individual_4() -> RowData {
     let hpo_data = vec![
         CellValue::Observed,
         CellValue::OnsetAge("P2Y".to_string()),

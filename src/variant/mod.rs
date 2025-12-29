@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, etl_dto::EtlDto, hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
 mod acmg;
 mod structural_validator;
 pub mod variant_manager;
@@ -171,15 +171,6 @@ pub fn validate_all_sv(
     Ok(vmanager.sv_map())
 }
 
-pub fn validate_etl_dto(
-    etl_dto: EtlDto,
-    transcript: String,
-    hgnc: String,
-    symbol: String) -> Result<EtlDto, String> {
-    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);  
-    
-    Err("Not implemented yet".to_string())
-}
 
 
 /// Analyze and summarize genetic variants for a Mendelian cohort.

@@ -148,7 +148,7 @@ fn test_load_template(hpo: Arc<FullCsrOntology>, template: &str) {
     match ga4ghphetools::factory::load_pyphetools_excel_template(template, false, hpo,|p,q|{
         println!("{}/{} variants validated", p, q);}) {
         Ok(cohort_dto) => {
-           println!("[INFO] No errors identified for {:?}\n\n\n", template);
+           println!("[INFO] No errors identified for {:?}\n\n\n", cohort_dto);
         }
         Err(e) => {
             println!("[ERROR] {:?}", e);

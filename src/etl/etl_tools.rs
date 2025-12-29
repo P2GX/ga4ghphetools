@@ -597,23 +597,26 @@ impl EtlTools {
         return Err("No disease data available".to_string());
     };
     let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
-    let pb = |_:u32,_:u32|{/*silent progress bar  */  };
+    let pb = |p:u32,q:u32|{ println!("{}/{} variants validated", p, q)};
     vmanager.validate_all_variants(&all_alleles, pb)?;
     let hgvs_d = vmanager.hgvs_map();
     let sv_d = vmanager.sv_map();
     let intergenic_d = vmanager.intergenic_map();
-    let mut etl_n = self.dto.clone();
-    // Helper closure: unified lookup across all maps
-    let lookup_variant = |allele: &str| -> Option<String> {
-    hgvs_d.get(allele)
-        .map(|v| v.variant_key().to_string())
-        .or_else(|| sv_d.get(allele).map(|v| v.variant_key().to_string()))
-        .or_else(|| intergenic_d.get(allele).map(|v| v.variant_key().to_string()))
+    let mut allele_key_map: HashMap<String, String> = HashMap::new();
+    for (key, val) in hgvs_d.into_iter() {
+        allele_key_map.insert(val.hgvs().to_string(), key);
     };
-    for cell in etl_n.table.columns[column].values.iter_mut() {
+    for (key, val) in sv_d.into_iter() {
+        allele_key_map.insert(val.label().to_string(), key);
+    }
+    for (key, val) in intergenic_d.into_iter() {
+        allele_key_map.insert(val.g_hgvs().to_string(), key);
+    }
+    let mut etl_n = self.dto.clone();
+       for cell in etl_n.table.columns[column].values.iter_mut() {
         let allele = &cell.current;
-        if let Some(new_val) = lookup_variant(&cell.current) {
-            cell.current = new_val;
+        if let Some(new_val) = allele_key_map.get(&cell.current) {
+            cell.current = new_val.to_string();
             cell.status = EtlCellStatus::Transformed;
             cell.error = None;
         } else {

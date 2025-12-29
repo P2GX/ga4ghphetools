@@ -37,7 +37,6 @@ fn test_two_cohorts_with_hpo_terms(
 #[rstest]
 fn test_hpo_term_distribution(
     cohort_data_1: CohortData,
-    hpo_term_pool: Vec<HpoTermDuplet>,
 ) {
     // Individual 1 should have terms 0, 1, 2
     let ind1_hpo = &cohort_data_1.rows[0].hpo_data;
