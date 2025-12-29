@@ -122,7 +122,7 @@ impl IntergenicHgvsVariant {
     /// from c.8242G>T, FBN1, and NM_000138.5
     pub fn generate_variant_key(g_hgvs: &str) -> String {
         let mut hgvs_norm = g_hgvs
-            .replace("c.", "c")
+            .replace("g.", "g")
             .replace('>', "to");
         hgvs_norm = hgvs_norm
             .chars()
@@ -130,5 +130,20 @@ impl IntergenicHgvsVariant {
             .collect();
        hgvs_norm
     }
+
+}
+
+
+mod tests {
+    use super::*;
+
+
+    #[test]
+    pub fn test_variant_key() {
+        let key = IntergenicHgvsVariant::generate_variant_key("NC_000019.10:g.12887294G>A");
+        let expected = "NC_000019_10_g12887294GtoA";
+        assert_eq!(expected, key);
+    }
+
 
 }

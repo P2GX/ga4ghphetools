@@ -129,12 +129,13 @@ impl IntergenicHgvsValidator {
 
     }
 
-    pub fn get_validated_hgvs(&mut self, vv_dto: &VariantDto) 
+    pub fn get_validated_g_hgvs(&mut self, vv_dto: &VariantDto) 
     -> Result<IntergenicHgvsVariant, String> {
         let variant_key = IntergenicHgvsVariant::generate_variant_key(&vv_dto.variant_string);
         if let Some(ig) = self.validated_intergenic_hgvs.get(&variant_key) {
             return Ok(ig.clone());
         }
+        println!("get_validated_g_hgvs key={}", variant_key);
        // If not found, validate it. 
       self.validate(vv_dto.clone())?;
       self.validated_intergenic_hgvs

@@ -205,8 +205,8 @@ impl VariantManager {
 
     pub(crate) fn get_validated_intergenic_hgvs(&mut self, hgvs: &str) 
     -> Result<IntergenicHgvsVariant, String> {
-        let vv_dto = VariantDto::hgvs_c(hgvs, &self.transcript, &self.hgnc_id, &self.gene_symbol);
-        self.intergenic_validator.get_validated_hgvs(&vv_dto)
+        let vv_dto = VariantDto::hgvs_g(hgvs, &self.hgnc_id, &self.gene_symbol);
+        self.intergenic_validator.get_validated_g_hgvs(&vv_dto)
     }
 
 
@@ -406,6 +406,20 @@ mod tests {
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
         assert_eq!( "'deletion:c.[6236\u{2009}+\u{2009}1_6237–1]_[6432\u{2009}+\u{2009}1_6433–1]del': Non-ASCII character '\u{2009}' at index 16", err_msg);
+    }
+
+
+    #[test]
+    fn test_intergenic() {
+        let symbol = "KLF1";
+        let transcript = "NM_006563.5";
+        let hgnc = "HGNC:6345";
+        let allele = "NC_000019.10:g.12887294G>A";
+        let mut manager = VariantManager::new(symbol, hgnc, transcript);
+        let result = manager.get_validated_intergenic_hgvs(allele);
+        assert!(result.is_ok());
+        let ig = result.unwrap();
+        println!("{:?}", ig);
     }
 
 
