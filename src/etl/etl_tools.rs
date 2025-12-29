@@ -397,10 +397,10 @@ impl EtlTools {
             for cell in &col.values {
                 let cell_val = &cell.current;
                 if cell_val.starts_with(char::is_whitespace) {
-                    return Err(format!("{}: leading whitespace - '{}'", col.header.original, cell));
+                    return Err(format!("{}: leading whitespace - '{}'", col.header.original, cell.current));
                 }
                 if cell_val.ends_with(char::is_whitespace) {
-                    return Err(format!("{}: trailing whitespace - '{}'", col.header.original, cell));
+                    return Err(format!("{}: trailing whitespace - '{}'", col.header.original, cell.current));
                     
                 }
                 for ch in cell_val.chars() {
@@ -542,15 +542,11 @@ impl EtlTools {
             .iter()
             .filter(|d| d.hpo_label().contains("Ultra"))
             .collect();
-        println!("ultra terms {:?}", ultra_terms);
-        dbg!(&ultra_terms);
         let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
         let ultra_terms2: Vec<_> = arranged_duplets
             .iter()
             .filter(|d| d.hpo_label().contains("Ultra"))
             .collect();
-         println!("ultra terms2 {:?}", ultra_terms2);
-        dbg!(&ultra_terms2);
         let disease = match &self.dto.disease {
             Some(d) => d.clone(),
             None => { return Err(format!("Cannot create CohortData if ETL does not have disease data"))},

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use crate::dto::{hgvs_variant::HgvsVariant, structural_variant::{StructuralVariant, SvType}};
+use crate::dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant};
 
 /// A Data Transfer Object for information about a Variant that we want to validate.
 /// There are currently two categories of variant

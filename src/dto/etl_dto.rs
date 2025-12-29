@@ -13,6 +13,7 @@ pub enum EtlCellStatus {
     Raw,
     Transformed,
     Error,
+    Ignored,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -34,13 +35,18 @@ impl EtlCellValue {
         }
     }
 
-    pub fn from_string(val: String) -> Self {
-        Self { 
-            original: val, 
-            current: String::default(), 
+    pub fn from_string<S>(val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            original: val.into(),
+            current: String::default(),
             status: EtlCellStatus::Raw,
-            error: None }
+            error: None,
+        }
     }
+
 }
 
 
@@ -140,8 +146,6 @@ impl EtlColumnHeader {
  pub struct ColumnDto {
     /// A unique, randomly generated id that we use to index columns in the front end
     pub id: String,
-    /// true if the cell contents have been transformed
-    pub transformed: bool,
     pub header: EtlColumnHeader,
     pub values: Vec<EtlCellValue>,
 }
@@ -151,7 +155,6 @@ impl ColumnDto {
     pub fn new_raw(original_header_contents: &str, size: usize) -> Self {
         Self { 
             id: Uuid::new_v4().to_string(),
-            transformed:false, 
             header: EtlColumnHeader::new_raw(original_header_contents), 
             values: Vec::with_capacity(size) 
         }
@@ -160,7 +163,6 @@ impl ColumnDto {
     pub fn new_hpo_text_mining(size: usize) -> Self {
         Self { 
             id: Uuid::new_v4().to_string(),
-            transformed:false, 
             header: EtlColumnHeader::new_hpo_mining(), 
             values: vec![EtlCellValue::new(); size],
         }
