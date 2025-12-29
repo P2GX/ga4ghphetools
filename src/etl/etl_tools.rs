@@ -503,7 +503,8 @@ impl EtlTools {
         Ok(())
     }
 
-
+    /// Check that no unprocessed columns (Raw) are left. Any remaining column must either be
+    /// Ignored or not have any untransformed cells at all.
     fn check_is_completely_transformed(&self) -> Result<(), String> {
          if self.raw_table().table.columns.is_empty() {
             return Err("EtlDto table with no columns".to_string());
@@ -512,14 +513,15 @@ impl EtlTools {
             if col.header.column_type == EtlColumnType::Raw {
                 return Err(format!("'{}' column type not set (Raw)", col.header.original))
             }
+            if col.header.column_type == EtlColumnType::Ignore {
+                continue;
+            }
             for etl_cell in &col.values {
                 if etl_cell.status != EtlCellStatus::Transformed {
-                    return Err(format!("'{}' not transformed", etl_cell))
+                    return Err(format!("'{}' not transformed", etl_cell.original))
                 }
             }
         }
-
-
         Ok(())
     }
 

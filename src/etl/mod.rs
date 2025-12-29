@@ -45,7 +45,7 @@ use crate::{dto::{cohort_dto::CohortData, etl_dto::EtlDto}, etl::etl_tools::EtlT
 
 
 
-pub mod etl_tools;
+mod etl_tools;
 
 /// Transform an [`EtlDto`] into a [`CohortData`] structure.
 ///

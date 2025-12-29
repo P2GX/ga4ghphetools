@@ -1,6 +1,6 @@
 // src/main.rs
 use clap::{Arg, ArgMatches, Command};
-use ga4ghphetools::etl::etl_tools::EtlTools;
+use ga4ghphetools::dto::etl_dto::EtlDto;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::sync::Arc;
 
@@ -127,9 +127,12 @@ fn handle_etl(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
         .get_one::<String>("hpo")
         .ok_or("Missing required --hpo argument")?;
     let hpo_arc = load_hpo(hpo)?;
-   
-    let etl_tools = EtlTools::from_json(&input, hpo_arc).unwrap();
-    let cohort = etl_tools.get_cohort_data().unwrap();
+    let contents = std::fs::read_to_string(input)
+                    .map_err(|e| format!("Failed to read file: {}", e)).unwrap();
+    let dto: EtlDto = serde_json::from_str(&contents)
+                    .map_err(|e| format!("Failed to deserialize JSON: {}", e)).unwrap(); 
+    
+    let cohort = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo_arc.clone(), dto)?;
     let json = serde_json::to_string_pretty(&cohort).unwrap();
     println!("{}", json);
     Ok(())

@@ -666,3 +666,19 @@ fn test_conversion() {
 }
 
 
+/// Can be used to test an ETL DTO json file if needed
+#[rstest]
+fn test_from_file(hpo: Arc<FullCsrOntology>) {
+    let etl_file = "/Users/robin/GIT/phenopacket-store/notebooks/SLC6A17/external_template.json";
+    let contents = std::fs::read_to_string(etl_file)
+                    .map_err(|e| format!("Failed to read file: {}", e)).unwrap();
+    let dto: EtlDto = serde_json::from_str(&contents)
+                    .map_err(|e| format!("Failed to deserialize JSON: {}", e)).unwrap(); 
+    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), dto);
+    println!("{:?}", result);
+
+
+
+}
+
+
