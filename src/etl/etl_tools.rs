@@ -624,6 +624,7 @@ impl EtlTools {
             cell.error = Some(format!("Unknown allele: '{}'", cell.current));
         }
     }
+    etl_n.table.columns[column].header.column_type = EtlColumnType::Variant;
     Ok(etl_n)
    }
   
