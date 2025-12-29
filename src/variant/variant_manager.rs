@@ -24,7 +24,7 @@ use crate::dto::hgvs_variant::HgvsVariant;
 use crate::variant::intergenic_hgvs_validator::IntergenicHgvsValidator;
 use crate::variant::structural_validator::StructuralValidator;
 use crate::{variant::hgvs_variant_validator::HgvsVariantValidator};
-use crate::dto::structural_variant::{StructuralVariant, SvType};
+use crate::dto::structural_variant::StructuralVariant;
 
 
 
@@ -302,6 +302,10 @@ impl VariantManager {
     /// Take ownership of the map of validated Structural variants
     pub fn sv_map(&mut self) -> HashMap<String, StructuralVariant> {
         self.structural_validator.sv_map()
+    }
+
+    pub fn intergenic_map(&mut self) -> HashMap<String, IntergenicHgvsVariant> {
+        self.intergenic_validator.ig_map()
     }
 
     /// Analyze cohort variants and report their validation status.

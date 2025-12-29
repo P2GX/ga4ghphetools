@@ -1,6 +1,6 @@
 
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, mem};
 use once_cell::sync::Lazy;
 use reqwest::blocking::get;
 use serde_json::Value;
@@ -141,6 +141,11 @@ impl IntergenicHgvsValidator {
         .get(&variant_key)
         .cloned()
         .ok_or_else(|| "Internal error: IntergenicVariant missing after validation".to_string())
+    }
+
+    /// Take ownership of the map of validated variants (map is replaced with empty map in the struct)
+    pub fn ig_map(&mut self) -> HashMap<String, IntergenicHgvsVariant> {
+        mem::take(&mut self.validated_intergenic_hgvs)
     }
     
 

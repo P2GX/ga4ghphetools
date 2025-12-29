@@ -8,7 +8,7 @@ use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::etl_dto::{ColumnDto, EtlCellStatus, EtlCellValue};
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
 use crate::dto::hpo_term_dto::{CellValue, HpoTermData};
-use crate::etl;
+use crate::variant::variant_manager::VariantManager;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
 const UNKNOWN_SEX: &str = "U";
@@ -46,6 +46,16 @@ impl EtlTools {
                 dto
             }
         ) 
+    }
+
+    pub fn from_etl(
+        etl: EtlDto,
+         hpo: Arc<FullCsrOntology>,
+    ) -> Self {
+        Self {
+            hpo,
+            dto: etl,
+        }
     }
 
     pub fn raw_table(&self) -> &EtlDto {
@@ -570,6 +580,49 @@ impl EtlTools {
             curation_history: vec![]
         })
     }
+
+
+   pub fn process_allele_column(&self, column: usize) -> Result<EtlDto, String> {
+    let all_alleles: HashSet<String> = self.dto.table.columns[column].values.iter()
+        .map(|cell| cell.current.clone())
+        .collect();
+    let (symbol, hgnc, transcript) = if let Some(disease) = &self.dto.disease {
+        if disease.gene_transcript_list.len() == 1 {
+            let gt = &disease.gene_transcript_list[0];
+            ( gt.gene_symbol.clone(), gt.hgnc_id.clone(), gt.transcript.clone(), )
+        } else {
+            return Err("Could not extract symbol/HGNC/transcript information".to_string());
+        }
+    } else {
+        return Err("No disease data available".to_string());
+    };
+    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
+    let pb = |_:u32,_:u32|{/*silent progress bar  */  };
+    vmanager.validate_all_variants(&all_alleles, pb)?;
+    let hgvs_d = vmanager.hgvs_map();
+    let sv_d = vmanager.sv_map();
+    let intergenic_d = vmanager.intergenic_map();
+    let mut etl_n = self.dto.clone();
+    // Helper closure: unified lookup across all maps
+    let lookup_variant = |allele: &str| -> Option<String> {
+    hgvs_d.get(allele)
+        .map(|v| v.variant_key().to_string())
+        .or_else(|| sv_d.get(allele).map(|v| v.variant_key().to_string()))
+        .or_else(|| intergenic_d.get(allele).map(|v| v.variant_key().to_string()))
+    };
+    for cell in etl_n.table.columns[column].values.iter_mut() {
+        let allele = &cell.current;
+        if let Some(new_val) = lookup_variant(&cell.current) {
+            cell.current = new_val;
+            cell.status = EtlCellStatus::Transformed;
+            cell.error = None;
+        } else {
+            cell.status = EtlCellStatus::Error;
+            cell.error = Some(format!("Unknown allele: '{}'", cell.current));
+        }
+    }
+    Ok(etl_n)
+   }
   
 }
 
