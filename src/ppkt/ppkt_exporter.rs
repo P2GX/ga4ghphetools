@@ -24,7 +24,9 @@ use crate::dto::cohort_dto::{CohortData, DiseaseData, RowData};
 
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
+use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
+use crate::ppkt::ppkt_variant_exporter::PpktVariantExporter;
 use phenopacket_tools;
 use phenopacket_tools::builders::builder::Builder;
 
@@ -239,133 +241,9 @@ impl PpktExporter {
 
 
 
-    fn get_sv_variant_interpretation(
-        sv: &StructuralVariant,
-        allele_count: usize
-    ) -> VariantInterpretation {
-        let gene_ctxt = GeneDescriptor{ 
-            value_id: sv.hgnc_id().to_string(), 
-            symbol: sv.gene_symbol().to_string(), 
-            description: String::default(), 
-            alternate_ids: vec![] , 
-            alternate_symbols: vec![] , 
-            xrefs: vec![] 
-            };
-        let is_x = sv.is_x_chromosomal();
-        let sv_class = sv.get_sequence_ontology_term();
-        let allelic_state = Self::get_allele_term(allele_count, sv.is_x_chromosomal());
-        
-        let vdesc = VariationDescriptor {
-            id: sv.variant_key().to_string(),
-            variation: None,
-            label: sv.label().to_string(),
-            description: String::default(),
-            gene_context: Some(gene_ctxt),
-            expressions: vec![],
-            vcf_record: None,
-            xrefs: vec![],
-            alternate_labels: vec![],
-            extensions: vec![],
-            molecule_context: MoleculeContext::Genomic.into(),
-            structural_type: Some(sv_class),
-            vrs_ref_allele_seq: String::default(),
-            allelic_state: Some(allelic_state),
-        };
-        let vi = VariantInterpretation{ 
-            acmg_pathogenicity_classification: AcmgPathogenicityClassification::Pathogenic.into(), 
-            therapeutic_actionability: TherapeuticActionability::UnknownActionability.into(), 
-            variation_descriptor: Some(vdesc) 
-        };
-        vi
-    }
 
-    fn get_allele_term(allele_count: usize, is_x: bool) -> OntologyClass {
-        if  allele_count == 2 {
-            return OntologyClass {
-                id: "GENO:0000136".to_string(),
-                label: "homozygous".to_string(),
-            };            
-        } else if is_x {
-            return OntologyClass {
-                id: "GENO:0000134".to_string(),
-                label: "hemizygous".to_string(),
-            }; 
-        } else {
-            return OntologyClass {
-                id: "GENO:0000135".to_string(),
-                label: "heterozygous".to_string(),
-            }; 
-        }
-    }
-      
-    fn get_hgvs_variant_interpretation(
-        hgvs: &HgvsVariant,
-        allele_count: usize) 
-    -> VariantInterpretation {
-        let gene_ctxt = GeneDescriptor{ 
-            value_id: hgvs.hgnc_id().to_string(), 
-            symbol: hgvs.symbol().to_string(), 
-            description: String::default(),
-            alternate_ids: vec![] , 
-            alternate_symbols: vec![] , 
-            xrefs: vec![] 
-            };
-        let vcf_record = VcfRecord{ 
-            genome_assembly: hgvs.assembly().to_string(), 
-            chrom: hgvs.chr().to_string(), 
-            pos: hgvs.position() as u64, 
-            id: String::default(), 
-            r#ref: hgvs.ref_allele().to_string(), 
-            alt: hgvs.alt_allele().to_string(), 
-            qual: String::default(), 
-            filter: String::default(), 
-            info: String::default(), 
-        };
 
-        let hgvs_c = Expression{ 
-            syntax: "hgvs.c".to_string(),
-            value: format!("{}:{}", hgvs.transcript(), hgvs.hgvs()), 
-            version: String::default() 
-        };
-        let mut expression_list = vec![hgvs_c];
-        let hgvs_g = Expression{
-                    syntax: "hgvs.g".to_string(),
-                    value: hgvs.g_hgvs().to_string(),
-                    version: String::default(),
-                };
-        expression_list.push(hgvs_g);
-        if let Some(hgsvp) = hgvs.p_hgvs() {
-            let hgvs_p = Expression{
-                syntax: "hgvs.p".to_string(),
-                value: hgsvp,
-                version: String::default(),
-            };
-                expression_list.push(hgvs_p);
-        };  
-        let allelic_state = Self::get_allele_term(allele_count, hgvs.is_x_chromosomal());
-        let vdesc = VariationDescriptor{ 
-            id: hgvs.variant_key().to_string(), 
-            variation: None, 
-            label: String::default(), 
-            description: String::default(), 
-            gene_context: Some(gene_ctxt), 
-            expressions: expression_list, 
-            vcf_record: Some(vcf_record), 
-            xrefs: vec![], 
-            alternate_labels: vec![], 
-            extensions: vec![], 
-            molecule_context: MoleculeContext::Genomic.into(), 
-            structural_type: None, 
-            vrs_ref_allele_seq: String::default(), 
-            allelic_state: Some(allelic_state) 
-        };
-        let vi = VariantInterpretation{ 
-            acmg_pathogenicity_classification: AcmgPathogenicityClassification::Pathogenic.into(), 
-            therapeutic_actionability: TherapeuticActionability::UnknownActionability.into(), 
-            variation_descriptor: Some(vdesc) 
-        };
-        vi
-    }
+   
 
     /// Generate a random identifier (used in this struct for Interpretation objects).
     pub fn generate_id() -> String {
@@ -376,100 +254,9 @@ impl PpktExporter {
             .collect()
     }
 
+  
     
-    fn extract_gene_symbol(vi: &VariantInterpretation) -> Result<String, String> {
-        vi
-            .variation_descriptor
-            .as_ref()
-            .and_then(|vd| vd.gene_context.as_ref())
-            .map(|gc| gc.symbol.clone())
-            .ok_or_else(|| format!(
-                "Missing gene symbol for variant interpretation: {:?}",
-                vi.variation_descriptor
-            ))
-    }
-    
-    /// Builds a list of `Interpretation` objects for a given phenopacket row.
-    ///
-    /// This function performs the following steps:
-    /// 1. Iterates through each allele in the input `RowData` and constructs corresponding
-    ///    `VariantInterpretation` objects based on HGVS or structural variant information.
-    /// 2. Ensures allele counts are valid (1 or 2). Returns an error if invalid or if a matching
-    ///    validated variant cannot be found.
-    /// 3. Validates that only one disease is present (melded/multiple diseases not implemented yet).
-    /// 4. Extracts disease information and maps `GenomicInterpretation` objects to gene symbols.
-    /// 5. For each disease, builds a `Diagnosis` linking its known genes to the corresponding
-    ///    genomic interpretations (if available).
-    /// 6. Wraps all constructed diagnoses into `Interpretation` objects.
-    ///
-    /// # Arguments
-    /// * `ppkt_row` - A `RowData` object containing per-patient genotype and phenotype information.
-    ///
-    /// # Returns
-    /// * `Ok(Vec<Interpretation>)` if all data were valid and interpretable.
-    /// * `Err(String)` if any validation, mapping, or extraction step failed (e.g., missing allele, 
-    ///   missing gene symbol, inconsistent disease data).
-    pub fn get_interpretation_list(
-        &self, 
-        ppkt_row: &RowData) 
-    -> std::result::Result<Vec<Interpretation>, String> {
-        let mut v_interpretation_list: Vec<VariantInterpretation> = Vec::new();
-        for (allele, count) in &ppkt_row.allele_count_map {
-            let allele_count = *count;
-            if  allele_count == 0 {
-                return Err(format!("No alleles found in row {:?}", ppkt_row));
-            }
-            if let Some(hgvs) = self.cohort_dto.hgvs_variants.get(allele) {
-                let vinterp = Self::get_hgvs_variant_interpretation( hgvs, allele_count);
-                v_interpretation_list.push(vinterp);
-            } else if let Some(sv) = self.cohort_dto.structural_variants.get(allele) {
-                let vinterp = Self::get_sv_variant_interpretation(sv, allele_count);
-                v_interpretation_list.push(vinterp);
-            } else {
-                return Err(format!("Could not find validated variant for allele {}", allele));
-            }
-        }
-        if self.cohort_dto.disease_list.is_empty() {
-            return Err(format!("No disease objects found"));
-        }
-       
-        let mut g_interpretation_map: HashMap<String, GenomicInterpretation> = HashMap::new();
-        for vi in v_interpretation_list {
-            let gi = GenomicInterpretation{
-                subject_or_biosample_id: ppkt_row.individual_data.individual_id.to_string(),
-                interpretation_status: InterpretationStatus::Causative.into(),
-                call: Some(Call::VariantInterpretation(vi.clone()))
-            };
-            let symbol = Self::extract_gene_symbol(&vi)?;
-            g_interpretation_map.insert(symbol, gi);
-        }
-        let mut interpretation_list: Vec<Interpretation> = vec![];
-        for disease in &self.cohort_dto.disease_list {
-            let disease_clz = OntologyClass{
-                id: disease.disease_id.clone(),
-                label: disease.disease_label.clone(),
-            };
-            let mut diagnosis = Diagnosis{
-                disease: Some(disease_clz),
-                genomic_interpretations: vec![],
-            };
-            for gene in  &disease.gene_transcript_list {
-                let symbol = gene.gene_symbol.to_string();
-                if let Some(g_interp) = g_interpretation_map.get(&symbol) {
-                   diagnosis.genomic_interpretations.push(g_interp.clone());
-                }
-            }
-            let i = Interpretation{
-                id: Self::generate_id(),
-                progress_status: ProgressStatus::Solved.into(),
-                diagnosis: Some(diagnosis),
-                summary: String::default(),
-            };
-            interpretation_list.push(i);
-        }
-        Ok(interpretation_list)
-    }
-
+  
     
     fn get_ontology_class(&self, term: &HpoTermDuplet) -> Result<OntologyClass, String> {
         let hpo_id = term.hpo_id();
@@ -524,11 +311,16 @@ impl PpktExporter {
     }
 
 
- pub fn extract_phenopacket_from_dto(
+ fn extract_phenopacket_from_row(
         &self, 
         ppkt_row_dto: &RowData, 
     ) -> Result<Phenopacket, String> {
-        let interpretation_list = self.get_interpretation_list(ppkt_row_dto)?;
+        let individual = self.extract_individual(ppkt_row_dto)?;
+        let is_male =  &ppkt_row_dto.individual_data.sex == "M";
+        
+        let ppkt_var_exporter = PpktVariantExporter::new(is_male,&self.cohort_dto);
+        let interpretation_list = ppkt_var_exporter.get_interpretation_list(ppkt_row_dto)?;
+
         let ppkt = Phenopacket{ 
             id: self.get_phenopacket_id(ppkt_row_dto), 
             subject:  Some(self.extract_individual(ppkt_row_dto)?), 
@@ -585,7 +377,7 @@ pub fn strip_phenopacket_defaults(root: &mut Value) {
     pub fn get_all_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
         for row in &self.cohort_dto.rows {
-           let ppkt = self.extract_phenopacket_from_dto(row)?;
+           let ppkt = self.extract_phenopacket_from_row(row)?;
            ppkt_list.push(ppkt);
         }
 

@@ -143,6 +143,20 @@ pub struct ModeOfInheritance {
     pub citation: String
 }
 
+impl ModeOfInheritance {
+    pub fn is_autosomal_dominant(&self) -> bool {
+        self.hpo_id == "HP:0000006"
+    }
+
+    pub fn is_autosomal_recessive(&self) -> bool {
+        self.hpo_id == "HP:0000007"
+    }
+
+    pub fn is_x_chromosomal(&self) -> bool {
+        self.hpo_id == "HP:0001417" || self.hpo_id == "HP:0001423" || self.hpo_id == "HP:0001419"
+    }
+}
+
 
  
 
