@@ -320,7 +320,7 @@ response
         assert_eq!("NC_000019.10:g.12887294G>A", intergen.g_hgvs());
         assert!(intergen.gene_hgvs().is_some());
         assert_eq!("NG_009292.1:g.1135G>A", intergen.gene_hgvs().unwrap());
-        let expected_var_key= "NC_000019_10_g_12887294GtoA";
+        let expected_var_key= "NC_000019_10_g12887294GtoA";
         assert_eq!(expected_var_key, intergen.variant_key());
 
     }

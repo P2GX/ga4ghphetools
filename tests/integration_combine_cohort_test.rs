@@ -4,7 +4,7 @@ use ga4ghphetools::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::{CellV
 use ontolius::ontology::csr::FullCsrOntology;
 use rstest::{rstest};
 mod common;
-use common::cohort_data_fixtures::{cohort_data_1, cohort_data_2, hpo_term_pool};
+use common::cohort_data_fixtures::{cohort_data_1, cohort_data_2};
 
 use crate::common::hpo_fixture::hpo;
 

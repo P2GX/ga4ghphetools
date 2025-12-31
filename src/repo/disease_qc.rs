@@ -46,10 +46,17 @@ impl DiseaseQc {
         for ppkt in &self.ppkt_list {
             let ac = Self::get_allele_count(ppkt);
             if ! allowable_allele_counts.contains(&ac) {
-                return Some(format!("Expected counts of {:?} but got {} for {} ({})", allowable_allele_counts, ac, self.disease_data.disease_label, self.disease_data.disease_id))
+                return Some(format!("{}: Expected counts of {:?} but got {} for {}.", ppkt.id,allowable_allele_counts, ac, self.disease_data_display()))
             }
         }
         None
+    }
+
+    fn disease_data_display(&self) -> String {
+       format!("{} ({}/{})",  
+       self.disease_data.disease_label, 
+       self.disease_data.disease_id,
+       self.disease_data.gene_transcript_list[0].gene_symbol)
     }
 
 

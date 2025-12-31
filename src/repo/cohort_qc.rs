@@ -1,8 +1,8 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::collections::HashMap;
 
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::cohort_dto::{CohortData, CohortType, DiseaseData}, repo::{disease_qc::DiseaseQc, qc_report::QcReport}};
+use crate::{dto::cohort_dto::{CohortData, CohortType}, repo::{disease_qc::DiseaseQc, qc_report::QcReport}};
 
 
 

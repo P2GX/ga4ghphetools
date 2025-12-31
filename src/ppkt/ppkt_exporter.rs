@@ -9,23 +9,14 @@ use ontolius::{Identified, TermId};
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::{MetadataAware, OntologyTerms};
 use phenopacket_tools::builders::time_elements::time_element_from_str;
-use phenopackets::ga4gh::vrsatile::v1::{Expression, GeneDescriptor, MoleculeContext, VariationDescriptor, VcfRecord};
-use phenopackets::schema::v2::core::genomic_interpretation::{Call, InterpretationStatus};
-use phenopackets::schema::v2::core::interpretation::ProgressStatus;
-use phenopackets::schema::v2::core::{Diagnosis, KaryotypicSex, OntologyClass};
+use phenopackets::schema::v2::core::{KaryotypicSex, OntologyClass};
 use phenopackets::schema::v2::core::vital_status::Status;
-use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, Disease, ExternalReference, GenomicInterpretation, Individual, Interpretation, MetaData, PhenotypicFeature, Sex, TherapeuticActionability, VariantInterpretation, VitalStatus};
+use phenopackets::schema::v2::core::{Disease, ExternalReference, Individual, MetaData, PhenotypicFeature, Sex, VitalStatus};
 use phenopackets::schema::v2::Phenopacket;
-
-use rand::Rng;
 use regex::Regex;
 use serde_json::Value;
 use crate::dto::cohort_dto::{CohortData, DiseaseData, RowData};
-
-use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
-use crate::dto::intergenic_variant::IntergenicHgvsVariant;
-use crate::dto::structural_variant::StructuralVariant;
 use crate::ppkt::ppkt_variant_exporter::PpktVariantExporter;
 use phenopacket_tools;
 use phenopacket_tools::builders::builder::Builder;
@@ -200,7 +191,6 @@ impl PpktExporter {
         if disease_id_list.is_empty() {
             return Err("No disease data found".to_string());
         }
-        println!("{}{}: ppkt:row-{:?}", file!(), line!(), ppkt_row);
         let has_multiple_dx = disease_id_list.len() > 1;
         let mut disease_list: Vec<Disease> = Vec::new();
         for dx_id in disease_id_list {
@@ -240,23 +230,6 @@ impl PpktExporter {
     }
 
 
-
-
-
-   
-
-    /// Generate a random identifier (used in this struct for Interpretation objects).
-    pub fn generate_id() -> String {
-        rand::rng()
-            .sample_iter(&rand::distr::Alphanumeric)
-            .take(24)
-            .map(char::from)
-            .collect()
-    }
-
-  
-    
-  
     
     fn get_ontology_class(&self, term: &HpoTermDuplet) -> Result<OntologyClass, String> {
         let hpo_id = term.hpo_id();
