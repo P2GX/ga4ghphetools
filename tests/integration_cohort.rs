@@ -105,25 +105,6 @@ pub fn acvr1_cohort_with_repeated_term(
 }
 
 
-#[rstest]
-fn export_with_het(
-    hpo: Arc<FullCsrOntology>
-) {
-    let cohort = "/Users/robin/GIT/phenopacket-store/notebooks/KLF1/KLF1_CDAN4B_individuals.json";
-    let file_data = std::fs::read_to_string(cohort)
-            .map_err(|e| 
-                format!("Could not extract string data from {}: {}", cohort, e.to_string())).unwrap();
-        let cohort: CohortData = serde_json::from_str(&file_data)
-            .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
-                file_data, e.to_string())).unwrap();
-    let orcid = "0000-0000-0000-0001".to_string();
-    let ppkt_list = ga4ghphetools::ppkt::get_phenopackets(cohort, orcid, hpo).unwrap();
-    let interp = ppkt_list[2].interpretations[0].clone();
-    if let Some(dx) = interp.diagnosis {
-        println!("# genomic interpretations = {}", dx.genomic_interpretations.len());
-    }
-    
-}
 
 
 

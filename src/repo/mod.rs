@@ -10,7 +10,6 @@ use crate::repo::{gpt_repository::GptRepository, repo_qc::RepoQc};
 
 mod cohort_dir;
 mod cohort_qc;
-pub mod dashboard_data;
 mod disease_qc;
 mod gpt_repository;
 pub mod qc_report;

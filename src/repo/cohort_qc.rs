@@ -72,6 +72,12 @@ impl CohortQc {
                 .filter_map(|dqc| dqc.check_all_rows_output_as_ppkt()),
         );
 
+        errs.extend(
+            self.disease_qc_list
+            .iter()
+            .flat_map(|dqc|dqc.check_no_hpo())
+        );
+
         errs
     }
 

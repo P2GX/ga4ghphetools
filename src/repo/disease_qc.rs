@@ -102,4 +102,16 @@ impl DiseaseQc {
         }
     }
 
+    pub fn check_no_hpo(&self) -> Vec<QcReport> {
+        let mut errs: Vec<QcReport> = Vec::new();
+        for ppkt in &self.ppkt_list {
+            let n_hpo = ppkt.phenotypic_features.iter().filter(|p| ! p.excluded )
+            .count();
+            if n_hpo == 0 {
+                errs.push(QcReport::no_hpo(&self.disease_data_display(), &ppkt.id));
+            }
+        }
+        errs
+    }
+
 }
