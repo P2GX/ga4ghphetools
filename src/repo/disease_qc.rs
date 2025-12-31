@@ -2,22 +2,24 @@ use std::collections::HashSet;
 
 use phenopackets::schema::v2::{Phenopacket, core::genomic_interpretation::Call};
 
-use crate::dto::cohort_dto::{DiseaseData};
+use crate::{dto::cohort_dto::{CohortData, DiseaseData}, repo::qc_report::QcReport};
 
 
 
 #[derive(Clone, Debug)]
 pub struct DiseaseQc {
     disease_data: DiseaseData,
-    ppkt_list: Vec<Phenopacket>
+    ppkt_list: Vec<Phenopacket>,
+    cohort: CohortData,
 }
 
 
 impl DiseaseQc {
-    pub fn new(disease_data: &DiseaseData) -> Self {
+    pub fn new(disease_data: &DiseaseData, cohort: &CohortData) -> Self {
         Self { 
             disease_data: disease_data.clone(), 
-            ppkt_list: Vec::new() 
+            ppkt_list: Vec::new(),
+            cohort: cohort.clone()
         }
     }
 
@@ -30,7 +32,8 @@ impl DiseaseQc {
         return self.ppkt_list.len();
     }
 
-    pub fn check_moi(&self) -> Option<String> {
+    pub fn check_moi(&self) -> Vec<QcReport> {
+        let mut errs: Vec<QcReport> = Vec::new();
         let mut allowable_allele_counts: HashSet<usize> = HashSet::new();
         for moi in &self.disease_data.mode_of_inheritance_list {
             if moi.is_autosomal_dominant() {
@@ -40,16 +43,17 @@ impl DiseaseQc {
             } else if moi.is_x_chromosomal() {
                 allowable_allele_counts.insert(1);
             } else {
-                return Some(format!("Did not recognize MOI: {:?}", moi));
+                eprintln!("Did not recognize MOI: {:?}", moi);
             }
         }
         for ppkt in &self.ppkt_list {
             let ac = Self::get_allele_count(ppkt);
             if ! allowable_allele_counts.contains(&ac) {
-                return Some(format!("{}: Expected counts of {:?} but got {} for {}.", ppkt.id,allowable_allele_counts, ac, self.disease_data_display()))
+                let qc = QcReport::moi_mismatch(&self.disease_data_display(), &ppkt.id, &allowable_allele_counts, ac);
+                errs.push(qc);
             }
         }
-        None
+        errs
     }
 
     fn disease_data_display(&self) -> String {
@@ -87,4 +91,15 @@ impl DiseaseQc {
 
         ac
     }
+
+    pub fn check_all_rows_output_as_ppkt(&self) -> Option<QcReport> {
+        let n_nrows = self.cohort.rows.len();
+        let n_phenopackets = self.phenopacket_count();
+        if n_nrows == n_phenopackets {
+            return None;
+        } else {
+            return Some(QcReport::count_mismatch(&self.disease_data_display(), n_nrows, n_phenopackets))
+        }
+    }
+
 }

@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -36,7 +36,7 @@ rand = "0.9.2"
 regex = "1.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 zip = "6.0.0"
-reqwest = {version = "0.12.28", features = ["blocking", "json"]}
+reqwest = {version = "0.13.1", features = ["blocking", "json"]}
 serde_json = { version = "1.0.148", features = ["preserve_order"] }
 clap = { version = "4.5.53", features = ["derive"], optional = true }
 rayon = "=1.10.0"

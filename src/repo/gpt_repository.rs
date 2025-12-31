@@ -43,7 +43,7 @@ impl GptRepository {
             .map(|cl| cl.get_cohort_qc())
             .collect();
         match result {
-            Ok(cohort_qc_list) => Ok(RepoQc::new(cohort_qc_list)),
+            Ok(cohort_qc_list) => Ok(RepoQc::new(&self.path, cohort_qc_list)),
             Err(e) => Err(e),
         }
     }
@@ -81,9 +81,7 @@ mod tests {
     fn test_repo(repo_path: String) {
         let repo = GptRepository::new(&repo_path);
         let repoqc = repo.repo_qc().unwrap();
-        let count = repoqc.phenopacket_count();
-        println!("Total phenopackets: {}", count);
-        repoqc.check_moi();
+        
     }
 
 

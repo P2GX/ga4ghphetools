@@ -29,7 +29,7 @@ impl CohortQc {
             } else {
                 // by design, Mendelian can only have one disease
                 let ddata = &cohort.disease_list[0];
-                let dqc = DiseaseQc::new(ddata);
+                let dqc = DiseaseQc::new(ddata, &cohort);
                 disease_to_ppkt_d.insert(ddata.disease_id.clone(), dqc);
             }
         }
@@ -56,6 +56,25 @@ impl CohortQc {
         })
     }
 
+
+    pub fn get_errors(&self) -> Vec<QcReport> {
+        let mut errs: Vec<QcReport> = self
+            .unexpected_files
+            .iter()
+            .map(|file| QcReport::unexpected_file(&self.cohort_name, file))
+            .collect();
+
+        errs.extend(self.check_moi());
+
+        errs.extend(
+            self.disease_qc_list
+                .iter()
+                .filter_map(|dqc| dqc.check_all_rows_output_as_ppkt()),
+        );
+
+        errs
+    }
+
    
     fn get_disease_id(ppkt: &Phenopacket) -> Result<String, String> {
         if ppkt.diseases.len() != 1 {
@@ -67,27 +86,16 @@ impl CohortQc {
         }
     }
 
-    pub fn has_unexpected_files(&self) -> QcReport {
-        if self.unexpected_files.is_empty() {
-            QcReport::no_unepected_files(&self.cohort_name)
-        } else {
-            QcReport::unexpected_files(&self.cohort_name, &self.unexpected_files)
-        }
-    }
+    
 
     pub fn ppkt_count(&self) -> usize {
         return self.disease_qc_list.iter().map(|dqc|dqc.phenopacket_count()).sum();
     }
 
-    pub fn check_moi(&self) -> usize {
-        let mut misfit = 0 as usize;
-        for dqc in &self.disease_qc_list {
-            if let Some(output) = dqc.check_moi() {
-                println!("{}", output);
-                misfit += 1;
-            }
-        }
-        misfit
+    pub fn check_moi(&self) -> Vec<QcReport> {
+        self.disease_qc_list.iter()
+            .flat_map(|dqc|dqc.check_moi())
+            .collect()
     }
 
     
