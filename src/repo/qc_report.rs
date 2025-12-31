@@ -6,7 +6,7 @@ use serde::de::Unexpected;
 
 #[derive(Debug, Clone, serde::Serialize)] 
 #[serde(rename_all = "camelCase")]
-enum RepoErrorType {
+pub enum RepoErrorType {
     UnexpectedFile,
     MoiMismatch,
     PpktExportError,

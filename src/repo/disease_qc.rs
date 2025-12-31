@@ -76,7 +76,7 @@ impl DiseaseQc {
                                         let count = match oclz.label.as_str() {
                                             "homozygous" => 2,
                                             "heterozygous" => 1,
-                                            "hemozygous" =>  1,
+                                            "hemizygous" =>  1,
                                             _ => 0,
                                         };
                                         ac += count;
