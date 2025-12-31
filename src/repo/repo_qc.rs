@@ -4,7 +4,8 @@ use crate::repo::{cohort_qc::CohortQc, qc_report::QcReport};
 
 
 
-
+#[derive(Debug, Clone, serde::Serialize)] 
+#[serde(rename_all = "camelCase")]
 pub struct RepoQc {
     pub repo_path: String,
     pub cohort_count: usize,

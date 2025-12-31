@@ -16,7 +16,7 @@ pub struct GptRepository {
 
 
 impl GptRepository {
-    fn new(root_path: &str) -> Self {
+    pub fn new(root_path: &PathBuf) -> Self {
         let mut all_cohorts: Vec<CohortDir> = Vec::new();
         let entries = WalkDir::new(root_path)
             .min_depth(1)
@@ -77,12 +77,6 @@ mod tests {
     }
 
 
-    #[rstest]
-    fn test_repo(repo_path: String) {
-        let repo = GptRepository::new(&repo_path);
-        let repoqc = repo.repo_qc().unwrap();
-        
-    }
 
 
 

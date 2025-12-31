@@ -2,7 +2,8 @@ use std::collections::HashSet;
 
 
 
-#[derive(Debug, Clone, serde::Serialize)] // Serialize helps if passing to a web-based GUI
+#[derive(Debug, Clone, serde::Serialize)] 
+#[serde(rename_all = "camelCase")]
 pub struct QcReport {
     pub cohort_name: String,
     pub message: String,
