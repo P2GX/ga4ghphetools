@@ -76,7 +76,16 @@ mod tests {
         absolute_path.to_string_lossy().to_string()
     }
 
+    #[rstest]
+    fn test_all(repo_path: String) {
+        let root_path: PathBuf = repo_path.into();
+        let gptr = GptRepository::new(&root_path);
+        let rqc = gptr.repo_qc().unwrap();
+        for e in &rqc.errors {
+            println!("{:?}", e);
+        }
 
+    } 
 
 
 
