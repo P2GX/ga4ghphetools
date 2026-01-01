@@ -513,12 +513,15 @@ impl EtlTools {
             if col.header.column_type == EtlColumnType::Raw {
                 return Err(format!("'{}' column type not set (Raw)", col.header.original))
             }
-            if col.header.column_type == EtlColumnType::Ignore {
-                continue;
+            if col.header.column_type == EtlColumnType::Ignore ||
+                col.header.column_type == EtlColumnType::HpoTextMining {
+                continue; // text mining column can be left empty
             }
             for etl_cell in &col.values {
                 if etl_cell.status != EtlCellStatus::Transformed {
-                    return Err(format!("'{}' not transformed", etl_cell.original))
+                    return Err(format!("Item '{}' is column {} was not transformed", 
+                    col.header.original,
+                    etl_cell.original))
                 }
             }
         }
@@ -653,3 +656,4 @@ impl fmt::Display for ColumnTableDto {
         Ok(())
     }
 }
+
