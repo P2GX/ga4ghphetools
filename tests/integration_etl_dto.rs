@@ -669,8 +669,9 @@ fn test_conversion() {
 
 /// Can be used to test an ETL DTO json file if needed
 #[rstest]
+#[ignore = "for testing local file"]
 fn test_from_file(hpo: Arc<FullCsrOntology>) {
-    let etl_file = "/Users/robin/GIT/phenopacket-store/notebooks/SLC6A17/external_template.json";
+    let etl_file = "../../phenopacket-store/notebooks/SLC6A17/external_template.json";
     let contents = std::fs::read_to_string(etl_file)
                     .map_err(|e| format!("Failed to read file: {}", e)).unwrap();
     let dto: EtlDto = serde_json::from_str(&contents)

@@ -35,17 +35,72 @@ impl EtlCellValue {
         }
     }
 
+    /// Normalizes a single character for ETL ingestion.
+    ///
+    /// - Unicode whitespace → ASCII space
+    /// - Unicode dash variants → ASCII hyphen-minus
+    fn normalize_char(c: char) -> char {
+        match c {
+            // Dash-like characters
+            '\u{2010}' // Hyphen
+            | '\u{2011}' // Non-breaking hyphen
+            | '\u{2012}' // Figure dash
+            | '\u{2013}' // En dash
+            | '\u{2014}' // Em dash
+            | '\u{2015}' // Horizontal bar
+            | '\u{2212}' // Minus sign
+            | '\u{FE58}' // Small em dash
+            | '\u{FE63}' // Small hyphen-minus
+            | '\u{FF0D}' // Fullwidth hyphen-minus
+                => '-',
+
+            // Any Unicode whitespace
+            c if c.is_whitespace() => ' ',
+            // ZERO WIDTH SPACE-not handled by above
+            '\u{200B}' => ' ', 
+            _ => c,
+        }
+    }
+
+
+    /// Creates a new `EtlCellValue` from a string-like input, normalizing
+    /// Unicode whitespace.
+    ///
+    /// # Whitespace normalization
+    ///
+    /// This constructor performs the following normalization steps on the
+    /// input string:
+    ///
+    /// 1. Converts **all Unicode whitespace characters** (including non-breaking
+    ///    space `U+00A0`, zero-width spaces, tabs, and newlines) into a single
+    ///    ASCII space (`' '`).
+    /// 2. Trims leading and trailing whitespace.
+    /// 3. Collapses consecutive whitespace into a single space.
+    ///
+    /// This behavior is intentional and is designed to make the value robust
+    /// against common data-ingestion artifacts originating from spreadsheets,
+    /// HTML, PDFs, or copy-and-paste operations.
     pub fn from_string<S>(val: S) -> Self
     where
         S: Into<String>,
     {
+        let original = val
+            .into()
+            .chars()
+            .map(Self::normalize_char)
+            .collect::<String>()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+
         Self {
-            original: val.into(),
+            original,
             current: String::default(),
             status: EtlCellStatus::Raw,
             error: None,
         }
     }
+
 
 }
 
@@ -198,3 +253,57 @@ pub struct EtlDto {
 
 
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizes_non_breaking_space() {
+        let v = EtlCellValue::from_string("foo\u{00A0}bar");
+        assert_eq!(v.original, "foo bar");
+    }
+
+    #[test]
+    fn collapses_multiple_whitespace() {
+        let v = EtlCellValue::from_string(" foo\t\n  bar ");
+        assert_eq!(v.original, "foo bar");
+    }
+
+    #[test]
+    fn normalizes_unicode_dashes() {
+        let v = EtlCellValue::from_string("TP53\u{2013}related\u{2014}disease");
+        assert_eq!(v.original, "TP53-related-disease");
+    }
+
+    #[test]
+    fn normalizes_minus_sign() {
+        let v = EtlCellValue::from_string("−5");
+        assert_eq!(v.original, "-5");
+    }
+
+    #[test]
+    fn preserves_ascii_hyphen() {
+        let v = EtlCellValue::from_string("A-B");
+        assert_eq!(v.original, "A-B");
+    }
+
+    #[test]
+    fn removes_zero_width_space() {
+        let v = EtlCellValue::from_string("foo\u{200B}bar");
+        assert_eq!(v.original, "foo bar");
+    }
+
+    #[test]
+    fn input_only_whitespace_becomes_empty() {
+        let v = EtlCellValue::from_string("\u{00A0}\t\n");
+        assert_eq!(v.original, "");
+    }
+
+    #[test]
+    fn mixed_realistic_excel_input() {
+        let v = EtlCellValue::from_string(
+            "  BRCA1\u{00A0}\u{2013}\u{00A0}associated\u{2009}cancer  "
+        );
+        assert_eq!(v.original, "BRCA1 - associated cancer");
+    }
+}
