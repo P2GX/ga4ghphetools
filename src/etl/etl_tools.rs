@@ -423,28 +423,37 @@ impl EtlTools {
         Ok(())
     }
 
-    /// Check that the alleles in the rows have full variant objects in the maps
-    /// Note that we allow na because some cohorts have a mix of mono- and biallelic cases, meaning that
-    /// one of the allele columns may contain "na" (not available).
-    fn qc_variants(&self) -> Result<(), String> {
-        let allele_set: HashSet<String> = self
-            .raw_table()
+    fn is_mapped_variant(&self, allele: &str) -> bool {
+        self.raw_table().hgvs_variants.contains_key(allele)
+            || self.raw_table().structural_variants.contains_key(allele)
+            || self.raw_table().intergenic_variants.contains_key(allele)
+    }
+
+    /// Our strategy for dealing with variants here is to
+    /// mark mapped variants in the cell and leave the other cells as error.
+    /// We do not need to return an error to the GUI
+    fn qc_variants(&mut self) -> Result<(), String> {
+        let table = &mut self.dto;
+
+        table
             .table
             .columns
-            .iter()
-            .filter(|col| col.header.column_type == EtlColumnType::Variant)
-            .flat_map(|col| col.values.iter().cloned())
-            .map(|etl_val| etl_val.current)
-            .collect();
-        // These alleles must be in either the HGVS or the SV map (i.e., validated)
-        for allele in &allele_set {
-            if allele != "na" &&
-                ! self.raw_table().hgvs_variants.contains_key(allele) && 
-                ! self.raw_table().structural_variants.contains_key(allele) 
-                 {
-                    return Err(format!("Unmapped allele: '{allele}'"));
-                }
-        }
+            .iter_mut()
+            .filter(|c| c.header.column_type == EtlColumnType::Variant)
+            .flat_map(|c| &mut c.values)
+            .for_each(|cell| {
+                let allele = cell.current.as_str();
+            let valid = allele != "na"
+                    && (table.hgvs_variants.contains_key(allele)
+                        || table.structural_variants.contains_key(allele)
+                        || table.intergenic_variants.contains_key(allele));
+
+                cell.status = if valid {
+                    EtlCellStatus::Transformed
+                } else {
+                    EtlCellStatus::Error
+                };
+            });
 
         Ok(())
     }
@@ -529,7 +538,7 @@ impl EtlTools {
     }
 
 
-    fn qc(&self) -> Result<(), String> {
+    fn qc(&mut self) -> Result<(), String> {
         if self.raw_table().table.columns.is_empty() {
             return Err("EtlDto table with no columns".to_string());
         }
@@ -549,7 +558,7 @@ impl EtlTools {
 
     /// Note that only Mendelian is supported for Excel file bulk imports
     /// Other MOIs are too complicated to be reliably imported in this way.
-    pub fn get_cohort_data(&self) -> Result<CohortData, String> {
+    pub fn get_cohort_data(&mut self) -> Result<CohortData, String> {
         self.check_is_completely_transformed()?;
         self.qc()?;
         let hpo_duplets = Self::all_hpo_duplets(&self);

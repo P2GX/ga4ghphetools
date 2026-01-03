@@ -671,6 +671,7 @@ impl CohortFactory {
         // but they should be the same from the way we construct the map
         updated_cohort.hgvs_variants.extend(transformed.hgvs_variants);
         updated_cohort.structural_variants.extend(transformed.structural_variants); 
+        updated_cohort.intergenic_variants.extend(transformed.intergenic_variants);
 
         Ok(updated_cohort)
     }
