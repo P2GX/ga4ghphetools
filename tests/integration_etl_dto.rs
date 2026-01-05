@@ -501,7 +501,8 @@ fn test_column_type_with_trailing_whitespace(
 }
 
 
-/// We demand that all alleles (in the Variant columns) are mapped to an HgvsVariant or StructuralVariant.
+/// We do not demand that all alleles (in the Variant columns) are mapped to an HgvsVariant or StructuralVariant.
+/// users can adjust this in the pttemplate view
 #[rstest]
 fn test_missing_hgvs(
     etl_dto_valid: EtlDto,
@@ -513,9 +514,7 @@ fn test_missing_hgvs(
     assert!(removed.is_some(), "Entry was not found in hgvs_variants"); // make sure we actually remove the variant
     // This should be an error because the Variant row has an allele key that is not in our map
     let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert_eq!(err, "Unmapped allele: 'c235CtoT_WDR83OS_NM_016145v4'")
+    assert!(result.is_ok());
 }
 
 /// PatientId column is required

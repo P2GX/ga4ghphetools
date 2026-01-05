@@ -84,6 +84,7 @@ impl EtlCellValue {
     where
         S: Into<String>,
     {
+
         let original = val
             .into()
             .chars()
@@ -92,6 +93,8 @@ impl EtlCellValue {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
+
+        println!("orig={original}");
 
         Self {
             original,

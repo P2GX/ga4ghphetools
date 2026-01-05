@@ -42,6 +42,10 @@ impl DiseaseQc {
                 allowable_allele_counts.insert(2);
             } else if moi.is_x_chromosomal() {
                 allowable_allele_counts.insert(1);
+            } else if moi.is_pseudoautosomal_dominant() {
+                allowable_allele_counts.insert(1);
+            }  else if moi.is_pseudoautosomal_recessive() {
+                allowable_allele_counts.insert(2);
             } else {
                 eprintln!("Did not recognize MOI: {:?}", moi);
             }

@@ -155,6 +155,15 @@ impl ModeOfInheritance {
     pub fn is_x_chromosomal(&self) -> bool {
         self.hpo_id == "HP:0001417" || self.hpo_id == "HP:0001423" || self.hpo_id == "HP:0001419"
     }
+    /// HP:0034340 Pseudoautosomal dominant inheritance
+    pub fn is_pseudoautosomal_dominant(&self) -> bool {
+        self.hpo_id == "HP:0034340"
+    }
+
+    pub fn is_pseudoautosomal_recessive(&self) -> bool {
+         self.hpo_id == "HP:0034341"
+    }
+
 }
 
 
