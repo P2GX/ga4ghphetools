@@ -90,9 +90,32 @@ pub fn melded_cohort_name(cohort_data: &CohortData) -> Result<String, String> {
 
 
 
-
-
-
+/// Returns a copy of the cohort with rows sorted by publication and individual.
+///
+/// The rows are ordered primarily by the associated publication identifier
+/// (`individual_data.pmid`) and secondarily by the individual identifier
+/// (`individual_data.individual_id`). Ordering is lexicographic and stable
+/// with respect to rows that compare equal on both keys.
+///
+/// This function does **not** modify the input [`CohortData`]. Instead, it
+/// clones the cohort and performs the sort on the cloned data.
+///
+/// # Parameters
+/// - `cohort_data`: The input cohort to be sorted.
+///
+/// # Returns
+/// A new [`CohortData`] instance whose `rows` are sorted by
+/// `(pmid, individual_id)`.
+pub fn sort_rows(
+    cohort_data: &CohortData
+) -> CohortData {
+    let mut cohort_new = cohort_data.clone();
+    cohort_new.rows.sort_by(|a, b| {
+        a.individual_data.pmid.cmp(&b.individual_data.pmid)
+            .then_with(|| a.individual_data.individual_id.cmp(&b.individual_data.individual_id))
+    });
+    return cohort_new;
+}
 
 
 pub fn qc_assessment(

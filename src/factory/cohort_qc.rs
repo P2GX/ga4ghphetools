@@ -75,8 +75,27 @@ impl CohortDataQc {
             }
         }
         self.check_hpo_ids_and_labels(cohort)?;
+        self.check_for_duplicate_rows(cohort)?;
         Ok(())
     }
+
+
+    /// Check the cohort for duplicate entries
+    /// We rely on the cross product of PMID and individual id
+    fn check_for_duplicate_rows(&self, cohort: &CohortData) -> Result<(), String> {
+        let mut seen_entries: HashSet<String> = HashSet::new();
+        for row in &cohort.rows {
+            let key = format!("{}-{}",row.individual_data.individual_id, row.individual_data.pmid);
+            if seen_entries.contains(&key) {
+                return Err(format!("Duplicate entry: {}", key));
+            } else {
+                seen_entries.insert(key);
+            }
+        }
+
+        Ok(())
+    }
+
 
     pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), String> {
         let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)?;
