@@ -91,7 +91,8 @@ impl IntergenicHgvsValidator {
             .map_err(|e| format!("Could not map {hgvs}: {e}"))?
             .json()
             .map_err(|e| format!("Could not parse JSON for {hgvs}: {e}"))?;
-        let ig = self.from_json(response)?;
+        let mut ig = self.from_json(response)?;
+        ig.set_target_gene(&vv_dto);
         self.validated_intergenic_hgvs.insert(ig.variant_key().to_string(), ig);
         Ok(())
 
@@ -135,7 +136,6 @@ impl IntergenicHgvsValidator {
         if let Some(ig) = self.validated_intergenic_hgvs.get(&variant_key) {
             return Ok(ig.clone());
         }
-        println!("get_validated_g_hgvs key={}", variant_key);
        // If not found, validate it. 
       self.validate(vv_dto.clone())?;
       self.validated_intergenic_hgvs

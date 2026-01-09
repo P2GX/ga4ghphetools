@@ -354,7 +354,7 @@ impl PpktVariantExporter {
             version: String::default() 
         };
         let expression_list = vec![hgvs_g];
-         let allelic_state = self.get_genotype_term(allele_count, ig.is_x_chromosomal());
+        let allelic_state = self.get_genotype_term(allele_count, ig.is_x_chromosomal());
       
         let vdesc = VDescBuilder {
             id: ig.variant_key().to_string(),

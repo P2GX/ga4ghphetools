@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 
 
-use crate::variant::vcf_var::VcfVar;
+use crate::{dto::variant_dto::VariantDto, variant::vcf_var::VcfVar};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +112,16 @@ impl IntergenicHgvsVariant {
     /// returns a String key that can be used in HashMaps to unambiguously identify this variant
     pub fn variant_key(&self) -> String {
         IntergenicHgvsVariant::generate_variant_key(self.g_hgvs())
+    }
+
+    /// The gene symbol that is returned by VariantValidator is not 
+    /// necessarily the symbol of the gene that we "assign" this variant
+    /// to. For instance, we may assign a promoter or enhancer variant to 
+    /// a given target gene
+    pub fn set_target_gene(&mut self, vv_dto: &VariantDto) {
+        self.hgnc_id = Some(vv_dto.hgnc_id.to_string());
+        self.symbol = Some(vv_dto.gene_symbol.to_string());
+
     }
 
 

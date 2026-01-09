@@ -395,6 +395,10 @@ impl CohortData {
         self.template_type() == CohortType::Melded
     }
 
+    pub fn get_phetools_schema_version() -> String {
+        PHETOOLS_SCHEMA_VERSION.to_string()
+    }
+
 
     pub fn get_disease_dto_list(&self) -> std::result::Result<Vec<DiseaseData>, String> {
         if ! self.is_mendelian() {
