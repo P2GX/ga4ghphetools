@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use phenopackets::ga4gh::vrsatile::v1::Expression;
+use phenopackets::ga4gh::vrsatile::v1::Extension;
 use phenopackets::ga4gh::vrsatile::v1::GeneDescriptor;
 use phenopackets::ga4gh::vrsatile::v1::MoleculeContext;
 use phenopackets::ga4gh::vrsatile::v1::VariationDescriptor;
@@ -22,6 +23,59 @@ use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
 
+
+/// This is a helper ot reduce redundancy 
+enum VariantRef<'a> {
+    Hgvs(&'a HgvsVariant),
+    Sv(&'a StructuralVariant),
+    Intergenic(&'a IntergenicHgvsVariant),
+}
+
+/// A convenience builder structure to simplify creation of the
+/// GA4GH VariationDescriptor message
+struct VDescBuilder {
+    id: String,
+    gene_context: Option<GeneDescriptor>,
+    expressions: Vec<Expression>,
+    vcf_record: Option<VcfRecord>,
+    structural_type: Option<OntologyClass>,
+    label: String,
+    allelic_state: OntologyClass,
+    extensions: Vec<Extension>,
+}
+
+impl VDescBuilder {
+    fn build(self) -> VariationDescriptor {
+        VariationDescriptor {
+            id: self.id,
+            variation: None,
+            label: self.label,
+            description: String::default(),
+            gene_context: self.gene_context,
+            expressions: self.expressions,
+            vcf_record: self.vcf_record,
+            xrefs: vec![],
+            alternate_labels: vec![],
+            extensions: self.extensions,
+            molecule_context: MoleculeContext::Genomic.into(),
+            structural_type: self.structural_type,
+            vrs_ref_allele_seq: String::default(),
+            allelic_state: Some(self.allelic_state),
+        }
+    }
+
+    fn with_optional_gene(mut self, hgnc_id: Option<String>, symbol: Option<String>) -> Self {
+        if let (Some(id), Some(sym)) = (hgnc_id, symbol) {
+            self.gene_context = Some(PpktVariantExporter::gene_descriptor(id, sym));
+        }
+        self
+    }
+    
+}
+
+
+
+
 /// Structure to coordinate extraction of Variant (Interpretation) information to export to Phenopacket 
 
 pub struct PpktVariantExporter {
@@ -41,6 +95,31 @@ impl PpktVariantExporter {
             structural_variants: cohort.structural_variants.clone(), 
             intergenic_variants: cohort.intergenic_variants.clone(),
             disease_list: cohort.disease_list.clone()
+        }
+    }
+
+    /// A helper function to simplify getting the desired Variant object 
+    /// (HGVS, SV, intergenic, mitochondrial) from the allele string
+    fn lookup_variant<'a>(
+        &'a self,
+        allele: &str,
+    ) -> Option<VariantRef<'a>> {
+        self.hgvs_variants
+            .get(allele)
+            .map(VariantRef::Hgvs)
+            .or_else(|| self.structural_variants.get(allele).map(VariantRef::Sv))
+            .or_else(|| self.intergenic_variants.get(allele).map(VariantRef::Intergenic))
+    }
+
+    /// We add the codes ACMG Pathogenic and Unknown Therapeutic actionability
+    /// to each variant description
+    fn pathogenic_variant(vdesc: VariationDescriptor) -> VariantInterpretation {
+        VariantInterpretation {
+            acmg_pathogenicity_classification:
+                AcmgPathogenicityClassification::Pathogenic.into(),
+            therapeutic_actionability:
+                TherapeuticActionability::UnknownActionability.into(),
+            variation_descriptor: Some(vdesc),
         }
     }
 
@@ -74,19 +153,14 @@ impl PpktVariantExporter {
             if  allele_count == 0 {
                 return Err(format!("No alleles found in row {:?}", ppkt_row));
             }
-            if let Some(hgvs) = self.hgvs_variants.get(allele) {
-                let vinterp = self.get_hgvs_variant_interpretation( hgvs, allele_count);
-                v_interpretation_list.push(vinterp);
-            } else if let Some(sv) = self.structural_variants.get(allele) {
-                let vinterp = self.get_sv_variant_interpretation(sv, allele_count);
-                v_interpretation_list.push(vinterp);
-            } else if let Some(ig) = self.intergenic_variants.get(allele) {
-                let vinterp = self.get_intergenic_variant_interpretation(ig, allele_count);
-                v_interpretation_list.push(vinterp);
-
-            } else {
-                return Err(format!("Could not find validated variant for allele {}", allele));
-            }
+            let vinterp = match self.lookup_variant(allele) {
+                Some(VariantRef::Hgvs(v)) => self.get_hgvs_variant_interpretation(v, allele_count),
+                Some(VariantRef::Sv(v)) => self.get_sv_variant_interpretation(v, allele_count),
+                Some(VariantRef::Intergenic(v)) =>
+                    self.get_intergenic_variant_interpretation(v, allele_count),
+                None => return Err(format!("Could not find validated variant for allele {}", allele)),
+            };
+            v_interpretation_list.push(vinterp);
         }
         if self.disease_list.is_empty() {
             return Err(format!("No disease objects found"));
@@ -132,6 +206,19 @@ impl PpktVariantExporter {
         Ok(interpretation_list)
     }
 
+    /// Create a GeneDescriptor message for the Phenopacket
+    /// The elements are used in the gene context field.
+    fn gene_descriptor(hgnc_id: impl Into<String>, symbol: impl Into<String>) 
+        -> GeneDescriptor {
+        GeneDescriptor {
+            value_id: hgnc_id.into(),
+            symbol: symbol.into(),
+            description: String::default(),
+            alternate_ids: vec![],
+            alternate_symbols: vec![],
+            xrefs: vec![],
+        }
+    }
 
 
     fn get_sv_variant_interpretation(
@@ -139,40 +226,21 @@ impl PpktVariantExporter {
         sv: &StructuralVariant,
         allele_count: usize
     ) -> VariantInterpretation {
-        let gene_ctxt = GeneDescriptor{ 
-            value_id: sv.hgnc_id().to_string(), 
-            symbol: sv.gene_symbol().to_string(), 
-            description: String::default(), 
-            alternate_ids: vec![] , 
-            alternate_symbols: vec![] , 
-            xrefs: vec![] 
-            };
+        let gene_ctxt = Self::gene_descriptor(sv.hgnc_id(), sv.gene_symbol());
         let is_x = sv.is_x_chromosomal();
         let sv_class = sv.get_sequence_ontology_term();
         let allelic_state = self.get_genotype_term(allele_count, sv.is_x_chromosomal());
-        
-        let vdesc = VariationDescriptor {
+        let vdesc = VDescBuilder {
             id: sv.variant_key().to_string(),
-            variation: None,
-            label: sv.label().to_string(),
-            description: String::default(),
             gene_context: Some(gene_ctxt),
             expressions: vec![],
             vcf_record: None,
-            xrefs: vec![],
-            alternate_labels: vec![],
-            extensions: vec![],
-            molecule_context: MoleculeContext::Genomic.into(),
             structural_type: Some(sv_class),
-            vrs_ref_allele_seq: String::default(),
-            allelic_state: Some(allelic_state),
-        };
-        let vi = VariantInterpretation{ 
-            acmg_pathogenicity_classification: AcmgPathogenicityClassification::Pathogenic.into(), 
-            therapeutic_actionability: TherapeuticActionability::UnknownActionability.into(), 
-            variation_descriptor: Some(vdesc) 
-        };
-        vi
+            label: sv.label().to_string(),
+            allelic_state,
+            extensions: vec![],
+        }.build();
+        Self::pathogenic_variant(vdesc)
     }
 
 
@@ -181,14 +249,7 @@ impl PpktVariantExporter {
         hgvs: &HgvsVariant,
         allele_count: usize) 
     -> VariantInterpretation {
-        let gene_ctxt = GeneDescriptor{ 
-            value_id: hgvs.hgnc_id().to_string(), 
-            symbol: hgvs.symbol().to_string(), 
-            description: String::default(),
-            alternate_ids: vec![] , 
-            alternate_symbols: vec![] , 
-            xrefs: vec![] 
-            };
+        let gene_ctxt = Self::gene_descriptor(hgvs.hgnc_id(), hgvs.symbol());
         let vcf_record = Self::get_vcf_record(
             hgvs.assembly(),
             hgvs.chr(),
@@ -216,28 +277,17 @@ impl PpktVariantExporter {
                 expression_list.push(hgvs_p);
         };  
         let allelic_state = self.get_genotype_term(allele_count, hgvs.is_x_chromosomal());
-        let vdesc = VariationDescriptor{ 
-            id: hgvs.variant_key().to_string(), 
-            variation: None, 
-            label: String::default(), 
-            description: String::default(), 
+        let vdesc = VDescBuilder { 
+            id: hgvs.variant_key(), 
             gene_context: Some(gene_ctxt), 
             expressions: expression_list, 
             vcf_record: Some(vcf_record), 
-            xrefs: vec![], 
-            alternate_labels: vec![], 
-            extensions: vec![], 
-            molecule_context: MoleculeContext::Genomic.into(), 
             structural_type: None, 
-            vrs_ref_allele_seq: String::default(), 
-            allelic_state: Some(allelic_state) 
-        };
-        let vi = VariantInterpretation{ 
-            acmg_pathogenicity_classification: AcmgPathogenicityClassification::Pathogenic.into(), 
-            therapeutic_actionability: TherapeuticActionability::UnknownActionability.into(), 
-            variation_descriptor: Some(vdesc) 
-        };
-        vi
+            label: String::default(), 
+            allelic_state, 
+            extensions: vec![] 
+            }.build();
+        Self::pathogenic_variant(vdesc)
     }
 
 
@@ -305,40 +355,20 @@ impl PpktVariantExporter {
         };
         let expression_list = vec![hgvs_g];
          let allelic_state = self.get_genotype_term(allele_count, ig.is_x_chromosomal());
-        let mut vdesc = VariationDescriptor{ 
-            id: ig.variant_key().to_string(), 
-            variation: None, 
-            label: String::default(), 
-            description: String::default(), 
-            gene_context: None, 
-            expressions: expression_list, 
-            vcf_record: Some(vcf_record), 
-            xrefs: vec![], 
-            alternate_labels: vec![], 
-            extensions: vec![], 
-            molecule_context: MoleculeContext::Genomic.into(), 
-            structural_type: None, 
-            vrs_ref_allele_seq: String::default(), 
-            allelic_state: Some(allelic_state) 
-        };
-        if let (Some(hgnc_id), Some(symbol)) = (ig.hgnc_id(), ig.symbol()) {
-            let gene_ctxt = GeneDescriptor { 
-                value_id: hgnc_id, 
-                symbol: symbol, 
-                description: String::default(),
-                alternate_ids: vec![], 
-                alternate_symbols: vec![], 
-                xrefs: vec![] 
-            };
-            vdesc.gene_context = Some(gene_ctxt);
-        };
-        let vi = VariantInterpretation{ 
-            acmg_pathogenicity_classification: AcmgPathogenicityClassification::Pathogenic.into(), 
-            therapeutic_actionability: TherapeuticActionability::UnknownActionability.into(), 
-            variation_descriptor: Some(vdesc) 
-        };
-        vi
-   
+      
+        let vdesc = VDescBuilder {
+            id: ig.variant_key().to_string(),
+            gene_context: None,
+            expressions: expression_list,
+            vcf_record: Some(vcf_record),
+            structural_type: None,
+            label: String::default(),
+            allelic_state,
+            extensions: vec![],
+            }
+            .with_optional_gene(ig.hgnc_id(), ig.symbol())
+            .build();
+        Self::pathogenic_variant(vdesc)
     }
 
 
