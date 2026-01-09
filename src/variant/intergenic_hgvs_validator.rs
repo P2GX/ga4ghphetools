@@ -49,7 +49,7 @@ fn get_variant_validator_url(
     let encoded_hgvs = urlencoding::encode(&hgvs);
     
 
-    let full_url = format!("{}/{}/{}/mane?content-type=application%2Fjson", 
+    let full_url = format!("{}/{}/{}/select?content-type=application%2Fjson", 
         BASE_URL, 
         genome_assembly, 
         encoded_hgvs
@@ -88,7 +88,7 @@ impl IntergenicHgvsValidator {
         let hgvs = &vv_dto.variant_string;
         let url = get_variant_validator_url(&self.genome_assembly, hgvs);
         let response: Value = get(&url)
-            .map_err(|e| format!("Could not map {hgvs}: {e}"))?
+            .map_err(|e| format!("Could not map intergenic {hgvs}: {e}"))?
             .json()
             .map_err(|e| format!("Could not parse JSON for {hgvs}: {e}"))?;
         let mut ig = self.from_json(response)?;
@@ -102,7 +102,7 @@ impl IntergenicHgvsValidator {
     pub fn from_json(&mut self, response: Value) -> Result<IntergenicHgvsVariant, String> {
         self.extract_variant_validator_warnings(&response)?;
         if let Some(flag) = response.get("flag") {
-            if flag != "intergenic" {
+            if flag != "gene_variant" {
                 return Err(format!("Expecting to get an intergenic variant but got {}", flag));
             }
         }
@@ -291,7 +291,7 @@ response
         vvdto: VariantDto
     ){
         let intergenic = "NC_000019.10:g.12887294G>A";
-        let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NC_000019.10%3Ag.12887294G%3EA/mane?content-type=application%2Fjson";
+        let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NC_000019.10%3Ag.12887294G%3EA/select?content-type=application%2Fjson";
         let my_url = get_variant_validator_url("hg38",  intergenic);
         assert_eq!(expected, my_url);
     }

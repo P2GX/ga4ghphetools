@@ -611,7 +611,6 @@ impl EtlTools {
     } else {
         return Err("No disease data available".to_string());
     };
-    println!("process_allele_column {} - {} - {}", symbol, hgnc, transcript);
     let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
     let pb = |p:u32,q:u32|{ println!("{}/{} variants validated", p, q)};
     vmanager.validate_all_variants(&all_alleles, pb)?;

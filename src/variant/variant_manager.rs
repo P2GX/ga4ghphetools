@@ -95,7 +95,7 @@ impl VariantManager {
                 } else if allele.starts_with("NC_") {
                     if self.validate_intergenic(allele).is_ok() {
                         n_validated += 1;
-                    }
+                    } 
                 } else if self.validate_sv(&allele).is_ok() {
                      n_validated += 1;
                 }
@@ -394,6 +394,7 @@ mod tests {
     }   
 
     #[test]
+     #[ignore = "API call"]
     fn test_malformed_sv() {
         // Note this test does not make it to the API and thus does not touch the network
         let label = "deletion:c.[6236 + 1_6237–1]_[6432 + 1_6433–1]del";
@@ -410,6 +411,7 @@ mod tests {
 
 
     #[test]
+    #[ignore = "API call"]
     fn test_intergenic() {
         let symbol = "KLF1";
         let transcript = "NM_006563.5";
@@ -419,6 +421,20 @@ mod tests {
         let result = manager.get_validated_intergenic_hgvs(allele);
         assert!(result.is_ok());
         let ig = result.unwrap();
+        println!("{:?}", ig);
+    }
+
+     #[test]
+      #[ignore = "API call"]
+     fn test_intergenic_TMEM216() {
+        let symbol = "TMEM216";
+        let transcript = "NM_001173990.3";
+        let hgnc = "HGNC:25018";
+        let allele = "NC_000011.10:g.61392563G>T";
+        let mut manager = VariantManager::new(symbol, hgnc, transcript);
+        let result = manager.get_validated_intergenic_hgvs(allele);
+        assert!(result.is_ok());
+       let ig = result.unwrap();
         println!("{:?}", ig);
     }
 
