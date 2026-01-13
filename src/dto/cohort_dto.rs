@@ -410,5 +410,24 @@ impl CohortData {
     pub fn phenopackets_schema_version() -> String {
         return PHETOOLS_SCHEMA_VERSION.to_string()
     }
+
+    pub fn set_to_latest_schema_version(&mut self) {
+        self.phetools_schema_version = PHETOOLS_SCHEMA_VERSION.to_string();
+    }
+
+    
+    pub fn remove_hpo_column(&self, tid: &str) -> Result<CohortData, String> {
+        let mut cohort = self.clone();
+        let idx = cohort
+            .hpo_headers
+            .iter()
+            .position(|h| h.hpo_id == tid)
+            .ok_or_else(|| format!("Could not find column that corresponds to {tid}"))?;
+        cohort.hpo_headers.remove(idx);
+        for row in cohort.rows.iter_mut() {
+            row.hpo_data.remove(idx);
+        }
+        return Ok(cohort);
+    }
     
 }

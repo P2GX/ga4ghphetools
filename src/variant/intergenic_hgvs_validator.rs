@@ -102,7 +102,7 @@ impl IntergenicHgvsValidator {
     pub fn from_json(&mut self, response: Value) -> Result<IntergenicHgvsVariant, String> {
         self.extract_variant_validator_warnings(&response)?;
         if let Some(flag) = response.get("flag") {
-            if flag != "gene_variant" {
+            if flag != "gene_variant" && flag != "intergenic" {
                 return Err(format!("Expecting to get an intergenic variant but got {}", flag));
             }
         }
@@ -298,6 +298,7 @@ response
 
 
     #[rstest]
+    #[ignore = "API call"]
     fn test_decode(
         vv_response: String
     ) {
