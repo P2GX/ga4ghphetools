@@ -208,19 +208,19 @@ impl EtlTools {
         key: HpoTermDuplet, 
         value: String) 
     -> Result<(), String> {
-            match map.entry(key) {
-                Entry::Occupied(mut entry) => {
-                    if entry.get() != &value {
-                        let resolved_val = Self::resolve_hpo_conflict(entry.get(), &value)?;
-                        *entry.get_mut() = resolved_val;
-                    }
-                },
-                Entry::Vacant(entry) => {
-                    entry.insert(value);
+        match map.entry(key) {
+            Entry::Occupied(mut entry) => {
+                if entry.get() != &value {
+                    let resolved_val = Self::resolve_hpo_conflict(entry.get(), &value)?;
+                    *entry.get_mut() = resolved_val;
                 }
+            },
+            Entry::Vacant(entry) => {
+                entry.insert(value);
             }
-            Ok(())
         }
+        Ok(())
+    }
 
     /// Insert multiple HPO term observations into the given map.
     ///
@@ -263,17 +263,17 @@ impl EtlTools {
             let obs_pair: Vec<&str> = obs.split("-").collect();
             if obs_pair.len() == 3 {
                 // something like  "current": "HP:0008846-observed-Congenital onset",
+                // or "HP:0008846-observed-na" (i.e., not onset)
                 let hp_id = obs_pair[0];
                 let status = obs_pair[1];
                 let onset = obs_pair[2];
-                if crate::age::is_valid_age_string(onset) {
+                if onset == "na" {
+                    observation_map.insert(hp_id.to_string(), status.to_string());
+                } else if crate::age::is_valid_age_string(onset) {
                     observation_map.insert(hp_id.to_string(), onset.to_string());
                 } else {
                     return Err(format!("Malformed observation data onset='{onset}' ({obs})"))
                 }
-            } else if obs_pair.len() == 2 {
-                // i.e., no observation data
-                observation_map.insert(obs_pair[0].to_string(), obs_pair[1].to_string());
             } else {
                 return Err(format!("Malformed observation pair '{obs}'"))
             }

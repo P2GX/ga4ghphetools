@@ -138,7 +138,7 @@ fn delayed_gross_motor() -> ColumnDto {
 
 #[fixture]
 fn gdd_column_valid() -> ColumnDto {
-    let observed = transformed_from_string("HP:0001263-observed");
+    let observed = transformed_from_string("HP:0001263-observed-na");
     ColumnDto {
         id: "61d07214-abb0-45cf-aa67-3218730416c0".to_string(),
         header: EtlColumnHeader{
@@ -156,8 +156,8 @@ fn gdd_column_valid() -> ColumnDto {
 
 #[fixture]
 fn hypertelorism_column_valid() -> ColumnDto {
-    let observed = transformed_from_string("HP:0000601-observed;HP:0000316-excluded");
-    let o2 = transformed_from_string("HP:0000601-excluded;HP:0000316-observed");
+    let observed = transformed_from_string("HP:0000601-observed-na;HP:0000316-excluded-na");
+    let o2 = transformed_from_string("HP:0000601-excluded-na;HP:0000316-observed-na");
     ColumnDto {
         id: "5697a6ef-4855-4230-9bb1-a8511acadcb3".to_string(),
         header: EtlColumnHeader {
@@ -514,6 +514,7 @@ fn test_missing_hgvs(
     assert!(removed.is_some(), "Entry was not found in hgvs_variants"); // make sure we actually remove the variant
     // This should be an error because the Variant row has an allele key that is not in our map
     let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto);
+    println!("{:?}", result);
     assert!(result.is_ok());
 }
 
@@ -677,9 +678,6 @@ fn test_from_file(hpo: Arc<FullCsrOntology>) {
                     .map_err(|e| format!("Failed to deserialize JSON: {}", e)).unwrap(); 
     let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), dto);
     println!("{:?}", result);
-
-
-
 }
 
 
