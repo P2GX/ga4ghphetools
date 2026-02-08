@@ -608,7 +608,13 @@ impl EtlTools {
     }
 
 
-   pub fn process_allele_column(&self, column: usize) -> Result<EtlDto, String> {
+   pub fn process_allele_column<F>(
+    &self, 
+    column: usize,
+    mut on_progress: F) 
+        -> Result<EtlDto, String> 
+        where F: FnMut(u32, u32) {
+    let item_count = self.dto.table.columns[column].values.len() as u32;
     let all_alleles: HashSet<String> = self.dto.table.columns[column].values.iter()
         .map(|cell| cell.original.clone())
         .collect();
@@ -623,8 +629,7 @@ impl EtlTools {
         return Err("No disease data available".to_string());
     };
     let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
-    let pb = |p:u32,q:u32|{ println!("{}/{} variants validated", p, q)};
-    vmanager.validate_all_variants(&all_alleles, pb)?;
+    vmanager.validate_all_variants(&all_alleles,  on_progress, item_count)?;
     let hgvs_d = vmanager.hgvs_map();
     let sv_d = vmanager.sv_map();
     let intergenic_d = vmanager.intergenic_map();

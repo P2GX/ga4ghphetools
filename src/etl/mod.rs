@@ -76,11 +76,11 @@ pub fn get_cohort_data_from_etl_dto(
 }
 
 
-pub fn process_allele_column(
+pub fn process_allele_column<F>(
     hpo: Arc<FullCsrOntology>,
     etl: EtlDto,
-    col: usize
-) -> Result<EtlDto, String> {
+    col: usize,
+    mut on_progress: F) -> Result<EtlDto, String> where F: FnMut(u32, u32) {
     let etl_tools = EtlTools::from_etl(etl, hpo);
-    etl_tools.process_allele_column(col)
+    etl_tools.process_allele_column(col, on_progress)
 }

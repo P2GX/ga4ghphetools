@@ -73,7 +73,8 @@ impl VariantManager {
     /// For each round, increase the latency between network calls
     pub fn validate_all_variants<F>(
         &mut self, all_alleles: &HashSet<String>,
-        mut progress_cb: F)  
+        mut progress_cb: F,
+        total_row_count: u32)  
     -> Result<(), String> 
     where F: FnMut(u32, u32) {
         let n_alleles = all_alleles.len();
@@ -101,7 +102,7 @@ impl VariantManager {
                 }
                 // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
                 thread::sleep(Duration::from_millis(latency));
-                progress_cb(n_validated, n_alleles);
+                progress_cb(n_validated, total_row_count);
             }
             latency += 250;
             attempts += 1;
@@ -289,7 +290,8 @@ impl VariantManager {
                 allele_set.insert(a2);
             }
         }
-        vmanager.validate_all_variants(&allele_set, progress_cb)?;
+        let n_datarows = matrix.len() as u32 - 2_u32;
+        vmanager.validate_all_variants(&allele_set, progress_cb, n_datarows)?;
         Ok(vmanager)
     }
 
