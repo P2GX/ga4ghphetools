@@ -87,12 +87,12 @@ pub struct TopLevelHpoRenderer {
 impl TopLevelHpoRenderer  {
     pub fn new(
         top_level_name: &str,
-        hpo_header: &Vec<HpoTermDuplet>,
+        hpo_header: &[HpoTermDuplet],
         rows: Vec<CohortRow>) -> Self {
         Self { 
             top_level_name: top_level_name.to_string(), 
             anchor: Self::make_anchor_id(top_level_name),
-            hpo_header: hpo_header.clone(), 
+            hpo_header: hpo_header.to_vec(), 
             n_hpo: hpo_header.len(),
             rows: rows 
         }
@@ -139,13 +139,13 @@ impl CohortRenderer {
         let top_level_map = match crate::hpo::get_hpo_terms_by_toplevel(cohort.clone(), hpo.clone()){
             Ok(tlmap) => tlmap,
             Err(e) => {
-                eprint!("{}", e.to_string());
+                eprint!("{}", e);
                 HashMap::<String, Vec<HpoTermDuplet>>::new()
             }
         };
         let mut top_level_list: Vec<TopLevelHpoRenderer> = Vec::new();
         for top in top_level_map {
-            let top_level = Self::get_top_level_section(&top.0, top.1, &cohort)
+            let top_level = Self::get_top_level_section(&top.0, top.1, cohort)
                 .map_err(|e|e.to_string())?;
             top_level_list.push(top_level);
         }

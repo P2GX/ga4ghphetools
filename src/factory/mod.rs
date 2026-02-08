@@ -28,13 +28,9 @@ mod cohort_qc;
 /// * `cohort_dto` - A [`CohortData`] object representing the cohort.
 ///
 /// # Returns
-/// * `Ok(String)` containing the template filename if the cohort is Mendelian,
-///   contains exactly one gene transcript, and has a cohort acronym.
+/// * `Ok(String)` containing the template filename (generated in the front end)
 /// * `Err(String)` if:
-///   - The cohort is not Mendelian,
-///   - No disease data is available,
-///   - More than one gene transcript is present (non-Mendelian case not implemented),
-///   - Or the cohort acronym is missing.
+///   - the cohort acronym is missing.
 ///
 /// # Errors
 /// This function returns an error with a descriptive message when the filename
@@ -46,29 +42,12 @@ mod cohort_qc;
 /// // e.g., "ACVR1_FOP_individuals.json"
 /// ```
 pub fn extract_template_name(cohort_dto: &CohortData) -> Result<String, String> {
-    if cohort_dto.is_melded() {
-        let name = melded_cohort_name(cohort_dto)?;
-        return Ok(format!("{}_individuals.json", name));
+    let acronym = match &cohort_dto.cohort_acronym {
+        Some(name) => name.to_string(),
+        None => {return Err("No cohort acronym found".to_string());}
     };
-    let disease_data = match cohort_dto.disease_list.first() {
-        Some(data) => data.clone(),
-        None => { return Err(format!("Could not extract disease data from Mendelian cohort"));},
-    };
-     if disease_data.gene_transcript_list.is_empty() {
-        return Err(format!("No gene/transcript objects found for.")); 
-    };
-    // one or multiple gene symbols: YFG1 or YFG1-YFG2
-    // this will work for Mendelian and digenic
-    let symbol_str = disease_data
-        .gene_transcript_list
-        .iter()
-        .map(|gtd| gtd.gene_symbol.to_string())
-        .collect::<Vec<_>>()
-        .join("-");
-    match &cohort_dto.cohort_acronym {
-        Some(acronym) => Ok(format!("{}_{}_individuals.json", symbol_str, acronym)),
-        None => Err(format!("Cannot get template name if acronym is missing.")),
-    }
+
+    Ok(format!("{}_individuals.json", acronym))
 }
 
 

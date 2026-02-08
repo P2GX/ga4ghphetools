@@ -189,10 +189,10 @@ impl CategoryCounter {
     }
 
     pub fn over_threshold(&self, threshold: usize) -> bool {
-        return self
+        self
             .row_counter_list
             .iter()
-            .any(|c| c.over_threshold(threshold));
+            .any(|c| c.over_threshold(threshold))
     }
 
     pub fn get_subheader(&self) -> Vec<String> {
@@ -317,11 +317,11 @@ impl TableCompare {
             citation_set.insert(citation);
         };
         let citation_list: Vec<Citation> = citation_set.into_iter().collect();
-        return citation_list;
+        citation_list
     }
 
     pub fn get_citations(&self) -> Vec<Citation> {
-        return self.citation_list.clone();
+        self.citation_list.clone()
     }
 
 
@@ -373,14 +373,14 @@ impl TableCompare {
     }
 
     pub fn get_category_counters(&self) -> Vec<CategoryCounter> {
-        return self.category_map.values().cloned().collect()
+        self.category_map.values().cloned().collect()
     }
 
     pub(crate) fn get_count(&self, duplet: &HpoTermDuplet) -> usize {
-        return match self.total_term_count_map.get(duplet) {
+        match self.total_term_count_map.get(duplet) {
             Some(c) => *c,
             None => 0,
-        };
+        }
     }
 
 

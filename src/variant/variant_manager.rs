@@ -79,7 +79,7 @@ impl VariantManager {
         let n_alleles = all_alleles.len();
         let mut attempts = 0;
         let max_attempts = 4;
-        let mut latency = 250 as u64; // time in milliseconds to wait between API calls
+        let mut latency = 250_u64; // time in milliseconds to wait between API calls
         let mut n_validated: u32 = 0;
         let n_alleles = all_alleles.len() as u32;
         self.allele_set = all_alleles.clone();
@@ -96,7 +96,7 @@ impl VariantManager {
                     if self.validate_intergenic(allele).is_ok() {
                         n_validated += 1;
                     } 
-                } else if self.validate_sv(&allele).is_ok() {
+                } else if self.validate_sv(allele).is_ok() {
                      n_validated += 1;
                 }
                 // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
@@ -119,7 +119,7 @@ impl VariantManager {
         let n_alleles = all_alleles.len();
         let mut attempts = 0;
         let max_attempts = 4;
-        let mut latency = 250 as u64; // time in milliseconds to wait between API calls
+        let mut latency = 250_u64; // time in milliseconds to wait between API calls
         let mut n_validated: u32 = 0;
         let n_alleles = all_alleles.len() as u32;
         self.allele_set = all_alleles.clone();
@@ -128,10 +128,10 @@ impl VariantManager {
                 if ! allele.is_ascii() {
                     return Err(format!("Non-ASCII character in allele label: '{allele}'"));
                 }
-                if ! allele.starts_with("c.") && ! allele.starts_with("n.") {
-                    if  self.validate_sv(&allele).is_ok() {
+                if ! allele.starts_with("c.") 
+                    && ! allele.starts_with("n.") 
+                    && self.validate_sv(&allele).is_ok() {
                         n_validated += 1;
-                    }
                 }
                 // sleep to try to avoid network issues; (start at 250 milliseconds, increase as much in each iteration)
                 thread::sleep(Duration::from_millis(latency));
@@ -249,15 +249,15 @@ impl VariantManager {
         progress_cb: F) 
     -> Result<Self, String> 
         where F: FnMut(u32, u32) {
-        let hgnc_id_index = 6 as usize;
-        let gene_symbol_index = 7 as usize;
-        let transcript_index = 8 as usize;
-        let allele1_idx = 9 as usize;
-        let allele2_idx = 10 as usize;
+        let hgnc_id_index = 6_usize;
+        let gene_symbol_index = 7_usize;
+        let transcript_index = 8_usize;
+        let allele1_idx = 9_usize;
+        let allele2_idx = 10_usize;
         if matrix.len() < 3 {
             return Err(format!("Error: Mendelian matrix with too few rows: {}", matrix.len()));
         } 
-        let row0 = matrix.get(0).unwrap(); // we know we have thie first row
+        let row0 = matrix.first().unwrap(); // we know we have thie first row
         if row0.len() < 11 {
             return Err(format!("First matrix row too short: {} fields", row0.len()));
         }
@@ -279,7 +279,7 @@ impl VariantManager {
         // extract all allele strings
         let mut allele_set: HashSet<String> = HashSet::new();
         let n_header_rows = 2;
-        for row in matrix.into_iter().skip(n_header_rows) {
+        for row in matrix.iter().skip(n_header_rows) {
             let a1 = row[allele1_idx].clone();
             let a2 = row[allele2_idx].clone();
             if a1 != "na" {

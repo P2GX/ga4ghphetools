@@ -22,7 +22,7 @@ impl HpoTermCounter {
             let pmid = row.individual_data.pmid.clone();
             let term_data_list = pmid_to_term_data_list_d
                 .entry(pmid)
-                .or_insert(Vec::new());
+                .or_default();
             for (value, duplet) in row.hpo_data.iter().zip(cohort_dto.hpo_headers.clone()) {
                 let hpo_data = HpoTermData{
                     term_duplet: duplet.clone(),
@@ -39,7 +39,7 @@ impl HpoTermCounter {
                 if term_data.is_not_ascertained() {
                     continue; // Some of our upstream data has "na" values for a specific HPO term. There is no use adding these non-values to the HPOA (because they would yield 0/0)
                 }
-                let cterm = counted_term_map.entry(term_data.term_id().to_string()).or_insert(CountedHpoTerm::new(term_data.term_id(), term_data.label(), &pmid));
+                let cterm = counted_term_map.entry(term_data.term_id().to_string()).or_insert(CountedHpoTerm::new(term_data.term_id(), term_data.label(), pmid));
                 cterm.increment_value(&term_data.entry);
             }
             // we are now done with the counted terms for the current PMID

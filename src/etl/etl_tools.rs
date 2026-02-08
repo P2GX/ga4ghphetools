@@ -572,7 +572,7 @@ impl EtlTools {
     pub fn get_cohort_data(&mut self) -> Result<CohortData, String> {
         self.check_is_completely_transformed()?;
         self.qc()?;
-        let hpo_duplets = Self::all_hpo_duplets(&self);
+        let hpo_duplets = Self::all_hpo_duplets(self);
         let ultra_terms: Vec<_> = hpo_duplets
             .iter()
             .filter(|d| d.hpo_label().contains("Ultra"))
@@ -584,7 +584,7 @@ impl EtlTools {
             .collect();
         let disease = match &self.dto.disease {
             Some(d) => d.clone(),
-            None => { return Err(format!("Cannot create CohortData if ETL does not have disease data"))},
+            None => { return Err("Cannot create CohortData if ETL does not have disease data".to_string())},
         };
         let mut row_list: Vec<RowData> = Vec::new();
         let n_rows = self.get_row_count()?;

@@ -46,7 +46,7 @@ fn get_variant_validator_url(
     hgvs: &str
 ) -> String
 {
-    let encoded_hgvs = urlencoding::encode(&hgvs);
+    let encoded_hgvs = urlencoding::encode(hgvs);
     
 
     let full_url = format!("{}/{}/{}/select?content-type=application%2Fjson", 

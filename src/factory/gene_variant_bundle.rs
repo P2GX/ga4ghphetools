@@ -45,7 +45,7 @@ impl GeneVariantBundle {
 
       // Start index is the index in the template matrix where this block of columns starts
     pub fn from_row(
-        row: &Vec<String>,
+        row: &[String],
         start_idx: usize
     ) -> std::result::Result<Self, String> {
         let i = start_idx;

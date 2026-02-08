@@ -163,7 +163,7 @@ impl PpktVariantExporter {
             v_interpretation_list.push(vinterp);
         }
         if self.disease_list.is_empty() {
-            return Err(format!("No disease objects found"));
+            return Err("No disease objects found".to_string());
         }
        
         let mut g_interpretation_map: HashMap<String, Vec<GenomicInterpretation>> = HashMap::new();
@@ -176,7 +176,7 @@ impl PpktVariantExporter {
             let symbol = Self::extract_gene_symbol(&vi)?;
             g_interpretation_map
                 .entry(symbol)
-                .or_insert_with(Vec::new) 
+                .or_default() 
                 .push(gi);
         }
         let mut interpretation_list: Vec<Interpretation> = vec![];
@@ -300,20 +300,20 @@ impl PpktVariantExporter {
         allele_count: usize,
         is_x: bool) -> OntologyClass {
         if  allele_count == 2 {
-            return OntologyClass {
+            OntologyClass {
                 id: "GENO:0000136".to_string(),
                 label: "homozygous".to_string(),
-            };            
+            }         
         } else if is_x && self.is_male {
-            return OntologyClass {
+            OntologyClass {
                 id: "GENO:0000134".to_string(),
                 label: "hemizygous".to_string(),
-            }; 
+            }
         } else {
-            return OntologyClass {
+            OntologyClass {
                 id: "GENO:0000135".to_string(),
                 label: "heterozygous".to_string(),
-            }; 
+            }
         }
     }
 

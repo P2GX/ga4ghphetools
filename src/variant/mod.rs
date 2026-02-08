@@ -202,16 +202,16 @@ pub fn validate_all_sv(
 /// Currently, only Mendelian cohorts are supported
 pub fn analyze_variants(cohort_dto: CohortData) -> Result<Vec<VariantDto>, String> {
     if ! cohort_dto.is_mendelian() {
-        return Err(format!("analyze_variants is only implemented for Mendelian"));
+        return Err("analyze_variants is only implemented for Mendelian".to_string());
     }
     let disease_data = match cohort_dto.disease_list.first() {
         Some(data) => data.clone(),
-        None =>  { return Err(format!("Unable to extract DiseaseData")); },
+        None =>  { return Err("Unable to extract DiseaseData".to_string()); },
     };
     
     let gt_data: GeneTranscriptData = match disease_data.gene_transcript_list.first() {
         Some(data) => data.clone(),
-        None =>  { return Err(format!("Unable to extract GeneTranscriptData")); }
+        None =>  { return Err("Unable to extract GeneTranscriptData".to_string()); }
     };
     let vmanager = VariantManager::from_gene_transcript_dto(&gt_data);
     vmanager.analyze_variants(cohort_dto)

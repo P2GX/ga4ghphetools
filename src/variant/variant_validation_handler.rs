@@ -81,7 +81,7 @@ pub trait VariantValidatorHandler {
             .and_then(|v| v.as_str())
             .map(str::to_string)
             .ok_or_else(|| "Missing field: hgvs_genomic_description".to_string())?;
-        return Ok(genomic_hgvs);
+        Ok(genomic_hgvs)
     }
 
     /// Get the gene symbol (returns an option, because some intergenic variants may not have a gene)

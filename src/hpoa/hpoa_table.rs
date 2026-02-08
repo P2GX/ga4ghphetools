@@ -126,7 +126,7 @@ impl HpoaTable {
             None => { return Err(format!("Could not extract disease from cohort: {:?}", cohort));},
         };
         if disease.mode_of_inheritance_list.is_empty() {
-            return Err(format!("Disease must have at least one mode-of-inheritance entry"));
+            return Err("Disease must have at least one mode-of-inheritance entry".to_string());
         }
         for moi in &disease.mode_of_inheritance_list {
             let hpoa_row = HpoaTableRow::from_moi(&disease, moi, biocurator)?;

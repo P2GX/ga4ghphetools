@@ -141,7 +141,7 @@ impl StructuralValidator {
             .ok_or_else(|| format!(
                 "Could not extract chromosome from annotations map (VariantValidator) for '{gene}'"
             ))?;
-        return Ok(chrom.to_string());
+        Ok(chrom.to_string())
     }
 
     pub fn get_validated_sv(&mut self, vv_dto: &VariantDto) 

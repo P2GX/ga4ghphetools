@@ -69,7 +69,7 @@ impl DiseaseQc {
 
 
     fn get_allele_count(ppkt: &Phenopacket) -> usize {
-        let mut ac = 0 as usize;
+        let mut ac = 0_usize;
         for interpret in &ppkt.interpretations {
             match &interpret.diagnosis {
                 Some(dx) => {
@@ -100,9 +100,9 @@ impl DiseaseQc {
         let n_nrows = self.cohort.rows.len();
         let n_phenopackets = self.phenopacket_count();
         if n_nrows == n_phenopackets {
-            return None;
+            None
         } else {
-            return Some(QcReport::count_mismatch(&self.disease_data_display(), n_nrows, n_phenopackets))
+            Some(QcReport::count_mismatch(&self.disease_data_display(), n_nrows, n_phenopackets))
         }
     }
 

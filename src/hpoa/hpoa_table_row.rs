@@ -88,23 +88,22 @@ impl HpoaTableRow {
 
 
     pub fn header_fields() -> Vec<String> {
-        let header = vec![
-                "#diseaseID".to_string(),
-                "diseaseName".to_string(),
-                "phenotypeID".to_string(),
-                "phenotypeName".to_string(),
-                "onsetID".to_string(),
-                "onsetName".to_string(),
-                "frequency".to_string(),
-                "sex".to_string(),
-                "negation".to_string(),
-                "modifier".to_string(),
-                "description".to_string(),
-                "publication".to_string(),
-                "evidence".to_string(),
-                "biocuration".to_string()
-                ];
-            return header;
+        vec![
+            "#diseaseID".to_string(),
+            "diseaseName".to_string(),
+            "phenotypeID".to_string(),
+            "phenotypeName".to_string(),
+            "onsetID".to_string(),
+            "onsetName".to_string(),
+            "frequency".to_string(),
+            "sex".to_string(),
+            "negation".to_string(),
+            "modifier".to_string(),
+            "description".to_string(),
+            "publication".to_string(),
+            "evidence".to_string(),
+            "biocuration".to_string()
+            ]
     }
 
     pub fn row(&self) -> Vec<String> {
@@ -137,7 +136,7 @@ impl HpoaTableRow {
             .map(|s| s == &moi.hpo_label)
             .unwrap_or(false)
         {
-             HpoaTableRow::new(disease, &moi.hpo_id, &moi.hpo_label, &DEFAULT_FREQ, &moi.citation, biocurator)
+             HpoaTableRow::new(disease, &moi.hpo_id, &moi.hpo_label, DEFAULT_FREQ, &moi.citation, biocurator)
         } else {
             Err(format!("Invalid mode of inheritance data: '{}' / '{}' ", moi.hpo_label, moi.hpo_id))
         }

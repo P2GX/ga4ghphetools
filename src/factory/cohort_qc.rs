@@ -17,11 +17,11 @@ impl ConflictMap {
     
     
     fn conflict_count(&self) -> usize {
-            self.na_terms.len()
+        self.na_terms.len()
     }
     
     pub fn no_conflict(&self) -> bool {
-        return self.conflict_count() == 0;
+        self.conflict_count() == 0
     }
 
     pub fn report(&self) -> String {
@@ -100,9 +100,9 @@ impl CohortDataQc {
     pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), String> {
         let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)?;
         if conflicting_pairs.no_conflict() {
-            return Ok(())
+            Ok(())
         } else {
-            return Err(conflicting_pairs.report());
+            Err(conflicting_pairs.report())
         }   
     }
 
@@ -152,7 +152,7 @@ impl CohortDataQc {
             for tid in conflict_map.na_terms {
                 let idx = term_id_to_index_map
                     .get(&tid)
-                    .ok_or_else(|| format!("Could not get index for {}", tid.to_string()))?;
+                    .ok_or_else(|| format!("Could not get index for {}", tid))?;
                 row.hpo_data[*idx] = crate::dto::hpo_term_dto::CellValue::Na;
             }
         }

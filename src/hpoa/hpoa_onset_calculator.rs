@@ -28,7 +28,7 @@ impl HpoaOnsetCalculator {
                     return Err(format!("Invalid age string '{}' for '{}'", onset, row.individual_data.individual_id));
                 }
                 let onset_term = age::get_onset_term(&onset)?;
-                let onset_list = pmid_to_onset_string_d.entry(pmid).or_insert(Vec::new());
+                let onset_list = pmid_to_onset_string_d.entry(pmid).or_default();
                 onset_list.push(onset_term);
             }
         }

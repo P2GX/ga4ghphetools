@@ -29,11 +29,11 @@ impl RepoQc {
     }
 
     pub fn phenopacket_count(cohort_qc_list: &Vec<CohortQc>) -> usize {
-        let mut c = 0 as usize;
+        let mut c = 0_usize;
         for cohort in cohort_qc_list {
             c += cohort.ppkt_count();
         }
-        return c;
+        c
     }
 
     fn get_errors(cohort_qc_list: Vec<CohortQc>) -> Vec<QcReport> {

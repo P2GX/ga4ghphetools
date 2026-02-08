@@ -95,7 +95,7 @@ impl CohortQc {
     
 
     pub fn ppkt_count(&self) -> usize {
-        return self.disease_qc_list.iter().map(|dqc|dqc.phenopacket_count()).sum();
+        self.disease_qc_list.iter().map(|dqc|dqc.phenopacket_count()).sum()
     }
 
     pub fn check_moi(&self) -> Vec<QcReport> {

@@ -27,7 +27,7 @@ impl HtmlRenderer {
             e
         });
         match html {
-            Ok(html) => { return html;},
+            Ok(html) => { html },
             Err(e) => {
                 panic!("{:?}",e);
             }
