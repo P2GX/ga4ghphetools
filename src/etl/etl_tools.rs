@@ -153,16 +153,16 @@ impl EtlTools {
                     individual.individual_id = Self::extract_value(&col.values, i, "individual ID")?;
                 }
                 AgeOfOnset => {
-                    individual.age_of_onset = Self::extract_value_or_default(&col.values, i, "age_of_onset", "na")?;
+                    individual.age_of_onset = Self::extract_value_or_default(&col.values, i, "age_of_onset", NOT_AVAILABLE)?;
                 }
                 AgeAtLastEncounter => {
-                    individual.age_at_last_encounter = Self::extract_value_or_default(&col.values, i, "age_at_last_encounter", "na")?;
+                    individual.age_at_last_encounter = Self::extract_value_or_default(&col.values, i, "age_at_last_encounter", NOT_AVAILABLE)?;
                 }
                 Sex => {
-                    individual.sex = Self::extract_value_or_default(&col.values, i, "sex", "U")?;
+                    individual.sex = Self::extract_value_or_default(&col.values, i, "sex", UNKNOWN_SEX)?;
                 }
                 Deceased => {
-                    individual.deceased = Self::extract_value_or_default(&col.values, i, "deceased", "na")?;
+                    individual.deceased = Self::extract_value_or_default(&col.values, i, "deceased", NOT_AVAILABLE)?;
                 }
             }
         }
@@ -611,7 +611,7 @@ impl EtlTools {
    pub fn process_allele_column<F>(
     &self, 
     column: usize,
-    mut on_progress: F) 
+    on_progress: F) 
         -> Result<EtlDto, String> 
         where F: FnMut(u32, u32) {
     let item_count = self.dto.table.columns[column].values.len() as u32;
