@@ -15,7 +15,8 @@ use phenopackets::schema::v2::core::genomic_interpretation::InterpretationStatus
 use phenopackets::schema::v2::core::interpretation::ProgressStatus;
 use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, GenomicInterpretation};
 use phenopackets::schema::v2::core::Diagnosis;
-use rand::Rng;
+use rand::distr::{Alphanumeric, Distribution};
+use rand::RngExt;
 use crate::dto::cohort_dto::CohortData;
 use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::cohort_dto::RowData;
@@ -387,8 +388,8 @@ impl PpktVariantExporter {
 
     /// Generate a random identifier (used in this struct for Interpretation objects).
     fn generate_id() -> String {
-        rand::rng()
-            .sample_iter(&rand::distr::Alphanumeric)
+        Alphanumeric
+            .sample_iter(rand::rng())
             .take(24)
             .map(char::from)
             .collect()

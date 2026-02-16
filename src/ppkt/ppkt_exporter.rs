@@ -24,13 +24,13 @@ use phenopacket_tools::builders::builder::Builder;
 
 const DEFAULT_HGNC_VERSION: &str =  "06/01/25";
 const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
-const DEFAULT_SEQUENCE_ONTOLOGY_VERSION: &str =  "2024-11-18";
 const DEFAULT_GENO_VERSION: &str =  "2025-07-25";
 
+
+/// Structure to export phenopackets from a CohortData object.
 pub struct PpktExporter {
     /// Reference to the Ontolius Human Phenotype Ontology Full CSR object
     hpo: Arc<FullCsrOntology>,
-    so_version: String,
     geno_version: String,
     omim_version: String,
     hgnc_version: String,
@@ -49,7 +49,6 @@ impl PpktExporter {
     ) -> Self {
         Self::from_versions(
             hpo,
-            DEFAULT_SEQUENCE_ONTOLOGY_VERSION,
             DEFAULT_GENO_VERSION,
             DEFAULT_OMIM_VERSION,
             DEFAULT_HGNC_VERSION,
@@ -59,7 +58,6 @@ impl PpktExporter {
 
     pub fn from_versions(
         hpo: Arc<FullCsrOntology>,
-        so_version: &str, 
         geno_version: &str,
         omim_version: &str, 
         hgnc_version: &str ,
@@ -72,7 +70,6 @@ impl PpktExporter {
         }
         Self{ 
             hpo, 
-            so_version: so_version.to_string(), 
             geno_version: geno_version.to_string(),
             omim_version: omim_version.to_string(), 
             hgnc_version: hgnc_version.to_string(),
@@ -125,10 +122,6 @@ impl PpktExporter {
         &self.hpo.version()
     } 
 
-    pub fn so_version(&self) -> &str {
-        &self.so_version
-    } 
-
     pub fn geno_version(&self) -> &str {
         &self.geno_version
     } 
@@ -147,7 +140,6 @@ impl PpktExporter {
         let mut meta_data = Builder::meta_data_now(created_by);
         let hpo = phenopacket_tools::builders::resources::Resources::hpo_version(self.hpo_version());
         let geno = phenopacket_tools::builders::resources::Resources::geno_version(self.geno_version());
-        let so = phenopacket_tools::builders::resources::Resources::so_version(self.so_version());
         let omim = phenopacket_tools::builders::resources::Resources::omim_version(self.omim_version());
         let hgnc = phenopacket_tools::builders::resources::Resources::hgnc_version(&self.hgnc_version());
         let indvl_dto = row_dto.individual_data.individual_id.clone();
@@ -158,7 +150,6 @@ impl PpktExporter {
         };
         meta_data.resources.push(hpo);
         meta_data.resources.push(geno);
-        meta_data.resources.push(so);
         meta_data.resources.push(omim);
         meta_data.resources.push(hgnc);
         meta_data.external_references.push(ext_res);
