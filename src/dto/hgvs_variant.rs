@@ -151,6 +151,8 @@ impl HgvsVariant {
     pub fn generate_variant_key(hgvs: &str, symbol: &str, transcript: &str) -> String {
         let mut hgvs_norm = hgvs
             .replace("c.", "c")
+            .replace("+", "plus")
+            .replace("-", "minus")
             .replace('>', "to");
         hgvs_norm = hgvs_norm
             .chars()
