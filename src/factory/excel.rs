@@ -72,26 +72,24 @@ fn get_list_of_rows_from_excel(file_path: &str) -> Result<Vec<Vec<String>>, Stri
 }
 
 
-/// Reads an Excel file in the **legacy phenopacket-store format** 
-/// and validates it into a structured 2D string matrix (`Vec<Vec<String>>`).
+/// Reads an Excel file and validates it into 
+/// a structured 2D string matrix (`Vec<Vec<String>>`).
 ///
 /// This function is specialized for early phenopacket-store input files,
 /// which are expected to have:
-/// - At least **3 rows** total (2 header rows + data).
-/// - The **first two rows** (`row0`, `row1`) defining the column headers.
-/// - Each data row having the **same number of fields** as the headers.
+/// - At least **2 rows** total (1 header rows + data).
+/// - Each data row having the **same number of fields** as the header.
 ///
 /// # Behavior
 /// - Delegates to [`get_list_of_rows_from_excel`] to extract raw cell values.
-/// - Ensures the matrix has at least 3 rows; otherwise returns an error.
-/// - Ensures the first two rows have the same number of fields (consistent headers).
-/// - Ensures each subsequent row has the same number of fields as the headers.
+/// - Ensures the matrix has at least 2 rows; otherwise returns an error.
+/// - Ensures each subsequent row has the same number of fields as the header.
 /// - Replaces any **empty cells** (only in data rows) with the literal `"na"`.
 ///
 /// # Errors
 /// Returns `Err(String)` in the following cases:
 /// - The Excel file cannot be opened or parsed (from [`get_list_of_rows_from_excel`]).
-/// - The file has fewer than 3 rows.
+/// - The file has fewer than 2 rows.
 /// - The two header rows have different numbers of fields.
 /// - Any data row has a different number of fields than the headers.
 ///

@@ -392,14 +392,14 @@ mod tests {
         });
 
         PpktExporter::strip_phenopacket_defaults(&mut packet);
-        //println!("{}", packet);
+        println!("{}", packet);
 
         assert!(! packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
         assert_eq!(packet["subject"]["vitalStatus"]["status"], "DECEASED");
     }
 
 
-  #[test]
+    #[test]
     fn test_strip_removes_unknown_karyotypic_sex_string2() {
         let mut packet = json!({
             "subject": {
@@ -412,9 +412,21 @@ mod tests {
                 }
             }
         });
-         PpktExporter::strip_phenopacket_defaults(&mut packet);
+        PpktExporter::strip_phenopacket_defaults(&mut packet);
         assert!(!packet["subject"].get("karyotypicSex").is_some());
-}
+    }
+
+    #[test]
+    fn test_do_not_add_unknown_sex() {
+        let mut packet = json!({
+            "subject": {
+                "id": "PMID_29198722_p_Arg913Ter_Affected_Individual_1",
+            }
+        });
+        PpktExporter::strip_phenopacket_defaults(&mut packet);
+        println!("{:?}", packet);
+        assert!(!packet["subject"].get("sex").is_some());
+    }
 
 
 
