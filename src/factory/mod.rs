@@ -103,6 +103,7 @@ pub fn qc_assessment(
 -> Result<(), String> {
     let cohort_qc = CohortDataQc::new(hpo);
     cohort_qc.qc_check(cohort_dto)?;
+    cohort_qc.check_metadata(cohort_dto)?;
     cohort_qc.qc_conflicting_pairs(cohort_dto)
 }
 

@@ -126,6 +126,20 @@ impl CohortDataQc {
     }
 
 
+    pub fn check_metadata(&self, cohort: &CohortData) -> Result<(), String> {
+        let diseases = &cohort.disease_list;
+        if diseases.is_empty() {
+            return Err("Disease list empty".to_string());
+        }
+        for disease in diseases {
+            if disease.mode_of_inheritance_list.is_empty() {
+                return Err(format!("No mode of inheritance provided for {} ({})", disease.disease_label, disease.disease_id));
+            }
+        }
+        Ok(())
+    }
+
+
     pub fn sanitize_header(&self, duplets: &Vec<HpoTermDuplet>) -> Result<Vec<HpoTermDuplet>, String> {
         let mut sanitized: Vec<HpoTermDuplet> = Vec::new();
         for duplet in duplets {

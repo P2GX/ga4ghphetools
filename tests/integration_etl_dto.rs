@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ga4ghphetools::dto::cohort_dto::GeneTranscriptData;
+use ga4ghphetools::dto::cohort_dto::ModeOfInheritance;
 use ga4ghphetools::dto::etl_dto::ColumnDto;
 use ga4ghphetools::dto::etl_dto::ColumnTableDto;
 use ga4ghphetools::dto::etl_dto::EtlCellValue;
@@ -272,10 +273,15 @@ fn columns_lacking_hpo(
 
 #[fixture]
 fn disease_valid() -> DiseaseData {
+    let moi = ModeOfInheritance { 
+        hpo_id: "HP:0000006".to_string(), 
+        hpo_label: "Autosomal dominant inheritance".to_string(), 
+        citation: "PMID: 39471804".to_string()
+    };
     DiseaseData {
         disease_id: "OMIM:621016".to_string(),
         disease_label: "Neurodevelopmental disorder with variable familial hypercholanemia".to_string(),
-        mode_of_inheritance_list: vec![],
+        mode_of_inheritance_list: vec![moi],
         gene_transcript_list: vec![GeneTranscriptData {
             hgnc_id: "HGNC:30203".to_string(),
             gene_symbol: "WDR83OS".to_string(),
