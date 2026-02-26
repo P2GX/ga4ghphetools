@@ -135,12 +135,18 @@ impl StructuralValidator {
             .ok_or_else(|| format!(
                 "Missing or invalid 'annotations' in transcript for {gene}"
             ))?;
-        let chrom = annotations
-            .get("chromosome")
-            .and_then(|c| c.as_str())
-            .ok_or_else(|| format!(
-                "Could not extract chromosome from annotations map (VariantValidator) for '{gene}'"
-            ))?;
+        // chrom value is usually a plain string.
+        // for pseudoautosomal genes such as SHOX, we get an array of ["X", "Y"]
+        // in this case, we return "X"
+        let chrom_value = annotations.get("chromosome");
+        let chrom = chrom_value
+            .and_then(|v| {
+                v.as_str()
+                .or_else(|| v.as_array().and_then(|arr| arr.get(0).and_then(|first| first.as_str())))
+            })
+            .ok_or_else(|| {
+                format!("Could not extract chromosome from annotations map for '{gene}'")
+            })?;
         Ok(chrom.to_string())
     }
 
@@ -233,6 +239,20 @@ mod tests {
         let expected_chr = "17";
         let validator = StructuralValidator::hg38();
         let chr = validator.get_chromosome_from_vv("COL1A1");
+        assert!(chr.is_ok());
+        let chr = chr.unwrap();
+        assert_eq!(expected_chr, chr);
+      }
+
+        
+        /// Variant validator returns X and Y for SHOX, because it is pseudoautosomal
+        /// In this case, we return an annotation for the X chromosome
+        #[rstest]
+      #[ignore = "API call"]
+      fn test_extract_chromosome_pseudoautosomal() {
+        let expected_chr = "X";
+        let validator = StructuralValidator::hg38();
+        let chr = validator.get_chromosome_from_vv("SHOX");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
         assert_eq!(expected_chr, chr);
