@@ -2,7 +2,7 @@
 //! 
 
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
 
@@ -13,6 +13,52 @@ pub mod header_duplet_row;
 pub(crate) mod individual_bundle;
 pub mod cohort_factory;
 mod cohort_qc;
+
+#[derive(serde::Serialize, Debug)]
+#[serde(tag = "type", content = "data")]
+pub enum CohortError {
+    RedundantAnnotations {
+        count: usize,
+    },
+    LackingMoi {
+        diseases: Vec<String>,
+    },
+    FormatErr {
+        message: String,
+    }
+}
+
+impl CohortError {
+    // A shorthand for formatting errors
+    pub fn format(msg: impl Into<String>) -> Self {
+        Self::FormatErr { message: msg.into() }
+    }
+
+    // A shorthand for MOI errors
+    pub fn lacking_moi(diseases: Vec<String>) -> Self {
+        Self::LackingMoi { diseases }
+    }
+
+    pub fn redundant_annotations(n : usize) -> Self {
+        Self::RedundantAnnotations { count: n}
+    }
+}
+
+impl fmt::Display for CohortError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::RedundantAnnotations { count } => {
+                write!(f, "Redundant annotations found: {}", count)
+            }
+            Self::LackingMoi { diseases } => {
+                write!(f, "Lacking MOI for: {}", diseases.join(", "))
+            }
+            Self::FormatErr { message } => {
+                write!(f, "Format error: {}", message)
+            }
+        }
+    }
+}
 
 
 
@@ -100,7 +146,7 @@ pub fn sort_rows(
 pub fn qc_assessment(
     hpo: Arc<FullCsrOntology>,
     cohort_dto: &CohortData)
--> Result<(), String> {
+-> Result<(), CohortError> {
     let cohort_qc = CohortDataQc::new(hpo);
     cohort_qc.qc_check(cohort_dto)?;
     cohort_qc.check_metadata(cohort_dto)?;

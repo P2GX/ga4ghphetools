@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc};
 use ontolius::{Identified, TermId, ontology::{HierarchyQueries, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
 
 
-use crate::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet};
+use crate::{dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet}, factory::CohortError};
 
 
 /// Locally used struct for convenience
@@ -57,24 +57,27 @@ impl CohortDataQc {
     ///
     pub fn qc_check(
         &self, 
-        cohort: &CohortData) -> Result<(), String> {
+        cohort: &CohortData) -> Result<(), CohortError> {
         let n_hpos = cohort.hpo_headers.len();
         // check correct length
         for row in &cohort.rows {
             if row.hpo_data.len() != n_hpos {
-                return Err(format!("Length mismatch: Header: {} vs. row: {}", n_hpos, row.hpo_data.len()))
+                let msg = format!("Length mismatch: Header: {} vs. row: {}", n_hpos, row.hpo_data.len());
+                return Err(CohortError::format(msg));
             }
         }
         // check for duplicates
         let mut seen = HashSet::new();
         for duplet in &cohort.hpo_headers {
             if seen.contains(duplet) {
-                return Err(format!("Duplicate entry in HPO Header: {} ({})", duplet.hpo_label(), duplet.hpo_id()));
+                let msg = format!("Duplicate entry in HPO Header: {} ({})", duplet.hpo_label(), duplet.hpo_id());
+                return Err(CohortError::format(msg));
             } else {
                 seen.insert(duplet);
             }
         }
-        self.check_hpo_ids_and_labels(cohort)?;
+        self.check_hpo_ids_and_labels(cohort)
+            .map_err(|e| CohortError::format(e))?;
         self.check_for_duplicate_rows(cohort)?;
         Ok(())
     }
@@ -82,12 +85,13 @@ impl CohortDataQc {
 
     /// Check the cohort for duplicate entries
     /// We rely on the cross product of PMID and individual id
-    fn check_for_duplicate_rows(&self, cohort: &CohortData) -> Result<(), String> {
+    fn check_for_duplicate_rows(&self, cohort: &CohortData) -> Result<(), CohortError> {
         let mut seen_entries: HashSet<String> = HashSet::new();
         for row in &cohort.rows {
             let key = format!("{}-{}",row.individual_data.individual_id, row.individual_data.pmid);
             if seen_entries.contains(&key) {
-                return Err(format!("Duplicate entry: {}", key));
+                let msg = format!("Duplicate entry: {}", key);
+                return Err(CohortError::format(msg));
             } else {
                 seen_entries.insert(key);
             }
@@ -97,12 +101,13 @@ impl CohortDataQc {
     }
 
 
-    pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), String> {
-        let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)?;
+    pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), CohortError> {
+        let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)
+        .map_err(|e| CohortError::format(e))?;
         if conflicting_pairs.no_conflict() {
             Ok(())
         } else {
-            Err(conflicting_pairs.report())
+            Err(CohortError::format(conflicting_pairs.report()))
         }   
     }
 
@@ -126,15 +131,20 @@ impl CohortDataQc {
     }
 
 
-    pub fn check_metadata(&self, cohort: &CohortData) -> Result<(), String> {
+    pub fn check_metadata(&self, cohort: &CohortData) -> Result<(), CohortError> {
         let diseases = &cohort.disease_list;
         if diseases.is_empty() {
-            return Err("Disease list empty".to_string());
+            return Err(CohortError::format("Disease list empty"));
         }
+        let mut errors = vec![];
         for disease in diseases {
             if disease.mode_of_inheritance_list.is_empty() {
-                return Err(format!("No mode of inheritance provided for {} ({})", disease.disease_label, disease.disease_id));
+                errors.push(format!("No mode of inheritance provided for {} ({})", disease.disease_label, disease.disease_id));
+                
             }
+        }
+        if ! errors.is_empty() {
+            return Err(CohortError::lacking_moi(errors));
         }
         Ok(())
     }
@@ -171,7 +181,7 @@ impl CohortDataQc {
             }
         }
         // One more check!
-        self.qc_check(&cohort)?;
+        self.qc_check(&cohort).map_err(|e|e.to_string())?;
         Ok(cohort)
 
     }

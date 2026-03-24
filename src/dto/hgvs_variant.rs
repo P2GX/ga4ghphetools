@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::variant::vcf_var::VcfVar;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct HgvsVariant {
     /// Genome build, e.g., hg38

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{dto::variant_dto::VariantDto, variant::vcf_var::VcfVar};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct IntergenicHgvsVariant {
     /// Genome build, e.g., hg38

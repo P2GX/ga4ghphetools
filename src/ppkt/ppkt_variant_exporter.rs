@@ -16,7 +16,6 @@ use phenopackets::schema::v2::core::interpretation::ProgressStatus;
 use phenopackets::schema::v2::core::{AcmgPathogenicityClassification, GenomicInterpretation};
 use phenopackets::schema::v2::core::Diagnosis;
 use rand::distr::{Alphanumeric, Distribution};
-use rand::RngExt;
 use crate::dto::cohort_dto::CohortData;
 use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::cohort_dto::RowData;

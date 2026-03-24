@@ -101,7 +101,7 @@ pub fn acvr1_cohort_with_repeated_term(
     let result = ga4ghphetools::factory::qc_assessment(hpo, &cohort_data);
     assert!(result.is_err());
     let err_str = result.err().unwrap();
-    assert_eq!("Duplicate entry in HPO Header: Ectopic ossification in muscle tissue (HP:0011987)", err_str);
+    assert_eq!("Format error: Duplicate entry in HPO Header: Ectopic ossification in muscle tissue (HP:0011987)", err_str.to_string());
 }
 
 

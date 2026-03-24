@@ -11,7 +11,7 @@ use crate::dto::variant_dto::{VariantDto, VariantType};
 
 
 /// The frontend will tell us what kind of variant is being sent to the backend for validation using this enumeration
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SvType {
     /// chromosomal_deletion
@@ -127,7 +127,7 @@ static CHROMOSOMAL_INVERSION: Lazy<OntologyClass> = Lazy::new(|| {
 /// used in the publication, and additional specify the gene symbol, HGNS id of the gene deemed to be most affected
 /// by the SV, and the SV type.
 /// The identifier is provided by the export function to GHA4GH Phenopacket Schema
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StructuralVariant {
     /// An unstructured description of the SV, e.g., DEL Ex5-7 (taken from original publication)
