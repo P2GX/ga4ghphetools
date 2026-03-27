@@ -5,13 +5,13 @@
 
 use phenopackets::schema::v2::core::OntologyClass;
 use serde::{Serialize, Deserialize};
-use std::{fmt, str::FromStr};
+use std::{cmp::Ordering, fmt, str::FromStr};
 use once_cell::sync::Lazy;
 use crate::dto::variant_dto::{VariantDto, VariantType};
 
 
 /// The frontend will tell us what kind of variant is being sent to the backend for validation using this enumeration
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SvType {
     /// chromosomal_deletion
@@ -127,7 +127,7 @@ static CHROMOSOMAL_INVERSION: Lazy<OntologyClass> = Lazy::new(|| {
 /// used in the publication, and additional specify the gene symbol, HGNS id of the gene deemed to be most affected
 /// by the SV, and the SV type.
 /// The identifier is provided by the export function to GHA4GH Phenopacket Schema
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct StructuralVariant {
     /// An unstructured description of the SV, e.g., DEL Ex5-7 (taken from original publication)
@@ -309,8 +309,21 @@ impl StructuralVariant {
    
 }
 
+/// Sort by chromosome, then SvType, then label (e.g., Ex 5 DEL, )
+impl Ord for StructuralVariant {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.chromosome.cmp(&other.chromosome)
+         .then_with(|| self.sv_type.cmp(&other.sv_type))
+            .then_with(|| self.label.cmp(&other.label))
+           
+    }
+}
 
-
+impl PartialOrd for StructuralVariant {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 mod tests {
 

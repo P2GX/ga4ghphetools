@@ -7,12 +7,14 @@
 //! Some variants are located within the gene model, as is this one, which therefore also has the 
 //! gene-level HGVS, NG_009292.1:g.1135G>A
 
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 
 
 use crate::{dto::variant_dto::VariantDto, variant::vcf_var::VcfVar};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct IntergenicHgvsVariant {
     /// Genome build, e.g., hg38
@@ -142,6 +144,24 @@ impl IntergenicHgvsVariant {
     }
 
 }
+
+
+/// Sort by chromosome, then SvType, then label (e.g., Ex 5 DEL, )
+impl Ord for IntergenicHgvsVariant {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.chr.cmp(&other.chr)
+         .then_with(|| self.position.cmp(&other.position))
+            .then_with(|| self.ref_allele.cmp(&other.ref_allele))
+           
+    }
+}
+
+impl PartialOrd for IntergenicHgvsVariant {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

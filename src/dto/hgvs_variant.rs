@@ -4,12 +4,14 @@
 //! The information in our implementation is taken from the wonderful
 //! VariantValidator API.
 
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 
 
 use crate::variant::vcf_var::VcfVar;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct HgvsVariant {
     /// Genome build, e.g., hg38
@@ -166,6 +168,21 @@ impl HgvsVariant {
 }
 
 
+/// Sort by chromosome, then SvType, then label (e.g., Ex 5 DEL, )
+impl Ord for HgvsVariant {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.chr.cmp(&other.chr)
+         .then_with(|| self.position.cmp(&other.position))
+            .then_with(|| self.ref_allele.cmp(&other.ref_allele))
+           
+    }
+}
+
+impl PartialOrd for HgvsVariant {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 
 #[cfg(test)]
