@@ -70,7 +70,7 @@ pub fn write_phenopackets(
     dir: PathBuf,
     orcid: String,
     hpo: Arc<FullCsrOntology>) 
--> Result<String, String> {
+-> Result<usize, String> {
     let acronym = cohort_dto.acronym();
     let exporter = PpktExporter::new(hpo.clone(), &orcid, cohort_dto);
     let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()
@@ -82,8 +82,7 @@ pub fn write_phenopackets(
         file_path.push(title);
         write_ppkt(&ppkt, file_path)?;
     }
-    let success_message = format!("Wrote {} phenopackets to directory {}", n_phenopackets, dir.to_string_lossy());
-    Ok(success_message)
+    Ok(n_phenopackets)
 }
 
 /// Write a single [`Phenopacket`] to a JSON file on disk.
