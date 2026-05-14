@@ -77,7 +77,6 @@ impl VariantManager {
         total_row_count: u32)  
     -> Result<(), String> 
     where F: FnMut(u32, u32) {
-        let n_alleles = all_alleles.len();
         let mut attempts = 0;
         let max_attempts = 4;
         let mut latency = 250_u64; // time in milliseconds to wait between API calls
@@ -117,7 +116,6 @@ impl VariantManager {
         mut progress_cb: F)  
     -> Result<(), String> 
     where F: FnMut(u32, u32) {
-        let n_alleles = all_alleles.len();
         let mut attempts = 0;
         let max_attempts = 4;
         let mut latency = 250_u64; // time in milliseconds to wait between API calls

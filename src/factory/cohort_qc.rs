@@ -79,6 +79,7 @@ impl CohortDataQc {
         self.check_hpo_ids_and_labels(cohort)
             .map_err(|e| CohortError::format(e))?;
         self.check_for_duplicate_rows(cohort)?;
+        self.check_biocuration(cohort)?;
         Ok(())
     }
 
@@ -100,6 +101,21 @@ impl CohortDataQc {
         Ok(())
     }
 
+    fn check_biocuration(&self, cohort: &CohortData) -> Result<(), CohortError> {
+        let history = &cohort.curation_history;
+        if history.is_empty() {
+            return Err(CohortError::format("No curation recorded"));
+        }
+        let total_count = history.len();
+        let unique_count = history.iter().collect::<HashSet<_>>().len();
+
+        if unique_count < total_count {
+            return Err(CohortError::format("Duplicate curation s found."));
+        }
+
+        Ok(())
+    }
+    
 
     pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), CohortError> {
         let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)
@@ -162,7 +178,9 @@ impl CohortDataQc {
         Ok(sanitized)
     }
 
-    /// This function sets to "na" the values that conflict in any row.
+    /// This function corrects some "obvious" errors that do not require human intervention
+    /// Duplicate Curation events are removed
+    /// Ontology redundancies (e.g., have a term and its parent both being Observed) are resolved.
     pub fn sanitize(&self, 
         cohort_dto: &CohortData) 
     -> Result<CohortData, String> {
@@ -181,10 +199,26 @@ impl CohortDataQc {
             }
         }
         // One more check!
+        self.sanitize_curation_history(&mut cohort)?;
         self.qc_check(&cohort).map_err(|e|e.to_string())?;
         Ok(cohort)
-
     }
+
+    fn sanitize_curation_history(&self, cohort: &mut CohortData) -> Result<(), String> {
+        let history = cohort.curation_history.clone();
+        let n_events = history.len();
+        let n_unique = history.iter().collect::<HashSet<_>>().len();
+        if n_events != n_unique {
+            let mut seen = HashSet::new();
+            cohort.curation_history.retain(|event| {
+                seen.insert(event.clone()) // returns true if event was NOT previous in seen
+            });
+        }
+
+        Ok(())
+    }
+
+
 
     fn generate_term_id_to_index_map(&self, cohort: &CohortData) 
     -> Result<HashMap<TermId, usize>, String> {

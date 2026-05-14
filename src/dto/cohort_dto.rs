@@ -259,7 +259,7 @@ impl std::fmt::Display for CohortType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct CurationEvent {
     /// ORCID identifier of the curator

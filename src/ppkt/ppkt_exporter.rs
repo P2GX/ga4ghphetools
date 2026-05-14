@@ -279,7 +279,6 @@ impl PpktExporter {
         &self, 
         ppkt_row_dto: &RowData, 
     ) -> Result<Phenopacket, String> {
-        let individual = self.extract_individual(ppkt_row_dto)?;
         let is_male =  &ppkt_row_dto.individual_data.sex == "M";
         
         let ppkt_var_exporter = PpktVariantExporter::new(is_male,&self.cohort_dto);

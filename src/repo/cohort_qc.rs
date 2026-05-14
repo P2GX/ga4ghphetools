@@ -10,7 +10,6 @@ use crate::{dto::cohort_dto::{CohortData, CohortType}, repo::{disease_qc::Diseas
 pub struct CohortQc {
     cohort_name: String,
     disease_qc_list: Vec<DiseaseQc>,
-    non_mendelian_cohorts: Vec<CohortData>,
     unexpected_files: Vec<String>
 }
 
@@ -21,12 +20,9 @@ impl CohortQc {
         cohort_list: Vec<CohortData>,
         phenopackets: Vec<Phenopacket>,
         unexpected_files: Vec<String>) -> Result<Self, String> {
-        let mut non_mendelian_cohorts: Vec<CohortData> = Vec::new();
         let mut disease_to_ppkt_d: HashMap<String, DiseaseQc> = HashMap::new();
         for cohort in cohort_list {
-            if cohort.cohort_type != CohortType::Mendelian {
-                non_mendelian_cohorts.push(cohort);
-            } else {
+            if cohort.cohort_type == CohortType::Mendelian {
                 // by design, Mendelian can only have one disease
                 let ddata = &cohort.disease_list[0];
                 let dqc = DiseaseQc::new(ddata, &cohort);
@@ -51,7 +47,6 @@ impl CohortQc {
         Ok(Self {
             cohort_name: cohort_name.to_string(),
             disease_qc_list,
-            non_mendelian_cohorts,
             unexpected_files
         })
     }

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
      let mut cmd = Command::new("phetools")
-        .about("GA4GH Phenopacket Schema Curation Library Demo")
+        .about("GA4GH Phenopacket Schema: phetools")
         .version(env!("CARGO_PKG_VERSION"))
         .subcommand(commands::extract::command())
         .subcommand(commands::etl::command())

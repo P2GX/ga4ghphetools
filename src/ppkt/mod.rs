@@ -71,8 +71,10 @@ pub fn write_phenopackets(
     orcid: String,
     hpo: Arc<FullCsrOntology>) 
 -> Result<String, String> {
+    let acronym = cohort_dto.acronym();
     let exporter = PpktExporter::new(hpo.clone(), &orcid, cohort_dto);
-    let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()?;
+    let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()
+        .map_err(|e| format!("{}: cohort {}", e, acronym))?;
     let n_phenopackets = ppkt_list.len();
     for ppkt in ppkt_list {
         let title = ppkt.id.clone() + ".json";
