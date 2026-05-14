@@ -1,9 +1,8 @@
-use std::{any::Any, collections::HashSet, fs, path::PathBuf, sync::Arc};
-use ontolius::ontology::csr::{CsrOntology, FullCsrOntology};
-use phenopackets::schema::v2::{Phenopacket, core::PhenotypicFeature};
+use std::{collections::HashSet, fs, path::PathBuf, sync::Arc};
+use ontolius::ontology::csr::FullCsrOntology;
+use phenopackets::schema::v2::Phenopacket;
 use serde::Deserialize;
-
-use crate::{dto::cohort_dto::CohortData, repo::ComparisonReport};
+use crate::{dto::cohort_dto::CohortData};
 
 
 /// A private helper enum to facilitate "smart" deserialization.

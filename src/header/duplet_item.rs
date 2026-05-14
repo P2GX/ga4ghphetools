@@ -100,7 +100,6 @@ pub enum DupletType {
     AGEATLASTENCOUNTER,
     DECEASED,
     SEX,
-    HpoSeparator,
 }
 
 
@@ -393,7 +392,6 @@ impl DupletItem {
             DupletType::AGEATLASTENCOUNTER => Self::check_valid_age_string(cell_contents)?,
             DupletType::DECEASED => self.check_deceased(cell_contents)?,
             DupletType::SEX => self.check_sex(cell_contents)?,
-            DupletType::HpoSeparator => self.check_separator(cell_contents)?,
         };
         Ok(())
     }
@@ -417,7 +415,6 @@ impl DupletItem {
             DupletType::AGEATLASTENCOUNTER => "age_at_last_encounter",
             DupletType::DECEASED => "deceased",
             DupletType::SEX => "sex",
-            DupletType::HpoSeparator => "HPO",
         }
     }
 

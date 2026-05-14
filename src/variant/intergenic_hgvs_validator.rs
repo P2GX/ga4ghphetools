@@ -11,7 +11,8 @@ use crate::{dto::{intergenic_variant::IntergenicHgvsVariant, variant_dto::Varian
 const BASE_URL: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator";
 
 
-/// Valid Mode of inheritance terms that can be used for outputting HPOA files
+/// Valid chromosome accession numbers for hg38 build
+/// Used to check data entry for intergenic variants.
 pub static VALID_HG38_CHROMOSOMES: Lazy<HashSet<String>> = Lazy::new(|| {
     let mut chromset: HashSet<String> = HashSet::new();
     let chroms = [
@@ -54,8 +55,6 @@ fn get_variant_validator_url(
         genome_assembly, 
         encoded_hgvs
     );
-    println!("{}",full_url);
-    
     full_url
 }
 
@@ -86,6 +85,10 @@ impl IntergenicHgvsValidator {
     ) -> Result<(), String> 
     {
         let hgvs = &vv_dto.variant_string;
+        let genomic_transcript = &vv_dto.transcript();
+        if ! is_valid_chromosome(genomic_transcript) {
+            return Err(format!("{} is not a valid hg38 chromosome.", genomic_transcript));
+        }
         let url = get_variant_validator_url(&self.genome_assembly, hgvs);
         let response: Value = get(&url)
             .map_err(|e| format!("Could not map intergenic {hgvs}: {e}"))?

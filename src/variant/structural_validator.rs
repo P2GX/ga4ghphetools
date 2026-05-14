@@ -31,10 +31,7 @@ impl StructuralValidator {
     }
 
     pub fn hg38() -> Self {
-        Self {
-            genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
-            validated_sv: HashMap::new(),
-        }
+        StructuralValidator::new(GENOME_ASSEMBLY_HG38).unwrap()
     }
 
     /// We only allow valid ASCII symbols in the labels for the structural variants.

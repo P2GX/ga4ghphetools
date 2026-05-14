@@ -25,19 +25,9 @@ use crate::hpo;
 
 
 
-const NOT_AVAILABLE: &str = "na";
-const EXCLUDED: &str = "excluded";
-const OBSERVED: &str = "observed";
-
-
-
-
-
-const MENDELIAN_INDIVIDUAL_IDX: usize = 0; 
 const MENDELIAN_DISEASE_IDX: usize = 4;
 const MENDELIAN_GENE_VAR_IDX: usize = 6;
 const MENDELIAN_DEMOGRAPHIC_IDX: usize = 12;
-const MENDELIAN_SEPARATOR_IDX: usize = 16;
 const MENDELIAN_HPO_IDX: usize = 17;
 
 
@@ -50,12 +40,7 @@ const NUMBER_OF_DEMOGRAPHIC_FIELDS: usize = 4;
 /// Separator field (HPO/na)
 const NUMBER_OF_SEPARATOR_FIELDS: usize = 1;
 
-const INDIVIDUAL_IDX: usize = 0;
-const DISEASE_IDX: usize = 4;
-const GENE_VAR_IDX: usize = 6;
-const DEMOGRAPHIC_IDX: usize = 12;
-const SEPARATOR_IDX: usize = 16;
-const HPO_SECTION_IDX: usize = 17;
+
 
 
 /// Total number of constant fields (columns) in the Mendelian template

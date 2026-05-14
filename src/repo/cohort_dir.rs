@@ -12,9 +12,8 @@ use crate::{dto::cohort_dto::CohortData, repo::cohort_qc::CohortQc};
 /// Represents a directory for one gene with all contained files and metadata.
 #[derive(Debug, Default)]
 pub struct CohortDir {
+    ///cohort_name is usually a gene smbol such as ZRSR2 and corresponds to the path of the directory
     pub cohort_name: String,
-    /// Path of the directory corresponding to cohort_name (e.g., a gene smbol such as ZRSR2)
-    pub path: PathBuf,
     /// The specific file or files like "ZRSR2_OFD21_individuals.json" (there must be at least one but can be many)
     pub individuals_json: Vec<PathBuf>,
     /// All JSON files inside the 'phenopackets' subdirectory (there must be at least one)
@@ -30,7 +29,6 @@ impl CohortDir {
 pub fn process_gene_directory(path: &Path) -> CohortDir {
     let mut gene_dir = CohortDir {
         cohort_name: path.file_name().unwrap_or_default().to_string_lossy().into(),
-        path: path.to_path_buf(),
         ..Default::default()
     };
 

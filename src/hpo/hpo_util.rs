@@ -1,4 +1,4 @@
-//! TODO - obsolete this class, we can do everything with ontolius directly now
+
 
 use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::validation_errors::ValidationErrors;

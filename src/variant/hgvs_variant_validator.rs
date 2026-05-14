@@ -18,8 +18,6 @@ use reqwest::blocking::get;
 use serde_json::Value;
 use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantDto}, variant::variant_validation_handler::VariantValidatorHandler};
 
-const URL_SCHEME: &str = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{}/{0}%3A{}/{1}?content-type=application%2Fjson";
-
 const GENOME_ASSEMBLY_HG38: &str = "hg38";
 
 pub struct HgvsVariantValidator {

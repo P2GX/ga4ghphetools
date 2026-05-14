@@ -1,5 +1,6 @@
 
-
+//! Used to represent counts in the phenotype.hpoa style output file
+//! n/m individuals reported in a PMID with a certain disease to have the HPO term in question
 
 
 use crate::dto::hpo_term_dto::{CellValue, HpoTermDuplet};
@@ -83,6 +84,6 @@ impl CountedHpoTerm {
     }
 
     pub fn freq_string(&self) -> String {
-        format!("{}/{}", self.numerator, self.denominator)
+        format!("{}/{}", self.numerator(), self.denominator())
     }
 }
