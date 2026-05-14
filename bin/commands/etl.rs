@@ -1,7 +1,7 @@
 use clap::{Arg, ArgMatches};
 use ga4ghphetools::dto::etl_dto::EtlDto;
 
-/// Returns the `clap::Command` for ETL
+
 pub fn command() -> clap::Command {
     clap::Command::new("etl")
         .about("Test converting an EtlDto to CohortData")

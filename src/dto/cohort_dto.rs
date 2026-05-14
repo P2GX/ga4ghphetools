@@ -399,6 +399,14 @@ impl CohortData {
         PHETOOLS_SCHEMA_VERSION.to_string()
     }
 
+    pub fn get_latest_biocurator_id(&self) -> Result<String, String> {
+        self.curation_history
+            .last()
+            .map(|curation| curation.orcid.to_string())
+            .ok_or_else(|| 
+                format!("No biocuration identifier available for cohort {}", self.acronym()))
+    }
+
 
     pub fn get_disease_dto_list(&self) -> std::result::Result<Vec<DiseaseData>, String> {
         if ! self.is_mendelian() {
@@ -428,6 +436,13 @@ impl CohortData {
             row.hpo_data.remove(idx);
         }
         return Ok(cohort);
+    }
+
+    pub fn acronym(&self) -> String {
+        match &self.cohort_acronym {
+            Some(acro) => acro.to_string(),
+            None => "n/a".to_string(),
+        }
     }
     
 }

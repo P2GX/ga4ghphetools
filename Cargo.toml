@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.5.37"
+version = "0.5.38"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 
 [[bin]]
-name = "rpt"
+name = "phetools"
 path = "bin/main.rs"
 required-features = ["cli"]
 
