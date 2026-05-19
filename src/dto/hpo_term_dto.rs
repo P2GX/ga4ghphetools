@@ -58,7 +58,7 @@ pub static GESTATIONAL_AGE_RE: Lazy<Regex> = Lazy::new(|| {
 
 
 /// TODO implement!
-fn is_valid_hpo_modifier(cell_value: &str) -> bool {
+fn is_valid_hpo_modifier(_cell_value: &str) -> bool {
     return false;
 }
 

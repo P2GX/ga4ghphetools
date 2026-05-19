@@ -16,11 +16,15 @@ const BASE_URL: &str = "https://rest.variantvalidator.org/VariantValidator/varia
 pub static VALID_HG38_CHROMOSOMES: Lazy<HashSet<String>> = Lazy::new(|| {
     let mut chromset: HashSet<String> = HashSet::new();
     let chroms = [
-        "NC_000001.11", "NC_000002.12", "NC_000003.12", "NC_000004.12", "NC_000005.10", "NC_000006.12",
-            "NC_000007.14", "NC_000008.11", "NC_000009.12", "NC_000010.11", "NC_000011.10", "NC_000012.12",
-            "NC_000013.11", "NC_000014.9", "NC_000015.10", "NC_000016.10", "NC_000017.11", "NC_000018.10",
-            "NC_000019.10", "NC_000020.11", "NC_000021.9", "NC_000022.11", "NC_000023.11", "NC_000024.10",
-            "NC_012920.1"
+        "NC_000001.11", "NC_000002.12", "NC_000003.12", 
+        "NC_000004.12", "NC_000005.10", "NC_000006.12",
+        "NC_000007.14", "NC_000008.11", "NC_000009.12", 
+        "NC_000010.11", "NC_000011.10", "NC_000012.12",
+        "NC_000013.11", "NC_000014.9", "NC_000015.10", 
+        "NC_000016.10", "NC_000017.11", "NC_000018.10",
+        "NC_000019.10", "NC_000020.11", "NC_000021.9", 
+        "NC_000022.11", "NC_000023.11", "NC_000024.10",
+        "NC_012920.1"
         ];
     for c in chroms.into_iter() {
         chromset.insert(c.to_string());
@@ -29,6 +33,7 @@ pub static VALID_HG38_CHROMOSOMES: Lazy<HashSet<String>> = Lazy::new(|| {
 });
 
 fn is_valid_chromosome(chrom: &str) -> bool {
+    println!("is_valid_chromosome '''{}'''", chrom);
     VALID_HG38_CHROMOSOMES.contains(chrom)
 }
 
@@ -85,8 +90,9 @@ impl IntergenicHgvsValidator {
     ) -> Result<(), String> 
     {
         let hgvs = &vv_dto.variant_string;
-        let genomic_transcript = &vv_dto.transcript();
+        let genomic_transcript = &vv_dto.ig_transcript_or_chrom()?;
         if ! is_valid_chromosome(genomic_transcript) {
+            println!("BAD vvdto: {:?}", vv_dto);
             return Err(format!("{} is not a valid hg38 chromosome.", genomic_transcript));
         }
         let url = get_variant_validator_url(&self.genome_assembly, hgvs);

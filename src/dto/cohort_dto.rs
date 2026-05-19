@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use chrono::Local;
+use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::CellValue;
@@ -442,6 +443,23 @@ impl CohortData {
         match &self.cohort_acronym {
             Some(acro) => acro.to_string(),
             None => "n/a".to_string(),
+        }
+    }
+
+    /// get the number of times a certain HPO is reported to be observed in the cohort
+    /// If the HPO is not in the cohort, just return zero
+    pub fn observed_hpo_count(&self, tid: &str) -> usize {
+        match self.hpo_headers.iter().position(|term| term.hpo_id == tid) {
+            Some(idx) => {
+                let mut count = 0 as usize;
+                for row in &self.rows {
+                    if row.hpo_data[idx].is_observed() {
+                        count += 1;
+                    }
+                } 
+                count
+            },
+            None => 0
         }
     }
     

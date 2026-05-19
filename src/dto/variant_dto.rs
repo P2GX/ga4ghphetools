@@ -103,6 +103,22 @@ impl VariantDto {
         &self.transcript
     }
 
+    /// Intergenic variants may have the chromosome accession
+    /// number in the variant string
+    pub fn ig_transcript_or_chrom(&self) -> Result<String, String> {
+        let tx = self.transcript.to_string();
+        if tx.contains(".") {
+            return Ok(tx);
+        }
+        let varstr = self.variant_string();
+        let chrom = varstr.split(':').next().unwrap_or("");
+        if chrom.is_empty() {
+            Err("Variant string is empty or invalid".to_string())
+        } else {
+            Ok(chrom.to_string())
+        }
+    }
+
     pub fn hgnc_id(&self) -> &str {
         &self.hgnc_id
     }

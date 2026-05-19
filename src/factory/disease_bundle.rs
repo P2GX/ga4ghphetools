@@ -131,7 +131,6 @@ mod test {
     #[case( "Fibrodysplasia ossificans progressiva ", "Trailing whitespace in 'Fibrodysplasia ossificans progressiva '")]
     fn test_malformed_malformed_label(
         disease_id: &str,
-        disease_label: &str,
         #[case] entry: &str,
         #[case] expected_error_msg: &str) 
     {

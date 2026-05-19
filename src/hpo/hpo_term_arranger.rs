@@ -166,10 +166,8 @@ mod tests {
             renal_corticomedullary_cysts,
             portal_vein_hypoplasia,
         ];
-        let start = Instant::now();
         let mut arranger = HpoTermArranger::new(hpo.clone());
         let ordered_terms = arranger.arrange_term_ids(&term_list);
-        let duration = start.elapsed();
         for t in ordered_terms {
             let result = hpo.term_by_id(&t);
             match result {

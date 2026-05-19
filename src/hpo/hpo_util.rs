@@ -72,7 +72,7 @@ impl HpoUtil {
         for hpo_dto in hpo_dto_list {
             let tid = match hpo_dto.ontolius_term_id() {
                 Ok(tid) => tid,
-                Err(e) => {
+                Err(_) => {
                     return Err(ValidationErrors::from_one_err(
                     format!("Could not create TermId from {:?}", hpo_dto)));}
             };
@@ -107,7 +107,7 @@ impl HpoUtil {
         for duplet in hpo_duplets {
             let tid = match duplet.to_term_id() {
                 Ok(tid) => tid,
-                Err(e) => { return Err(format!("Failed to parse TermId from row2: {} (converting duplet: {:?})", duplet.hpo_id(), duplet)); },
+                Err(_) => { return Err(format!("Failed to parse TermId from row2: {} (converting duplet: {:?})", duplet.hpo_id(), duplet)); },
             };
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 if term.name() != duplet.hpo_label() {

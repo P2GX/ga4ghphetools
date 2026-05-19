@@ -216,3 +216,5 @@ pub fn analyze_variants(cohort_dto: CohortData) -> Result<Vec<VariantDto>, Strin
     let vmanager = VariantManager::from_gene_transcript_dto(&gt_data);
     vmanager.analyze_variants(cohort_dto)
 }
+
+

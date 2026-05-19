@@ -205,6 +205,7 @@ impl VariantManager {
     pub(crate) fn get_validated_intergenic_hgvs(&mut self, hgvs: &str) 
     -> Result<IntergenicHgvsVariant, String> {
         let vv_dto = VariantDto::hgvs_g(hgvs, &self.hgnc_id, &self.gene_symbol);
+        println!("123 - vv_dto {:?}", &vv_dto);
         self.intergenic_validator.get_validated_g_hgvs(&vv_dto)
     }
 
@@ -436,6 +437,21 @@ mod tests {
         assert!(result.is_ok());
        let ig = result.unwrap();
         println!("{:?}", ig);
+    }
+
+
+    #[test]
+    fn test_intergenic_snord118() {
+         let symbol = "SNORD118";
+        let transcript = "NR_033294.1";
+        let hgnc = "HGNC:32952";
+        let allele = "NC_000017.11:g.8173448G>C";
+         let mut manager = VariantManager::new(symbol, hgnc, transcript);
+        let result = manager.get_validated_intergenic_hgvs(allele);
+        assert!(result.is_ok());
+       let ig = result.unwrap();
+        println!("{:?}", ig);
+
     }
 
 

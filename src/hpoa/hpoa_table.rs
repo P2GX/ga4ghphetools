@@ -31,7 +31,6 @@ impl HpoaTable {
             return Err(format!("Can only export Mendelian HPOA table, but this cohort is {:?}", 
                 cohort.cohort_type));
         }
-        let hpo_header = &cohort.hpo_headers;
         let onset_term_list: Vec<CountedHpoTerm> = HpoaOnsetCalculator::pmid_to_onset_freq_d(&cohort)?;
         let hpo_counted_term_list = HpoTermCounter::pmid_term_count_list(&cohort)?;
         let disease_data = Self::get_disease_data(&cohort)?;

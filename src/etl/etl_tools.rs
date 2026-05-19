@@ -573,15 +573,15 @@ impl EtlTools {
         self.check_is_completely_transformed()?;
         self.qc()?;
         let hpo_duplets = Self::all_hpo_duplets(self);
-        let ultra_terms: Vec<_> = hpo_duplets
+       /*  let ultra_terms: Vec<_> = hpo_duplets
             .iter()
             .filter(|d| d.hpo_label().contains("Ultra"))
-            .collect();
+            .collect();*/
         let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
-        let ultra_terms2: Vec<_> = arranged_duplets
+        /*let ultra_terms2: Vec<_> = arranged_duplets
             .iter()
             .filter(|d| d.hpo_label().contains("Ultra"))
-            .collect();
+            .collect();*/
         let disease = match &self.dto.disease {
             Some(d) => d.clone(),
             None => { return Err("Cannot create CohortData if ETL does not have disease data".to_string())},
