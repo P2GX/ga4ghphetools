@@ -25,6 +25,7 @@ use phenopacket_tools::builders::builder::Builder;
 const DEFAULT_HGNC_VERSION: &str =  "06/01/25";
 const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
 const DEFAULT_GENO_VERSION: &str =  "2025-07-25";
+const DEFAULT_SO_VERSION: &str = "2024-11-18";
 
 
 /// Structure to export phenopackets from a CohortData object.
@@ -34,6 +35,7 @@ pub struct PpktExporter {
     geno_version: String,
     omim_version: String,
     hgnc_version: String,
+    so_version: String,
     orcid_id: String,
     cohort_dto: CohortData,
     disease_id_map: HashMap<String, DiseaseData>,
@@ -52,6 +54,7 @@ impl PpktExporter {
             DEFAULT_GENO_VERSION,
             DEFAULT_OMIM_VERSION,
             DEFAULT_HGNC_VERSION,
+            DEFAULT_SO_VERSION,
             creator_orcid,
             cohort)
     }
@@ -61,6 +64,7 @@ impl PpktExporter {
         geno_version: &str,
         omim_version: &str, 
         hgnc_version: &str ,
+        so_version: &str,
         creator_orcid: &str,
         cohort: CohortData
     ) -> Self {
@@ -73,6 +77,7 @@ impl PpktExporter {
             geno_version: geno_version.to_string(),
             omim_version: omim_version.to_string(), 
             hgnc_version: hgnc_version.to_string(),
+            so_version: so_version.to_string(),
             orcid_id: creator_orcid.to_string(),
             cohort_dto: cohort,
             disease_id_map: disease_map,
@@ -134,6 +139,19 @@ impl PpktExporter {
         &self.hgnc_version
     } 
 
+    fn so_version(&self) -> &str {
+        &self.so_version
+    }
+
+    fn has_sequence_ontology(&self, ppkt_row: &RowData) -> bool {
+        for allele in ppkt_row.allele_count_map.keys() {
+            if self.cohort_dto.structural_variants.contains_key(allele) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Create GA4GH MetaData object from version numbers using functions from phenopacket_tools
     pub fn get_meta_data(&self, row_dto: &RowData) -> Result<MetaData, String> {
         let created_by = self.orcid_id.clone();
@@ -152,6 +170,12 @@ impl PpktExporter {
         meta_data.resources.push(geno);
         meta_data.resources.push(omim);
         meta_data.resources.push(hgnc);
+        if self.has_sequence_ontology(row_dto) {
+            // We only need Sequence Ontology (SO) for structural variants (SV)
+            // If we do not have an SV, then SO would be redundant
+            let so = phenopacket_tools::builders::resources::Resources::so_version(self.so_version());
+            meta_data.resources.push(so);
+        }
         meta_data.external_references.push(ext_res);
         Ok(meta_data)
     }
