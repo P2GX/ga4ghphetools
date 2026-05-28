@@ -1,7 +1,7 @@
 //! TableCompare: Compare two sets of phenopacketes with respect to the distribution of HPO terms
 use crate::dto::{
     cohort_dto::CohortData,
-    hpo_term_dto::{CellValue, HpoTermDuplet},
+    hpo_term_dto::{CellValueInner, HpoTermDuplet},
 };
 use ontolius::{
     ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms},
@@ -251,12 +251,12 @@ impl TableCompare {
                 .entry(term_duplet.clone())
                 .or_insert_with(|| TermCounter::new(term_duplet));
             for row in &cohort.rows {
-                let increment_action = match &row.hpo_data[i] {
-                    CellValue::Observed | CellValue::OnsetAge(_) | CellValue::Modifier(_) => {
+                let increment_action = match &row.hpo_data[i].entry {
+                    CellValueInner::Observed | CellValueInner::OnsetAge(_)  => {
                         TermCounter::increment_observed
                     }
-                    CellValue::Excluded => TermCounter::increment_excluded,
-                    CellValue::Na => continue,
+                    CellValueInner::Excluded => TermCounter::increment_excluded,
+                    CellValueInner::Na => continue,
                 };
                 increment_action(count_map.get_mut(term_duplet).unwrap());
                 // increment ancestors
@@ -284,7 +284,7 @@ impl TableCompare {
         let mut count_map: HashMap<HpoTermDuplet, usize> = HashMap::new();
         for (i, term_duplet) in cohort_1.hpo_headers.iter().enumerate() {
             for row in &cohort_1.rows {
-                if row.hpo_data[i] == crate::dto::hpo_term_dto::CellValue::Na {
+                if row.hpo_data[i].entry == CellValueInner::Na {
                     continue;
                 }
                 *count_map.entry(term_duplet.clone()).or_insert(0) += 1;
@@ -292,7 +292,7 @@ impl TableCompare {
         }
         for (i, term_duplet) in cohort_2.hpo_headers.iter().enumerate() {
             for row in &cohort_2.rows {
-                if row.hpo_data[i] == crate::dto::hpo_term_dto::CellValue::Na {
+                if row.hpo_data[i].entry == CellValueInner::Na {
                     continue;
                 }
                 *count_map.entry(term_duplet.clone()).or_insert(0) += 1;

@@ -12,7 +12,7 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, hpo, ppkt::{ppkt_row::PpktRow}, factory::header_duplet_row::HeaderDupletRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, CellValueInner, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, factory::header_duplet_row::HeaderDupletRow, hpo, ppkt::ppkt_row::PpktRow, variant::variant_manager::VariantManager};
 
 
 
@@ -289,7 +289,7 @@ impl CohortFactory {
         old_to_new_indices: &[usize],
         new_size: usize,
     ) -> Vec<CellValue> {
-        let mut new_values = vec![CellValue::Na; new_size];
+        let mut new_values = vec![CellValue::na(); new_size];
         for (old_idx, &new_idx) in old_to_new_indices.iter().enumerate() {
             new_values[new_idx] = old_values[old_idx].clone();
         }
@@ -518,7 +518,7 @@ impl CohortFactory {
     }
 
 
-    /// Compare the old header with the new header and update the RowData object to have the new HPO columns but sset the value to na for these columns because we do not yet have the value for them
+    /// Compare the old header with the new header and update the RowData object to have the new HPO columns but set the value to na for these columns because we do not yet have the value for them
     fn update_hpo_row_with_new_term(
         &self,
         oldrow: &RowData, 
@@ -583,7 +583,7 @@ impl CohortFactory {
         // This will be modified so that the new rows have the old value for the old terms and na for the new terms.
         let mut term_id_to_na_map: HashMap<TermId, CellValue> = HashMap::new(); 
         for duplet in &arranged_hpo_duplets {
-            term_id_to_na_map.insert(duplet.to_term_id()?.clone(), CellValue::Na);
+            term_id_to_na_map.insert(duplet.to_term_id()?.clone(), CellValue::na());
         }
         // strategy: Make a HashMap with all of the new terms, initialize the values to na. Update the map with the current values. The remaining (new) terms will be "na". 
         let mut updated_cohort = cohort.clone();
@@ -650,7 +650,7 @@ impl CohortFactory {
         // This will be modified so that the new rows have the old value for the old terms and na for the new terms.
         let mut term_id_to_na_map: HashMap<TermId, CellValue> = HashMap::new(); 
         for duplet in &arranged_hpo_duplets {
-            term_id_to_na_map.insert(duplet.to_term_id()?.clone(), CellValue::Na);
+            term_id_to_na_map.insert(duplet.to_term_id()?.clone(), CellValue::na());
         }
         // strategy: Make a HashMap with all of the new terms, initialize the values to na. Update the map with the current values. The remaining (new) terms will be "na". 
         let mut updated_cohort = previous.clone();

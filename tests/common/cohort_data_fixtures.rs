@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use ga4ghphetools::dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
+use ga4ghphetools::dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, CellValueInner, HpoTermDuplet}};
 
 use rstest::fixture;
 
@@ -63,9 +63,9 @@ fn disease_data() -> DiseaseData {
 #[fixture]
 fn individual_1() -> RowData {
     let hpo_data = vec![
-        CellValue::Observed,
-        CellValue::Observed,
-        CellValue::Observed,
+        CellValue::observed(),
+        CellValue::observed(),
+        CellValue::observed(),
     ];
 
     RowData {
@@ -89,9 +89,9 @@ fn individual_1() -> RowData {
 #[fixture]
 fn individual_2() -> RowData {
     let hpo_data = vec![
-        CellValue::Observed,
-        CellValue::Excluded,
-        CellValue::Na,
+        CellValue::observed(),
+        CellValue::excluded(),
+        CellValue::na()
     ];
 
     RowData {
@@ -115,9 +115,9 @@ fn individual_2() -> RowData {
 #[fixture]
 fn individual_3() -> RowData {
     let hpo_data = vec![
-        CellValue::Observed,
-        CellValue::Excluded,
-        CellValue::Observed,
+        CellValue::observed(),
+        CellValue::excluded(),
+        CellValue::observed(),
     ];
 
     RowData {
@@ -141,9 +141,9 @@ fn individual_3() -> RowData {
 #[fixture]
 fn individual_4() -> RowData {
     let hpo_data = vec![
-        CellValue::Observed,
-        CellValue::OnsetAge("P2Y".to_string()),
-        CellValue::Excluded,
+        CellValue::observed(),
+        CellValue::onset("P2Y".to_string()),
+        CellValue::excluded(),
     ];
 
     RowData {

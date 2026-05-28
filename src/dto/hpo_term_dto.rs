@@ -9,6 +9,7 @@ use std::str::FromStr;
 use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::ops::Deref;
 
 
 use crate::age;
@@ -45,53 +46,77 @@ impl HpoTermDuplet {
 
 
 
-/*
-pub static ISO8601_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").expect("valid ISO 8601 regex")
-});
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CellValue {
+    // 👇 This un-nests the CellValue JSON so it looks exactly like your old data
+    #[serde(flatten)]
+    pub entry: CellValueInner,
 
-/// Regex for gestational age format
-pub static GESTATIONAL_AGE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"G\d+w[0-6]d").expect("valid gestational age regex")
-}); */
+    // 👇 Safely defaults to empty if missing from old files
+    #[serde(default)]
+    pub modifiers: Vec<String>,
+}
 
+/// HpoCell will automatically act like a CellValue when you 
+/// try to access its inner methods or match against it.
+impl Deref for CellValue {
+    type Target = CellValueInner;
 
+    fn deref(&self) -> &Self::Target {
+        &self.entry
+    }
+}
 
-/// TODO implement!
-fn is_valid_hpo_modifier(_cell_value: &str) -> bool {
-    return false;
+impl From<CellValueInner> for CellValue {
+    fn from(entry: CellValueInner) -> Self {
+        CellValue {
+            entry,
+            modifiers: Vec::new(), // Defaults to empty list
+        }
+    }
+}
+
+impl FromStr for CellValue {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+       let cv_inner = match s {
+            "observed" => Ok(CellValueInner::Observed),
+            "excluded" => Ok(CellValueInner::Excluded),
+            "na" => Ok(CellValueInner::Na),
+            _ if age::is_valid_age_string(s) =>  Ok(CellValueInner::OnsetAge(s.to_string())),
+            _ => Err(format!("Malformed HPO cell contents: '{s}'")),
+        };
+        Ok(CellValue { entry: cv_inner?, modifiers: Vec::default()})
+    }
 }
 
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")] 
-pub enum CellValue {
+pub enum CellValueInner {
     Observed,
     Excluded,
     Na,
     OnsetAge(String),   // e.g. "P10Y"
-    Modifier(String),   // e.g. "HP:0001250"
 }
 
-impl CellValue {
+impl CellValueInner {
     pub fn is_excluded(&self) -> bool {
-        matches!(self, CellValue::Excluded)
+        matches!(self, CellValueInner::Excluded)
     }
 
     pub fn is_observed(&self) -> bool {
-        matches!(self, CellValue::Observed)
+        matches!(self, CellValueInner::Observed)
     }
 
     pub fn has_onset(&self) -> bool {
-        matches!(self, CellValue::OnsetAge(_))
-    }
-
-    pub fn has_modifier(&self) -> bool {
-        matches!(self, CellValue::Modifier(_))
+        matches!(self, CellValueInner::OnsetAge(_))
     }
 
     pub fn is_ascertained(&self) -> bool {
-       ! matches!(self, CellValue::Na)
+       ! matches!(self, CellValueInner::Na)
     }
 
     pub fn is_valid_cell_value(s: &str) -> bool {
@@ -100,36 +125,83 @@ impl CellValue {
             "excluded" => true,
             "na" => true,
             _ if age::is_valid_age_string(s) =>  true,
-            _ if is_valid_hpo_modifier(s) => true,
             _ => false,
         }
     }
 }
 
 
-impl FromStr for CellValue {
+impl FromStr for CellValueInner {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "observed" => Ok(CellValue::Observed),
-            "excluded" => Ok(CellValue::Excluded),
-            "na" => Ok(CellValue::Na),
-            _ if age::is_valid_age_string(s) =>  Ok(CellValue::OnsetAge(s.to_string())),
-            _ if is_valid_hpo_modifier(s) => Ok(CellValue::Modifier(s.to_string())),
+            "observed" => Ok(CellValueInner::Observed),
+            "excluded" => Ok(CellValueInner::Excluded),
+            "na" => Ok(CellValueInner::Na),
+            _ if age::is_valid_age_string(s) =>  Ok(CellValueInner::OnsetAge(s.to_string())),
             _ => Err(format!("Malformed HPO cell contents: '{s}'")),
+        }
+    }
+}
+
+impl fmt::Display for CellValueInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CellValueInner::Observed => write!(f, "observed"),
+            CellValueInner::Excluded => write!(f, "excluded"),
+            CellValueInner::Na => write!(f, "na"),
+            CellValueInner::OnsetAge(age) => write!(f, "{}", age),
         }
     }
 }
 
 impl fmt::Display for CellValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CellValue::Observed => write!(f, "observed"),
-            CellValue::Excluded => write!(f, "excluded"),
-            CellValue::Na => write!(f, "na"),
-            CellValue::OnsetAge(age) => write!(f, "{}", age),
-            CellValue::Modifier(hpo_id) => write!(f, "{}", hpo_id),
+        let entry_str = match &self.entry {
+            CellValueInner::Observed => "observed".to_string(),
+            CellValueInner::Excluded => "excluded".to_string(),
+            CellValueInner::Na => "na".to_string(),
+            CellValueInner::OnsetAge(age) => age.clone(),
+        };
+        if self.modifiers.is_empty() {
+            write!(f, "{}", entry_str)
+        } else {
+            // Joins ["mod1", "mod2"] into "mod1, mod2"
+            let mods_str = self.modifiers.join(", "); 
+            write!(f, "{} ({})", entry_str, mods_str)
+        }
+    }
+}
+
+
+
+impl CellValue {
+    pub fn na() -> Self {
+        Self {
+            entry: CellValueInner::Na,
+            modifiers: Vec::default(),
+        }
+    }
+
+    pub fn observed() -> Self {
+        Self {
+            entry: CellValueInner::Observed,
+            modifiers: Vec::default(),
+        }
+    }
+
+    pub fn excluded() -> Self {
+        Self {
+            entry: CellValueInner::Excluded,
+            modifiers: Vec::default(),
+        }
+    }
+
+    pub fn onset(onset: impl Into<String>) -> Self {
+         Self {
+            entry: CellValueInner::OnsetAge(onset.into()),
+            modifiers: Vec::default(),
         }
     }
 }
@@ -137,7 +209,7 @@ impl fmt::Display for CellValue {
 
 
 /// A structure to represent the HPO term together with a value.
-
+/// Optionally, a one or more HPO modifiers can be added.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HpoTermData {
@@ -153,8 +225,8 @@ impl HpoTermData {
         entry: CellValue
     ) -> Result<Self, String> {
         Ok(Self { 
-           term_duplet: term_duplet,
-            entry 
+            term_duplet: term_duplet,
+            entry,
         })
     }
 
@@ -164,7 +236,7 @@ impl HpoTermData {
     ) -> Result<Self, String> {
         Ok(Self { 
             term_duplet: duplet, 
-            entry: CellValue::from_str(entry)? 
+            entry: CellValue::from_str(entry)?
         })
     }
 
@@ -175,7 +247,7 @@ impl HpoTermData {
     ) -> Result<Self, String> {
         Ok(Self { 
            term_duplet: HpoTermDuplet::new(term_label, term_id),
-            entry : CellValue::from_str(entry)?
+            entry : CellValue::from_str(entry)?,
         })
     }
 
@@ -193,35 +265,43 @@ impl HpoTermData {
     }
 
     pub fn is_excluded(&self) -> bool {
-        self.entry == CellValue::Excluded
+        self.entry.entry == CellValueInner::Excluded
     }
 
     pub fn is_observed(&self) -> bool {
-        self.entry == CellValue::Observed
+        self.entry.entry == CellValueInner::Observed
     }
 
     pub fn is_ascertained(&self) -> bool {
-        self.entry != CellValue::Na
+        self.entry.entry != CellValueInner::Na
     }
 
     pub fn is_not_ascertained(&self) -> bool {
-        self.entry ==  CellValue::Na
+        self.entry.entry ==  CellValueInner::Na
     }
 
     pub fn has_onset(&self) -> bool {
-        matches!(self.entry, CellValue::OnsetAge{..})
+        matches!(self.entry.entry, CellValueInner::OnsetAge{..})
     }
 
     pub fn onset_value(&self) -> Option<&str> {
-    if let CellValue::OnsetAge(s) = &self.entry {
-        Some(s)
-    } else {
-        None
+        if let CellValueInner::OnsetAge(s) = &self.entry.entry {
+            Some(s)
+        } else {
+            None
+        }
     }
-}
 
     pub fn entry(&self) -> String {
         self.entry.to_string()
+    }
+
+    pub fn modifiers(&self) -> Vec<String> {
+        self.entry.modifiers.clone()
+    }
+
+    pub fn has_modifier(&self) -> bool {
+       ! self.entry.modifiers.is_empty()
     }
 
 }
@@ -236,9 +316,9 @@ mod test {
 
     #[rstest]
     fn test_cell_value_type() {
-        let cv = CellValue::from_str("P32Y").unwrap();
+        let cv = CellValueInner::from_str("P32Y").unwrap();
         println!("{:?}", cv);
-        assert!(matches!(cv, CellValue::OnsetAge(..)))
+        assert!(matches!(cv, CellValueInner::OnsetAge(..)))
     }
 
 
@@ -297,7 +377,7 @@ mod test {
     fn test_malformed_entry(
         #[case] entry: &str) 
     {
-        let result = CellValue::from_str(entry);
+        let result = CellValueInner::from_str(entry);
         assert!(result.is_err());
         let err = result.err().unwrap();
         let expected_error = format!("Malformed HPO cell contents: '{entry}'");
@@ -312,16 +392,15 @@ mod test {
     fn test_valid_entry(
         #[case] entry: &str) 
     {
-        let result = CellValue::from_str(entry);
+        let result = CellValueInner::from_str(entry);
         assert!(result.is_ok(), "Parsing failed for '{}'", entry);
         let cell_value = result.unwrap();
         assert_eq!(entry, cell_value.to_string(), "Round-trip failed for '{}'", entry);
         match cell_value {
-            CellValue::Observed => assert_eq!(entry, "observed"),
-            CellValue::Excluded => assert_eq!(entry, "excluded"),
-            CellValue::Na => assert_eq!(entry, "na"),
-            CellValue::OnsetAge(ref age) => assert_eq!(entry, age),
-            CellValue::Modifier(ref hpo) => assert!(false, "Modifier not yet implemented"),
+            CellValueInner::Observed => assert_eq!(entry, "observed"),
+            CellValueInner::Excluded => assert_eq!(entry, "excluded"),
+            CellValueInner::Na => assert_eq!(entry, "na"),
+            CellValueInner::OnsetAge(ref age) => assert_eq!(entry, age),
         }
     }
 
@@ -339,6 +418,21 @@ mod test {
 
         let hpo_terms: Vec<HpoTermData> = serde_json::from_str(json_cell).unwrap();
         assert_eq!(2, hpo_terms.len());
+    }
+
+    #[rstest]
+    fn test_modifier() {
+        // Severe  HP:0012828
+        let duplet = HpoTermDuplet::new("Cardiomyopathy", "HP:0001638");
+        let cval = CellValue{ entry: CellValueInner::Observed, modifiers: vec!["HP:0012828".to_string()]  };
+        let hpo_data = HpoTermData { 
+            term_duplet: duplet, 
+            entry: cval
+        };
+        assert!(hpo_data.has_modifier());
+        let modfr = hpo_data.modifiers();
+        assert_eq!(1, modfr.len());
+        assert_eq!("HP:0012828", modfr[0]);
     }
 
  

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use ga4ghphetools::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
+use ga4ghphetools::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::{CellValue, CellValueInner, HpoTermDuplet}};
 use ontolius::ontology::csr::FullCsrOntology;
 use rstest::{rstest};
 mod common;
@@ -85,9 +85,9 @@ fn test_individual_1(
     for (duplet, val) in hpo_duplets.iter().zip(row_1_merged.hpo_data.iter()) {
         let merged_val = match row_1_val_map.get(duplet) {
             Some(val) => val.clone(),
-            None => CellValue::Na,
+            None => CellValue::na()
         };
-        assert_eq!(val.clone(), merged_val);
+        assert_eq!(*val, merged_val);
     }
 }
 
@@ -105,9 +105,9 @@ fn test_individual_2(
     for (duplet, val) in hpo_duplets.iter().zip(row_2_merged.hpo_data.iter()) {
         let merged_val = match row_2_val_map.get(duplet) {
             Some(val) => val.clone(),
-            None => CellValue::Na,
+            None => CellValue::na(),
         };
-        assert_eq!(val.clone(), merged_val);
+        assert_eq!(*val, merged_val);
     }
 }
 
@@ -125,9 +125,9 @@ fn test_individual_3(
     for (duplet, val) in hpo_duplets.iter().zip(row_3_merged.hpo_data.iter()) {
         let merged_val = match row_3_val_map.get(duplet) {
             Some(val) => val.clone(),
-            None => CellValue::Na,
+            None => CellValue::na(),
         };
-        assert_eq!(val.clone(), merged_val);
+        assert_eq!(*val, merged_val);
     }
 }
 
@@ -145,8 +145,8 @@ fn test_individual_4(
     for (duplet, val) in hpo_duplets.iter().zip(row_4_merged.hpo_data.iter()) {
         let merged_val = match row_4_val_map.get(duplet) {
             Some(val) => val.clone(),
-            None => CellValue::Na,
+            None => CellValue::na(),
         };
-        assert_eq!(val.clone(), merged_val);
+        assert_eq!(*val, merged_val);
     }
 }

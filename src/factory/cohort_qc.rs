@@ -195,7 +195,7 @@ impl CohortDataQc {
                 let idx = term_id_to_index_map
                     .get(&tid)
                     .ok_or_else(|| format!("Could not get index for {}", tid))?;
-                row.hpo_data[*idx] = crate::dto::hpo_term_dto::CellValue::Na;
+                row.hpo_data[*idx].entry = crate::dto::hpo_term_dto::CellValueInner::Na;
             }
         }
         // One more check!
@@ -243,6 +243,9 @@ impl CohortDataQc {
         })
     }
 
+    /// See if there are differing results (observed/excluded) for text-mined
+    /// HPO annotations. Note that we do not currently check if there
+    /// are discrepancies for onset dates or modifers (TODO)
     fn get_conflicting_termid_pairs_for_row(&self, row: &RowData, hpo_terms: &[HpoTermDuplet]) 
     -> Result<ConflictMap, String> {
         let mut na_terms: HashSet<TermId> = HashSet::new();
@@ -251,21 +254,17 @@ impl CohortDataQc {
         let mut observed: Vec<TermId> = Vec::new();
         let mut excluded: Vec<TermId> = Vec::new();
         for (header, val) in hpo_terms.iter().zip(&row.hpo_data) {
-            match val {
-                crate::dto::hpo_term_dto::CellValue::Observed => {
+            match &val.entry {
+                crate::dto::hpo_term_dto::CellValueInner::Observed => {
                     let tid = header.to_term_id()?;
                     observed.push(tid);
                 },
-                crate::dto::hpo_term_dto::CellValue::Excluded => {
+                crate::dto::hpo_term_dto::CellValueInner::Excluded => {
                     let tid = header.to_term_id()?;
                     excluded.push(tid);
                 },
-                crate::dto::hpo_term_dto::CellValue::Na => {},
-                crate::dto::hpo_term_dto::CellValue::OnsetAge(onset) => {
-                    let tid = header.to_term_id()?;
-                    observed.push(tid);
-                },
-                crate::dto::hpo_term_dto::CellValue::Modifier(modifier)  => {
+                crate::dto::hpo_term_dto::CellValueInner::Na => {},
+                crate::dto::hpo_term_dto::CellValueInner::OnsetAge(onset) => {
                     let tid = header.to_term_id()?;
                     observed.push(tid);
                 },

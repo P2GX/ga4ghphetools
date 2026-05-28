@@ -12,7 +12,7 @@ use ga4ghphetools::dto::etl_dto::EtlColumnHeader;
 use ga4ghphetools::dto::etl_dto::EtlColumnType;
 use ga4ghphetools::dto::etl_dto::EtlDto;
 use ga4ghphetools::dto::hgvs_variant::HgvsVariant;
-use ga4ghphetools::dto::hpo_term_dto::CellValue;
+use ga4ghphetools::dto::hpo_term_dto::CellValueInner;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermData;
 use ga4ghphetools::dto::hpo_term_dto::HpoTermDuplet;
 use ga4ghphetools::dto::cohort_dto::DiseaseData;
@@ -693,7 +693,7 @@ fn test_conversion() {
         "HP:0032286"
     );
     assert_eq!(
-        last.entry, CellValue::Observed
+        last.entry.entry, CellValueInner::Observed
     )
 }
 

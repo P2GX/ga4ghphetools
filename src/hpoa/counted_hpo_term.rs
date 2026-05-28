@@ -3,7 +3,7 @@
 //! n/m individuals reported in a PMID with a certain disease to have the HPO term in question
 
 
-use crate::dto::hpo_term_dto::{CellValue, HpoTermDuplet};
+use crate::dto::hpo_term_dto::{CellValueInner, HpoTermDuplet};
 
 
 #[derive(Clone, Debug)]
@@ -38,14 +38,13 @@ impl CountedHpoTerm {
 
     pub fn increment_value(
         &mut self,
-        value: &CellValue
+        value: &CellValueInner
     ) {
         match value {
-            CellValue::Observed => { self.increment_observed(); },
-            CellValue::Excluded => { self.increment_excluded(); },
-            CellValue::Na => {},
-            CellValue::OnsetAge(_) => { self.increment_observed(); },
-            CellValue::Modifier(_) => { self.increment_observed(); },
+            CellValueInner::Observed => { self.increment_observed(); },
+            CellValueInner::Excluded => { self.increment_excluded(); },
+            CellValueInner::Na => {},
+            CellValueInner::OnsetAge(_) => { self.increment_observed(); }
         }
     }
 

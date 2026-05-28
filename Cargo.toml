@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.5.42"
+version = "0.6.1"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -52,7 +52,7 @@ excel_export = ["rust_xlsxwriter"]
 
 [lints.rust]
 unsafe_code = "forbid"
-# unused_variables = "allow" ## for dev only
+unused_variables = "allow" ## for dev only
 
 
 [dev-dependencies]

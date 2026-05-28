@@ -250,12 +250,11 @@ impl CohortRenderer {
             let indi_id = row.individual_data.individual_id.clone();
             for (duplet, cell) in cohort.hpo_headers.iter().zip(&row.hpo_data) {
                 if duplet_set.contains(duplet) {
-                    match &cell {
-                        crate::dto::hpo_term_dto::CellValue::Observed => data_row.push(RenderCell::observed()),
-                        crate::dto::hpo_term_dto::CellValue::Excluded => data_row.push(RenderCell::excluded()),
-                        crate::dto::hpo_term_dto::CellValue::Na => data_row.push(RenderCell::na()),
-                        crate::dto::hpo_term_dto::CellValue::OnsetAge(onset) => data_row.push(RenderCell::onset(onset.to_string())),
-                        crate::dto::hpo_term_dto::CellValue::Modifier(_) => data_row.push(RenderCell::observed()),
+                    match &cell.entry {
+                        crate::dto::hpo_term_dto::CellValueInner::Observed => data_row.push(RenderCell::observed()),
+                        crate::dto::hpo_term_dto::CellValueInner::Excluded => data_row.push(RenderCell::excluded()),
+                        crate::dto::hpo_term_dto::CellValueInner::Na => data_row.push(RenderCell::na()),
+                        crate::dto::hpo_term_dto::CellValueInner::OnsetAge(onset) => data_row.push(RenderCell::onset(onset.to_string())),
                     }
                 }
             }

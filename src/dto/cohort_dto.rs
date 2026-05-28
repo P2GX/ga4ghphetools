@@ -7,10 +7,9 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use chrono::Local;
-use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
-use crate::dto::hpo_term_dto::CellValue;
+use crate::dto::hpo_term_dto::{CellValue};
 use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
@@ -312,7 +311,7 @@ pub struct CohortData {
 }
 
 /// Version of the Cohort JSON schema
-const PHETOOLS_SCHEMA_VERSION: &str = "0.3";
+const PHETOOLS_SCHEMA_VERSION: &str = "0.4";
 
 impl CohortData {
     /// Initialize a new CohortData object for Mendelian cohorts. 

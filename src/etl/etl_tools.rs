@@ -7,7 +7,7 @@ use regex::Regex;
 use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::etl_dto::{ColumnDto, EtlCellStatus, EtlCellValue};
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
-use crate::dto::hpo_term_dto::{CellValue, HpoTermData};
+use crate::dto::hpo_term_dto::{CellValue, CellValueInner, HpoTermData};
 use crate::variant::variant_manager::VariantManager;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
@@ -337,14 +337,14 @@ impl EtlTools {
             match hpo_to_status_map.get(hpo_duplet) {
                 Some(status) => {
                     match status.as_str() {
-                        "observed" => { values.push(CellValue::Observed);},
-                        "excluded" => { values.push(CellValue::Excluded);},
-                        "na" => { values.push(CellValue::Na);},
-                        _ => { values.push(CellValue::OnsetAge(status.clone()));}
+                        "observed" => { values.push(CellValue::observed());},
+                        "excluded" => { values.push(CellValue::excluded());},
+                        "na" => { values.push(CellValue::na());},
+                        _ => { values.push(CellValue::onset(status));}
                     }
                 }
                 None => {
-                    values.push(CellValue::Na);
+                    values.push(CellValue::na());
                 }
             }
          }

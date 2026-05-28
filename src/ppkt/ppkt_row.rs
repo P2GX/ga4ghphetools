@@ -10,6 +10,7 @@ use std::sync::Arc;
 use ontolius::TermId;
 use crate::dto;
 use crate::dto::hpo_term_dto::CellValue;
+use crate::dto::hpo_term_dto::CellValueInner;
 use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::cohort_dto::{CohortType, DiseaseData, GeneVariantData, IndividualData};
 
@@ -63,7 +64,7 @@ impl PpktRow {
         // HPO data begins at cell 17 in the legacy Excel files -- need to skip 17 (zero based)
         for item in content.iter().skip(number_of_constant_cells_to_skip) {
             let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency
-            match dto::hpo_term_dto::CellValue::is_valid_cell_value(cell) {
+            match dto::hpo_term_dto::CellValueInner::is_valid_cell_value(cell) {
                 true => hpo_content.push(item.clone()),
                 false => { return Err(format!("Invalid table cell '{cell}' for {}", ibundle.individual_id()));},
             }
@@ -163,7 +164,7 @@ impl PpktRow {
             gvb.do_qc()?;
         }
         for item in &self.hpo_content {
-            if ! CellValue::is_valid_cell_value(item){
+            if ! CellValueInner::is_valid_cell_value(item){
                 return Err(format!("Invalid HPO cell contents '{}'", item));
             }
         }
