@@ -5,9 +5,11 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use once_cell::sync::Lazy;
+use ontolius::term::MinimalTerm;
 use ontolius::{Identified, TermId};
 use ontolius::ontology::csr::FullCsrOntology;
-use ontolius::ontology::{MetadataAware, OntologyTerms};
+use ontolius::ontology::{HierarchyQueries, MetadataAware, OntologyTerms};
 use phenopacket_tools::builders::time_elements::time_element_from_str;
 use phenopackets::schema::v2::core::{KaryotypicSex, OntologyClass};
 use phenopackets::schema::v2::core::vital_status::Status;
@@ -26,6 +28,10 @@ const DEFAULT_HGNC_VERSION: &str =  "06/01/25";
 const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
 const DEFAULT_GENO_VERSION: &str =  "2025-07-25";
 const DEFAULT_SO_VERSION: &str = "2024-11-18";
+
+static CLINICAL_MODIFIER: Lazy<TermId> = Lazy::new(|| {
+    "HP:0012823".parse().expect("Failed to parse static HP:0012823")
+});
 
 
 /// Structure to export phenopackets from a CohortData object.
@@ -293,10 +299,31 @@ impl PpktExporter {
                     .map_err(|e| format!("malformed time_element for cell '{}': {}", cell_contents, e.to_string()))?;
                 pf.onset = Some(ost);
             }
+            if cell_contents.has_modifier() {
+                let mut mod_list: Vec<OntologyClass> = Vec::new();
+                for mod_str in cell_contents.modifers() {
+                    let mod_id: TermId = mod_str.parse().map_err(|_| format!("Could not create TermId from modifier String '{mod_str}'"))?;
+                    let term = self.hpo.term_by_id(&mod_id).ok_or_else(|| {
+                        format!("Could not retrieve Modifier term for id '{mod_id}' for {}", ppkt_row.individual_data.pmid)
+                    })?;
+                    if self.hpo.is_descendant_of(term.identifier(), &*CLINICAL_MODIFIER) {
+                        let label = term.name().to_string();
+                        let oclass =  OntologyClass {
+                            id: label,
+                            label: mod_str.clone(),
+                        };
+                        mod_list.push(oclass);
+                    }
+                }
+                pf.modifiers = mod_list;
+            }
             ppkt_feature_list.push(pf);
         }
         Ok(ppkt_feature_list)
     }
+
+    /// Is the term a descendent of Clinical modifier HP:0012823
+
 
 
  fn extract_phenopacket_from_row(

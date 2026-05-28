@@ -204,6 +204,14 @@ impl CellValue {
             modifiers: Vec::default(),
         }
     }
+
+    pub fn has_modifier(&self) -> bool {
+        ! self.modifiers.is_empty()
+    }
+
+    pub fn modifers(&self) -> &[String] {
+        &self.modifiers
+    }
 }
 
 
