@@ -322,7 +322,7 @@ impl PpktExporter {
         Ok(ppkt_feature_list)
     }
 
-    /// Is the term a descendent of Clinical modifier HP:0012823
+   
 
 
 

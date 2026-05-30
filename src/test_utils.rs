@@ -10,9 +10,8 @@ pub mod fixtures {
     use std::fs::File;
     use std::io::BufReader;
     use flate2::read::GzDecoder;
-    // ... other imports
 
-    // Singleton - loads once, shared across all tests
+
     pub static HPO: Lazy<Arc<FullCsrOntology>> = Lazy::new(|| {
         let path = "resources/hp.v2025-03-03.json.gz";
         let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));

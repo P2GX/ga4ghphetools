@@ -72,7 +72,7 @@ impl From<CellValueInner> for CellValue {
     fn from(entry: CellValueInner) -> Self {
         CellValue {
             entry,
-            modifiers: Vec::new(), // Defaults to empty list
+            modifiers: Vec::new(),
         }
     }
 }

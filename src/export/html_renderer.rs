@@ -42,22 +42,13 @@ impl HtmlRenderer {
 #[cfg(test)]
 mod tests {
     use std::{fs::File, io::BufReader, path::Path, sync::Arc};
-    use flate2::bufread::GzDecoder;
-    use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
-    use rstest::{fixture, rstest};
+    use ontolius::ontology::csr::FullCsrOntology;
+    use rstest::rstest;
     use super::*;
     use crate::{dto::cohort_dto::CohortData, export::cohort_renderer::CohortRenderer};
-
+    use crate::test_utils::fixtures::hpo;
     
 
-     #[fixture]
-    fn hpo() -> Arc<FullCsrOntology> {
-        let path = "resources/hp.v2025-03-03.json.gz";
-        let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
-        let loader = OntologyLoaderBuilder::new().obographs_parser().build();
-        let hpo = loader.load_from_read(reader).unwrap();
-        Arc::new(hpo)
-    }
 
 
     #[rstest]

@@ -10,8 +10,9 @@ use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::{HpoTermData, HpoTermDup
 mod hpo_hierarchizer;
 mod hpo_term_arranger;
 mod hpo_util;
+mod hpo_modifiers;
 
-
+pub use hpo_modifiers::get_modifiers;
 
 /// Arrange a list of HPO terms into a curator-friendly order using depth-first search (DFS).
 ///

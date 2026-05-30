@@ -125,7 +125,6 @@ impl HpoTermArranger {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
     use crate::test_utils::fixtures::hpo;
     use rstest::rstest;
 
