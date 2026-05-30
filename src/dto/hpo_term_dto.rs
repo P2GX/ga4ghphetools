@@ -174,6 +174,18 @@ impl fmt::Display for CellValue {
     }
 }
 
+impl CellValue {
+    pub fn entry(&self) -> &str {
+        match &self.entry {
+            CellValueInner::Observed => "observed",
+            CellValueInner::Excluded => "excluded",
+            CellValueInner::Na => "na",
+            CellValueInner::OnsetAge(onset) => onset.as_str(),
+        }
+    }
+}   
+
+
 
 
 impl CellValue {

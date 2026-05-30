@@ -95,14 +95,6 @@ impl EtlTools {
                 EtlColumnType::HpoTextMining => {
                     for val in &col.values {
                         if let Ok(terms) = Self::get_hpo_term_data_from_json(&val.current) {
-                           
-                            for t in &terms {
-                                if t.label().contains("Ultra") {
-                                    println!("all_hpo_duplets");
-                                    println!("{:?}", t);
-                                }
-                                
-                            }
                             duplets.extend(terms.into_iter().map(|t| t.term_duplet));
                         }
                     }

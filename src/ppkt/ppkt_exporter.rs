@@ -32,6 +32,24 @@ const DEFAULT_SO_VERSION: &str = "2024-11-18";
 static CLINICAL_MODIFIER: Lazy<TermId> = Lazy::new(|| {
     "HP:0012823".parse().expect("Failed to parse static HP:0012823")
 });
+/// HPO term Severity (HP:0012824)
+static SEVERITY: Lazy<TermId> = Lazy::new(||{
+    "HP:0012824".parse().expect("Failed to parse static HP:0012824")
+});
+/// All valid severity terms
+static SEVERITY_MAP: Lazy<HashMap<String, OntologyClass>> = Lazy::new(||{
+    let mut smap = HashMap::new();
+    for (label, id) in vec![
+        ("Borderline","HP:0012827"),
+        ("Mild", "HP:0012825"),
+        ("Moderate", "HP:0012826"),
+        ("Severe", "HP:0012828"),
+        ("Profound", "HP:0012829")
+    ] {
+        smap.insert(id.to_string(), OntologyClass{id: id.to_string(), label: label.to_string()});
+    }
+    smap
+});
 
 
 /// Structure to export phenopackets from a CohortData object.
@@ -295,7 +313,7 @@ impl PpktExporter {
                 evidence: vec![]
             };
             if cell_contents.has_onset() {
-                let ost = time_element_from_str(&cell_contents.to_string())
+                let ost = time_element_from_str(&cell_contents.entry())
                     .map_err(|e| format!("malformed time_element for cell '{}': {}", cell_contents, e.to_string()))?;
                 pf.onset = Some(ost);
             }
@@ -306,7 +324,9 @@ impl PpktExporter {
                     let term = self.hpo.term_by_id(&mod_id).ok_or_else(|| {
                         format!("Could not retrieve Modifier term for id '{mod_id}' for {}", ppkt_row.individual_data.pmid)
                     })?;
-                    if self.hpo.is_descendant_of(term.identifier(), &*CLINICAL_MODIFIER) {
+                    if let Some(severity_term) = SEVERITY_MAP.get(mod_str) {
+                        pf.severity = Some(severity_term.clone());
+                    } else if self.hpo.is_descendant_of(term.identifier(), &*CLINICAL_MODIFIER) {
                         let label = term.name().to_string();
                         let oclass =  OntologyClass {
                             id: label,
@@ -321,10 +341,6 @@ impl PpktExporter {
         }
         Ok(ppkt_feature_list)
     }
-
-   
-
-
 
  fn extract_phenopacket_from_row(
         &self, 
@@ -405,7 +421,9 @@ pub fn strip_phenopacket_defaults(root: &mut Value) {
 mod tests {
     use super::*;
     use rstest::rstest;
+    use std::path::PathBuf;  
     use serde_json::json;
+    use crate::test_utils::fixtures::hpo;
 
     /// Remove the redundant field while leaving all else intact
     #[test]
@@ -442,8 +460,6 @@ mod tests {
         });
 
         PpktExporter::strip_phenopacket_defaults(&mut packet);
-        println!("{}", packet);
-
         assert!(! packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
         assert_eq!(packet["subject"]["vitalStatus"]["status"], "DECEASED");
     }
@@ -474,7 +490,6 @@ mod tests {
             }
         });
         PpktExporter::strip_phenopacket_defaults(&mut packet);
-        println!("{:?}", packet);
         assert!(!packet["subject"].get("sex").is_some());
     }
 
@@ -542,6 +557,21 @@ mod tests {
             assert!(result.is_err())
         }
 
+    }
+
+
+     #[rstest]
+     #[ignore = "local file"]
+    fn test_export_ppkt(hpo: Arc<FullCsrOntology>) {
+        let input_file = "/Users/robin/GIT/mgd-ppkt/cohorts/MYH7_CMH1_PRKAG2_CMH6_individuals.json";
+        let cohort = crate::factory::load_json_cohort(input_file).expect("Could not load Cohort JSON file");
+        let orcid = "0000-0000-0000-0000".to_string();
+        let output_dir = "/Users/robin/TMP";
+        let path = PathBuf::from(output_dir);
+        let result = crate::ppkt::write_phenopackets(cohort, path, orcid, hpo.clone());
+        assert!(result.is_ok());
+        let n_processed = result.unwrap();
+        assert_eq!(1, n_processed); 
     }
 
 
