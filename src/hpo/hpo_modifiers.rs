@@ -26,11 +26,18 @@ use crate::dto::hpo_term_dto::HpoTermDuplet;
     term_id
  });
 
- pub static EXCLUDED_SUBHIERARCHIES: Lazy<HashSet<TermId>> = Lazy::new(||{
+ pub static EXCLUDED_GROUPING_TERMS: Lazy<HashSet<TermId>> = Lazy::new(||{
     let mut excluded: HashSet<TermId> = HashSet::new();
-    excluded.insert((*MORTALITY_AGING).clone());
-    excluded.insert((*ONSET_TERM).clone());
-
+    for (label, tid_str) in vec![
+        ("Clinical course","HP:0031797"),
+        ("Temporal pattern", "HP:0011008"),
+        ("Pace of progression", "HP:0003679"),
+        ("Position", "HP:0012830")]{
+         let term_id: TermId = tid_str
+            .parse()
+            .unwrap_or_else(|_| panic!("Critical: Could not parse hardcoded {} ID", label));
+        excluded.insert(term_id);
+    }
     excluded
  });
 
@@ -52,9 +59,11 @@ use crate::dto::hpo_term_dto::HpoTermDuplet;
         .for_each(|tid| {
             excluded.insert(tid.clone());
     });
+    excluded.extend(EXCLUDED_GROUPING_TERMS.iter().cloned());
 
     hpo.iter_descendant_ids(&*CLINICAL_MODIFIER)
         .filter(|tid|  ! excluded.contains(tid) )
+        .filter(|tid| hpo.iter_child_ids(*tid).count() == 0) // remove non-leaf
         .map(|tid| {
             hpo.term_by_id(tid)
                 .map(|term| HpoTermDuplet::new(term.name(), tid.to_string()))
@@ -78,11 +87,16 @@ mod tests {
     #[case("Moderate", "HP:0012826", true)]
     #[case("Mild", "HP:0012825", true)]
     #[case("Ameliorated by ethosuximide", "HP:0034759", true)]
+    #[case("Bronchocentric", "HP:0033815", true)]
+    #[case("Pain exacerbated by wrist radial deviation", "HP:6001152", true)]
     #[case("Late onset", "HP:0003584", false)]
     #[case("Neonatal onset", "HP:0003623", false)]
     #[case("Neonatal death", "HP:0003811", false)]
-     #[case("Long philtrum", "HP:0000343", false)]
-
+    #[case("Long philtrum", "HP:0000343", false)]
+    #[case("Clinical course","HP:0031797", false)]
+    #[case("Temporal pattern", "HP:0011008", false)]
+    #[case("Pace of progression", "HP:0003679", false)]
+    #[case("Position", "HP:0012830", false)]
     fn test_modifiers(
         hpo: Arc<FullCsrOntology>,
         #[case]label: &str,

@@ -425,9 +425,9 @@ mod tests {
         println!("{:?}", ig);
     }
 
-     #[test]
-      #[ignore = "API call"]
-     fn test_intergenic_TMEM216() {
+    #[test]
+    #[ignore = "API call"]
+    fn test_intergenic_TMEM216() {
         let symbol = "TMEM216";
         let transcript = "NM_001173990.3";
         let hgnc = "HGNC:25018";
@@ -441,6 +441,7 @@ mod tests {
 
 
     #[test]
+    #[ignore = "API call"]
     fn test_intergenic_snord118() {
          let symbol = "SNORD118";
         let transcript = "NR_033294.1";
