@@ -92,8 +92,7 @@ impl IntergenicHgvsValidator {
         let hgvs = &vv_dto.variant_string;
         let genomic_transcript = &vv_dto.ig_transcript_or_chrom()?;
         if ! is_valid_chromosome(genomic_transcript) {
-            println!("BAD vvdto: {:?}", vv_dto);
-            return Err(format!("{} is not a valid hg38 chromosome.", genomic_transcript));
+            return Err(format!("{genomic_transcript} is not a valid hg38 chromosome. Malformed DTO: {vv_dto:?}"));
         }
         let url = get_variant_validator_url(&self.genome_assembly, hgvs);
         let response: Value = get(&url)
@@ -112,7 +111,7 @@ impl IntergenicHgvsValidator {
         self.extract_variant_validator_warnings(&response)?;
         if let Some(flag) = response.get("flag") {
             if flag != "gene_variant" && flag != "intergenic" {
-                return Err(format!("Expecting to get an intergenic variant but got {}", flag));
+                return Err(format!("Expecting to get an intergenic variant but got '{flag}'."));
             }
         }
 

@@ -63,7 +63,7 @@ pub fn validate_all_hgvs(
 ) -> Result<HashMap<String, HgvsVariant>, String> {
     let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
     vmanager.validate_all_hgvs(all_alleles, |p,q|{
-        println!("{}/{} variants validated", p, q)})?;
+        println!("{p}/{q} variants validated"); })?;
     Ok(vmanager.hgvs_map())
 }
 
@@ -99,7 +99,7 @@ pub fn validate_structural_variant(
     variant_dto: VariantDto
 ) -> Result<StructuralVariant, String> {
     if variant_dto.is_hgvs() {
-        return Err(format!("Expecting to validate structural variant, but got {:?}", variant_dto));
+        return Err(format!("Expecting to validate structural variant, but got {variant_dto:?}" ));
     }
     let symbol = variant_dto.gene_symbol;
     let transcript = variant_dto.transcript;
@@ -114,7 +114,7 @@ pub fn validate_intergenic_variant(
     variant_dto: VariantDto
 ) -> Result<IntergenicHgvsVariant, String> {
     if ! variant_dto.is_intergenic_hgvs() {
-        return Err(format!("Expecting to validate intergenic HGVS variant, but got {:?}", variant_dto));
+        return Err(format!("Expecting to validate intergenic HGVS variant, but got {variant_dto:?}"));
     }
     let symbol = variant_dto.gene_symbol;
     let transcript = variant_dto.transcript;
@@ -161,7 +161,7 @@ pub fn validate_all_sv(
 ) -> Result<HashMap<String, StructuralVariant>, String> {
     let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
     vmanager.validate_all_sv(all_alleles, |p,q|{
-        println!("{}/{} variants validated", p, q)})?;
+        println!("{p}/{q} variants validated"); })?;
     Ok(vmanager.sv_map())
 }
 

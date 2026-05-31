@@ -38,7 +38,7 @@ static SEVERITY: LazyLock<TermId> = LazyLock::new(||{
 /// All valid severity terms
 static SEVERITY_MAP: LazyLock<HashMap<String, OntologyClass>> = LazyLock::new(||{
     let mut smap = HashMap::new();
-    for (label, id) in vec![
+    for (label, id) in [
         ("Borderline","HP:0012827"),
         ("Mild", "HP:0012825"),
         ("Moderate", "HP:0012826"),

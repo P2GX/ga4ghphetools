@@ -46,7 +46,7 @@ pub struct VariantManager {
 
 
 impl VariantManager {
-    /// Construct a VariantManager object for a specific gene/HGNC/transcript
+    /// Construct a `VariantManager`` object for a specific gene/HGNC/transcript
     /// # Arguments
     ///
     /// * `symbol`     – Gene symbol (e.g. `"BRCA1"`).

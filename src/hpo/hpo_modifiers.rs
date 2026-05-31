@@ -27,7 +27,7 @@ use crate::dto::hpo_term_dto::HpoTermDuplet;
 
  pub static EXCLUDED_GROUPING_TERMS: LazyLock<HashSet<TermId>> = LazyLock::new(||{
     let mut excluded: HashSet<TermId> = HashSet::new();
-    for (label, tid_str) in vec![
+    for (label, tid_str) in [
         ("Clinical course","HP:0031797"),
         ("Temporal pattern", "HP:0011008"),
         ("Pace of progression", "HP:0003679"),

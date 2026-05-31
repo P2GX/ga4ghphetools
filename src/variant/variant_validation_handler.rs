@@ -67,7 +67,7 @@ pub trait VariantValidatorHandler {
             .ok_or_else(|| "Missing primary_assembly_loci".to_string())?;
 
         let assembly = assemblies.get(genome_assembly)
-            .ok_or_else(|| format!("Could not identify assembly block for {} in response", genome_assembly))?;
+            .ok_or_else(|| format!("Could not identify assembly block for {genome_assembly} in response"))?;
 
         Ok(assembly)
     }
@@ -88,14 +88,14 @@ pub trait VariantValidatorHandler {
     fn get_gene_symbol(&self, var_data: &serde_json::Value) -> Option<String> {
         var_data.get("gene_symbol")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
     }
 
     fn get_hgnc(&self, var_data: &serde_json::Value) -> Option<String> {
         var_data.get("gene_ids")
             .and_then(|ids| ids.get("hgnc_id"))
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
     }
 
        // The following will either be a String or None, and can be assigned to an Option<String>
@@ -105,7 +105,7 @@ pub trait VariantValidatorHandler {
             .and_then(|hgvs_protein| hgvs_protein.get("tlr"))
             .and_then(|tlr| tlr.as_str())
             .filter(|s| !s.is_empty())   // this will turn empty string ("") into None
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
     }
 
     /// Extracts the VCF fields from the JSON object (assembly) 
@@ -118,20 +118,20 @@ pub trait VariantValidatorHandler {
             .ok_or_else(|| "Could not identify vcf element".to_string())?;
         let chrom: String = vcf.get("chr")
                 .and_then(Value::as_str)
-                .ok_or_else(|| format!("Malformed chr: {:?}", vcf))? 
+                .ok_or_else(|| format!("Malformed chr: {vcf:?}"))? 
                 .to_string();
             let position: u32 = vcf.get("pos")
             .and_then(Value::as_str) // "pos" is stored as a string
-            .ok_or_else(|| format!("Malformed pos: {:?}", vcf))? 
+            .ok_or_else(|| format!("Malformed pos: {vcf:?}"))? 
             .parse() 
-            .map_err(|e| format!("Error '{}'", e))?; 
+            .map_err(|e| format!("Error '{e}'"))?; 
         let reference = vcf.get("ref").
             and_then(Value::as_str)
-            .ok_or_else(|| format!("Malformed REF: '{:?}'", vcf))?
+            .ok_or_else(|| format!("Malformed REF: '{vcf:?}'"))?
             .to_string();
         let alternate = vcf.get("alt").
             and_then(Value::as_str)
-            .ok_or_else(|| format!("Malformed ALT: '{:?}'", vcf))?
+            .ok_or_else(|| format!("Malformed ALT: '{vcf:?}'"))?
             .to_string();
         let vcf_var = VcfVar::new(chrom, position, reference, alternate);
         Ok(vcf_var)
