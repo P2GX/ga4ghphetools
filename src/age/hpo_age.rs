@@ -5,13 +5,12 @@
 //! 
 
 use std::collections::HashMap;
-
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 
 
-pub static ONSET_TERM_DICT: Lazy<HashMap<String, HpoTermDuplet>> = Lazy::new(|| {
+pub static ONSET_TERM_DICT: LazyLock<HashMap<String, HpoTermDuplet>> = LazyLock::new(|| {
     let mut onset_d: HashMap<String, HpoTermDuplet> = HashMap::new();
     let onset_terms = 
         vec![("HP:0003584", "Late onset"),

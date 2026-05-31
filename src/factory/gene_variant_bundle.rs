@@ -1,10 +1,10 @@
 use std::sync::Arc;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::{dto::cohort_dto::GeneVariantData, header::gene_variant_header::GeneVariantHeader};
 
 
-static SHARED_HEADER: Lazy<Arc<GeneVariantHeader>> = Lazy::new(|| {
+static SHARED_HEADER: LazyLock<Arc<GeneVariantHeader>> = LazyLock::new(|| {
     Arc::new(GeneVariantHeader::new())
 });
 

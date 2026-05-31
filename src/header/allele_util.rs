@@ -1,23 +1,18 @@
-
-use std::collections::HashSet;
-use lazy_static::lazy_static;
+use std::{collections::HashSet, sync::LazyLock};
 
 
 
 
 
-lazy_static! {
-    pub static ref ALLOWED_STRUCTURAL_PREFIX: HashSet<String> =  {
-        let mut set = HashSet::new();
-        set.insert("DEL".to_string());
-        set.insert("DUP".to_string());
-        set.insert("INV".to_string());
-        set.insert("INS".to_string());
-        set.insert("TRANSL".to_string());
-        set
-    };
-
-}
+pub static ALLOWED_STRUCTURAL_PREFIX: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    HashSet::from([
+        "DEL".to_string(),
+        "DUP".to_string(),
+        "INV".to_string(),
+        "INS".to_string(),
+        "TRANSL".to_string(),
+    ])
+});
 
 /// We will be sending all HGVS variants to variant validator. Here, we just do 
 /// a rough screening to reject some obvious mistakes.

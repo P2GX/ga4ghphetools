@@ -1,7 +1,7 @@
 
 
 use std::{collections::{HashMap, HashSet}, mem};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use reqwest::blocking::get;
 use serde_json::Value;
 use crate::{dto::{intergenic_variant::IntergenicHgvsVariant, variant_dto::VariantDto}, variant::variant_validation_handler::VariantValidatorHandler};
@@ -13,7 +13,7 @@ const BASE_URL: &str = "https://rest.variantvalidator.org/VariantValidator/varia
 
 /// Valid chromosome accession numbers for hg38 build
 /// Used to check data entry for intergenic variants.
-pub static VALID_HG38_CHROMOSOMES: Lazy<HashSet<String>> = Lazy::new(|| {
+pub static VALID_HG38_CHROMOSOMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let mut chromset: HashSet<String> = HashSet::new();
     let chroms = [
         "NC_000001.11", "NC_000002.12", "NC_000003.12", 

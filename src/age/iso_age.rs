@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::{age::hpo_age, dto::hpo_term_dto::HpoTermDuplet};
@@ -6,7 +6,7 @@ use crate::{age::hpo_age, dto::hpo_term_dto::HpoTermDuplet};
 
 
 
-static ISO8601_RE: Lazy<Regex> = Lazy::new(|| {
+static ISO8601_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").unwrap()
 });
 

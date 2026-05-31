@@ -1,32 +1,31 @@
 use std::{collections::HashSet, sync::Arc};
-
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use ontolius::{TermId, ontology::{HierarchyWalks, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
 
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 
- pub static CLINICAL_MODIFIER: Lazy<TermId> = Lazy::new(|| {
+ pub static CLINICAL_MODIFIER: LazyLock<TermId> = LazyLock::new(|| {
     let term_id: TermId = "HP:0012823"
         .parse()
         .expect("Critical: Could not parse hardcoded CLINICAL_MODIFIER ID");
     term_id
  });
 
- pub static ONSET_TERM: Lazy<TermId> = Lazy::new(|| {
+ pub static ONSET_TERM: LazyLock<TermId> = LazyLock::new(|| {
     let term_id: TermId = "HP:0003674"
         .parse()
         .expect("Critical: Could not parse hardcoded ONSET ID");
     term_id
  });
 
- pub static MORTALITY_AGING: Lazy<TermId> = Lazy::new(||{
+ pub static MORTALITY_AGING: LazyLock<TermId> = LazyLock::new(||{
      let term_id: TermId = "HP:0040006"
         .parse()
         .expect("Critical: Could not parse hardcoded Mortality/Aging ID");
     term_id
  });
 
- pub static EXCLUDED_GROUPING_TERMS: Lazy<HashSet<TermId>> = Lazy::new(||{
+ pub static EXCLUDED_GROUPING_TERMS: LazyLock<HashSet<TermId>> = LazyLock::new(||{
     let mut excluded: HashSet<TermId> = HashSet::new();
     for (label, tid_str) in vec![
         ("Clinical course","HP:0031797"),

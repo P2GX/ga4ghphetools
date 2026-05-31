@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use regex::Regex;
 
 
-static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
+static ALLOWED_AGE_LABELS: LazyLock<HashSet<String>> = LazyLock::new(|| {
     [
         "Late onset",
         "Middle age onset",
@@ -30,7 +30,7 @@ static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
 });
 
 // For the translation mapping
-static AGE_TERM_MAP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+static AGE_TERM_MAP: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     m.insert("antenatal", "Antenatal onset");
     m.insert("neonate", "Neonatal onset");
@@ -44,22 +44,22 @@ static AGE_TERM_MAP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     m
 });
 
-static RE_YEAR: Lazy<Regex> = Lazy::new(|| {
+static RE_YEAR: LazyLock<Regex> = LazyLock::new(|| {
     // Finds digits followed by y/yr/year
     Regex::new(r"(?i)(\d+(?:\.\d+)?)\s*y").unwrap()
 });
 
-static RE_MONTH: Lazy<Regex> = Lazy::new(|| {
+static RE_MONTH: LazyLock<Regex> = LazyLock::new(|| {
     // Finds digits followed by m/mo/month
     Regex::new(r"(?i)(\d+(?:\.\d+)?)\s*m").unwrap()
 });
 
-static RE_WEEK: Lazy<Regex> = Lazy::new(|| {
+static RE_WEEK: LazyLock<Regex> = LazyLock::new(|| {
     // Finds digits followed by w/wk/week
     Regex::new(r"(?i)(\d+(?:\.\d+)?)\s*w").unwrap()
 });
 
-static RE_DAY: Lazy<Regex> = Lazy::new(|| {
+static RE_DAY: LazyLock<Regex> = LazyLock::new(|| {
     // Finds digits followed by d/day
     Regex::new(r"(?i)(\d+)\s*d").unwrap()
 });

@@ -5,18 +5,18 @@
 
 use std::collections::HashMap;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::{age::hpo_age::ONSET_TERM_DICT, dto::hpo_term_dto::HpoTermDuplet};
 
 /// gestational age represented as G37d2d, G32w, G11w3d, etc.
-pub static GESTATIONAL_AGE_RE: Lazy<Regex> = Lazy::new(|| {
+pub static GESTATIONAL_AGE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^G(\d+)w(?:([0-6])d)?$").unwrap()
 });
 
 
-pub static PRENATAL_ONSET_TERM_DICT: Lazy<HashMap<String, HpoTermDuplet>> = Lazy::new(|| {
+pub static PRENATAL_ONSET_TERM_DICT: LazyLock<HashMap<String, HpoTermDuplet>> = LazyLock::new(|| {
     let wanted = ["Antenatal onset", "Embryonal onset","Fetal onset", "Late first trimester onset", "Second trimester onset","Third trimester onset"];
     ONSET_TERM_DICT
         .iter()

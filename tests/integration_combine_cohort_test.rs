@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use ga4ghphetools::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::{CellValue, CellValueInner, HpoTermDuplet}};
+use ga4ghphetools::dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
 use ontolius::ontology::csr::FullCsrOntology;
 use rstest::{rstest};
 mod common;

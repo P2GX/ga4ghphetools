@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 
 use crate::dto::{hgvs_variant::HgvsVariant, structural_variant::StructuralVariant};
@@ -257,7 +257,7 @@ pub enum VariantType {
     Unknown,
 }
 
-static IMPRECISE_SV_TYPE_SET: Lazy<HashSet<VariantType>> = Lazy::new(|| {
+static IMPRECISE_SV_TYPE_SET: LazyLock<HashSet<VariantType>> = LazyLock::new(|| {
     let mut sv_set: HashSet<VariantType> = HashSet::new();
     sv_set.insert(VariantType::Del);
     sv_set.insert(VariantType::Inv);

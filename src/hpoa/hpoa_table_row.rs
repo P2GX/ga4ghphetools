@@ -3,11 +3,11 @@
 use std::collections::HashMap;
 
 use crate::{dto::cohort_dto::{DiseaseData, ModeOfInheritance}, hpoa::counted_hpo_term::CountedHpoTerm};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 
 /// Valid Mode of inheritance terms that can be used for outputting HPOA files
-pub static VALID_MODES_OF_INHERITANCE: Lazy<HashMap<String, String>> = Lazy::new(|| {
+pub static VALID_MODES_OF_INHERITANCE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     let mut moi_map: HashMap<String, String> = HashMap::new();
     let moi_terms = [
         ("HP:0000006", "Autosomal dominant inheritance"), 

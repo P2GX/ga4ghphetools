@@ -2,12 +2,12 @@
 /// Used to ingest the legacy Excel pyphetools templates
 /// We will refactor this to use the IndividualDto
 use std::sync::Arc;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::{dto::cohort_dto::IndividualData, header::individual_header::IndividualHeader};
 
 
-static SHARED_HEADER: Lazy<Arc<IndividualHeader>> = Lazy::new(|| {
+static SHARED_HEADER: LazyLock<Arc<IndividualHeader>> = LazyLock::new(|| {
     Arc::new(IndividualHeader::new())
 });
 

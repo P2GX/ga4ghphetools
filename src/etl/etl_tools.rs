@@ -7,7 +7,7 @@ use regex::Regex;
 use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::etl_dto::{ColumnDto, EtlCellStatus, EtlCellValue};
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
-use crate::dto::hpo_term_dto::{CellValue, CellValueInner, HpoTermData};
+use crate::dto::hpo_term_dto::{CellValue, HpoTermData};
 use crate::variant::variant_manager::VariantManager;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
@@ -281,7 +281,13 @@ impl EtlTools {
     }
 
 
-   
+    /// This function derives the row of data that will correspond to an individual phenopacket
+    /// It is only responsible for the HPO-related columns, i.e., SingleHpoTerm
+    /// MultipleHpoTerm, and HpoTextMining columns
+    /// The SingleHpoTerm columns may have the values "observed", "excluded", "na", or
+    /// more onset columns such as "P32Y"
+    /// The onset and the observed may optionally have a ":" followed by additional HPO
+    /// terms that represent severity terms or other modifiers; these terms are split by ";"
     fn get_row(
         &self, 
         i: usize, 
@@ -332,7 +338,7 @@ impl EtlTools {
                         "observed" => { values.push(CellValue::observed());},
                         "excluded" => { values.push(CellValue::excluded());},
                         "na" => { values.push(CellValue::na());},
-                        _ => { values.push(CellValue::onset(status));}
+                        _ => { values.push(CellValue::from_string(status)?);}
                     }
                 }
                 None => {
@@ -565,15 +571,7 @@ impl EtlTools {
         self.check_is_completely_transformed()?;
         self.qc()?;
         let hpo_duplets = Self::all_hpo_duplets(self);
-       /*  let ultra_terms: Vec<_> = hpo_duplets
-            .iter()
-            .filter(|d| d.hpo_label().contains("Ultra"))
-            .collect();*/
         let arranged_duplets = hpo::arrange_hpo_duplets(self.hpo.clone(), &hpo_duplets)?;
-        /*let ultra_terms2: Vec<_> = arranged_duplets
-            .iter()
-            .filter(|d| d.hpo_label().contains("Ultra"))
-            .collect();*/
         let disease = match &self.dto.disease {
             Some(d) => d.clone(),
             None => { return Err("Cannot create CohortData if ETL does not have disease data".to_string())},

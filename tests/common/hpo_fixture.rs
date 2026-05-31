@@ -2,14 +2,11 @@ use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use rstest::fixture;
 use std::{fs::File, io::BufReader, sync::Arc};
 use flate2::bufread::GzDecoder;
-
-
-
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 
 // Singleton - loads once, shared across all tests
-pub static HPO: Lazy<Arc<FullCsrOntology>> = Lazy::new(|| {
+pub static HPO: LazyLock<Arc<FullCsrOntology>> = LazyLock::new(|| {
     let path = "resources/hp.v2025-03-03.json.gz";
     let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
     let loader = OntologyLoaderBuilder::new().obographs_parser().build();

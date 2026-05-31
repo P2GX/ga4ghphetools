@@ -7,7 +7,7 @@
 
 
 use std::collections::HashSet;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::header::allele_util;
@@ -15,7 +15,7 @@ use crate::header::allele_util;
 
 
 
-static FORBIDDEN_CHARS: Lazy<HashSet<char>> = Lazy::new(|| {
+static FORBIDDEN_CHARS: LazyLock<HashSet<char>> = LazyLock::new(|| {
     ['/', '\\'].iter().copied().collect()
 });
 
@@ -29,7 +29,7 @@ static ALLOWED_TRANSCRIPT_PREFIXES: &[&str] = &[
 
 
 /// TODO -- remove from here, this should go to HpoCellValue
-pub static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
+pub static ALLOWED_AGE_LABELS: LazyLock<HashSet<String>> = LazyLock::new(|| {
     [
         "Late onset",
         "Middle age onset",
@@ -56,16 +56,16 @@ pub static ALLOWED_AGE_LABELS: Lazy<HashSet<String>> = Lazy::new(|| {
 });
 
 /// Regex for ISO 8601 durations
-pub static ISO8601_RE: Lazy<Regex> = Lazy::new(|| {
+pub static ISO8601_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").expect("valid ISO 8601 regex")
 });
 
 /// Regex for gestational age format
-pub static GESTATIONAL_AGE_RE: Lazy<Regex> = Lazy::new(|| {
+pub static GESTATIONAL_AGE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"G\d+w[0-6]d").expect("valid gestational age regex")
 });
 
-pub static ALLOWED_DECEASED_ITEMS: Lazy<HashSet<String>> = Lazy::new(||{
+pub static ALLOWED_DECEASED_ITEMS: LazyLock<HashSet<String>> = LazyLock::new(||{
     let mut hset = HashSet::new();
     hset.insert("yes".to_string());
     hset.insert("no".to_string());
@@ -73,7 +73,7 @@ pub static ALLOWED_DECEASED_ITEMS: Lazy<HashSet<String>> = Lazy::new(||{
     hset
 });
 
-pub static ALLOWED_SEX_ITEMS: Lazy<HashSet<String>> = Lazy::new(||{
+pub static ALLOWED_SEX_ITEMS: LazyLock<HashSet<String>> = LazyLock::new(||{
     let mut hset = HashSet::new();
     hset.insert("M".to_string());
     hset.insert("F".to_string());

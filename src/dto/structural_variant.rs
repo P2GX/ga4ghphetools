@@ -6,7 +6,7 @@
 use phenopackets::schema::v2::core::OntologyClass;
 use serde::{Serialize, Deserialize};
 use std::{cmp::Ordering, fmt, str::FromStr};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use crate::dto::variant_dto::{VariantDto, VariantType};
 
 
@@ -87,35 +87,35 @@ impl TryFrom<VariantType> for SvType {
     }
 }
 
-static CHROMOSOMAL_STRUCTURE_VARIATION: Lazy<OntologyClass> = Lazy::new(|| {
+static CHROMOSOMAL_STRUCTURE_VARIATION: LazyLock<OntologyClass> = LazyLock::new(|| {
     OntologyClass {
         id: "SO:1000183".to_string(),
         label: "chromosome_structure_variation".to_string(),
     }
 });
 
-static CHROMOSOMAL_TRANSLOCATION: Lazy<OntologyClass> = Lazy::new(|| {
+static CHROMOSOMAL_TRANSLOCATION: LazyLock<OntologyClass> = LazyLock::new(|| {
     OntologyClass{
         id: "SO:1000044".to_string(),
         label: "chromosomal_translocation".to_string(),
     }
 });
 
-static CHROMOSOMAL_DELETION: Lazy<OntologyClass> = Lazy::new(|| {
+static CHROMOSOMAL_DELETION: LazyLock<OntologyClass> = LazyLock::new(|| {
     OntologyClass {
         id: "SO:1000029".to_string(),
         label: "chromosomal_deletion".to_string(),
     }
 });
 
-static CHROMOSOMAL_DUPLICATION: Lazy<OntologyClass> = Lazy::new(|| {
+static CHROMOSOMAL_DUPLICATION: LazyLock<OntologyClass> = LazyLock::new(|| {
      OntologyClass {
         id: "SO:1000037".to_string(),
         label:"chromosomal_duplication".to_string(),
      }
 });
 
-static CHROMOSOMAL_INVERSION: Lazy<OntologyClass> = Lazy::new(|| {
+static CHROMOSOMAL_INVERSION: LazyLock<OntologyClass> = LazyLock::new(|| {
     OntologyClass{
         id: "SO:1000030".to_string(),
         label: "chromosomal_inversion".to_string(),

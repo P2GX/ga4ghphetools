@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 pub mod fixtures {
-    use once_cell::sync::Lazy;
+    use std::sync::LazyLock;
     use ontolius::io::OntologyLoaderBuilder;
     use ontolius::ontology::csr::FullCsrOntology;
     use std::sync::Arc;
@@ -12,7 +12,7 @@ pub mod fixtures {
     use flate2::read::GzDecoder;
 
 
-    pub static HPO: Lazy<Arc<FullCsrOntology>> = Lazy::new(|| {
+    pub static HPO: LazyLock<Arc<FullCsrOntology>> = LazyLock::new(|| {
         let path = "resources/hp.v2025-03-03.json.gz";
         let reader = GzDecoder::new(BufReader::new(File::open(path).unwrap()));
         let loader = OntologyLoaderBuilder::new().obographs_parser().build();

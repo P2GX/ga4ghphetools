@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use ga4ghphetools::dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, CellValueInner, HpoTermDuplet}};
+use ga4ghphetools::dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
 
 use rstest::fixture;
 
@@ -142,7 +142,7 @@ fn individual_3() -> RowData {
 fn individual_4() -> RowData {
     let hpo_data = vec![
         CellValue::observed(),
-        CellValue::onset("P2Y".to_string()),
+        CellValue::from_string("P2Y".to_string()).expect("critical: could not compile unit test as expected"),
         CellValue::excluded(),
     ];
 

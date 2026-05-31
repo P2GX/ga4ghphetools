@@ -1,11 +1,11 @@
 use core::{result::Result, todo};
 use std::sync::Arc;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::{dto::cohort_dto::{CohortData, CohortType, DiseaseData}, header::disease_header::DiseaseHeader};
 
 
-static SHARED_HEADER: Lazy<Arc<DiseaseHeader>> = Lazy::new(|| {
+static SHARED_HEADER: LazyLock<Arc<DiseaseHeader>> = LazyLock::new(|| {
     Arc::new(DiseaseHeader::new())
 });
 

@@ -7,12 +7,15 @@
 
 use std::str::FromStr;
 use ontolius::TermId;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Deref;
-
-
+use std::sync::OnceLock;
 use crate::age;
+
+
+static HPO_REGEX: OnceLock<Regex> = OnceLock::new();
 
 
 /// A structure to represent an HPO term (id and label) in a simple way
@@ -210,11 +213,44 @@ impl CellValue {
         }
     }
 
-    pub fn onset(onset: impl Into<String>) -> Self {
-         Self {
-            entry: CellValueInner::OnsetAge(onset.into()),
+    fn onset(onset: String) -> Self {
+        Self {
+            entry: CellValueInner::OnsetAge(onset),
             modifiers: Vec::default(),
         }
+    }
+
+    /// A String entry from the ETL table can be of the form observed, excluded, na - in which
+    /// case we already took care of it. This function is called for any other string. Firstly,
+    /// it checks for the presence of a semicolon (";"), which we use to add modifier or severity terms
+    /// after the main entry (which can be observed or an onset - we do not add modifiers to excluded or na)
+    /// If there is no colon, then we must have an onset term
+    /// If there is a colon, we can have observed or onset and following the colon we have a list of
+    /// modifier/severity terms separated by commas (",")
+    /// For instance, this is observed and severe: 'observed;HP:0012828'
+    pub fn from_string(cell_contents: impl Into<String>) -> Result<Self, String> {
+        let re = HPO_REGEX.get_or_init(|| {
+            Regex::new(r"^HP:\d{7}$").unwrap()
+        });
+        let input = cell_contents.into();
+        let Some((entry_part, modifiers_part)) = input.split_once(';') else {
+            return Ok(Self::onset(input));
+        };
+        let mut modifiers = Vec::new();
+        for s in modifiers_part.split(',') {
+            if s.is_empty() {
+                continue;
+            }
+            if !re.is_match(s) {
+                return Err(format!("Invalid HPO modifier/severity term id: '{}'", s));
+            }
+            modifiers.push(s.to_string());
+        }
+        let entry = match entry_part {
+            "observed" => CellValueInner::Observed,
+            _ => CellValueInner::OnsetAge(entry_part.to_string()),
+        };
+        Ok(Self { entry, modifiers })
     }
 
     pub fn has_modifier(&self) -> bool {
@@ -453,6 +489,31 @@ mod test {
         let modfr = hpo_data.modifiers();
         assert_eq!(1, modfr.len());
         assert_eq!("HP:0012828", modfr[0]);
+    }
+
+
+    /// Severe  HP:0012828
+    /// Mild HP:0012825
+    #[rstest]
+    #[case(
+        "observed;HP:0012828", 
+        CellValueInner::Observed, 
+        vec!["HP:0012828".to_string()]
+    )]
+    #[case(
+        "P2Y;HP:0012825", 
+        CellValueInner::OnsetAge("P2Y".to_string()), 
+        vec!["HP:0012825".to_string()]
+    )]
+    fn test_from_string_with_modifiers(
+        #[case] input: &str, 
+        #[case] expected_entry: CellValueInner, 
+        #[case] expected_modifiers: Vec<String>
+    ) {
+        let result = CellValue::from_string(input).unwrap();
+        
+        assert_eq!(result.entry, expected_entry);
+        assert_eq!(result.modifiers, expected_modifiers);
     }
 
  

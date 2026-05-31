@@ -93,9 +93,6 @@ impl EtlCellValue {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-
-        println!("orig={original}");
-
         Self {
             original,
             current: String::default(),

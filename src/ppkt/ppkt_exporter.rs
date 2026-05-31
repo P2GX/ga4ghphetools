@@ -4,8 +4,7 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use ontolius::term::MinimalTerm;
 use ontolius::{Identified, TermId};
 use ontolius::ontology::csr::FullCsrOntology;
@@ -29,15 +28,15 @@ const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
 const DEFAULT_GENO_VERSION: &str =  "2025-07-25";
 const DEFAULT_SO_VERSION: &str = "2024-11-18";
 
-static CLINICAL_MODIFIER: Lazy<TermId> = Lazy::new(|| {
+static CLINICAL_MODIFIER: LazyLock<TermId> = LazyLock::new(|| {
     "HP:0012823".parse().expect("Failed to parse static HP:0012823")
 });
 /// HPO term Severity (HP:0012824)
-static SEVERITY: Lazy<TermId> = Lazy::new(||{
+static SEVERITY: LazyLock<TermId> = LazyLock::new(||{
     "HP:0012824".parse().expect("Failed to parse static HP:0012824")
 });
 /// All valid severity terms
-static SEVERITY_MAP: Lazy<HashMap<String, OntologyClass>> = Lazy::new(||{
+static SEVERITY_MAP: LazyLock<HashMap<String, OntologyClass>> = LazyLock::new(||{
     let mut smap = HashMap::new();
     for (label, id) in vec![
         ("Borderline","HP:0012827"),

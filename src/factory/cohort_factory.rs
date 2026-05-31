@@ -12,7 +12,7 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, CellValueInner, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, factory::header_duplet_row::HeaderDupletRow, hpo, ppkt::ppkt_row::PpktRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, factory::header_duplet_row::HeaderDupletRow, hpo, ppkt::ppkt_row::PpktRow, variant::variant_manager::VariantManager};
 
 
 
