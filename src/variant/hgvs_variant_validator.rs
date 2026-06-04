@@ -72,10 +72,17 @@ impl HgvsVariantValidator {
             return Ok(());
         }
         let url = get_variant_validator_url(&self.genome_assembly, &vv_dto.transcript, hgvs);
-        let response: Value = get(&url)
-            .map_err(|e| format!("Could not map {hgvs}: {e}"))?
-            .json()
-            .map_err(|e| format!("Could not parse JSON for {hgvs}: {e}"))?;
+        let res = get(&url).map_err(|e| format!("Network error trying to reach Variant Validator: {e}"))?;
+
+        if !res.status().is_success() {
+            match res.status().as_u16() {
+                503 => return Err("The Variant Validator server is currently unreachable. Please try again later.".to_string()),
+                429 => return Err("Too many requests - Variant Validator is rate-limiting us.".to_string()),
+                500 => return Err("Variant Validator encountered an internal server error.".to_string()),
+                _ => return Err(format!("Variant Validator returned an error server code: {}", res.status())),
+            }
+        }
+        let response: Value = res.json().map_err(|e| format!("Could not parse JSON for {hgvs}: {e}"))?;
         self.extract_variant_validator_warnings(&response)?;
 
         if let Some(flag) = response.get("flag") {
