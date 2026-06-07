@@ -16,6 +16,7 @@ use std::{collections::HashMap, mem};
 
 use reqwest::blocking::get;
 use serde_json::Value;
+use urlencoding::encode;
 use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantDto}, variant::variant_validation_handler::VariantValidatorHandler};
 
 const GENOME_ASSEMBLY_HG38: &str = "hg38";
@@ -26,17 +27,23 @@ pub struct HgvsVariantValidator {
     validated_hgvs: HashMap<String, HgvsVariant>,
 }
 
+/// Generate the URL that we will send to the Variant Validator API
+/// Note that we need to encode characters such as '+' and '_' that
+/// occasionally occur in HGVS strings
+/// '+' => %2B and '_' =Y %5F and '>' => %3E. 
+/// (Using the urlencoding library, "encode" method)
 fn get_variant_validator_url(
     genome_assembly: &str,
     transcript: &str,
     hgvs: &str
 ) -> String
 {
+    let encoded_hgvs = encode(hgvs);
     let api_url = format!(
         "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{genome}/{transcript}%3A{hgvs}/{transcript}?content-type=application%2Fjson",
         genome = genome_assembly,
         transcript = transcript,
-        hgvs = hgvs,
+        hgvs = encoded_hgvs,
     );
     api_url
 }
@@ -188,7 +195,7 @@ mod tests {
     fn test_url(
         vvdto: VariantDto
     ){
-        let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NM_000138.5%3Ac.8230C>T/NM_000138.5?content-type=application%2Fjson";
+        let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NM_000138.5%3Ac.8230C%3ET/NM_000138.5?content-type=application%2Fjson";
         let my_url = get_variant_validator_url("hg38", &vvdto.transcript, &vvdto.variant_string);
         assert_eq!(expected, my_url);
     }
