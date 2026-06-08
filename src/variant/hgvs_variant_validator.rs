@@ -16,7 +16,6 @@ use std::{collections::HashMap, mem};
 
 use reqwest::blocking::get;
 use serde_json::Value;
-use urlencoding::encode;
 use crate::{dto::{hgvs_variant::HgvsVariant, variant_dto::VariantDto}, variant::variant_validation_handler::VariantValidatorHandler};
 
 const GENOME_ASSEMBLY_HG38: &str = "hg38";
@@ -38,12 +37,16 @@ fn get_variant_validator_url(
     hgvs: &str
 ) -> String
 {
-    let encoded_hgvs = encode(hgvs);
+    let full_hgvs = format!("{}:{}", transcript, hgvs);
+    // Convert '+' to '%2B' and ':' to '%3A'
+    let encoded_hgvs = full_hgvs
+        .replace("+", "%2B")
+        .replace(":", "%3A");
     let api_url = format!(
-        "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{genome}/{transcript}%3A{hgvs}/{transcript}?content-type=application%2Fjson",
+        "https://rest.variantvalidator.org/VariantValidator/variantvalidator/{genome}/{hgvs}/{transcript}?content-type=application%2Fjson",
         genome = genome_assembly,
-        transcript = transcript,
         hgvs = encoded_hgvs,
+        transcript = transcript,
     );
     api_url
 }
@@ -80,7 +83,6 @@ impl HgvsVariantValidator {
         }
         let url = get_variant_validator_url(&self.genome_assembly, &vv_dto.transcript, hgvs);
         let res = get(&url).map_err(|e| format!("Network error trying to reach Variant Validator: {e}"))?;
-
         if !res.status().is_success() {
             match res.status().as_u16() {
                 503 => return Err("The Variant Validator server is currently unreachable. Please try again later.".to_string()),
@@ -163,6 +165,7 @@ mod tests {
     use rstest::{fixture, rstest};
 
     use super::*;
+   
 
     // NM_000138.5(FBN1):c.8230C>T (p.Gln2744Ter)
     #[fixture]
@@ -195,7 +198,7 @@ mod tests {
     fn test_url(
         vvdto: VariantDto
     ){
-        let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NM_000138.5%3Ac.8230C%3ET/NM_000138.5?content-type=application%2Fjson";
+        let expected = "https://rest.variantvalidator.org/VariantValidator/variantvalidator/hg38/NM_000138.5%3Ac.8230C>T/NM_000138.5?content-type=application%2Fjson";
         let my_url = get_variant_validator_url("hg38", &vvdto.transcript, &vvdto.variant_string);
         assert_eq!(expected, my_url);
     }
@@ -233,8 +236,6 @@ mod tests {
         let hgvs = result.unwrap();
         print!("{:?}", hgvs);
     }
-
-
 
 }
 
