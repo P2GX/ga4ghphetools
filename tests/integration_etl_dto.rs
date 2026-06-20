@@ -662,7 +662,7 @@ fn test_with_excluded_redundancy(
     let table = make_table(columns);
     let etl = make_etl(table, disease_valid);
     let mut cohort = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), etl).unwrap();
-    cohort.curation_history.push((test_orcid));
+    cohort.curation_history.push(test_orcid);
     let result = ga4ghphetools::factory::qc_assessment(hpo.clone(), &cohort);
     assert!(result.is_err());
     let result2 = ga4ghphetools::factory::sanitize_cohort_data(hpo.clone(),  &cohort);

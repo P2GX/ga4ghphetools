@@ -1,5 +1,5 @@
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
-use rstest::fixture;
+use rstest;
 use std::{fs::File, io::BufReader, sync::Arc};
 use flate2::bufread::GzDecoder;
 use std::sync::LazyLock;

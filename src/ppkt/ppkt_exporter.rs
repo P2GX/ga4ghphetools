@@ -567,7 +567,8 @@ mod tests {
         let orcid = "0000-0000-0000-0000".to_string();
         let output_dir = "/Users/robin/TMP";
         let path = PathBuf::from(output_dir);
-        let result = crate::ppkt::write_phenopackets(cohort, path, orcid, hpo.clone());
+        let overwrite = true;
+        let result = crate::ppkt::write_phenopackets(cohort, path, orcid, hpo.clone(), overwrite);
         assert!(result.is_ok());
         let n_processed = result.unwrap();
         assert_eq!(1, n_processed); 

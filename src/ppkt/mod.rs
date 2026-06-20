@@ -59,8 +59,9 @@ pub mod ppkt_row;
 /// let ontology: Arc<FullCsrOntology> = get_hpo_ontology(); // need to get HPO from an appopriate place 
 /// let dir = PathBuf::from("./output");
 /// let orcid = "0000-0002-1825-0097".to_string();
+/// let overwrite = false;
 ///
-/// match write_phenopackets(cohort, dir, orcid, ontology) {
+/// match write_phenopackets(cohort, dir, orcid, ontology, overwrite) {
 ///     Ok(msg) => println!("{}", msg),
 ///     Err(e) => eprintln!("Error: {}", e),
 /// }
@@ -69,17 +70,22 @@ pub fn write_phenopackets(
     cohort_dto: CohortData, 
     dir: PathBuf,
     orcid: String,
-    hpo: Arc<FullCsrOntology>) 
+    hpo: Arc<FullCsrOntology>,
+    overwrite: bool) 
 -> Result<usize, String> {
     let acronym = cohort_dto.acronym();
     let exporter = PpktExporter::new(hpo.clone(), &orcid, cohort_dto);
     let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()
         .map_err(|e| format!("{}: cohort {}", e, acronym))?;
-    let n_phenopackets = ppkt_list.len();
+    let mut n_phenopackets = 0;
     for ppkt in ppkt_list {
         let title = ppkt.id.clone() + ".json";
-        let mut file_path = dir.clone();
-        file_path.push(title);
+        let file_name = format!("{}.json", ppkt.id);
+        let file_path = dir.join(&file_name);
+        if file_path.exists() && !overwrite {
+            continue;
+        }
+        n_phenopackets += 1;
         write_ppkt(&ppkt, file_path)?;
     }
     Ok(n_phenopackets)
