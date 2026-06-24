@@ -32,5 +32,8 @@ pub mod ppkt;
 pub mod repo;
 pub mod variant;
 
+#[cfg(feature = "tauri")]
+pub mod tauri;
+
 #[cfg(test)]
 pub mod test_utils;
