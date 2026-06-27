@@ -2,9 +2,9 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "status", content = "payload", rename_all = "camelCase")]
+#[serde(rename_all_fields = "camelCase")]
 pub enum OntologyLoadEvent {
     Loading,
-    // Add the specific term count property here
     Success { 
         status_message: String,
         term_count: usize,

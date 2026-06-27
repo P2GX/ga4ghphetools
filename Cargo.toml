@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.6.15"
+version = "0.6.17"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -38,6 +38,8 @@ serde_json = { version = "1.0.150", features = ["preserve_order"] }
 clap = { version = "4.6.1", features = ["derive"], optional = true }
 rayon = "=1.10.0"
 tauri-plugin-fs = { version = "2.0", optional = true }
+tauri-plugin-dialog = { version = "2.0", optional = true }
+tauri = { version = "2.0", optional = true }
 tera = "1.20.1"
 uuid = { version = "1.23.2", features = ["v4"] }
 rust_xlsxwriter = { version = "0.95.0", optional = true }
@@ -47,7 +49,11 @@ walkdir = "2.5"
 [features]
 cli = ["dep:clap"]
 excel_export = ["rust_xlsxwriter"]
-tauri = ["dep:tauri-plugin-fs"]
+tauri = [
+    "dep:tauri",
+    "dep:tauri-plugin-fs",
+    "dep:tauri-plugin-dialog"
+]
 
 
 [lints.rust]

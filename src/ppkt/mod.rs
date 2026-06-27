@@ -13,6 +13,8 @@ use crate::{dto::cohort_dto::CohortData, ppkt::ppkt_exporter::PpktExporter};
 mod ppkt_variant_exporter;
 pub mod ppkt_exporter;
 pub mod ppkt_row;
+mod ppkt_utils;
+pub use ppkt_utils::get_gene_symbol_from_interpretation;
 
 
 /// Write all `Phenopacket`s derived from a given `CohortData` to disk.
