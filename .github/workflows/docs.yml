@@ -2,7 +2,7 @@ name: Deploy VitePress site to Pages
 
 on:
   push:
-    branches: [ main ] # Or master
+    branches: [ main ] 
 
 permissions:
   contents: read
@@ -29,10 +29,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          package-manager-cache: false
+          cache: npm
           
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Build Site
         run: npm run docs:build
