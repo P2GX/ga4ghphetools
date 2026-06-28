@@ -5,11 +5,19 @@ export default defineConfig({
   title: "ga4ghphetools",
   description: "Rust library for curating GA4GH Phenopackets",
   themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' }
-    ],
+  { text: 'Home', link: '/' },
+  { text: 'Getting Started', link: '/getting-started' },
+  {
+    text: 'Formats & Output',
+    items: [
+      { text: 'Phenotype HPOA', link: '/phenotype-hpoa' },
+      { text: 'Legacy Templates', link: '/legacy' },
+      { text: 'Excel/Output Spec', link: '/excel' }
+    ]
+  },
+  { text: 'API', link: '/api' }
+],
 
     sidebar: [
       {
