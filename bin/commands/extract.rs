@@ -40,7 +40,8 @@ pub fn handle(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 fn process_cohort_file(input_file: &PathBuf, output_dir: &Path, hpo: Arc<FullCsrOntology>) -> Result<usize, String> {
     let cohort = ga4ghphetools::factory::load_json_cohort(&input_file.to_string_lossy()).expect("Could not load Cohort JSON file");
     let orcid = cohort.get_latest_biocurator_id()?;
-    let n_processed = ga4ghphetools::ppkt::write_phenopackets(cohort, output_dir.to_path_buf(), orcid, hpo.clone()).map_err(|e|e.to_string())?;
+    let overwrite = true;
+    let n_processed = ga4ghphetools::ppkt::write_phenopackets(cohort, output_dir.to_path_buf(), orcid, hpo.clone(), overwrite).map_err(|e|e.to_string())?;
     Ok(n_processed)
 }
 
