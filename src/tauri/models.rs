@@ -34,3 +34,18 @@ impl OntologyLoadEvent {
         Self::Cancel
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HpoTermMinimal {
+    pub term_id: String,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct HierarchyMapItem {
+    pub current_term_id: String,
+    pub parents: Vec<HpoTermMinimal>,
+    pub children: Vec<HpoTermMinimal>,
+}
