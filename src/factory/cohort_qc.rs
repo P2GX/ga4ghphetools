@@ -110,9 +110,8 @@ impl CohortDataQc {
         let unique_count = history.iter().collect::<HashSet<_>>().len();
 
         if unique_count < total_count {
-            return Err(CohortError::format("Duplicate curation s found."));
+            return Err(CohortError::format("Duplicate biocuration entries found."));
         }
-
         Ok(())
     }
     

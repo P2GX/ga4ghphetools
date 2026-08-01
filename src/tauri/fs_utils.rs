@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_dialog::{DialogExt, FilePath};
-use std::future::Future;
+use std::{future::Future, path::Path};
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::sync::Arc;
 use crate::tauri::models::OntologyLoadEvent;
@@ -94,6 +94,21 @@ where
     });
 }
 
+
+fn check_filename_validaty(json_path: &str) -> Result<(), String> {
+    let path = Path::new(json_path);
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("Invalid path or missing file name: '{}'", json_path))?;
+    match file_name {
+        "hp.json" | "maxo.json" | "mondo.json" => Ok(()),
+        _ => Err(format!(
+            "Invalid file name '{}'. Must be one of: hp.json, maxo.json, mondo.json",
+            file_name
+        )),
+    }
+}
 
 
 pub fn load_ontology(json_path: &str) -> Result<Arc<FullCsrOntology>, Box<dyn std::error::Error>> {

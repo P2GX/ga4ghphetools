@@ -1,12 +1,48 @@
 use serde::{Serialize, Deserialize};
 
+
+/// OntologyLoadEvent is designed to be used with tauri User Interfaces
+/// Upon successful/failed loading of an ontology (e.g., HPO), a signal
+/// is emitting from the Rust backend to the front end (e.g., Angular) that
+/// has corresponding listeners.
+/// OntologyLoadEvent is not coupled to the functions in the library for flexibility
+/// It can be used in applications as follows
+/// ``ìgnore
+/// use ga4ghphetools::tauri::{pick_file_and_process, load_ontology, OntologyLoadEvent};
+/// #[tauri::command]
+/// async fn load_hpo(
+///    app: AppHandle,
+///    state: tauri::State<'_, Arc<AppState>>,
+/// ) -> Result<(), String> {
+///    let state_handle = state.inner().clone();
+///    let _ = app.emit("hpo-load-event", OntologyLoadEvent::loading());
+///    pick_file_and_process(app, "hpo-load-event", move |hpo_json_path, app_handle| async move {
+///        match load_ontology(&hpo_json_path) {
+///            Ok(ontology) => {
+///                let mut singleton = state_handle.phenoblendtk.lock().unwrap();
+///                let n_terms = ontology.len();
+///                singleton.set_hpo(ontology, &hpo_json_path);
+///                let _ = app_handle.emit(
+///                    "hpo-load-event", 
+///                    OntologyLoadEvent::success("HPO loaded".to_string(), n_terms)
+///                );
+///            },
+///            Err(e) => { 
+///                let _ = app_handle.emit("hpo-load-event", OntologyLoadEvent::error(e.to_string()));
+///            }
+///        }
+///    });
+///    Ok(())
+///}
+/// ```
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "status", content = "payload", rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 pub enum OntologyLoadEvent {
     Loading,
     Success { 
-        status_message: String,
+        version: String,
         term_count: usize,
     },
     Error { error_message: String },
@@ -18,10 +54,10 @@ impl OntologyLoadEvent {
         Self::Loading
     }
 
-    // Update the constructor to take the term count
-    pub fn success(msg: impl Into<String>, term_count: usize) -> Self {
+    // If we successfully parse the ontology, record the version and the term count!
+    pub fn success(ontology_version: impl Into<String>, term_count: usize) -> Self {
         Self::Success { 
-            status_message: msg.into(),
+            version: ontology_version.into(),
             term_count,
         }
     }
