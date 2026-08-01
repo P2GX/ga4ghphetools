@@ -112,6 +112,7 @@ fn check_filename_validaty(json_path: &str) -> Result<(), String> {
 
 
 pub fn load_ontology(json_path: &str) -> Result<Arc<FullCsrOntology>, Box<dyn std::error::Error>> {
+    check_filename_validaty(json_path)?;
     let loader = OntologyLoaderBuilder::new().obographs_parser().build();
     let onto: FullCsrOntology = loader.load_from_path(json_path)?;
     Ok(Arc::new(onto))
