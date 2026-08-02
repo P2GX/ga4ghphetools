@@ -1,6 +1,6 @@
 
 
-use std::{collections::{HashMap, HashSet}, mem};
+use std::{collections::{HashMap, HashSet}, mem, sync::Arc};
 use std::sync::LazyLock;
 use reqwest::blocking::get;
 use serde_json::Value;
@@ -43,7 +43,9 @@ const GENOME_ASSEMBLY_HG38: &str = "hg38";
 pub struct IntergenicHgvsValidator {
     genome_assembly: String,
     /// Map with successfully validated Intergenic HGVS variants
-    validated_intergenic_hgvs: HashMap<String, IntergenicHgvsVariant>
+    validated_intergenic_hgvs: HashMap<String, IntergenicHgvsVariant>,
+    /// Single HTML client for the app
+    http_client: Arc<reqwest::blocking::Client>,
 }
 
 /// Construct the VariantValidator request from the genome assembly and the g.HGVS
@@ -66,10 +68,11 @@ fn get_variant_validator_url(
 
 impl IntergenicHgvsValidator {
     
-    pub fn hg38() -> Self {
+    pub fn hg38(client: Arc<reqwest::blocking::Client>) -> Self {
         Self {
             genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
             validated_intergenic_hgvs: HashMap::new(),
+            http_client: client,
         }
     }
 

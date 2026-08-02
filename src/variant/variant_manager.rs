@@ -14,6 +14,7 @@
 //! Note that we know there is exactly one gene symbol, HGNC id, and transcript for all of our legacy 
 //! variants, so we add them here to the struct.
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::{thread};
 use std::time::Duration;
 
@@ -43,7 +44,14 @@ pub struct VariantManager {
 }
 
 
-
+fn build_http_client() -> Result<Arc<reqwest::blocking::Client>, String> {
+    reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map(Arc::new)
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))
+}
 
 impl VariantManager {
     /// Construct a `VariantManager`` object for a specific gene/HGNC/transcript
@@ -52,20 +60,21 @@ impl VariantManager {
     /// * `symbol`     – Gene symbol (e.g. `"BRCA1"`).
     /// * `hgnc`       – HGNC identifier for the gene (e.g., `"HGNC:123"``).
     /// * `transcript` – Transcript identifier against which the variants should be validated (e.g., `"NM_123.1"`).
-    pub fn new(symbol: &str, hgnc: &str, transcript: &str) -> Self {
-        Self {
-            hgvs_validator: HgvsVariantValidator::hg38(),
-            structural_validator: StructuralValidator::hg38(),
-            intergenic_validator: IntergenicHgvsValidator::hg38(),
+    pub fn new(symbol: &str, hgnc: &str, transcript: &str) -> Result<Self, String> {
+        let client = build_http_client()?;
+        Ok(Self {
+            hgvs_validator: HgvsVariantValidator::hg38(client.clone()),
+            structural_validator: StructuralValidator::hg38(client.clone())?,
+            intergenic_validator: IntergenicHgvsValidator::hg38(client.clone()),
             gene_symbol: symbol.to_string(),
             hgnc_id: hgnc.to_string(),
             transcript: transcript.to_string(),
             allele_set: HashSet::new(),
-        }
+        })
     }
 
     /// Construct a VariantManager object for a specific gene/HGNC/transcript
-    pub fn from_gene_transcript_dto(dto: &GeneTranscriptData) -> Self {
+    pub fn from_gene_transcript_dto(dto: &GeneTranscriptData) -> Result<Self, String> {
         Self::new(&dto.gene_symbol, &dto.hgnc_id, &dto.transcript)
     }
 
@@ -275,7 +284,7 @@ impl VariantManager {
         let hgnc = &row2[hgnc_id_index];
         let symbol = &row2[gene_symbol_index];
         let transcript = &row2[transcript_index];
-        let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
+        let mut vmanager = VariantManager::new(symbol, hgnc, transcript)?;
         // extract all allele strings
         let mut allele_set: HashSet<String> = HashSet::new();
         let n_header_rows = 2;

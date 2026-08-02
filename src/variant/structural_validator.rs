@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem};
+use std::{collections::HashMap, mem, sync::Arc};
 
 use reqwest::blocking::get;
 use serde_json::Value;
@@ -16,22 +16,28 @@ const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
 pub struct StructuralValidator {
     genome_assembly: String,
     validated_sv: HashMap<String, StructuralVariant>,
+    /// Single HTML client for the app
+    http_client: Arc<reqwest::blocking::Client>,
 }
 
 impl StructuralValidator {
     
-    pub fn new(genome_build: &str) -> Result<Self, String> {
+    pub fn new(
+        genome_build: &str,
+        client: Arc<reqwest::blocking::Client>) 
+    -> Result<Self, String> {
         if !ACCEPTABLE_GENOMES.contains(&genome_build) {
             return Err(format!("genome_build \"{}\" not recognized", genome_build));
         }
         Ok(Self {
             genome_assembly: genome_build.to_string(),
             validated_sv: HashMap::new(),
+            http_client: client
         })
     }
 
-    pub fn hg38() -> Self {
-        StructuralValidator::new(GENOME_ASSEMBLY_HG38).unwrap()
+    pub fn hg38(client: Arc<reqwest::blocking::Client>) -> Result<Self, String> {
+        StructuralValidator::new(GENOME_ASSEMBLY_HG38, client)
     }
 
     /// We only allow valid ASCII symbols in the labels for the structural variants.

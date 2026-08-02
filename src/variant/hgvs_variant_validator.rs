@@ -12,7 +12,7 @@
 //!   from the API response.
 
 
-use std::{collections::HashMap, mem};
+use std::{collections::HashMap, mem, sync::Arc};
 
 use reqwest::blocking::get;
 use serde_json::Value;
@@ -24,6 +24,8 @@ pub struct HgvsVariantValidator {
     genome_assembly: String,
     /// HGVS Variants that could be validated. The key is the original allele denomination (e.g., c.1234A>T), not the variantKey
     validated_hgvs: HashMap<String, HgvsVariant>,
+    /// Single HTML client for the app
+    http_client: Arc<reqwest::blocking::Client>,
 }
 
 /// Generate the URL that we will send to the Variant Validator API
@@ -53,10 +55,11 @@ fn get_variant_validator_url(
 
 impl HgvsVariantValidator {
     
-    pub fn hg38() -> Self {
+    pub fn hg38(client: Arc<reqwest::blocking::Client>) -> Self {
         Self {
             genome_assembly: GENOME_ASSEMBLY_HG38.to_string(),
             validated_hgvs: HashMap::new(),
+            http_client: client
         }
     }
 

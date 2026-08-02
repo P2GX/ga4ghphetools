@@ -618,7 +618,7 @@ impl EtlTools {
     } else {
         return Err("No disease data available".to_string());
     };
-    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
+    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript)?;
     vmanager.validate_all_variants(&all_alleles,  on_progress, item_count)?;
     let hgvs_d = vmanager.hgvs_map();
     let sv_d = vmanager.sv_map();

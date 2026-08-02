@@ -61,7 +61,7 @@ pub fn validate_all_hgvs(
     transcript: &str,
     all_alleles: &HashSet<String>
 ) -> Result<HashMap<String, HgvsVariant>, String> {
-    let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
+    let mut vmanager = VariantManager::new(symbol, hgnc, transcript)?;
     vmanager.validate_all_hgvs(all_alleles, |p,q|{
         println!("{p}/{q} variants validated"); })?;
     Ok(vmanager.hgvs_map())
@@ -85,7 +85,7 @@ pub fn validate_hgvs_variant(
     transcript: &str,
     allele: &str) 
 -> Result<HgvsVariant, String> {
-    let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
+    let mut vmanager = VariantManager::new(symbol, hgnc, transcript)?;
     vmanager.get_validated_hgvs(allele)
 }
 
@@ -106,7 +106,7 @@ pub fn validate_structural_variant(
     let hgnc = variant_dto.hgnc_id;
     let allele = variant_dto.variant_string;
     let var_type = variant_dto.variant_type;
-    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
+    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript)?;
     vmanager.get_validated_structural_variant(&allele, var_type)
 }
 
@@ -120,7 +120,7 @@ pub fn validate_intergenic_variant(
     let transcript = variant_dto.transcript;
     let hgnc = variant_dto.hgnc_id;
     let allele = variant_dto.variant_string;
-    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript);
+    let mut vmanager = VariantManager::new(&symbol, &hgnc, &transcript)?;
     vmanager.get_validated_intergenic_hgvs(&allele)
 }
 
@@ -159,7 +159,7 @@ pub fn validate_all_sv(
     transcript: &str,
     all_alleles: &HashSet<String>
 ) -> Result<HashMap<String, StructuralVariant>, String> {
-    let mut vmanager = VariantManager::new(symbol, hgnc, transcript);
+    let mut vmanager = VariantManager::new(symbol, hgnc, transcript)?;
     vmanager.validate_all_sv(all_alleles, |p,q|{
         println!("{p}/{q} variants validated"); })?;
     Ok(vmanager.sv_map())
@@ -213,7 +213,7 @@ pub fn analyze_variants(cohort_dto: CohortData) -> Result<Vec<VariantDto>, Strin
         Some(data) => data.clone(),
         None =>  { return Err("Unable to extract GeneTranscriptData".to_string()); }
     };
-    let vmanager = VariantManager::from_gene_transcript_dto(&gt_data);
+    let vmanager = VariantManager::from_gene_transcript_dto(&gt_data)?;
     vmanager.analyze_variants(cohort_dto)
 }
 
