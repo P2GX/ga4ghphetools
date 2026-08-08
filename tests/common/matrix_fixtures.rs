@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ga4ghphetools::dto::{case_dto::CaseDto, cohort_dto::{CohortData, DiseaseData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}};
+use ga4ghphetools::dto::{cohort_dto::{CohortData, DiseaseData, IndividualData, RowData}, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}};
 use rstest::fixture;
 /// A matrix representing a PheTools template for OMIM:617865
 #[fixture]
@@ -40,58 +40,6 @@ pub fn one_case_matrix() -> Vec<Vec<String>> {
     ].into_iter().map(|s| s.to_owned()).collect();
      vec![row1, row2, row3]
 }
-
-#[fixture]
-pub fn case_5_dto() -> CaseDto {
-    CaseDto::new(
-        "PMID:29198722", //PMID
-        "A Recurrent De Novo Nonsense Variant in ZSWIM6 Results in Severe Intellectual Disability without Frontonasal or Limb Malformations", //title 
-        "p.Arg913Ter Affected Individual 5", // individual_id
-         "",  // comment
-        "c.2737C>T",  // allele_1
-        "na", // allele_2
-        "",  // variant.comment
-        "Infantile onset", // age_at_onset
-        "P3Y", //  age_at_last_encounter
-        "na", // deceased
-         "F" //sex
-    )
-}
-
-#[fixture]
-pub fn case_6_dto() -> CaseDto {
-    CaseDto::new(
-        "PMID:29198722", //PMID
-        "A Recurrent De Novo Nonsense Variant in ZSWIM6 Results in Severe Intellectual Disability without Frontonasal or Limb Malformations", //title 
-        "p.Arg913Ter Affected Individual 6", // individual_id
-        "",  // comment
-        "c.2737C>T",  // allele_1
-        "na", // allele_2
-        "",  // variant.comment
-        "Infantile onset", // age_at_onset
-        "P29Y", //  age_at_last_encounter
-        "na", // deceased
-        "M" //sex
-    )
-}
-
-#[fixture]
-pub fn case_7_dto() -> CaseDto {
-    CaseDto::new(
-        "PMID:29198722", //PMID
-        "A Recurrent De Novo Nonsense Variant in ZSWIM6 Results in Severe Intellectual Disability without Frontonasal or Limb Malformations", //title 
-        "p.Arg913Ter Affected Individual 7", // individual_id
-        "",  // comment
-        "c.2737C>T",  // allele_1
-        "na", // allele_2
-        "",  // variant.comment
-        "Infantile onset", // age_at_onset
-        "P32Y", //  age_at_last_encounter
-        "na", // deceased
-        "M" //sex
-    )
-}
-
 
 #[fixture]
 pub fn thick_eye_brow_excluded_dto() -> HpoTermData {
