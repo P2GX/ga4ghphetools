@@ -396,7 +396,8 @@ mod tests {
     #[ignore = "API call"]
     fn test_sv_key_is_identical() {
         let label = "deletion of exons 2-9";
-        let mut manager = VariantManager::new("CNTNAP2", "HGNC:13830", "NM_014141.6");
+        let mut manager = VariantManager::new("CNTNAP2", "HGNC:13830", "NM_014141.6")
+            .expect("Could not create variant manager");
         let sv = manager.validate_sv(label);
         let sv = manager.get_validated_structural_variant(label, VariantType::Del).unwrap();
         let vkey = StructuralVariant::generate_variant_key(label, "CNTNAP2", crate::dto::structural_variant::SvType::Sv);
@@ -411,7 +412,7 @@ mod tests {
         let hgnc = "HGNC:15625";
         let symbol = "NBAS";
         let transcript = "NM_015909.4";
-        let mut manager = VariantManager::new(symbol, hgnc, transcript);
+        let mut manager = VariantManager::new(symbol, hgnc, transcript).expect("Could not create variant manager");
         let sv = manager.get_validated_structural_variant(label, VariantType::Del);
         let result = manager.validate_sv(label);
         assert!(result.is_err());
@@ -427,7 +428,7 @@ mod tests {
         let transcript = "NM_006563.5";
         let hgnc = "HGNC:6345";
         let allele = "NC_000019.10:g.12887294G>A";
-        let mut manager = VariantManager::new(symbol, hgnc, transcript);
+        let mut manager = VariantManager::new(symbol, hgnc, transcript).expect("Could not create variant manager");
         let result = manager.get_validated_intergenic_hgvs(allele);
         assert!(result.is_ok());
         let ig = result.unwrap();
@@ -441,7 +442,7 @@ mod tests {
         let transcript = "NM_001173990.3";
         let hgnc = "HGNC:25018";
         let allele = "NC_000011.10:g.61392563G>T";
-        let mut manager = VariantManager::new(symbol, hgnc, transcript);
+        let mut manager = VariantManager::new(symbol, hgnc, transcript).expect("Could not create variant manager");
         let result = manager.get_validated_intergenic_hgvs(allele);
         assert!(result.is_ok());
        let ig = result.unwrap();
@@ -456,7 +457,7 @@ mod tests {
         let transcript = "NR_033294.1";
         let hgnc = "HGNC:32952";
         let allele = "NC_000017.11:g.8173448G>C";
-         let mut manager = VariantManager::new(symbol, hgnc, transcript);
+         let mut manager = VariantManager::new(symbol, hgnc, transcript).expect("Could not create variant manager");
         let result = manager.get_validated_intergenic_hgvs(allele);
         assert!(result.is_ok());
        let ig = result.unwrap();

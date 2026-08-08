@@ -18,6 +18,8 @@ use rstest::rstest;
 use common::hpo_fixture::hpo;
 
 
+use crate::common::cohort_data_fixtures::CohortBuilder;
+use crate::common::cohort_data_fixtures::cohort_with_na_column;
 use crate::common::matrix_fixtures::acvr1_cohort;
 use crate::common::matrix_fixtures::acvr1_disease_data;
 use crate::common::matrix_fixtures::cell_values_two_terms;
@@ -104,6 +106,20 @@ pub fn acvr1_cohort_with_repeated_term(
     assert_eq!("Format error: Duplicate entry in HPO Header: Ectopic ossification in muscle tissue (HP:0011987)", err_str.to_string());
 }
 
+#[rstest]
+fn test_default_na_column(cohort_with_na_column: CohortData) { 
+    /* The Cohort Data has three columns;
+     * cohort_with_na_column has "na" in the column at index 1
+     */ 
+    assert_eq!(3, cohort_with_na_column.n_hpo_columns());
+    let na_cols = cohort_with_na_column.get_na_column_term_ids().unwrap();
+    // get header duplet at index 1
+    let first_duplet = cohort_with_na_column.hpo_headers.get(1).unwrap();
+    let expected_na_tid = first_duplet.to_term_id().unwrap();
+    assert_eq!(1, na_cols.len());
+    let na_tid = na_cols.get(0).unwrap();
+    assert_eq!(&expected_na_tid, na_tid);
+}
 
 
 

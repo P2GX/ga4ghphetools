@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc};
 use ontolius::{Identified, TermId, ontology::{HierarchyQueries, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
 
 
-use crate::{dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet}, factory::CohortError};
+use crate::{dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet}, error::ontology_error::OntologyError, factory::CohortError};
 
 
 /// Locally used struct for convenience
@@ -118,7 +118,7 @@ impl CohortDataQc {
 
     pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), CohortError> {
         let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)
-        .map_err(|e| CohortError::format(e))?;
+        .map_err(|e| CohortError::format(e.to_string()))?;
         if conflicting_pairs.no_conflict() {
             Ok(())
         } else {
@@ -184,12 +184,12 @@ impl CohortDataQc {
         cohort_dto: &CohortData) 
     -> Result<CohortData, String> {
        
-        let term_id_to_index_map = self.generate_term_id_to_index_map(cohort_dto)?;
+        let term_id_to_index_map = self.generate_term_id_to_index_map(cohort_dto).map_err(|e|e.to_string())?;
         let hpo_terms = self.sanitize_header(&cohort_dto.hpo_headers)?;
         let mut cohort = cohort_dto.clone();
         cohort.hpo_headers = hpo_terms.clone();
         for row in cohort.rows.iter_mut() {
-            let conflict_map = self.get_conflicting_termid_pairs_for_row(row, &hpo_terms)?;
+            let conflict_map = self.get_conflicting_termid_pairs_for_row(row, &hpo_terms).map_err(|e|e.to_string())?;
             for tid in conflict_map.na_terms {
                 let idx = term_id_to_index_map
                     .get(&tid)
@@ -220,7 +220,7 @@ impl CohortDataQc {
 
 
     fn generate_term_id_to_index_map(&self, cohort: &CohortData) 
-    -> Result<HashMap<TermId, usize>, String> {
+    -> Result<HashMap<TermId, usize>, OntologyError> {
         cohort
             .hpo_headers
             .iter()
@@ -230,7 +230,7 @@ impl CohortDataQc {
     }
 
 
-    fn get_conflicting_termid_pairs(&self, cohort: &CohortData) -> Result<ConflictMap, String> {
+    fn get_conflicting_termid_pairs(&self, cohort: &CohortData) -> Result<ConflictMap, OntologyError> {
         let mut na_terms: HashSet<TermId> = HashSet::new();
         let hpo_terms = &cohort.hpo_headers;
         for row in &cohort.rows {
@@ -246,7 +246,7 @@ impl CohortDataQc {
     /// HPO annotations. Note that we do not currently check if there
     /// are discrepancies for onset dates or modifers (TODO)
     fn get_conflicting_termid_pairs_for_row(&self, row: &RowData, hpo_terms: &[HpoTermDuplet]) 
-    -> Result<ConflictMap, String> {
+    -> Result<ConflictMap, OntologyError> {
         let mut na_terms: HashSet<TermId> = HashSet::new();
        
         let hpo = self.hpo.clone();

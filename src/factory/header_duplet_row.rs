@@ -8,9 +8,6 @@
 
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Arc;
-
-use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::term::simple::SimpleTerm;
 use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
@@ -18,17 +15,13 @@ use ontolius::{Identified, TermId};
 use crate::dto::hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet};
 use crate::dto::cohort_dto::CohortType;
 use crate::dto::validation_errors::ValidationErrors;
+use crate::error::PheToolsError;
+use crate::error::ontology_error::OntologyError;
 use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::individual_header::IndividualHeader;
-use crate::hpo;
 
 
-
-const MENDELIAN_DISEASE_IDX: usize = 4;
-const MENDELIAN_GENE_VAR_IDX: usize = 6;
-const MENDELIAN_DEMOGRAPHIC_IDX: usize = 12;
-const MENDELIAN_HPO_IDX: usize = 17;
 
 
 /// Number of columns in the Individual section
@@ -61,77 +54,8 @@ pub struct HeaderDupletRow {
 
 
 impl HeaderDupletRow {
-    /// Create a new HeaderDupletRow from the provided matrix that is created from the legacy
-    /// Excel template (all of which are Mendelian). We will automatically update HPO term labels
-    /// if they have changed in the ontology. If the TermIds are not valid, we will quit the 
-    /// application because this is a fatal error that needs to be fixed in the Excel file.
-    /// TODO - delete this function once we have migrated all the Excel files to the new JSON templates.
-    pub fn mendelian(
-        matrix: &Vec<Vec<String>>,
-        hpo: Arc<FullCsrOntology>,
-        update_hpo_labels: bool
-    ) -> std::result::Result<Self, String> {
-        Self::qc_matrix_dimensions(matrix)?;
-        // first Q/C the constant part of the Mendelian header
-        let iheader = IndividualHeader::from_matrix(matrix, MENDELIAN_DEMOGRAPHIC_IDX)?;
-        let dheader = DiseaseHeader::from_matrix(matrix, MENDELIAN_DISEASE_IDX)?;
-        let gheader = GeneVariantHeader::from_matrix(matrix, MENDELIAN_GENE_VAR_IDX)?;
-        // If we get here, the constant part is OK and we can check the HPO columns
-        let mut hpo_duplet_list: Vec<HpoTermDuplet> = Vec::new();
-        let n = matrix[0].len(); // previously checked in qc_matrix_dimensions
-        for i in MENDELIAN_HPO_IDX..n {
-            let hdup = HpoTermDuplet::new(&matrix[0][i], &matrix[1][i]);
-            hpo_duplet_list.push(hdup);
-        }
-        
-        Self::check_separator(matrix)?;
-        if update_hpo_labels {
-            hpo_duplet_list = hpo::update_hpo_duplets(hpo.clone(), &hpo_duplet_list)?;
-        } else {
-            hpo::check_hpo_duplets(hpo.clone(), &hpo_duplet_list)?;
-        }
-        Ok(Self { 
-            individual_header: iheader, 
-            disease_header_list: vec![DiseaseHeader::new()], 
-            gene_variant_header_list: vec![GeneVariantHeader::new()], 
-            hpo_duplets: hpo_duplet_list,
-            template_type: CohortType::Mendelian
-        })
-    }
-
-
-    fn check_separator(matrix: &Vec<Vec<String>>) -> std::result::Result<(), String> {
-        let h1 = &matrix[0][16];
-        let h2 = &matrix[1][16];
-        if h1 != "HPO" {
-            return Err(format!("Row 0, column 16: Expected 'HPO' but got '{h1}'"));
-        } else if h2 != "na" {
-            return Err(format!("Row 1, column 16: Expected 'na' but got '{h2}'"));
-        } 
-        Ok(())
-    }
-
-
-    fn qc_matrix_dimensions(matrix: &Vec<Vec<String>>) -> std::result::Result<(), String> {
-        let n_rows = matrix.len();
-
-        if n_rows < 3 {
-            return Err(format!("Empty matrix - must have two header rows and at least one data row but had {}", n_rows));
-        }
-        let n_cols = matrix[0].len();
-        if n_cols < MENDELIAN_HPO_IDX + 1 {
-            return Err(format!("Incomplete matrix with {} columns, but at least {} required.", n_cols, MENDELIAN_HPO_IDX+1));
-        }
-        for (i, row) in matrix.iter().enumerate() {
-            let cols = row.len();
-            if cols != n_cols {
-                return Err(format!("First row has {n_cols} columns but row {i} has {cols}"))
-            }
-        }
-        Ok(())
-    }
-
-       /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
+   
+    /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
     /// have these terms, we take the existing constant fields and append the new HPO term duplets (Note: client
     /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
     pub fn update(&self, updated_hpo_duplets: &Vec<HpoTermDuplet>) -> std::result::Result<Self, ValidationErrors> {
@@ -176,11 +100,10 @@ impl HeaderDupletRow {
     }
 
     pub fn get_hpo_term_dto_list(&self, values: &Vec<String>) 
-    -> std::result::Result<Vec<HpoTermData>, String> {
+    -> std::result::Result<Vec<HpoTermData>, PheToolsError> {
         let mut hpo_dto_list = Vec::new();
         if self.hpo_count() != values.len() {
-            return Err(format!("Expects {} HPO columns but got {}",
-                self.hpo_count(), values.len()));
+            return Err(OntologyError::header_length_mismatch_err(self.hpo_count(), values.len()).into());
         }
         for (i, cell_contents) in values.iter().enumerate() {
             let dto = HpoTermData::new(self.hpo_duplets[i].clone(), CellValue::from_str(cell_contents)?)?;
@@ -224,13 +147,11 @@ impl HeaderDupletRow {
         }       
     }
     
-    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, String> {();
+    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, OntologyError> {();
         let mut term_id_list: Vec<TermId> = Vec::with_capacity(self.hpo_duplets.len());
         for duplet in &self.hpo_duplets {
-            match  duplet.to_term_id() {
-                Ok(tid) => { term_id_list.push(tid);},
-                Err(_) => { return Err(format!("Could not parse {:?}", duplet));},
-            }
+            let tid = duplet.to_term_id()?;
+            term_id_list.push(tid);
         }
         Ok(term_id_list)
     }
@@ -250,10 +171,11 @@ impl HeaderDupletRow {
     pub fn get_hpo_content_dtos(
         &self,
         cell_content_list: &Vec<String>)
-    -> std::result::Result<Vec<HpoTermData>, String> {
+    -> std::result::Result<Vec<HpoTermData>, PheToolsError> {
         if cell_content_list.len() != self.hpo_count() {
-            return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
-            self.hpo_count(), cell_content_list.len()));
+            let msg = format!("Header has {} HPO columns but cell_content_list has {}.",
+            self.hpo_count(), cell_content_list.len());
+            return Err(OntologyError::manipulation_err(msg).into());
         }
         let mut dto_list: Vec<HpoTermData> = Vec::new();
         for (duplet, content) in self.get_hpo_duplets().iter().zip(cell_content_list.iter()) {
@@ -267,10 +189,11 @@ impl HeaderDupletRow {
     pub fn get_hpo_content_map(
         &self,
         cell_content_list: &[String])
-    -> std::result::Result<HashMap<TermId, String>, String> {
+    -> std::result::Result<HashMap<TermId, String>, OntologyError> {
         if cell_content_list.len() != self.hpo_count() {
-            return Err(format!("Header has {} HPO columns but cell_content_list has {}.",
-            self.hpo_count(), cell_content_list.len()));
+            let msg = format!("Header has {} HPO columns but cell_content_list has {}.",
+            self.hpo_count(), cell_content_list.len());
+            return Err(OntologyError::manipulation_err(msg));
         }
         let mut dto_map: HashMap<TermId, String> = HashMap::new();
         for (duplet, content) in self.get_hpo_duplets().iter().zip(cell_content_list.iter()) {

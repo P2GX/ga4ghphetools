@@ -5,7 +5,7 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 
-use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::{HpoTermData, HpoTermDuplet}}, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
+use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::{HpoTermData, HpoTermDuplet}}, error::ontology_error::OntologyError, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
 
 mod hpo_hierarchizer;
 mod hpo_term_arranger;
@@ -62,7 +62,7 @@ pub fn hpo_terms_to_dfs_order(
 pub fn hpo_terms_to_dfs_order_duplets(
     hpo: Arc<FullCsrOntology>,
     hpo_terms_for_curation: &Vec<TermId>)
--> Result<Vec<HpoTermDuplet>, String> {
+-> Result<Vec<HpoTermDuplet>, OntologyError> {
     let hpo_arc = hpo.clone();
     let mut term_arrager = HpoTermArranger::new(hpo_arc);    
     term_arrager.arrange_terms(hpo_terms_for_curation)
@@ -94,7 +94,7 @@ pub fn hpo_terms_to_dfs_order_duplets(
 pub fn term_label_map_from_dto_list(
     hpo: Arc<FullCsrOntology>,
     hpo_dto_list: &Vec<HpoTermData>
-) -> std::result::Result<HashMap<TermId, String>, String> {
+) -> std::result::Result<HashMap<TermId, String>, OntologyError> {
     let hpo_util = HpoUtil::new(hpo);
     hpo_util.term_label_map_from_dto_list(hpo_dto_list)
 }
@@ -166,7 +166,7 @@ pub fn arrange_hpo_duplets(
         )
         .collect::<Result<Vec<_>, String>>()?;
     let mut arranger = HpoTermArranger::new(hpo.clone());
-    arranger.arrange_terms(&hpo_tids)
+    arranger.arrange_terms(&hpo_tids).map_err(|e|e.to_string())
 }
 
 /// Validates that all provided HPO term duplets have consistent IDs and labels.

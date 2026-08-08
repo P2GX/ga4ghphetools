@@ -1,8 +1,8 @@
 //! TableCompare: Compare two sets of phenopacketes with respect to the distribution of HPO terms
-use crate::dto::{
+use crate::{dto::{
     cohort_dto::CohortData,
     hpo_term_dto::{CellValueInner, HpoTermDuplet},
-};
+}, error::ontology_error::OntologyError};
 use ontolius::{
     ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms},
     term::MinimalTerm,
@@ -76,15 +76,11 @@ impl TermCounter {
     }
 
     /// Combine the counts from two cohorts to get the totals
-    pub fn from_pair(counter_1: TermCounter, counter_2: TermCounter) -> Result<Self, String> {
+    pub fn from_pair(counter_1: TermCounter, counter_2: TermCounter) -> Result<Self, OntologyError> {
         let total_o = counter_1.observed + counter_2.observed;
         let total_m = counter_1.measured + counter_2.measured;
         if counter_1.hpo_duplet != counter_2.hpo_duplet {
-            return Err(format!(
-                "Mismatching HPO duplets Counter 1: {} and Counter 2: {}",
-                counter_1.hpo_duplet.hpo_label(),
-                counter_2.hpo_duplet.hpo_label()
-            ));
+            return Err(OntologyError::ontology_match(&counter_1.hpo_duplet, &counter_2.hpo_duplet));
         }
         Ok(Self {
             hpo_duplet: counter_1.hpo_duplet.clone(),
@@ -103,13 +99,9 @@ pub struct RowCounter {
 }
 
 impl RowCounter {
-    pub fn new(counter_1: TermCounter, counter_2: TermCounter) -> Result<Self, String> {
+    pub fn new(counter_1: TermCounter, counter_2: TermCounter) -> Result<Self, OntologyError> {
         if counter_1.hpo_duplet.hpo_id() != counter_2.hpo_duplet.hpo_id() {
-            return Err(format!(
-                "Hpo terms must match but we got {} and {}",
-                counter_1.hpo_duplet.hpo_label(),
-                counter_2.hpo_duplet.hpo_label()
-            ));
+            return Err(OntologyError::ontology_match(&counter_1.hpo_duplet, &counter_2.hpo_duplet));
         }
         Ok(Self {
             counter_1: counter_1.clone(),
@@ -223,7 +215,7 @@ impl TableCompare {
         cohort_1: CohortData,
         cohort_2: CohortData,
         hpo: Arc<FullCsrOntology>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, OntologyError> {
         let citations = Self::extract_pmid_citations(&cohort_1, &cohort_2);
         let total_term_count_map = Self::calculate_total_counts(&cohort_1, &cohort_2);
         let cohort_1_map = TableCompare::term_count_map(cohort_1, hpo.clone())?;
@@ -243,7 +235,7 @@ impl TableCompare {
     fn term_count_map(
         cohort: CohortData,
         hpo: Arc<FullCsrOntology>,
-    ) -> Result<HashMap<HpoTermDuplet, TermCounter>, String> {
+    ) -> Result<HashMap<HpoTermDuplet, TermCounter>, OntologyError> {
         let mut count_map: HashMap<HpoTermDuplet, TermCounter> = HashMap::new();
         for (i, term_duplet) in cohort.hpo_headers.iter().enumerate() {
             // Make sure direct entry is represented in the map
@@ -260,7 +252,7 @@ impl TableCompare {
                 };
                 increment_action(count_map.get_mut(term_duplet).unwrap());
                 // increment ancestors
-                let term_id = TermId::from_str(&term_duplet.hpo_id).map_err(|e| e.to_string())?;
+                let term_id = TermId::from_str(&term_duplet.hpo_id).map_err(|_| OntologyError::term_id_creation(&term_duplet.hpo_id))?;
                 for ancestor_id in hpo.iter_ancestor_ids(&term_id) {
                     if let Some(anc_term) = hpo.term_by_id(ancestor_id) {
                         let ancestor_duplet =
@@ -329,7 +321,7 @@ impl TableCompare {
         cohort_1_map: HashMap<HpoTermDuplet, TermCounter>,
         cohort_2_map: HashMap<HpoTermDuplet, TermCounter>,
         hpo: Arc<FullCsrOntology>,
-    ) -> Result<HashMap<HpoTermDuplet, CategoryCounter>, String> {
+    ) -> Result<HashMap<HpoTermDuplet, CategoryCounter>, OntologyError> {
         let phenotypic_abn = TermId::from_str("HP:0000118").unwrap();
         let mut hpo_id_set: HashSet<HpoTermDuplet> = HashSet::new();
         hpo_id_set.extend(cohort_1_map.keys().cloned());
@@ -344,7 +336,7 @@ impl TableCompare {
                     top_level_terms.insert(duplet);
                 }
                 None => {
-                    return Err(format!("Could not find term for {}", hpo_id));
+                    return Err(OntologyError::term_not_found(hpo_id.to_string()));
                 }
             }
         }

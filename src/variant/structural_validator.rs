@@ -180,7 +180,7 @@ impl StructuralValidator {
 mod tests {
     use rstest::{fixture, rstest};
 
-    use crate::dto::variant_dto::{VariantType};
+    use crate::{dto::variant_dto::VariantType, test_utils::fixtures::http_client};
 
     use super::*;
 
@@ -216,9 +216,9 @@ mod tests {
    
     #[rstest]
     #[ignore = "API call"]
-    fn test_valid_sv()  {
+    fn test_valid_sv(http_client: Arc<reqwest::blocking::Client>)  {
         let dto = valid_sv1();
-        let mut validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38(http_client).expect("Could not create variant manauger");
         let result = validator.validate(dto);
         assert!(result.is_ok());
     }
@@ -226,9 +226,9 @@ mod tests {
 
     #[rstest]
     #[ignore = "API call"]
-    fn test_invalid_sv()  {
+    fn test_invalid_sv(http_client: Arc<reqwest::blocking::Client>)  {
         let dto = invalid_sv1();
-        let mut validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38(http_client).expect("Could not create variant manager");
         let result = validator.validate(dto);
         assert!(result.is_err());
         let msg = result.err().unwrap();
@@ -238,9 +238,9 @@ mod tests {
 
       #[rstest]
       #[ignore = "API call"]
-      fn test_extract_chromosome17() {
+      fn test_extract_chromosome17(http_client: Arc<reqwest::blocking::Client>) {
         let expected_chr = "17";
-        let validator = StructuralValidator::hg38();
+        let validator = StructuralValidator::hg38(http_client).expect("Could not create variant manager");
         let chr = validator.get_chromosome_from_vv("COL1A1");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
@@ -252,9 +252,9 @@ mod tests {
         /// In this case, we return an annotation for the X chromosome
         #[rstest]
       #[ignore = "API call"]
-      fn test_extract_chromosome_pseudoautosomal() {
+      fn test_extract_chromosome_pseudoautosomal(http_client: Arc<reqwest::blocking::Client>) {
         let expected_chr = "X";
-        let validator = StructuralValidator::hg38();
+        let validator = StructuralValidator::hg38(http_client).expect("Could not create variant manager");
         let chr = validator.get_chromosome_from_vv("SHOX");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
@@ -263,28 +263,28 @@ mod tests {
 
        #[rstest]
        #[ignore = "API call"]
-      fn test_extract_chromosome_x() {
+      fn test_extract_chromosome_x(http_client: Arc<reqwest::blocking::Client>) {
         let expected_chr = "X";
-        let validator = StructuralValidator::hg38();
+        let validator = StructuralValidator::hg38(http_client).expect("Could not create variant manager");
         let chr = validator.get_chromosome_from_vv("FMR1");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
         assert_eq!(expected_chr, chr);
       }
 
-    #[test]
+    #[rstest]
     #[ignore = "API call"]
-    pub fn test_sv_ingest() {
+    pub fn test_sv_ingest(http_client: Arc<reqwest::blocking::Client>) {
         let expected_chr = "14";
-        let validator = StructuralValidator::hg38();
+        let validator = StructuralValidator::hg38(http_client).expect("Could not create variant manager");
         let chr = validator.get_chromosome_from_vv("HNRNPC");
         assert!(chr.is_ok());
         let chr = chr.unwrap();
         assert_eq!(expected_chr, chr);
     }
 
-    #[test]
-    fn validate_sv_complicated() {
+    #[rstest]
+    fn validate_sv_complicated(http_client: Arc<reqwest::blocking::Client>) {
         let cell_contents = "NC_000014.9:g.21220392_21352183del(NM_004500.4:c.-82945_366-7272del)";
         let symbol= "HNRNPC";
         let transcript = "NM_004500.4";
@@ -300,13 +300,14 @@ mod tests {
             is_validated: false,
             count: 0,
         };
-        let mut validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38(http_client)
+            .expect("could not create variant manager");
         let result = validator.validate(dto);
         assert!(result.is_ok())
     }
 
     #[rstest]
-    fn test_cv() {
+    fn test_cv(http_client: Arc<reqwest::blocking::Client>) {
         let sv = "Chr9:108,331,353–110,707,332(hg19)";
         let transcript = "NM_021224.6)";
         let hgnc = "HGNC:21684";
@@ -322,7 +323,8 @@ mod tests {
             is_validated: false,
             count: 0,
         };
-        let mut validator = StructuralValidator::hg38();
+        let mut validator = StructuralValidator::hg38(http_client)
+            .expect("could not create variant manager");
         let result = validator.validate(dto);
         println!("{:?}", result);
         assert!(result.is_err())

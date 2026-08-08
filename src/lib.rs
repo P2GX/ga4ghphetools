@@ -22,6 +22,7 @@ mod header;
 
 pub mod age;
 pub mod dto;
+pub mod error;
 pub mod etl;
 pub mod export;
 pub mod hpo;

@@ -167,7 +167,9 @@ impl VariantValidatorHandler for HgvsVariantValidator {
 mod tests {
     use rstest::{fixture, rstest};
 
-    use super::*;
+    use crate::test_utils::fixtures::http_client;
+
+use super::*;
    
 
     // NM_000138.5(FBN1):c.8230C>T (p.Gln2744Ter)
@@ -208,8 +210,10 @@ mod tests {
 
     #[rstest]
     #[ignore = "runs with API"]
-    fn test_variant_validator(vvdto: VariantDto) {
-        let mut vvalidator = HgvsVariantValidator::hg38();
+    fn test_variant_validator(
+        vvdto: VariantDto,
+        http_client: Arc<reqwest::blocking::Client>) {
+        let mut vvalidator = HgvsVariantValidator::hg38(http_client);
         let json = vvalidator.validate(vvdto);
         assert!(json.is_ok());
         let json = json.unwrap();
@@ -218,8 +222,10 @@ mod tests {
 
     #[rstest]
     #[ignore = "runs with API"]
-    fn test_variant_validator_invalid(invalid_vvdto: VariantDto) {
-        let mut vvalidator = HgvsVariantValidator::hg38();
+    fn test_variant_validator_invalid(
+        invalid_vvdto: VariantDto,
+        http_client: Arc<reqwest::blocking::Client>) {
+        let mut vvalidator = HgvsVariantValidator::hg38(http_client);
         // This is an invalid HGVS because the reference base should be C and not G
         let result = vvalidator.validate(invalid_vvdto);
         assert!(result.is_err());
@@ -231,8 +237,10 @@ mod tests {
     /// Check we can retrieve an n. noncoding variant
     #[rstest]
     #[ignore = "runs with API"]
-    fn test_variant_validator_noncoding(rnu4_2: VariantDto) {
-        let mut vvalidator = HgvsVariantValidator::hg38();
+    fn test_variant_validator_noncoding(
+        rnu4_2: VariantDto,
+        http_client: Arc<reqwest::blocking::Client>) {
+        let mut vvalidator = HgvsVariantValidator::hg38(http_client);
         // This is an invalid HGVS because the reference base should be C and not G
         let result = vvalidator.validate(rnu4_2);
         assert!(result.is_ok());

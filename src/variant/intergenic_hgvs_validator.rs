@@ -170,7 +170,9 @@ impl VariantValidatorHandler for IntergenicHgvsValidator {}
 #[cfg(test)]
 mod tests {
     use rstest::{fixture, rstest};
-    use super::*;
+    use crate::test_utils::fixtures::http_client;
+
+use super::*;
 
     // NM_000138.5(FBN1):c.8230C>T (p.Gln2744Ter)
     #[fixture]
@@ -311,9 +313,10 @@ response
     #[rstest]
     #[ignore = "API call"]
     fn test_decode(
-        vv_response: String
+        vv_response: String,
+        http_client: Arc<reqwest::blocking::Client>
     ) {
-        let mut validator = IntergenicHgvsValidator::hg38();
+        let mut validator = IntergenicHgvsValidator::hg38(http_client);
         let json_value: serde_json::Value = serde_json::from_str(&vv_response)
             .expect("Fixture should be valid JSON");
         let result = validator.from_json(json_value);

@@ -10,6 +10,8 @@ pub mod fixtures {
     use std::fs::File;
     use std::io::BufReader;
     use flate2::read::GzDecoder;
+    use std::time::Duration;
+
 
 
     pub static HPO: LazyLock<Arc<FullCsrOntology>> = LazyLock::new(|| {
@@ -24,5 +26,16 @@ pub mod fixtures {
     #[rstest::fixture]
     pub fn hpo() -> Arc<FullCsrOntology> {
         Arc::clone(&HPO)
+    }
+
+
+    #[rstest::fixture]
+    pub fn http_client() -> Arc<reqwest::blocking::Client> {
+        reqwest::blocking::Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(10))
+            .build()
+            .map(Arc::new)
+            .expect("Failed to build HTTP client for test fixture")
     }
 }

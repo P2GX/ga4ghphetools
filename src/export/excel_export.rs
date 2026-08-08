@@ -27,7 +27,7 @@ pub fn create_excel_with_merged_cells(out_filename: &str,
         hpo: Arc<FullCsrOntology>,
         threshold: usize) -> Result<(), String> {
 
-    let tcompare = TableCompare::new(cohort_1, cohort_2, hpo)?;
+    let tcompare = TableCompare::new(cohort_1, cohort_2, hpo).map_err(|e|e.to_string())?;
     let mut workbook = Workbook::new();
     let worksheet = workbook.add_worksheet();
     worksheet.set_name("Counts").map_err(|e| e.to_string())?;

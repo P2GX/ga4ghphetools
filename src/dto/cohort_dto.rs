@@ -7,12 +7,14 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use chrono::Local;
+use ontolius::TermId;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::{CellValue};
 use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
+use crate::error::ontology_error::OntologyError;
 use crate::ppkt::ppkt_row::PpktRow;
 
 
@@ -350,6 +352,7 @@ impl CohortData {
 
     /// We will mark the existing (Excel legacy) curation events using the date of publication of the 
     /// Phenopacket Store article
+    #[deprecated]
     fn legacy_curation() -> CurationEvent {
         CurationEvent { 
             orcid: "0000-0002-0736-9199".to_string(), 
@@ -360,6 +363,7 @@ impl CohortData {
     /// Legacy function for the old Excel files.
     /// These files do not have intergenic variants, thus we just create an empty HashMap
     /// There are less than 10 files that still need work to transform TODO -- after that DELETE this function.
+    #[deprecated]
     pub fn mendelian_with_variants(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
@@ -460,6 +464,27 @@ impl CohortData {
             },
             None => 0
         }
+    }
+
+    pub fn n_hpo_columns(&self) -> usize {
+        self.hpo_headers.len()
+    }
+
+    pub fn get_na_column_term_ids(&self) -> Result<Vec<TermId>, OntologyError> {
+        let mut na_cols: Vec<TermId> = Vec::new();
+        for (i, duplet) in self.hpo_headers.iter().enumerate() {
+            let mut non_na_count = 0 as usize;
+            for row in &self.rows {
+                if row.hpo_data[i].is_ascertained() {
+                    non_na_count += 1;
+                }
+            } 
+            if non_na_count == 0 {
+                let tid = duplet.to_term_id()?;
+                na_cols.push(tid);
+            }
+        }
+        Ok(na_cols)
     }
     
 }

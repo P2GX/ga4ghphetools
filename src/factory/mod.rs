@@ -7,7 +7,7 @@ use ontolius::ontology::csr::FullCsrOntology;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
 
 pub(crate) mod disease_bundle;
-pub mod excel;
+mod excel;
 pub mod gene_variant_bundle;
 pub mod header_duplet_row;
 pub(crate) mod individual_bundle;
@@ -224,6 +224,7 @@ pub fn add_new_row_to_cohort(
 -> Result<CohortData, String> {
     let mut builder = CohortFactory::new(hpo);
     builder.add_new_row_to_cohort(individual_data, hpo_annotations, variant_key_list, cohort_data)
+        .map_err(|e|e.to_string())
 }
 
 /// Reads an **external Excel file** for ETL purposes and converts it into
@@ -299,6 +300,7 @@ pub fn read_external_excel_file(
 ///     |cur, total| println!("Progress: {}/{}", cur, total),
 /// )?;
 /// ```
+/*
 pub fn load_pyphetools_excel_template<F>(
     phetools_template_path: &str,
     update_hpo_labels: bool,
@@ -308,7 +310,7 @@ pub fn load_pyphetools_excel_template<F>(
 where F: FnMut(u32,u32) {
     let matrix = excel::read_excel_to_dataframe( phetools_template_path)?;
     CohortFactory::dto_from_mendelian_template(matrix, hpo.clone(), update_hpo_labels, progress_cb)
-}
+} */
 
 
  /// Load JSON serialization of a cohort.
@@ -346,7 +348,8 @@ pub fn load_json_cohort(
         cohort_dto: CohortData) 
     -> std::result::Result<CohortData, String> {
         let mut builder = CohortFactory::new(hpo.clone());
-        let newcohort = builder.add_hpo_term_to_cohort(hpo_id, hpo_label, cohort_dto)?;
+        let newcohort = builder.add_hpo_term_to_cohort(hpo_id, hpo_label, cohort_dto)
+            .map_err(|e|e.to_string())?;
         Ok(newcohort)
     }
 
@@ -415,5 +418,5 @@ pub fn merge_cohort_data_from_etl_dto(
 ) -> Result<CohortData, String> {
     let factory = CohortFactory::new(hpo);
     CohortFactory::disease_data_identity_validation(&previous, &transformed)?;
-    factory.merge_cohort_data(previous, transformed)
+    factory.merge_cohort_data(previous, transformed).map_err(|e|e.to_string())
 }

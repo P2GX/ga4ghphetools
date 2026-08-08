@@ -12,12 +12,7 @@ use common::matrix_fixtures::matrix;
 use serde_json::Value;
 
 
-/// Make sure that our test matrix is valid before we start changing fields to check if we pick up errors
-#[rstest]
-fn test_valid_input(matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
-    let res = CohortFactory::dto_from_mendelian_template(matrix, hpo.clone(), false,  |_p:u32,_q:u32|{/*  no progress bar for test*/});
-    assert!(res.is_ok());
-}
+
 
 
 pub fn strip_phenopacket_defaults(root: &mut Value) {

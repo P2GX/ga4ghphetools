@@ -12,7 +12,7 @@ use ontolius::{
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, factory::header_duplet_row::HeaderDupletRow, hpo, ppkt::ppkt_row::PpktRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}, factory::header_duplet_row::HeaderDupletRow, hpo, ppkt::ppkt_row::PpktRow, variant::variant_manager::VariantManager};
 
 
 
@@ -32,8 +32,8 @@ impl CohortFactory {
 
    
 
-    /// Create the initial pyphetools template using HPO seed terms
-    pub fn create_pyphetools_template_mendelian(
+    /// Create the initial phetools template using HPO seed terms
+    pub fn create_phetools_template_mendelian(
         // Reference to the Ontolius Human Phenotype Ontology Full CSR object
         hpo: Arc<FullCsrOntology>,
         disease_gene_dto: DiseaseData,
@@ -45,13 +45,11 @@ impl CohortFactory {
 
     fn get_existing_hpos_from_cohort(
         cohort_dto: &CohortData
-    ) -> Result<Vec<TermId>, String> {
+    ) -> Result<Vec<TermId>, OntologyError> {
         let mut tid_list: Vec<TermId> = Vec::new();
         for hdd in &cohort_dto.hpo_headers {
-            match hdd.to_term_id() {
-                Ok(tid) => tid_list.push(tid),
-                Err(e) => { return Err(format!("Could not extract TermIf from {:?}", hdd)); }
-            }
+            let tid = hdd.to_term_id()?;
+            tid_list.push(tid);
         }
         Ok(tid_list)
     }
@@ -70,13 +68,11 @@ impl CohortFactory {
         dto_list
     }
 
-    pub fn get_previous_hpo_id_list(cohort_dto: &CohortData) -> Result<Vec<TermId>, String> {
+    pub fn get_previous_hpo_id_list(cohort_dto: &CohortData) -> Result<Vec<TermId>, OntologyError> {
         let mut previous_tid_list: Vec<TermId> = Vec::new();
         for hdd in &cohort_dto.hpo_headers {
-            match hdd.to_term_id() {
-                Ok(tid) => previous_tid_list.push(tid),
-                Err(_) => { return Err(format!("Could not extract TermId from {:?}", hdd));},
-            }
+            let tid = hdd.to_term_id()?;
+            previous_tid_list.push(tid);
         }
         Ok(previous_tid_list)
     }
@@ -93,7 +89,7 @@ impl CohortFactory {
         hpo_annotations: Vec<HpoTermData>,
         variant_key_list: Vec<String>,
         cohort_dto: CohortData) 
-    -> Result<CohortData, String> {
+    -> Result<CohortData, PheToolsError> {
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
         let dto_map: HashMap<TermId, String> = hpo::term_label_map_from_dto_list(self.hpo.clone(), &hpo_annotations)?;
         let mut term_id_set_new: HashSet<TermId>  = dto_map.keys().cloned().collect();
@@ -121,7 +117,7 @@ impl CohortFactory {
             let tid_map = term_id_map.clone();
             match Self::update_row_dto(row, &tid_map, &arranged_terms, &previous_hpo_id_list) {
                 Ok(updated_row) => {updated_row_dto_list.push(updated_row);},
-                Err(err) => { return Err(err); },
+                Err(err) => { return Err(PheToolsError::Ontology(err)); },
             }
         }
         // Now add the new RowDto object
@@ -130,15 +126,14 @@ impl CohortFactory {
         for dto in   hpo_annotations {
             match dto.ontolius_term_id() {
                 Ok(tid) => { tid_to_value_map.insert(tid, dto.entry().to_string()); },
-                Err(_) => { return Err(format!("Could not create TermId from {:?}", &dto)); },
+                Err(_) => { return Err(PheToolsError::Ontology(OntologyError::term_id_creation(dto.term_id()))); },
             }
         }
 
         if cohort_dto.disease_list.is_empty() {
-            return Err("Could not add new row because disease list is empty".to_string());
+            return Err(PheToolsError::Cohort(CohortError::empty_disease_list()));
         }
 
-      
         let novel_row = Self::new_row_dto(
             &updated_header_duplet_dto_list, 
             individual_data, 
@@ -171,7 +166,7 @@ impl CohortFactory {
         tid_to_value_map: &HashMap<TermId, String>,
         updated_header: &Vec<HpoTermDuplet>,
         previous_hpo_id_list: &[TermId]
-    ) -> Result<RowData, String> {
+    ) -> Result<RowData, OntologyError> {
         let hpo_cell_content_list = row.hpo_data.clone();
         let updated_tid_list = updated_header
             .iter()
@@ -209,7 +204,7 @@ impl CohortFactory {
         variant_key_list: Vec<String>,
         tid_to_value_map: HashMap<TermId, String>, 
         disease_data_list: &Vec<DiseaseData>
-    ) -> std::result::Result<RowData, String> {
+    ) -> std::result::Result<RowData, PheToolsError> {
         // Create a list of CellDto objects that matches the new order of HPO headers
         let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
         for hduplet in header_dto_list {
@@ -305,7 +300,7 @@ impl CohortFactory {
     ) -> std::result::Result<CohortData, String> {
         let smt_list: Vec<SimpleMinimalTerm> = Vec::new();
         if template_type == CohortType::Mendelian {
-            let cohort_dto = Self::create_pyphetools_template_mendelian(hpo, disease_data)?;
+            let cohort_dto = Self::create_phetools_template_mendelian(hpo, disease_data)?;
             Ok(cohort_dto)
         } else {
             Err(format!("Creation of template of type {:?} not supported", template_type))
@@ -364,7 +359,8 @@ impl CohortFactory {
     ///
     /// # Returns
     ///
-    /// A CohortDto constructed from the given legacy Excel template. 
+    /// A CohortDto constructed from the given legacy Excel template.
+    /*
     pub fn dto_from_mendelian_template<F>(
         matrix: Vec<Vec<String>>,
         hpo: Arc<FullCsrOntology>,
@@ -434,6 +430,7 @@ impl CohortFactory {
         );
         Ok(cohort_dto)
     }
+    */
 
     fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), String> {
         let term_id = match TermId::from_str(duplet.hpo_id()) {
@@ -525,16 +522,15 @@ impl CohortFactory {
         previous_duplets: &Vec<HpoTermDuplet>,
         update_duplets: &Vec<HpoTermDuplet>,
         term_id_to_na_map: &HashMap<TermId, CellValue>) 
-    -> Result<RowData, String> {
+    -> Result<RowData, OntologyError> {
         if oldrow.hpo_data.len() != previous_duplets.len() {
-            return Err(format!("Length mismatch for update HPO row with new header: previous row HPOs: {} but header: {}",
-            oldrow.hpo_data.len(), previous_duplets.len()));
+            return Err(OntologyError::header_length_mismatch_err(oldrow.hpo_data.len(), previous_duplets.len()));
         }
         let mut term_id_map = term_id_to_na_map.clone();
         for (duplet, value) in previous_duplets.iter().zip(oldrow.hpo_data.clone()) {
             let tid = duplet.to_term_id()?;
             if ! term_id_map.contains_key(&tid) {
-                return Err(format!("Could not find {} in term_id_to_na_map", tid.to_string()));
+                return Err(OntologyError::missing_tid(tid.to_string(), "term_id_to_na_map"));
             }
             term_id_map.insert(tid, value);
         }
@@ -546,7 +542,7 @@ impl CohortFactory {
                 },
                 None => {
                     // should never happen, if it does, there is a problem with the arguments to the function
-                    return Err(format!("updating HPO row but did not find value for HPO id '{}'", duplet.hpo_id()))
+                    return Err(OntologyError::missing_tid(duplet.hpo_id(), "HPO row update"));
                 }
             }
         }
@@ -561,21 +557,21 @@ impl CohortFactory {
         hpo_label: &str,
         cohort: CohortData
     ) 
-    -> std::result::Result<CohortData, String> {
+    -> std::result::Result<CohortData, OntologyError> {
         let new_tid = TermId::from_str(hpo_id)
-                .map_err(|_| format!("Could not create TermId from: '{}'", hpo_id))?;
+            .map_err(|_| OntologyError::term_id_creation(hpo_id))?;
         let term = self.hpo
             .term_by_id(&new_tid)
-            .ok_or_else(|| format!("could not retrieve HPO term for '{hpo_id}'"))?;
+            .ok_or_else(|| OntologyError::term_not_found(hpo_id))?;
         // === STEP 1: Add new HPO term to existing terms and arrange TIDs ===
-        let all_tid_result: Result<Vec<TermId>, String> =
+        let all_tid_result: Result<Vec<TermId>, OntologyError> =
             cohort.hpo_headers
                 .iter()
                 .map(|duplet| duplet.to_term_id())
                 .collect();
         let mut all_tids = all_tid_result?;
         if all_tids.contains(&new_tid) {
-            return Err(format!("Not allowed to add term {} because it already is present", &new_tid));
+            return Err(OntologyError::redundant_tid(new_tid.to_string()));
         }
         all_tids.push(new_tid.clone());
         let arranged_hpo_duplets = hpo::hpo_terms_to_dfs_order_duplets(self.hpo.clone(), &all_tids)?;
@@ -620,7 +616,7 @@ impl CohortFactory {
     }
 
     /// Get the combined HPO TermId list (filter out duplicates) from both cohorts
-    fn get_combined_tids(previous: &CohortData, transformed: &CohortData) -> Result<Vec<TermId>, String> {
+    fn get_combined_tids(previous: &CohortData, transformed: &CohortData) -> Result<Vec<TermId>, OntologyError> {
         let new_tids: Vec<TermId> = transformed
             .hpo_headers
             .iter()
@@ -643,7 +639,7 @@ impl CohortFactory {
     /// With this function, we are added data from a new cohort (transformed from an ETL) to an existing cohort
     /// We need to alter the HPO headers to include terms from both cohorts
     /// We need to add an "NA" for columns where the previous row does not have data
-    pub fn merge_cohort_data(self, previous: CohortData, transformed: CohortData) -> Result<CohortData, String>{
+    pub fn merge_cohort_data(self, previous: CohortData, transformed: CohortData) -> Result<CohortData, PheToolsError>{
         let all_tids: Vec<TermId> = Self::get_combined_tids(&previous, &transformed)?;
         let arranged_hpo_duplets = hpo::hpo_terms_to_dfs_order_duplets(self.hpo.clone(), &all_tids)?;
         // === Step 3: Rearrange the existing RowData objects to have the new HPO terms and set the new terms to "na"
@@ -735,71 +731,6 @@ mod test {
     }
 
 
-
-    #[fixture]
-    fn original_matrix(row1: Vec<String>, row2: Vec<String>, row3: Vec<String>)  -> Vec<Vec<String>> {
-        let mut rows = Vec::with_capacity(3);
-        rows.push(row1);
-        rows.push(row2);
-        rows.push(row3);
-        rows
-    }
-
-    /// The second HPO entry is Hallux valgus HP:0001822
-    /// The third is Short 1st metacarpal HP:0010034
-    /// We replace the entry in column 19
-    #[rstest]
-    fn test_malformed_hpo_label(mut original_matrix: Vec<Vec<String>>, hpo: Arc<FullCsrOntology>) {
-        // "Hallux valgus" has extra white space
-        original_matrix[0][20] = "Hallux  valgus".to_string(); 
-        let update_hpo_labels = false;
-        let header_result = HeaderDupletRow::mendelian(&original_matrix, hpo.clone(), update_hpo_labels);
-        assert!(&header_result.is_err());
-        assert!(matches!(&header_result, Err(String { .. })));
-        let err_msg = header_result.err().unwrap();
-        let expected = "Expected label 'Ectopic ossification in muscle tissue' but got 'Hallux  valgus' for TermId 'HP:0011987'";
-        assert_eq!(expected, err_msg);
-    }
- 
-
-
-    /// Test that we detect errors in labels of headings
-    #[rstest]
-    #[case(0, "PMI", "PMID")]
-    #[case(1, "title ", "title")]
-    #[case(1, " title ", "title")]
-    #[case(1, "titl", "title")]
-    #[case(2, "individual", "individual_id")]
-    #[case(3, "comm", "comment")]
-    #[case(4, "disease_i", "disease_id")]
-    #[case(5, "diseaselabel", "disease_label")]
-    #[case(6, "hgnc", "HGNC_id")]
-    #[case(7, "symbol", "gene_symbol")]
-    #[case(8, "tx", "transcript")]
-    #[case(9, "allel1", "allele_1")]
-    #[case(10, "allele2", "allele_2")]
-    #[case(11, "vcomment", "variant.comment")]
-    #[case(12, "age", "age_of_onset")]
-    #[case(13, "age_last_counter", "age_at_last_encounter")]
-    #[case(14, "deceasd", "deceased")]
-    #[case(15, "sexcolumn", "sex")]
-    #[case(16, "", "HPO")]
-    fn test_malformed_title_row(
-        mut original_matrix: Vec<Vec<String>>, 
-        hpo: Arc<FullCsrOntology>, 
-        #[case] idx: usize, 
-        #[case] label: &str,
-        #[case] expected_label: &str) {
-        // Test that we catch malformed labels for the first row
-        original_matrix[0][idx] = label.to_string(); 
-        let result = HeaderDupletRow::mendelian(&original_matrix, hpo, false);
-        assert!(&result.is_err());
-        assert!(matches!(&result, Err(String { .. })));
-        let err_msg = result.err().unwrap();
-        let expected = format!("Row 0, column {}: Expected '{}' but got '{}'", 
-            idx, expected_label, label);
-        assert_eq!(expected, err_msg); 
-    }
 
    
  

@@ -16,6 +16,8 @@ use crate::dto::cohort_dto::{CohortType, DiseaseData, GeneVariantData, Individua
 
 
 
+use crate::error::ontology_error::OntologyError;
+use crate::error::parse_error::ParseError;
 use crate::factory::disease_bundle::{ DiseaseBundle};
 use crate::factory::gene_variant_bundle::{ GeneVariantBundle};
 use crate::factory::individual_bundle::IndividualBundle;
@@ -97,7 +99,7 @@ impl PpktRow {
         disease_data: DiseaseData) -> std::result::Result<Self, String> {
         let mut items = Vec::with_capacity(header.hpo_count());
         for hduplet in header.hpo_duplets() {
-            let tid = hduplet.to_term_id()?;
+            let tid = hduplet.to_term_id().map_err(|e|e.to_string())?;
             let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
             items.push(value);
         }
@@ -141,7 +143,7 @@ impl PpktRow {
     pub fn get_hpo_value_list(&self) -> Result<Vec<CellValue>, String> {
         let mut cell_dto_list: Vec<CellValue> = Vec::new();
         for hpo_val in &self.hpo_content {
-            cell_dto_list.push(CellValue::from_str(hpo_val)?);
+            cell_dto_list.push(CellValue::from_str(hpo_val).map_err(|e|e.to_string())?);
         }
         Ok(cell_dto_list)
     }
@@ -177,7 +179,7 @@ impl PpktRow {
     pub fn update_header(
         &self, 
         updated_hdr: Arc<HeaderDupletRow>
-    ) -> std::result::Result<Self, String> {
+    ) -> std::result::Result<Self, OntologyError> {
         let updated_hpo_id_list = updated_hdr.get_hpo_id_list()?;
         let previous_header = &self.header;
         let hpo_map = previous_header.get_hpo_content_map(&self.hpo_content)?;

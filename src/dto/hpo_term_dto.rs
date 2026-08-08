@@ -13,6 +13,8 @@ use std::fmt;
 use std::ops::Deref;
 use std::sync::OnceLock;
 use crate::age;
+use crate::error::PheToolsError;
+use crate::error::ontology_error::OntologyError;
 
 
 static HPO_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -40,8 +42,9 @@ impl HpoTermDuplet {
         &self.hpo_label
     }
 
-    pub fn to_term_id(&self) -> std::result::Result<TermId, String> {
-        let tid = TermId::from_str(&self.hpo_id).map_err(|_| format!("Could not create TermId from {}", self.hpo_id()))?;
+    pub fn to_term_id(&self) -> std::result::Result<TermId, OntologyError> {
+        let tid = TermId::from_str(&self.hpo_id)
+            .map_err(|_| OntologyError::term_id_creation(self.hpo_id()))?;
         Ok(tid)
     }
     
@@ -81,17 +84,17 @@ impl From<CellValueInner> for CellValue {
 }
 
 impl FromStr for CellValue {
-    type Err = String;
+    type Err = crate::error::parse_error::ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-       let cv_inner = match s {
-            "observed" => Ok(CellValueInner::Observed),
-            "excluded" => Ok(CellValueInner::Excluded),
-            "na" => Ok(CellValueInner::Na),
-            _ if age::is_valid_age_string(s) =>  Ok(CellValueInner::OnsetAge(s.to_string())),
-            _ => Err(format!("Malformed HPO cell contents: '{s}'")),
+       let entry = match s {
+            "observed" => CellValueInner::Observed,
+            "excluded" => CellValueInner::Excluded,
+            "na" => CellValueInner::Na,
+            _ if age::is_valid_age_string(s) => CellValueInner::OnsetAge(s.to_string()),
+            _ => return Err(crate::error::parse_error::ParseError::malformed_cell_value(s)),
         };
-        Ok(CellValue { entry: cv_inner?, modifiers: Vec::default()})
+        Ok(CellValue { entry, modifiers: Vec::default() })
     }
 }
 
@@ -279,7 +282,7 @@ impl HpoTermData {
     pub fn new(
         term_duplet: HpoTermDuplet,
         entry: CellValue
-    ) -> Result<Self, String> {
+    ) -> Result<Self, PheToolsError> {
         Ok(Self { 
             term_duplet: term_duplet,
             entry,
@@ -289,7 +292,7 @@ impl HpoTermData {
     pub fn from_duplet(
         duplet: HpoTermDuplet,
         entry: &str
-    ) -> Result<Self, String> {
+    ) -> Result<Self, PheToolsError> {
         Ok(Self { 
             term_duplet: duplet, 
             entry: CellValue::from_str(entry)?
@@ -300,7 +303,7 @@ impl HpoTermData {
         term_id: &str,
         term_label: &str,
         entry: &str
-    ) -> Result<Self, String> {
+    ) -> Result<Self, PheToolsError> {
         Ok(Self { 
            term_duplet: HpoTermDuplet::new(term_label, term_id),
             entry : CellValue::from_str(entry)?,
@@ -312,7 +315,7 @@ impl HpoTermData {
         &self.term_duplet.hpo_id()
     }
 
-    pub fn ontolius_term_id(&self) -> std::result::Result<TermId, String> {
+    pub fn ontolius_term_id(&self) -> std::result::Result<TermId, OntologyError> {
         self.term_duplet.to_term_id()
     }
 

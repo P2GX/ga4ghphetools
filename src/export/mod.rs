@@ -117,7 +117,7 @@ pub fn output_comparison_table(
     threshold: usize) -> Result<(), String> {
         let cohort_1 = factory::load_json_cohort(cohort_1_path)?;
         let cohort_2 = factory::load_json_cohort(cohort_2_path)?;
-        let table_compare = TableCompare::new(cohort_1, cohort_2, hpo)?;
+        let table_compare = TableCompare::new(cohort_1, cohort_2, hpo).map_err(|e|e.to_string())?;
         table_compare.output_table(output_path, threshold)?;
         Ok(())
     }

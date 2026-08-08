@@ -3,6 +3,7 @@
 use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
+use crate::error::ontology_error::OntologyError;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::MinimalTerm;
@@ -34,13 +35,13 @@ impl HpoUtil {
     pub fn term_label_map_from_dto_list(
         &self, 
         hpo_dto_list: &Vec<HpoTermData>
-    ) -> std::result::Result<HashMap<TermId, String>, String> {
+    ) -> std::result::Result<HashMap<TermId, String>, OntologyError> {
         let mut dto_map: HashMap<TermId, String> = HashMap::new();
         for dto in hpo_dto_list {
             match dto.ontolius_term_id() {
                 Ok(term_id) => {dto_map.insert(term_id.clone(), dto.label().to_string());},
                 Err(_) => {
-                    return Err(format!("Could not map termId: '{}'", dto.term_id()));
+                    return Err(OntologyError::term_not_found(dto.term_id()));
                 },
             } 
         }

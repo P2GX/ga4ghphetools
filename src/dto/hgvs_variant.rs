@@ -188,7 +188,9 @@ impl PartialOrd for HgvsVariant {
 #[cfg(test)]
 mod tests {
 
-    use crate::{dto::variant_dto::VariantDto, variant::hgvs_variant_validator::HgvsVariantValidator};
+    use std::sync::Arc;
+
+use crate::{dto::variant_dto::VariantDto, test_utils::fixtures::http_client, variant::hgvs_variant_validator::HgvsVariantValidator};
     use rstest::rstest;
 
     // test NM_000138.5(FBN1):c.8242G>T (p.Glu2748Ter)
@@ -198,8 +200,8 @@ mod tests {
     // g_hgvs: Some("NC_000015.10:g.48411364C>A"), genotype: None, variant_id: "var_JgacXpZdmwKjarf125ud6ILjA" }
     #[rstest]
     #[ignore = "testing API"]
-    fn test_hgvs_c_fbn1() {
-        let mut vvalidator = HgvsVariantValidator::hg38();
+    fn test_hgvs_c_fbn1(http_client: Arc<reqwest::blocking::Client>) {
+        let mut vvalidator = HgvsVariantValidator::hg38(http_client);
         let vv_dto = VariantDto::hgvs_c("c.8242G>T", "NM_000138.5", "HGNC:3603", "FBN1");
         let result = vvalidator.get_validated_hgvs(&vv_dto);
         assert!(result.is_ok());
