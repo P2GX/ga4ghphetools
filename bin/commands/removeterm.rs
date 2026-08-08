@@ -1,6 +1,7 @@
 use std::fs::File;
 
 use clap::{Arg, ArgMatches};
+use ontolius::TermId;
 use crate::commands::util::extract_file_name;
 
 pub fn command() -> clap::Command {
@@ -8,15 +9,20 @@ pub fn command() -> clap::Command {
         .about("Remove HPO Term and its annotations from Cohort Data file")
         .arg(Arg::new("cohort").short('c').long("cohort").required(true))
         .arg(Arg::new("hpo-id").short('i').long("id").required(true))
+         .arg(clap::Arg::new("hpo").short('o').long("hpo").required(true))
 }
 
 
 pub fn handle(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
     let input_json = sub_matches.get_one::<String>("cohort").unwrap();
     let hpo_id = sub_matches.get_one::<String>("hpo-id").unwrap();
+    let tid: TermId = hpo_id.parse().unwrap();
+    let json_input_path = sub_matches.get_one::<String>("input").expect("Could not read JSON input");
+    let hpo_path = sub_matches.get_one::<String>("hpo").expect("Could not retrieve hp.json path");
+    let hpo = crate::load_hpo(hpo_path).expect("Could not construct HPO ontology");
     println!("Remove HPO Term {hpo_id} from Cohort {input_json}");
     let cohort = ga4ghphetools::factory::load_json_cohort(input_json).expect("Could not load Cohort JSON file");
-    let modified_cohort = cohort.remove_hpo_column(hpo_id)?;
+    let modified_cohort = cohort.remove_hpo_column(&tid)?;
     let fname = extract_file_name(input_json);
     let outname = format!("modified-{fname}");
     let json = serde_json::to_string_pretty(&modified_cohort)?;

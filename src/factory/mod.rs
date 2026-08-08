@@ -7,7 +7,7 @@ use ontolius::ontology::csr::FullCsrOntology;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, factory::{cohort_factory::CohortFactory, cohort_qc::CohortDataQc}};
 
 pub(crate) mod disease_bundle;
-mod excel;
+pub mod excel;
 pub mod gene_variant_bundle;
 pub mod header_duplet_row;
 pub(crate) mod individual_bundle;

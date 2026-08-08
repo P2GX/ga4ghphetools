@@ -122,6 +122,14 @@ fn test_default_na_column(cohort_with_na_column: CohortData) {
 }
 
 
+#[rstest]
+fn test_remove_na_column(cohort_with_na_column: CohortData) { 
+    /* The Cohort Data has three columns;
+     * cohort_with_na_column has "na" in the column at index 1
+     */ 
+    let clean_cohort = cohort_with_na_column.remove_na_columns().unwrap();
+    assert_eq!(2, clean_cohort.n_hpo_columns());
+}
 
 
 

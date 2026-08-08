@@ -14,6 +14,8 @@ use crate::dto::hpo_term_dto::{CellValue};
 use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::structural_variant::StructuralVariant;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
+use crate::error::PheToolsError;
+use crate::error::cohort_error::CohortError;
 use crate::error::ontology_error::OntologyError;
 use crate::ppkt::ppkt_row::PpktRow;
 
@@ -362,8 +364,7 @@ impl CohortData {
 
     /// Legacy function for the old Excel files.
     /// These files do not have intergenic variants, thus we just create an empty HashMap
-    /// There are less than 10 files that still need work to transform TODO -- after that DELETE this function.
-    #[deprecated]
+    /// There are less than 10 files that still need work to transform TODO -- after that DELETE this function
     pub fn mendelian_with_variants(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
@@ -428,13 +429,14 @@ impl CohortData {
     }
 
     
-    pub fn remove_hpo_column(&self, tid: &str) -> Result<CohortData, String> {
+    pub fn remove_hpo_column(&self, tid: &TermId) -> Result<CohortData, CohortError> {
         let mut cohort = self.clone();
+        let tid_str = tid.to_string();
         let idx = cohort
             .hpo_headers
             .iter()
-            .position(|h| h.hpo_id == tid)
-            .ok_or_else(|| format!("Could not find column that corresponds to {tid}"))?;
+            .position(|h| h.hpo_id == tid_str)
+            .ok_or_else(|| CohortError::missing_column(tid))?;
         cohort.hpo_headers.remove(idx);
         for row in cohort.rows.iter_mut() {
             row.hpo_data.remove(idx);
@@ -485,6 +487,15 @@ impl CohortData {
             }
         }
         Ok(na_cols)
+    }
+
+    pub fn remove_na_columns(&self) -> Result<Self, PheToolsError> {
+        let mut cohort = self.clone();
+        let na_cols = cohort.get_na_column_term_ids()?;
+        for tid in na_cols.into_iter() {
+            cohort = cohort.remove_hpo_column(&tid)?;
+        }
+        Ok(cohort)
     }
     
 }

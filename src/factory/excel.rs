@@ -72,72 +72,6 @@ fn get_list_of_rows_from_excel(file_path: &str) -> Result<Vec<Vec<String>>, Stri
 }
 
 
-/// Reads an Excel file and validates it into 
-/// a structured 2D string matrix (`Vec<Vec<String>>`).
-///
-/// This function is specialized for early phenopacket-store input files,
-/// which are expected to have:
-/// - At least **2 rows** total (1 header rows + data).
-/// - Each data row having the **same number of fields** as the header.
-///
-/// # Behavior
-/// - Delegates to [`get_list_of_rows_from_excel`] to extract raw cell values.
-/// - Ensures the matrix has at least 2 rows; otherwise returns an error.
-/// - Ensures each subsequent row has the same number of fields as the header.
-/// - Replaces any **empty cells** (only in data rows) with the literal `"na"`.
-///
-/// # Errors
-/// Returns `Err(String)` in the following cases:
-/// - The Excel file cannot be opened or parsed (from [`get_list_of_rows_from_excel`]).
-/// - The file has fewer than 2 rows.
-/// - The two header rows have different numbers of fields.
-/// - Any data row has a different number of fields than the headers.
-///
-/// # Returns
-/// On success, returns `Ok(matrix)` where:
-/// - `matrix[0]` is the first header row (unchanged).
-/// - `matrix[1]` is the second header row (unchanged).
-/// - `matrix[2..]` are data rows, with empty cells normalized to `"na"`.
-pub fn read_excel_to_dataframe(file_path: &str) -> Result<Vec<Vec<String>>, String> {
-    let matrix = get_list_of_rows_from_excel(file_path)?;
-    if matrix.len() < 3 {
-        return Err(format!("Input file with insufficient rows ({})", matrix.len()));
-    }
-    let row0 = &matrix[0];
-    let row1 = &matrix[1];
-    
-
-    let n1 = row0.len();
-    let n2 = row1.len();
-    if n1 != n2 {
-        return Err(
-            format!("Malformed headers: expected {} fields, got {}", n2, n1));
-    }
-    for row in matrix.iter().skip(2) {
-        let row_len = row.len();
-        if row_len != n1 {
-            return Err(format!(
-                    "Malformed line:: expected {} fields, got {}",
-                    n1,
-                    row_len
-                ));
-        }
-    }
-    let matrix_without_na = matrix.into_iter()
-        .enumerate()
-        .map(|(i, row)| {
-            if i < 2 {
-                row // keep first two rows as-is
-            } else {
-                row.into_iter()
-                    .map(|cell| if cell.trim().is_empty() { "na".to_string() } else { cell })
-                    .collect()
-            }
-        })
-        .collect();
-    Ok(matrix_without_na)
-}
-
 
 /// Reads an **external Excel file** for ETL purposes and converts it into
 /// a `ColumnTableDto` suitable for further transformation in the ETL pipeline.
@@ -214,25 +148,4 @@ pub fn read_external_excel_to_dto(
     })
 }
 
-// region:    --- Tests
 
-#[cfg(test)]
-mod tests {
-    type Error = Box<dyn std::error::Error>;
-    type Result<T> = core::result::Result<T, Error>; // For tests.
-
-    use super::*;
-
-    #[test]
-    fn test_invalid_file_path() -> Result<()> {
-        let fake_path = "wrong/path/template.xlsx";
-        let result = read_excel_to_dataframe(fake_path);
-        assert!(result.is_err());
-        let error_msg = result.err().unwrap().to_string();
-        let expected = "Could not open Excel file at 'wrong/path/template.xlsx': I/O error: No such file or directory (os error 2)";
-        assert_eq!(expected, error_msg);
-        Ok(())
-    }
-}
-
-// endregion: --- Tests

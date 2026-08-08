@@ -6,13 +6,11 @@
 //! after we are finished refactoring the legacy files.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
-    ontology::{csr::FullCsrOntology, MetadataAware, OntologyTerms},
-    term::{simple::{SimpleMinimalTerm, SimpleTerm}, MinimalTerm},
-    Identified, TermId,
+    Identified, TermId, ontology::{MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::{MinimalTerm, Term, simple::{SimpleMinimalTerm, SimpleTerm}},
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant, SvType}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}, factory::header_duplet_row::HeaderDupletRow, hpo, ppkt::ppkt_row::PpktRow, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError},  hpo, ppkt::ppkt_row::PpktRow};
 
 
 
@@ -29,8 +27,6 @@ impl CohortFactory {
     ) -> Self {
         Self { hpo}
     }
-
-   
 
     /// Create the initial phetools template using HPO seed terms
     pub fn create_phetools_template_mendelian(
@@ -349,105 +345,17 @@ impl CohortFactory {
         Ok(disease_data)
     }
 
-    /// Builds a DTO from a Mendelian template matrix. The function calls VariantValidator to get info about all variants.
-    ///
-    /// # Arguments
-    ///
-    /// * `matrix` - A 2D vector of strings representing the Mendelian template (extracted from Excel template file).
-    /// * `hpo` - Shared reference to the HPO ontology.
-    /// * `update_hpo_labels` - Whether to update HPO labels automatically.
-    ///
-    /// # Returns
-    ///
-    /// A CohortDto constructed from the given legacy Excel template.
-    /*
-    pub fn dto_from_mendelian_template<F>(
-        matrix: Vec<Vec<String>>,
-        hpo: Arc<FullCsrOntology>,
-        update_hpo_labels: bool,
-        progress_cb: F
-    ) -> std::result::Result<CohortData, String> 
-        where F: FnMut(u32, u32) {
-        let header = HeaderDupletRow::mendelian(&matrix, hpo.clone(), update_hpo_labels)?;
-        let header_hpo_count = header.hpo_count();
-        const HEADER_ROWS: usize = 2; // first two rows of template are header
-        let hdr_arc = Arc::new(header);
-        let ppt_rows: Vec<PpktRow> = Vec::new();
-        let dg_dto = Self::get_disease_dto_from_excel(&matrix)?;
-        let mut vmanager = VariantManager::from_mendelian_matrix(&matrix, progress_cb)?;
-        let mut row_dto_list: Vec<RowData> = Vec::new();
-        for row in matrix.into_iter().skip(HEADER_ROWS) {
-            let hdr_clone = hdr_arc.clone();
-            let ppkt_row = PpktRow::from_mendelian_row(hdr_clone, row)?;
-            if ppkt_row.hpo_count() != header_hpo_count {
-                return Err(format!("Error ({}:l.{}) - PPKtRow has {} HPO columns, but the header has {} HPO columns",
-                    file!(), line!(), ppkt_row.hpo_count(), header_hpo_count));
-            }
-            let mut allele_key_list = vec![]; // TODO
-            for gv_dto in ppkt_row.get_gene_var_dto_list() {
-                if gv_dto.allele1_is_present() {
-                    //gv_dto.get_key_allele1()
-                    if gv_dto.allele1_is_hgvs() {
-                        let allele_key = HgvsVariant::generate_variant_key(&gv_dto.allele1, &gv_dto.gene_symbol, &gv_dto.transcript);
-                        allele_key_list.push(allele_key);
-                    } else if gv_dto.allele1_is_sv(){
-                        // We do not try to guess the SV type, the user needs to adjust in the GUI
-                        let allele_key = StructuralVariant::generate_variant_key(&gv_dto.allele1, &gv_dto.gene_symbol, SvType::Sv);
-                        allele_key_list.push(allele_key);
-                    } else {
-                        return Err(format!("Unknown allele1 type {:?}", gv_dto));
-                    }
-                }
-                if gv_dto.allele2_is_present() {
-                    if gv_dto.allele2_is_hgvs() {
-                        let allele_key = HgvsVariant::generate_variant_key(&gv_dto.allele2, &gv_dto.gene_symbol, &gv_dto.transcript);
-                        allele_key_list.push(allele_key);
-                    } else if gv_dto.allele2_is_sv(){
-                        // We do not try to guess the SV type, the user needs to adjust in the GUI
-                        let allele_key = StructuralVariant::generate_variant_key(&gv_dto.allele2, &gv_dto.gene_symbol, SvType::Sv);
-                        allele_key_list.push(allele_key);
-                    }else {
-                        return Err(format!("Unknown allele2 type {:?}", gv_dto));
-                    }
-                }
-            }
-            let row_dto = RowData::from_ppkt_row(&ppkt_row, allele_key_list)?;
-            if row_dto.hpo_data.len() != header_hpo_count {
-                return Err(format!("Error ({}:l.{}) - RowDto has {} HPO columns, but the header has {} HPO columns",
-                    file!(), line!(),row_dto.hpo_data.len(), header_hpo_count));
-            }
-            row_dto_list.push(row_dto);
-        }
-        let header_duplet_list = hdr_arc.get_hpo_header_dtos();
-        
-        let cohort_dto = CohortData::mendelian_with_variants(
-            dg_dto, 
-            header_duplet_list, 
-            row_dto_list,
-            hpo.version(),
-            vmanager.hgvs_map(), 
-            vmanager.sv_map(), 
-        );
-        Ok(cohort_dto)
-    }
-    */
 
-    fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), String> {
-        let term_id = match TermId::from_str(duplet.hpo_id()) {
-            Ok(tid) => tid,
-            Err(e) => { return Err(format!("Could not create TermId from '{}': {}", duplet.hpo_id(), e)); },
-        };
-        match self.hpo.term_by_id(&term_id) {
-            Some(term) => {
-                if term.identifier().to_string() != duplet.hpo_id() {
-                    return Err(format!("Identifier '{}' did not match primary ID {}", duplet.hpo_id(), term.identifier()));
-                } else if term.name() != duplet.hpo_label() {
-                    return Err(format!("HPO Label '{}' did not match expected label {}", duplet.hpo_label(), term.name()));
-                }
-            },
-            None => { return Err(format!("Could not retrieve Term from TermId '{:?}'", term_id)); },
+    fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), OntologyError> {
+        let term_id = TermId::from_str(duplet.hpo_id())
+            .map_err(|_|OntologyError::term_id_creation(duplet.hpo_id()))?;
+        let term: &SimpleTerm = self.hpo.term_by_id(&term_id)
+            .ok_or_else(|| OntologyError::term_not_found(term_id.to_string()))?;
+        if term.identifier().to_string() != duplet.hpo_id() {
+            return Err(OntologyError::tid_mismatch(term.identifier().to_string(), duplet.hpo_id()));
+        } else if term.name() != duplet.hpo_label() {
+                return Err(OntologyError::label_mismatch(duplet.hpo_label(),  term.name()));
         }
-
         Ok(())
     }
 
