@@ -32,6 +32,20 @@ fn transformed_from_string(item: &str) -> EtlCellValue {
     }
 }
 
+fn cell_value_json(inner: &str) -> String {
+    format!(r#"{{"type":"{inner}"}}"#)
+}
+
+fn transformed_cell_value(inner: &str) -> EtlCellValue {
+    let json = cell_value_json(inner);
+    EtlCellValue {
+        original: inner.to_string(), // or a more realistic raw string if you prefer, see note below
+        current: json,
+        status: EtlCellStatus::Transformed,
+        error: None,
+    }
+}
+
 #[fixture]
 fn patient_id_column_valid(
 ) -> ColumnDto {
@@ -98,11 +112,10 @@ fn sex_column_valid() -> ColumnDto {
 }
 
 
-
 #[fixture]
 fn delayed_sit_column_valid() -> ColumnDto {
-    let observed = transformed_from_string("observed");
-    let na = transformed_from_string("na");
+    let observed = transformed_cell_value("Observed");
+    let na = transformed_cell_value("Na");
     ColumnDto {
         id: "56988503-a04b-4783-ab5c-41afb0eb136f".to_string(),
         header: EtlColumnHeader{
@@ -119,9 +132,8 @@ fn delayed_sit_column_valid() -> ColumnDto {
 
 #[fixture]
 fn delayed_gross_motor() -> ColumnDto {
-    // Delayed gross motor development HP:0002194 -- parent of Delayed ability to sit, this may be redundant
-    let observed = transformed_from_string("observed");
-    let na = transformed_from_string("na");
+    let observed = transformed_cell_value("Observed");
+    let na = transformed_cell_value("Na");
     ColumnDto {
         id: "56988503-a04b-4783-ab5c-41afb0eb131a".to_string(),
         header: EtlColumnHeader{
@@ -134,51 +146,12 @@ fn delayed_gross_motor() -> ColumnDto {
         },
         values: vec![observed, na ]
     }
-
-}
-
-
-#[fixture]
-fn gdd_column_valid() -> ColumnDto {
-    let observed = transformed_from_string("HP:0001263-observed-na");
-    ColumnDto {
-        id: "61d07214-abb0-45cf-aa67-3218730416c0".to_string(),
-        header: EtlColumnHeader{
-            original: "Other developmental steps".to_string(),
-            current: Some("Multiple HPO terms - Other developmental steps".to_string()),
-            column_type: EtlColumnType::MultipleHpoTerm,
-            hpo_terms: Some(vec![
-                HpoTermDuplet::new("Global developmental delay", "HP:0001263" )
-            ]),
-        },
-        values: vec![observed.clone(), observed   ]
-    }
-}
-
-
-#[fixture]
-fn hypertelorism_column_valid() -> ColumnDto {
-    let observed = transformed_from_string("HP:0000601-observed-na;HP:0000316-excluded-na");
-    let o2 = transformed_from_string("HP:0000601-excluded-na;HP:0000316-observed-na");
-    ColumnDto {
-        id: "5697a6ef-4855-4230-9bb1-a8511acadcb3".to_string(),
-        header: EtlColumnHeader {
-            original: "Hypotelorism/hypertelorism".to_string(),
-            current: Some("Multiple HPO terms - Hypotelorism/hypertelorism".to_string()),
-            column_type: EtlColumnType::MultipleHpoTerm,
-            hpo_terms: Some(vec![
-                HpoTermDuplet::new("Hypotelorism", "HP:0000601"),
-                HpoTermDuplet::new("Hypertelorism", "HP:0000316"),
-            ]),
-        },
-        values: vec![observed, o2 ],
-    }
 }
 
 #[fixture]
 fn column_strabismus() -> ColumnDto {
-    let observed = transformed_from_string("observed");
-    let excluded = transformed_from_string("excluded");
+    let observed = transformed_cell_value("Observed");
+    let excluded = transformed_cell_value("Excluded");
     ColumnDto {
         id: "0cfed850-7d6f-4344-b52b-a12f86ff0f85".to_string(),
         header: EtlColumnHeader {
@@ -193,8 +166,8 @@ fn column_strabismus() -> ColumnDto {
 
 #[fixture]
 fn column_ptosis() -> ColumnDto {
-    let observed = transformed_from_string("observed");
-    let excluded = transformed_from_string("excluded");
+    let observed = transformed_cell_value("Observed");
+    let excluded = transformed_cell_value("Excluded");
     ColumnDto {
         id: "c41e1b1c-2610-4414-a754-ca0e2117816d".to_string(),
         header: EtlColumnHeader {
@@ -207,10 +180,9 @@ fn column_ptosis() -> ColumnDto {
     }
 }
 
-
 #[fixture]
 fn exclude_abn_eye() -> ColumnDto {
-    let excluded= transformed_from_string("excluded");
+    let excluded = transformed_cell_value("Excluded");
     ColumnDto {
         id: "c41e1b1c-abdc-4414-a754-ca0e2117816d".to_string(),
         header: EtlColumnHeader {
@@ -288,6 +260,43 @@ fn disease_valid() -> DiseaseData {
             gene_symbol: "WDR83OS".to_string(),
             transcript: "NM_016145.4".to_string(),
         }],
+    }
+}
+
+#[fixture]
+fn gdd_column_valid() -> ColumnDto {
+    let observed = transformed_cell_value("Observed");
+    let na = transformed_cell_value("Na");
+    ColumnDto {
+        id: "56988503-a04b-4783-ab5c-41afb0eb122f".to_string(),
+        header: EtlColumnHeader{
+            original: "Global developmental delay".to_string(),
+            current: Some("Global developmental delay - HP:0001263".to_string()),
+            column_type: EtlColumnType::SingleHpoTerm,
+            hpo_terms: Some(vec![
+                HpoTermDuplet::new("Global developmental delay","HP:0001263" )
+            ]),
+        },
+        values: vec![observed, na  ]
+    }
+}
+
+
+#[fixture]
+fn hypertelorism_column_valid() -> ColumnDto {
+    let observed = transformed_cell_value("Observed");
+    let na = transformed_cell_value("Na");
+    ColumnDto {
+        id: "56988503-a04b-4783-ab5c-41afb0aa122f".to_string(),
+        header: EtlColumnHeader{
+            original: "Hypertelorism".to_string(),
+            current: Some("Hypertelorism - HP:0000316".to_string()),
+            column_type: EtlColumnType::SingleHpoTerm,
+            hpo_terms: Some(vec![
+                HpoTermDuplet::new("Hypertelorism","HP:0000316" )
+            ]),
+        },
+        values: vec![observed, na  ]
     }
 }
 
@@ -514,7 +523,7 @@ fn test_column_type_with_trailing_whitespace(
     let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert_eq!(err, "Ptosis: trailing whitespace - 'observed '");
+    assert_eq!(err, r#"Ptosis: trailing whitespace - '{"type":"Observed"} '"#);
 }
 
 

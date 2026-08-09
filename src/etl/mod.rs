@@ -71,7 +71,7 @@ pub fn get_cohort_data_from_etl_dto(
     hpo: Arc<FullCsrOntology>,
     dto: EtlDto,
 ) -> Result<CohortData, String> {
-    let mut etl_tools = EtlTools::from_dto(hpo, &dto);
+    let mut etl_tools = EtlTools::from_etl(dto, hpo);
     etl_tools.get_cohort_data()
 }
 

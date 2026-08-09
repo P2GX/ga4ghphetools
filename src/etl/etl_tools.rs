@@ -2,12 +2,13 @@ use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::{collections::HashMap, fmt, fs, sync::Arc};
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
+use phenopackets::schema::v2::core::value;
 use regex::Regex;
 
 use crate::dto::cohort_dto::DiseaseData;
 use crate::dto::etl_dto::{ColumnDto, EtlCellStatus, EtlCellValue};
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
-use crate::dto::hpo_term_dto::{CellValue, HpoTermData};
+use crate::dto::hpo_term_dto::{CellValue, CellValueInner, HpoTermData};
 use crate::variant::variant_manager::VariantManager;
 use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
@@ -24,33 +25,10 @@ pub struct EtlTools {
 
 impl EtlTools {
 
-
-    pub fn from_dto(
-        hpo: Arc<FullCsrOntology>, 
-        dto: &EtlDto,
-    ) -> Self {
-        Self{
-            hpo,
-            dto: dto.clone(),
-        }
-    }
-
-    pub fn from_json(
-        etl_file_path: &str,
-        hpo: Arc<FullCsrOntology>,
-    ) -> Result<Self, String> {
-        let dto = EtlTools::load_etl_dto_from_json(etl_file_path)?;
-        Ok(
-            Self {
-                hpo,
-                dto
-            }
-        ) 
-    }
-
+    /// The EtlDto is the object that is created in the front end to import an external table
     pub fn from_etl(
         etl: EtlDto,
-         hpo: Arc<FullCsrOntology>,
+        hpo: Arc<FullCsrOntology>,
     ) -> Self {
         Self {
             hpo,
@@ -60,15 +38,6 @@ impl EtlTools {
 
     pub fn raw_table(&self) -> &EtlDto {
         &self.dto
-    }
-
-    // Function to load JSON file and deserialize to ColumnTableDto
-    pub fn load_etl_dto_from_json(file_path: &str) -> Result<EtlDto, String> {
-        let json_content = fs::read_to_string(file_path)
-            .map_err(|e| e.to_string())?;
-        let etl_dto: EtlDto = serde_json::from_str(&json_content)
-            .map_err(|e| e.to_string())?;
-        Ok(etl_dto)
     }
 
 
@@ -165,40 +134,38 @@ impl EtlTools {
     }
 
 
-    fn resolve_hpo_conflict(val1: &str, val2: &str) -> Result<String, String> {
-        if val1 == "na" {
-            return Ok(val2.to_string());
-        } else if val2 == "na" {
-            return Ok(val1.to_string());
+    fn resolve_hpo_conflict(val1: &CellValue, val2: &CellValue) -> Result<CellValue, String> {
+        let is_na = |v:&CellValue| v.entry == CellValueInner::Na;
+        let is_excluded = |v: &CellValue| v.entry == CellValueInner::Excluded;
+        let is_observed = |v: &CellValue| v.entry == CellValueInner::Observed;
+        if is_na(val1) {
+            return Ok(val2.clone());
+        } else if is_na(val2) {
+            return Ok(val1.clone());
         }
-        // if we get here, neither value is "na".
-        // if one of the values is excluded and the other is observed or an onset,
-        // then we conclude that the relevant HPO term was reported to be present in one of the columns
-        // and we return the reported one
-        if val1 == "excluded" {
-            return Ok(val2.to_string());
-        } else if val2 == "excluded" {
-            return Ok(val1.to_string());
+        if is_excluded(val1) {
+            return Ok(val2.clone());
+        } else if is_excluded(val2) {
+            return Ok(val1.clone());
         }
-        // if we get here, then either one of the strings is observed and the other is an onset,
-        // or we have two onsets. If one is observed and the other is onset, then we take the
-        // onset, this provides more information
-        if val1 == "observed" {
-            return Ok(val2.to_string());
-        } else if val2 == "observed" {
-            return Ok(val1.to_string());
+        if is_observed(val1) {
+            // val2 is either observed or something more specific
+            return Ok(val2.clone());
+        } else if is_observed(val2) {
+            // val1 is either observed or something more specific
+            return Ok(val1.clone());
         }
         // if we get here, we have two onset terms.
         // todo -- choose the earliest onset
-        Err(format!("Conflicting HPO entries: '{}' and '{}'", val1, val2))
+        Err(format!("Conflicting HPO entries: '{:?}' and '{:?}'", val1, val2))
     }
 
     /// We check if there is already an entry for some HPO term in some row. If yes, we throw an
     /// error if the two values disagree.
     fn insert_or_validate(
-        map: &mut HashMap<HpoTermDuplet, String>, 
+        map: &mut HashMap<HpoTermDuplet, CellValue>, 
         key: HpoTermDuplet, 
-        value: String) 
+        value: CellValue) 
     -> Result<(), String> {
         match map.entry(key) {
             Entry::Occupied(mut entry) => {
@@ -243,7 +210,7 @@ impl EtlTools {
     /// Returns `Err(String)` if any observation pair in `value` does not contain
     /// exactly one `-` (empty strings are also considered valid -- this would be "na" for all HPOs).
     fn insert_multiple_hpo_column(
-        map: &mut HashMap<HpoTermDuplet, String>, 
+        map: &mut HashMap<HpoTermDuplet, CellValue>, 
         duplet_list: &[HpoTermDuplet], 
         value: String) -> Result<(), String>{
         let observation_list = value.split(";");
@@ -275,7 +242,14 @@ impl EtlTools {
             .get(hdup.hpo_id())
             .cloned()
             .unwrap_or_else(|| "na".to_string());
-            map.insert(hdup.clone(), val);
+        let cell_val = match val.as_str() {
+            "observed" => CellValue::observed(),
+            "excluded" => CellValue::excluded(),
+            "na" => CellValue::na(),
+            onset => CellValue::from_string(onset)?,
+        };
+       Self::insert_or_validate(map, hdup.clone(), cell_val)?; 
+        
         }
         Ok(())
     }
@@ -295,7 +269,7 @@ impl EtlTools {
         disease: &DiseaseData) 
     -> Result<RowData, String> {
          let individual = self.get_individual(i)?;
-         let mut hpo_to_status_map: HashMap<HpoTermDuplet, String> = HashMap::new();
+         let mut hpo_to_status_map: HashMap<HpoTermDuplet, CellValue> = HashMap::new();
          let mut allele_count_map: HashMap<String, usize> = HashMap::new();
          let mut text_mining_column: Option<ColumnDto> = None;
          for col in &self.dto.table.columns {
@@ -309,7 +283,9 @@ impl EtlTools {
                         ));
                     };
                     let single_term = &hpo_terms[0]; 
-                    Self::insert_or_validate(&mut hpo_to_status_map, single_term.clone(), col.values[i].current.clone())?;
+                    let cell_value: CellValue = serde_json::from_str(&col.values[i].current)
+                        .map_err(|e| format!("Malformed CellValue JSON for '{}': {e}", col.header.original))?;
+                    Self::insert_or_validate(&mut hpo_to_status_map, single_term.clone(), cell_value)?;
                 } else {
                     return Err("Could not extract HpoTermDuplet from Single HPO column".to_string());
                 }
@@ -333,17 +309,8 @@ impl EtlTools {
          let mut values: Vec<CellValue> = Vec::new();
          for hpo_duplet in all_hpo_duplets {
             match hpo_to_status_map.get(hpo_duplet) {
-                Some(status) => {
-                    match status.as_str() {
-                        "observed" => { values.push(CellValue::observed());},
-                        "excluded" => { values.push(CellValue::excluded());},
-                        "na" => { values.push(CellValue::na());},
-                        _ => { values.push(CellValue::from_string(status)?);}
-                    }
-                }
-                None => {
-                    values.push(CellValue::na());
-                }
+                Some(cell_val) => values.push(cell_val.clone()),
+                None => values.push(CellValue::na()),
             }
          }
          // We let the HPO Text mining override any other annotations
