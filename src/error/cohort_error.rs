@@ -2,7 +2,7 @@ use ontolius::TermId;
 use thiserror::Error;
 use serde::Serialize;
 
-use crate::error::cohort_error::CohortError::NoDisease;
+use crate::error::cohort_error::CohortError::{MissingCellValue, NoDisease};
 
 #[derive(Debug, Clone, Error, Serialize)]
 #[serde(tag = "code", content = "message")]
@@ -17,6 +17,8 @@ pub enum CohortError {
     ColumnNotFound(String),
     #[error("{0}")]
     NoDisease(String),
+    #[error("Could not retrieve CellValue for '{0}'")]
+    MissingCellValue(String)
 }
 
 impl CohortError {
@@ -26,5 +28,10 @@ impl CohortError {
 
     pub fn missing_column(tid: &TermId) -> Self {
         CohortError::ColumnNotFound(tid.to_string())
+    }
+
+    /// Should never happen, but we need this since we retrieve the CellValue from a map
+    pub fn missing_cell_value(tid: &TermId) -> Self {
+        MissingCellValue(tid.to_string())
     }
 }

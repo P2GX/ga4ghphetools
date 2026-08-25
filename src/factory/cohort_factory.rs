@@ -81,13 +81,14 @@ impl CohortFactory {
 
 
     /// Check the formatting of the HPO annotations (intended to be used by the add_new_row_to_cohort function)
-    fn qc_hp_annotations(hpo_annotations: &Vec<HpoTermData>) -> Result<(), PheToolsError> {
+    fn qc_hp_annotations(&self, hpo_annotations: &Vec<HpoTermData>) -> Result<(), PheToolsError> {
         for hp_annot in hpo_annotations {
             if ! hp_annot.is_observed() {
                 if hp_annot.has_modifier() {
                     return Err(AnnotationError::misplaced_modifier(hp_annot).into());
                 }
             }
+            println!("\n{:?}", hp_annot);
         }
 
         Ok(())
@@ -107,7 +108,7 @@ impl CohortFactory {
         cohort_dto: CohortData) 
     -> Result<CohortData, PheToolsError> {
         // == STEP 0: Q/C
-        Self::qc_hp_annotations(&hpo_annotations)?;
+        self.qc_hp_annotations(&hpo_annotations)?;
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
         let dto_map: HashMap<TermId, String> = hpo::term_label_map_from_dto_list(self.hpo.clone(), &hpo_annotations)?;
         let mut term_id_set_new: HashSet<TermId>  = dto_map.keys().cloned().collect();
@@ -140,10 +141,10 @@ impl CohortFactory {
         }
         // Now add the new RowDto object
         // 1. get map with TermId and Value (e.g., observed) for the new terms
-        let mut tid_to_value_map: HashMap<TermId, String> = HashMap::new();
-        for dto in   hpo_annotations {
+        let mut tid_to_value_map: HashMap<TermId, CellValue> = HashMap::new();
+        for dto in hpo_annotations {
             match dto.ontolius_term_id() {
-                Ok(tid) => { tid_to_value_map.insert(tid, dto.entry().to_string()); },
+                Ok(tid) => { tid_to_value_map.insert(tid, dto.entry); },
                 Err(_) => { return Err(PheToolsError::Ontology(OntologyError::term_id_creation(dto.term_id()))); },
             }
         }
@@ -220,16 +221,15 @@ impl CohortFactory {
         header_dto_list:  &Vec<HpoTermDuplet>, 
         individual_dto: IndividualData,
         variant_key_list: Vec<String>,
-        tid_to_value_map: HashMap<TermId, String>, 
+        tid_to_value_map: HashMap<TermId, CellValue>, 
         disease_data_list: &Vec<DiseaseData>
     ) -> std::result::Result<RowData, PheToolsError> {
         // Create a list of CellDto objects that matches the new order of HPO headers
         let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
         for hduplet in header_dto_list {
             let tid = hduplet.to_term_id()?;
-            let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
-            let cell_value = CellValue::from_str(&value)?;
-            hpo_cell_list.push(cell_value);
+            let cell_value: &CellValue =  tid_to_value_map.get(&tid).ok_or_else(|| CohortError::missing_cell_value(&tid))?;
+            hpo_cell_list.push(cell_value.clone());
         }
         let disease_id_list: Vec<String> = disease_data_list.iter().map(|d| d.disease_id.clone()).collect();
         // Could the alleles
@@ -611,36 +611,8 @@ mod test {
     use super::*;
     use rstest::{fixture, rstest};
 
-    #[fixture]
-    fn row1() -> Vec<String> 
-    {
-        let row: Vec<&str> = vec![
-            "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id",	"gene_symbol", 
-            "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", 
-            "deceased", "sex", "HPO",	"Clinodactyly of the 5th finger", "Hallux valgus",	"Short 1st metacarpal", 
-            "Ectopic ossification in muscle tissue", "Long hallux", "Pain", "Short thumb"
-        ];
-        row.into_iter().map(|s| s.to_owned()).collect()
-    }
 
-    #[fixture]
-    fn row2() -> Vec<String> 
-    {
-        let row: Vec<&str> = vec![
-            "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", "str", "str", "str", "str", "optional", "age", "age", "yes/no/na", "M:F:O:U", "na",
-            "HP:0004209", "HP:0001822", "HP:0010034", "HP:0011987", "HP:0001847", "HP:0012531", "HP:0009778"];
-        row.into_iter().map(|s| s.to_owned()).collect()
-    }
-
-    #[fixture]
-    fn row3() -> Vec<String> {
-        let row: Vec<&str> =  vec![
-            "PMID:29482508", "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report", "current case", "", 
-            "OMIM:135100", "Fibrodysplasia ossificans progressiva", "HGNC:171", "ACVR1", 
-            "NM_001111067.4", "c.617G>A", "na", "NP_001104537.1:p.(Arg206His)", 
-            "P9Y", "P16Y", "no", "M", "na", "na", "P16Y", "na", "P16Y", "P16Y", "P16Y", "na"];
-        row.into_iter().map(|s| s.to_owned()).collect()
-    }
+  
 
 
     #[fixture]
@@ -658,6 +630,33 @@ mod test {
             gene_transcript_list: vec![gv_dto] 
         };
         dx_dto
+    }
+
+    // Define a basic rstest fixture for standard HpoTermData
+    #[fixture]
+    fn high_palate_observed_with_modifier() -> HpoTermData {
+        // Construct according to your struct definition
+        HpoTermData {
+            term_duplet: HpoTermDuplet {
+                hpo_label: "High palate".to_string(),
+                hpo_id: "HP:0000218".to_string(),
+            },
+            entry: CellValue {
+                entry: crate::dto::hpo_term_dto::CellValueInner::Observed, 
+                modifiers: vec!["HP:0012828".to_string()],
+            },
+        }
+    }
+
+    #[rstest]
+    fn test_qc_hp_annotations_with_invalid_modifier(
+        high_palate_observed_with_modifier: HpoTermData,
+        hpo: Arc<FullCsrOntology>
+    ) {
+        let annotations = vec![high_palate_observed_with_modifier];
+        let factory = CohortFactory::new(hpo.clone());
+        let result = factory.qc_hp_annotations(&annotations);
+        assert!(result.is_ok());
     }
 
 
