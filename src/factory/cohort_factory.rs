@@ -6,11 +6,17 @@
 //! after we are finished refactoring the legacy files.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
-    Identified, TermId, ontology::{MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::{MinimalTerm, Term, simple::{SimpleMinimalTerm, SimpleTerm}},
+    Identified, TermId, ontology::{MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::{MinimalTerm, simple::{SimpleMinimalTerm, SimpleTerm}},
 };
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, structural_variant::{StructuralVariant}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError},  hpo, ppkt::ppkt_row::PpktRow};
+use crate::{
+    dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, 
+    hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, 
+    structural_variant::StructuralVariant}, 
+    error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError, annotation_error::AnnotationError}, 
+    hpo, 
+    ppkt::ppkt_row::PpktRow};
 
 
 
@@ -73,6 +79,20 @@ impl CohortFactory {
         Ok(previous_tid_list)
     }
 
+
+    /// Check the formatting of the HPO annotations (intended to be used by the add_new_row_to_cohort function)
+    fn qc_hp_annotations(hpo_annotations: &Vec<HpoTermData>) -> Result<(), PheToolsError> {
+        for hp_annot in hpo_annotations {
+            if ! hp_annot.is_observed() {
+                if hp_annot.has_modifier() {
+                    return Err(AnnotationError::misplaced_modifier(hp_annot).into());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// We have a CohortDto and want to add new data to create a new row.
     /// We need to integrate the HPO annotations contained in hpo_annotations (which has HPO term id, label, and cell value)
     /// with the existing annoations, which potentially means that we need to rearrange the order of the
@@ -86,6 +106,8 @@ impl CohortFactory {
         variant_key_list: Vec<String>,
         cohort_dto: CohortData) 
     -> Result<CohortData, PheToolsError> {
+        // == STEP 0: Q/C
+        Self::qc_hp_annotations(&hpo_annotations)?;
         // === STEP 1: Extract all HPO TIDs from DTO and classify ===
         let dto_map: HashMap<TermId, String> = hpo::term_label_map_from_dto_list(self.hpo.clone(), &hpo_annotations)?;
         let mut term_id_set_new: HashSet<TermId>  = dto_map.keys().cloned().collect();

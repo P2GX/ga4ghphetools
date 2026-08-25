@@ -1,8 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
-use std::{collections::HashMap, fmt, fs, sync::Arc};
+use std::{collections::HashMap, fmt, sync::Arc};
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
-use phenopackets::schema::v2::core::value;
 use regex::Regex;
 
 use crate::dto::cohort_dto::DiseaseData;

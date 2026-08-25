@@ -87,6 +87,7 @@ impl FromStr for CellValue {
     type Err = crate::error::parse_error::ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        println!("phetools CellValue FromStr {}",s);
        let entry = match s {
             "observed" => CellValueInner::Observed,
             "excluded" => CellValueInner::Excluded,
