@@ -8,10 +8,8 @@ use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
     Identified, TermId, ontology::{MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::{MinimalTerm, simple::{SimpleMinimalTerm, SimpleTerm}},
 };
-use phenopackets::schema::v2::Phenopacket;
-
 use crate::{
-    dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, RowData}, 
+    dto::{cohort_dto::{CohortData, CohortType, DiseaseData, IndividualData, RowData}, 
     hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, 
     structural_variant::StructuralVariant}, 
     error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError, annotation_error::AnnotationError}, 
@@ -88,7 +86,6 @@ impl CohortFactory {
                     return Err(AnnotationError::misplaced_modifier(hp_annot).into());
                 }
             }
-            println!("\n{:?}", hp_annot);
         }
 
         Ok(())
@@ -143,10 +140,8 @@ impl CohortFactory {
         // 1. get map with TermId and Value (e.g., observed) for the new terms
         let mut tid_to_value_map: HashMap<TermId, CellValue> = HashMap::new();
         for dto in hpo_annotations {
-            match dto.ontolius_term_id() {
-                Ok(tid) => { tid_to_value_map.insert(tid, dto.entry); },
-                Err(_) => { return Err(PheToolsError::Ontology(OntologyError::term_id_creation(dto.term_id()))); },
-            }
+            let tid = dto.ontolius_term_id()?;
+            tid_to_value_map.insert(tid, dto.entry);
         }
 
         if cohort_dto.disease_list.is_empty() {
@@ -228,8 +223,11 @@ impl CohortFactory {
         let mut hpo_cell_list: Vec<CellValue> = Vec::with_capacity(header_dto_list.len());
         for hduplet in header_dto_list {
             let tid = hduplet.to_term_id()?;
-            let cell_value: &CellValue =  tid_to_value_map.get(&tid).ok_or_else(|| CohortError::missing_cell_value(&tid))?;
-            hpo_cell_list.push(cell_value.clone());
+            let cell_value: CellValue = match tid_to_value_map.get(&tid) {
+                Some(cv) => cv.clone(),
+                None => CellValue::na()
+            };
+            hpo_cell_list.push(cell_value);
         }
         let disease_id_list: Vec<String> = disease_data_list.iter().map(|d| d.disease_id.clone()).collect();
         // Could the alleles
@@ -333,7 +331,7 @@ impl CohortFactory {
     ///  (8*)  "transcript", (9) "allele_1", (10) "allele_2", (11) "variant.comment", 
     ///    (12) "age_of_onset", (13)"age_at_last_encounter", (14)  "deceased", (15) "sex", (16) "HPO", 
     /// The columns with asterisk are what we need
-    /// Note: This function should be deleted after the Excel files have been converted.
+    /*
     pub fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseData, String> {
         let rows: Vec<&Vec<String>> = matrix.iter().skip(2).collect();
         if rows.is_empty() {
@@ -365,7 +363,7 @@ impl CohortFactory {
             gene_transcript_list: vec![gtr_data],
         };       
         Ok(disease_data)
-    }
+    }*/
 
 
     fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), OntologyError> {
@@ -431,17 +429,6 @@ impl CohortFactory {
             }
         }
         Ok(var_list)
-    }
-
-    /// Get Phenopackets for all individuals (rows) represented in the cohort
-    /// orcid: ORCID id of the biocurator.
-    #[deprecated]
-    pub fn extract_phenopackets(
-        &self,
-        cohort_dto: CohortData,
-        orcid: &str) 
-    -> std::result::Result<Vec<Phenopacket>, String> {
-        crate::ppkt::get_phenopackets(cohort_dto, orcid.to_string(), self.hpo.clone())
     }
 
 

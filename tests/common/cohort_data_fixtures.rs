@@ -6,18 +6,6 @@ use ga4ghphetools::dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneT
 
 use rstest::fixture;
 
-/// Generate one row of a CohortData object
-pub fn make_row(pmid: &str, individual_id: &str, hpo_data: Vec<CellValue>) -> RowData {
-    RowData {
-        individual_data: IndividualData::new(
-            pmid, "Test Study", individual_id, "Test individual",
-            "P1Y", "P10Y", "false", "MALE",
-        ),
-        disease_id_list: vec!["OMIM:157000".to_string()],
-        allele_count_map: HashMap::new(),
-        hpo_data,
-    }
-}
 
 pub struct CohortBuilder {
     disease: DiseaseData,

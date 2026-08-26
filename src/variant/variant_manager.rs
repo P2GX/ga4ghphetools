@@ -437,7 +437,7 @@ mod tests {
 
     #[test]
     #[ignore = "API call"]
-    fn test_intergenic_TMEM216() {
+    fn test_intergenic_tmem216() {
         let symbol = "TMEM216";
         let transcript = "NM_001173990.3";
         let hgnc = "HGNC:25018";

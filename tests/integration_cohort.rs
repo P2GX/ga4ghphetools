@@ -16,9 +16,6 @@ use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::MetadataAware;
 use rstest::rstest;
 use common::hpo_fixture::hpo;
-
-
-use crate::common::cohort_data_fixtures::CohortBuilder;
 use crate::common::cohort_data_fixtures::cohort_with_na_column;
 use crate::common::matrix_fixtures::acvr1_cohort;
 use crate::common::matrix_fixtures::acvr1_disease_data;
@@ -28,23 +25,23 @@ use crate::common::matrix_fixtures::individual_data;
 
 
 
-    #[rstest]
-    fn test_add_one_hpo_term(
-        acvr1_cohort: CohortData,
-        hpo: Arc<FullCsrOntology>
-    ) {
-        assert_eq!(acvr1_cohort.cohort_type, CohortType::Mendelian);
-        assert_eq!(acvr1_cohort.hpo_headers.len(), 2);
-        assert_eq!(acvr1_cohort.rows.len(), 1);
-        let row0 = acvr1_cohort.rows.get(0).cloned().unwrap();
-        assert_eq!(2, row0.hpo_data.len());
-        let hpo_term = HpoTermDuplet::new("Long hallux", "HP:0001847");
-        let mut factory = CohortFactory::new(hpo.clone());
-        let result = factory.add_hpo_term_to_cohort(hpo_term.hpo_id(), hpo_term.hpo_label(), acvr1_cohort);
-        if result.is_err() {
-            let err = result.err().unwrap();
-            println!("{}", err);
-        } else {
+#[rstest]
+fn test_add_one_hpo_term(
+    acvr1_cohort: CohortData,
+    hpo: Arc<FullCsrOntology>
+) {
+    assert_eq!(acvr1_cohort.cohort_type, CohortType::Mendelian);
+    assert_eq!(acvr1_cohort.hpo_headers.len(), 2);
+    assert_eq!(acvr1_cohort.rows.len(), 1);
+    let row0 = acvr1_cohort.rows.get(0).cloned().unwrap();
+    assert_eq!(2, row0.hpo_data.len());
+    let hpo_term = HpoTermDuplet::new("Long hallux", "HP:0001847");
+    let mut factory = CohortFactory::new(hpo.clone());
+    let result = factory.add_hpo_term_to_cohort(hpo_term.hpo_id(), hpo_term.hpo_label(), acvr1_cohort);
+    if result.is_err() {
+        let err = result.err().unwrap();
+        println!("{}", err);
+    } else {
         assert!(result.is_ok());
         let new_cohort = result.unwrap();
         assert_eq!(3, new_cohort.hpo_headers.len());
@@ -62,7 +59,7 @@ use crate::common::matrix_fixtures::individual_data;
                 assert_eq!(htd.label(), "Long hallux");
                 assert_eq!(htd.entry(), "na");
             } else if htd.term_id() == "HP:0011987" {
-                 assert_eq!(htd.label(), "Ectopic ossification in muscle tissue");
+                    assert_eq!(htd.label(), "Ectopic ossification in muscle tissue");
                 assert_eq!(htd.entry(), "observed");
             } else if htd.term_id() == "HP:0011227" {
                 assert_eq!(htd.label(), "Elevated circulating C-reactive protein concentration");
@@ -72,7 +69,6 @@ use crate::common::matrix_fixtures::individual_data;
             }
         }
     }
-
 }
 
 
