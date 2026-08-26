@@ -87,7 +87,6 @@ impl FromStr for CellValue {
     type Err = crate::error::parse_error::ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        println!("phetools CellValue FromStr {}",s);
        let entry = match s {
             "observed" => CellValueInner::Observed,
             "excluded" => CellValueInner::Excluded,
@@ -115,7 +114,7 @@ impl CellValueInner {
     }
 
     pub fn is_observed(&self) -> bool {
-        matches!(self, CellValueInner::Observed)
+        matches!(self, CellValueInner::Observed) || self.has_onset()
     }
 
     pub fn has_onset(&self) -> bool {
@@ -328,8 +327,10 @@ impl HpoTermData {
         self.entry.entry == CellValueInner::Excluded
     }
 
+    /// An annotation is observed if it is simply asserted to be observed or if
+    /// it is annotated to have a specific onset
     pub fn is_observed(&self) -> bool {
-        self.entry.entry == CellValueInner::Observed
+        self.entry.entry == CellValueInner::Observed || self.has_onset()
     }
 
     pub fn is_ascertained(&self) -> bool {
@@ -377,7 +378,6 @@ mod test {
     #[rstest]
     fn test_cell_value_type() {
         let cv = CellValueInner::from_str("P32Y").unwrap();
-        println!("{:?}", cv);
         assert!(matches!(cv, CellValueInner::OnsetAge(..)))
     }
 
@@ -518,6 +518,16 @@ mod test {
         
         assert_eq!(result.entry, expected_entry);
         assert_eq!(result.modifiers, expected_modifiers);
+    }
+
+    #[rstest]
+    fn test_specific_onset_classified_as_observed() {
+        let cval1 = CellValue::from_str("Childhood onset").unwrap();
+        assert!(cval1.is_observed());
+        let cval2 = CellValue::from_str("P32Y").unwrap();
+        assert!(cval2.is_observed());
+        let cval3 = CellValue::from_str("G32w2d").unwrap();
+        assert!(cval3.is_observed());
     }
 
  
