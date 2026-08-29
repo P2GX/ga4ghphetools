@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use ontolius::TermId;
 use thiserror::Error;
 use serde::Serialize;
@@ -18,7 +20,9 @@ pub enum CohortError {
     #[error("{0}")]
     NoDisease(String),
     #[error("Could not retrieve CellValue for '{0}'")]
-    MissingCellValue(String)
+    MissingCellValue(String),
+    #[error("{0}")]
+    CohortIoError(String),
 }
 
 impl CohortError {
@@ -34,4 +38,18 @@ impl CohortError {
     pub fn missing_cell_value(tid: &TermId) -> Self {
         MissingCellValue(tid.to_string())
     }
+
+    pub fn io_error(path: &PathBuf, file_error: &str) -> Self {
+        let msg =  format!("Could not extract CohortData string from {}: {}", path.to_string_lossy(), file_error);
+        CohortError::CohortIoError(msg)
+    }
+
+    pub fn json_error(cohort_data: &str, json_error: &str) -> Self {
+        let msg =  format!("Could not transform string {} to CohortDto: {}",
+                cohort_data, json_error);
+        CohortError::CohortIoError(msg)
+    }
+
+
+  
 }

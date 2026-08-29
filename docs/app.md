@@ -23,6 +23,7 @@ Commands:
   compare      Compare two cohorts and export to Excel
   json         Q/C Cohort JSON file
   remove-term  Remove HPO Term and its annotations from Cohort Data file
+  update       Update HPO term ids/labels
   help         Print this message or the help of the given subcommand(s)
 
 Options:
@@ -37,14 +38,13 @@ cargo run --features cli --bin phetools
 
 In the rest of the documentation, we will assume that the application is on the path and just show `phetools`.
 
-## Extracting phenopackets from Cohort files
 
-The ``phenoboard`` app stores data in form of Cohort files (json). We can extract all of the phenopackets from one such file or a directory containing multiple such files using the following command
+- [excel](commands/excel.md)
+- [extract](commands/extract.md)
+- [update](commands/update.md)
 
-```bash
-phetools extract -i ../mgd-ppkt/cohorts -o <directory> --hpo hp.json
-```
-Where `<directory>` is an existing directory and hp.json should have the complete path to a downloaded `hp.json` file.
+
+
 
 ## Compare
 Compare two cohorts and export to Excel

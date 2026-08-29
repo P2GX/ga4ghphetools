@@ -17,7 +17,10 @@ pub enum OntologyError {
     #[error("Term {0} already present in Cohort")]
     RedundantTid(String),
     #[error("Hpo terms must match but we got {0} and {0}")]
-    OntologyMatch(String, String)
+    OntologyMatch(String, String),
+    #[error("{0}")]
+    TermDupletError(String)
+
     
 }
 
@@ -60,4 +63,12 @@ impl OntologyError {
     pub fn label_mismatch(label1: impl  Into<String>, label2: impl  Into<String>) -> Self {
         OntologyMatch(label1.into(), label2.into())
     }
+
+    pub fn term_duplet_conversion_error(duplet: &HpoTermDuplet) -> Self {
+        let msg = format!("Failed to parse TermId from row2: {} (converting duplet: {:?})", duplet.hpo_id(), duplet); 
+        OntologyError::TermDupletError(msg.into())
+    }
+
+
+
 }

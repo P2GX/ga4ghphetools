@@ -31,10 +31,7 @@ const DEFAULT_SO_VERSION: &str = "2024-11-18";
 static CLINICAL_MODIFIER: LazyLock<TermId> = LazyLock::new(|| {
     "HP:0012823".parse().expect("Failed to parse static HP:0012823")
 });
-/// HPO term Severity (HP:0012824)
-static SEVERITY: LazyLock<TermId> = LazyLock::new(||{
-    "HP:0012824".parse().expect("Failed to parse static HP:0012824")
-});
+
 /// All valid severity terms
 static SEVERITY_MAP: LazyLock<HashMap<String, OntologyClass>> = LazyLock::new(||{
     let mut smap = HashMap::new();

@@ -8,7 +8,7 @@ use std::{collections::HashSet, path::PathBuf, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::Serialize;
 
-use crate::repo::{compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::GptRepository, repo_qc::RepoQc};
+use crate::repo::{compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::GptRepository, qc_report::UpdateReport, repo_qc::RepoQc};
 
 
 mod cohort_dir;
@@ -18,6 +18,7 @@ mod gpt_repository;
 pub mod qc_report;
 pub mod repo_qc;
 mod compare_ppkt;
+
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -77,4 +78,12 @@ pub fn compare_two_phenopackets(path1: String, path2: String, hpo: Arc<FullCsrOn
 pub fn get_repo_qc(path: &PathBuf) -> Result<RepoQc, String> {
      let repo = GptRepository::new(path);
      repo.repo_qc()
+}
+
+pub fn update_all_ppkt(
+    path: &PathBuf,
+    hpo: Arc<FullCsrOntology>
+) -> Result<UpdateReport, String> {
+    let repo = GptRepository::new(path);
+    repo.update_all_ppkt(hpo).map_err(|e|e.to_string())
 }

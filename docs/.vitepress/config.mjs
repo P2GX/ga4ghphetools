@@ -25,10 +25,21 @@ export default defineConfig({
         items: [
           { text: 'Introduction', link: '/introduction' },
           { text: 'Getting Started', link: '/getting-started' },
-          { text: 'Phenotype.hpoa', link: '/phenotype-hpoa' },
-          { text: 'Legacy Template', link: '/legacy' },
-          { text: 'Application', link: '/app' },
-          { text: 'Output', link: '/excel' },
+          { text: 'Background', link: '/background',
+             collapsed: false,
+            items: [
+              { text: 'Phenotype.hpoa', link: '/background/phenotype-hpoa' },
+            ]
+          },
+          { text: 'Application', 
+            link: '/app',
+            collapsed: false,
+            items: [
+              { text: 'Excel', link: '/commands/excel' },
+              { text: 'Extract', link: '/commands/extract' },
+              { text: 'Update', link: '/commands/update' }
+            ]
+          },
           { text: 'API Reference', link: '/api' }
         ]
       }

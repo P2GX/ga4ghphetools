@@ -14,6 +14,7 @@ const ACCEPTABLE_GENOMES: [&str; 2] = [ "GRCh38",  "hg38"];
 
 
 pub struct StructuralValidator {
+    #[allow(dead_code)]
     genome_assembly: String,
     validated_sv: HashMap<String, StructuralVariant>,
     /// Single HTML client for the app

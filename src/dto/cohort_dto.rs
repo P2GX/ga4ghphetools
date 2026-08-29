@@ -5,9 +5,11 @@
 
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use chrono::Local;
 use ontolius::TermId;
+use ontolius::ontology::csr::FullCsrOntology;
 use serde::{Deserialize, Serialize};
 use crate::dto::hgvs_variant::HgvsVariant;
 use crate::dto::hpo_term_dto::{CellValue};
@@ -496,6 +498,14 @@ impl CohortData {
             cohort = cohort.remove_hpo_column(&tid)?;
         }
         Ok(cohort)
+    }
+
+
+    pub fn update_hpo(&mut self, hpo: Arc<FullCsrOntology>) -> Result<bool, String> {
+
+
+
+        Ok(false)
     }
     
 }

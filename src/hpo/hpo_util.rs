@@ -7,7 +7,7 @@ use crate::error::ontology_error::OntologyError;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::MinimalTerm;
-use ontolius::TermId;
+use ontolius::{Identified, TermId};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -65,36 +65,6 @@ impl HpoUtil {
     }
 
 
-
-    /// Check the validity of the HPO TermId/label pairs in the DTO objects and return corresponding HpoTermDuplet list
-    pub fn hpo_duplets_from_dto(&self, hpo_dto_list: &Vec<HpoTermData>) -> std::result::Result<Vec<HpoTermDuplet>, ValidationErrors> {
-        let mut hpo_duplets: Vec<HpoTermDuplet> = Vec::with_capacity(hpo_dto_list.len());
-        let mut verr = ValidationErrors::new();
-        for hpo_dto in hpo_dto_list {
-            let tid = match hpo_dto.ontolius_term_id() {
-                Ok(tid) => tid,
-                Err(_) => {
-                    return Err(ValidationErrors::from_one_err(
-                    format!("Could not create TermId from {:?}", hpo_dto)));}
-            };
-            if let Some(term) = self.hpo.term_by_id(&tid) {
-                if term.name() != hpo_dto.label() {
-                    verr.push_str(format!("Expected label '{}' but got '{}' for TermId '{}'",term.name(), hpo_dto.label(), tid));
-                }
-                hpo_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
-            } else {
-                verr.push_str(format!("Could not find term for {}", hpo_dto.term_id()));
-            }
-        }
-        if verr.has_error() {
-            Err(verr)
-        } else {
-            Ok(hpo_duplets)
-        }
-    }
-
-
-
     /// Update the HPO duplets with the current term names from the ontology
     /// This will automatically update term labels if they have changed
     /// This function is only used for the legacy Excel files and we will
@@ -103,12 +73,12 @@ impl HpoUtil {
     pub fn update_hpo_duplets(
         &self,
         hpo_duplets: &Vec<HpoTermDuplet>,
-    ) -> std::result::Result<Vec<HpoTermDuplet>, String> {
+    ) -> std::result::Result<Vec<HpoTermDuplet>, OntologyError> {
         let mut updated_duplets = vec![];
         for duplet in hpo_duplets {
             let tid = match duplet.to_term_id() {
                 Ok(tid) => tid,
-                Err(_) => { return Err(format!("Failed to parse TermId from row2: {} (converting duplet: {:?})", duplet.hpo_id(), duplet)); },
+                Err(_) => { return Err(OntologyError::term_duplet_conversion_error(duplet)) ; }
             };
             if let Some(term) = self.hpo.term_by_id(&tid) {
                 if term.name() != duplet.hpo_label() {
@@ -122,10 +92,31 @@ impl HpoUtil {
                     updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
                 }
             } else {
-                return Err(format!("No HPO Term found for '{}'", &tid));
+                return Err(OntologyError::term_not_found(tid.to_string()));
             }
         }
         Ok(updated_duplets)
+    }
+
+
+    /// Here we check if any of the term ids in a list of HPO headers is not up to date, meaning that
+    /// at least one TermId is not the current primary id or at least one label is not the current label
+    /// This can happen if an HPO term is modified or merged after a Cohort is curated. If this method
+    /// returns true, we will use the uupdate_hpo_duplets method to revise
+    pub fn needs_update(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> Result<bool, OntologyError> {
+        for hpo_dup in hpo_dup_list {
+            let tid = hpo_dup.to_term_id()?;
+            let term = self.hpo.term_by_id(&tid).ok_or_else(|| OntologyError::term_not_found(hpo_dup.hpo_id()))?;
+            if term.name() != hpo_dup.hpo_label() {
+                return Ok(true);
+            }
+            let primary_id = term.identifier();
+            if tid != *primary_id {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     pub fn check_hpo_duplets(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> std::result::Result<(), String> {

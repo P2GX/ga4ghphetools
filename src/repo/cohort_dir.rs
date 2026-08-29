@@ -8,12 +8,14 @@ use phenopackets::schema::v2::Phenopacket;
 use walkdir::WalkDir;
 use std::path::Path;
 
-use crate::{dto::cohort_dto::CohortData, repo::cohort_qc::CohortQc};
+use crate::{dto::cohort_dto::CohortData, error::cohort_error::CohortError, repo::cohort_qc::CohortQc};
 /// Represents a directory for one gene with all contained files and metadata.
 #[derive(Debug, Default)]
 pub struct CohortDir {
     ///cohort_name is usually a gene smbol such as ZRSR2 and corresponds to the path of the directory
     pub cohort_name: String,
+    /// Reference to full path of the cohort
+    pub path: PathBuf,
     /// The specific file or files like "ZRSR2_OFD21_individuals.json" (there must be at least one but can be many)
     pub individuals_json: Vec<PathBuf>,
     /// All JSON files inside the 'phenopackets' subdirectory (there must be at least one)
@@ -25,49 +27,49 @@ pub struct CohortDir {
 
 impl CohortDir {
     
+    /// Called by GptRepository::new, gets all of the CohortData files in each gene directory.
+    /// Each gene directory is named according to the gene symbol (e.g., FBN1) and
+    /// contains one or multiple CohortData files -- one per disease associated with the gene.
+    pub fn process_gene_directory(path: &Path) -> CohortDir {
+        let mut gene_dir = CohortDir {
+            cohort_name: path.file_name().unwrap_or_default().to_string_lossy().into(),
+            path: path.to_path_buf(),
+            ..Default::default()
+        };
 
-pub fn process_gene_directory(path: &Path) -> CohortDir {
-    let mut gene_dir = CohortDir {
-        cohort_name: path.file_name().unwrap_or_default().to_string_lossy().into(),
-        ..Default::default()
-    };
+        // Iterate through the immediate children of the gene directory
+        for entry in WalkDir::new(path).min_depth(1).max_depth(1).into_iter().filter_map(|e| e.ok()) {
+            let file_name = entry.file_name().to_string_lossy();
 
-    // Iterate through the immediate children of the gene directory
-    for entry in WalkDir::new(path).min_depth(1).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-        let file_name = entry.file_name().to_string_lossy();
-
-        if entry.file_type().is_dir() && file_name == "phenopackets" {
-            // Recurse into phenopackets
-            gene_dir.phenopackets = WalkDir::new(entry.path())
-                .min_depth(1)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().is_file())
-                .map(|e| e.into_path())
-                .collect();
-        } else if entry.file_type().is_file() && file_name.ends_with("_individuals.json") {
-            gene_dir.individuals_json.push(entry.into_path());
-        } else {
-            // Anything else (odd files, extra folders) is flagged
-            gene_dir.unexpected_entries.push(entry.into_path());
+            if entry.file_type().is_dir() && file_name == "phenopackets" {
+                // Recurse into phenopackets
+                gene_dir.phenopackets = WalkDir::new(entry.path())
+                    .min_depth(1)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.file_type().is_file())
+                    .map(|e| e.into_path())
+                    .collect();
+            } else if entry.file_type().is_file() && file_name.ends_with("_individuals.json") {
+                gene_dir.individuals_json.push(entry.into_path());
+            } else {
+                // Anything else (odd files, extra folders) is flagged
+                gene_dir.unexpected_entries.push(entry.into_path());
+            }
         }
+        gene_dir
     }
 
-    gene_dir
-}
-
     
-    fn read_cohort(path: &PathBuf) -> Result<CohortData, String> {
+    fn read_cohort(path: &PathBuf) -> Result<CohortData, CohortError> {
         let file_data = fs::read_to_string(path.clone())
-            .map_err(|e| 
-                format!("Could not extract string data from {}: {}", path.to_string_lossy(), e.to_string())).unwrap();
+            .map_err(|e| CohortError::io_error(path, &e.to_string()))?;
         let cohort: CohortData = serde_json::from_str(&file_data)
-            .map_err(|e| format!("Could not transform string {} to CohortDto: {}",
-                file_data, e.to_string()))?;
+            .map_err(|e| CohortError::json_error(&file_data, &e.to_string()))?;
         Ok(cohort)
     }
     
-    pub fn get_cohort_data(&self) -> Result<Vec<CohortData>, String> {
+    pub fn get_cohort_data(&self) -> Result<Vec<CohortData>, CohortError> {
         let mut cohorts: Vec<CohortData> = Vec::new();
         for pth in &self.individuals_json {
             let cohort = Self::read_cohort(pth)?;
@@ -139,10 +141,11 @@ pub fn process_gene_directory(path: &Path) -> CohortDir {
     }
 
     pub fn get_cohort_qc(&self) -> Result<CohortQc, String> {
-        let cohorts = self.get_cohort_data()?;
+        let cohorts = self.get_cohort_data().map_err(|e|e.to_string())?;
         let phenopackets = self.get_phenopackets()?;
         let unexpected_files = self.get_unexpected_file_names();
         CohortQc::new(&self.cohort_name, cohorts, phenopackets, unexpected_files)
     }
+
     
 }

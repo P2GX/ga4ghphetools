@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 
 
@@ -71,4 +71,30 @@ impl QcReport {
 
 
    
+}
+
+
+pub struct UpdateReport {
+    pub directory: String,
+    pub processed: usize,
+    pub updated: usize,
+}
+
+impl UpdateReport {
+    pub fn new(path: &PathBuf) -> Self {
+        Self {
+            directory: path.to_string_lossy().to_string(),
+            updated: 0,
+            processed: 0
+        }
+    }
+
+    pub fn updated(&mut self) {
+        self.updated += 1;
+        self.processed();
+    }
+
+    pub fn processed(&mut self) {
+        self.processed += 1;
+    }
 }

@@ -4,8 +4,10 @@ The [phenotype.hpoa](https://obophenotype.github.io/human-phenotype-ontology/ann
 is the core download of disease annotation data for the [HPO](https://hpo.jax.org/) project. Internally, the HPO project
 uses one so-called "small file" for each disease; information from these files is processed to make the phenotype.hpoa project, which is offered for download. The small files are not offered for download at this time.
 
+::: info
 GA4GH phenotools has functionality to export a cohort of phenopackets to small file format. For convenience, we explain this format
 here and explain the assumptions to code makes to generate the files.
+:::
 
 ## Format
 

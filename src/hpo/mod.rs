@@ -137,9 +137,18 @@ pub fn term_label_map_from_duplet_list(
 pub fn update_hpo_duplets(
     hpo: Arc<FullCsrOntology>,  
     hpo_duplets: &Vec<HpoTermDuplet>,
-) -> std::result::Result<Vec<HpoTermDuplet>, String> {
+) -> std::result::Result<Vec<HpoTermDuplet>, OntologyError> {
     let hpo_util = HpoUtil::new(hpo);
     hpo_util.update_hpo_duplets(hpo_duplets)
+}
+
+
+pub fn duplets_need_update(
+    hpo: Arc<FullCsrOntology>,  
+    hpo_duplets: &Vec<HpoTermDuplet>,
+) -> std::result::Result<bool, OntologyError> {
+    let hpo_util = HpoUtil::new(hpo);
+    hpo_util.needs_update(hpo_duplets)
 }
 
 /// Arrange the terms chosen for the template using Depth-First Search (DFS)
@@ -158,7 +167,7 @@ pub fn arrange_hpo_duplets(
     hpo_duplets: &Vec<HpoTermDuplet>)
 -> std::result::Result<Vec<HpoTermDuplet>, String> {
     let hpo_util = HpoUtil::new(hpo.clone());
-    let updated_duplets = hpo_util.update_hpo_duplets(hpo_duplets)?;
+    let updated_duplets = hpo_util.update_hpo_duplets(hpo_duplets).map_err(|e|e.to_string())?;
     let hpo_tids: Vec<TermId> = updated_duplets
         .into_iter()
         .map(|dplt| TermId::from_str(dplt.hpo_id())
