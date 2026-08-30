@@ -117,5 +117,57 @@ impl DiseaseQc {
         }
         errs
     }
+    
+    pub fn check_acronym(&self) -> Vec<QcReport> {
+       let mut errs: Vec<QcReport> = Vec::new();
+       let acronym = self.cohort.acronym();
+       let acronym = self.cohort.acronym();
+       if ! acronym.contains("_") {
+            errs.push(QcReport::malformed_acronym(acronym));
+       }
+       errs
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use rstest::rstest;
+    use rstest::fixture;
+  
+    // : 'RUNX2_CLCD1' -
+    #[fixture]
+    fn disease_qc_valid_acronym() -> DiseaseQc  {
+        let ddata = DiseaseData::new("OMIM:119600", "Cleidocranial dysplasia");
+        let fake_ppkt_list: Vec<Phenopacket> = Vec::new();
+        let mut cohort = CohortData::mendelian(ddata.clone(), vec![], vec![], "fake version");
+        cohort.cohort_acronym = Some("RUNX2_CLCD1".to_string());
+        DiseaseQc::new(&ddata, &cohort)
+    }
+
+    #[fixture]
+    fn disease_qc_invalid_acronym() -> DiseaseQc  {
+        let ddata = DiseaseData::new("OMIM:621280", "Retinitis pigmentosa 100");
+        let fake_ppkt_list: Vec<Phenopacket> = Vec::new();
+        let mut cohort = CohortData::mendelian(ddata.clone(), vec![], vec![], "fake version");
+        cohort.cohort_acronym = Some("RP100".to_string());
+        DiseaseQc::new(&ddata, &cohort)
+    }
+
+    #[rstest]
+    fn check_valid_acronym(disease_qc_valid_acronym: DiseaseQc) {
+        let qc_report_list = disease_qc_valid_acronym.check_acronym();
+        assert!(qc_report_list.is_empty());
+    }
+
+     #[rstest]
+    fn check_invalid_acronym(disease_qc_invalid_acronym: DiseaseQc) {
+        let qc_report_list = disease_qc_invalid_acronym.check_acronym();
+        assert_eq!(1, qc_report_list.len());
+    }
+
+
+
 
 }

@@ -3,7 +3,7 @@
 //! 
 //! 
 
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, path::{Path, PathBuf}, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::Serialize;
@@ -75,15 +75,21 @@ pub fn compare_two_phenopackets(path1: String, path2: String, hpo: Arc<FullCsrOn
     Ok(cr)
  }
 
-pub fn get_repo_qc(path: &PathBuf) -> Result<RepoQc, String> {
-     let repo = GptRepository::new(path);
-     repo.repo_qc()
+
+/// Perform a general quality check on the entire phenopacket store repository
+/// ppkt_store_notebook_path points to the directory in PPKT Store that contains the individual gene folders
+pub fn get_repo_qc(
+    ppkt_store_notebook_path: &Path,
+    hpo: Arc<FullCsrOntology>) -> Result<RepoQc, String> {
+    let repo = GptRepository::new(ppkt_store_notebook_path);
+    repo.repo_qc()
 }
 
+/// Update all HPO ids/labels in the entire phenopacket store
 pub fn update_all_ppkt(
-    path: &PathBuf,
+    ppkt_store_notebook_path: &Path,
     hpo: Arc<FullCsrOntology>
 ) -> Result<UpdateReport, String> {
-    let repo = GptRepository::new(path);
+    let repo = GptRepository::new(ppkt_store_notebook_path);
     repo.update_all_ppkt(hpo).map_err(|e|e.to_string())
 }

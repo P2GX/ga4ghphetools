@@ -309,7 +309,7 @@ pub struct CohortData {
     pub phetools_schema_version: String,
     /// Version of HPO used to create the current version of this cohort
     pub hpo_version: String,
-    /// Acronym that we will use for storing the template (GENE_ACRONYM_individuals.json)
+    /// Acronym that we will use for storing the template (GENE_DISEASE_individuals.json)
     pub cohort_acronym: Option<String>,
     /// History of biocuration events in chronological order
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

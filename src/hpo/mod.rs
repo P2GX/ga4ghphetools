@@ -109,7 +109,7 @@ pub fn term_label_map_from_duplet_list(
     hpo_duplet_list: &Vec<HpoTermDuplet>
 ) -> std::result::Result<HashMap<TermId, String>, String> {
     let hpo_util = HpoUtil::new(hpo);
-    hpo_util.term_label_map_from_duplet_list(hpo_duplet_list)
+    hpo_util.term_label_map_from_duplet_list(hpo_duplet_list).map_err(|e|e.to_string())
 }
 
 /// Update HPO term duplets with the latest labels from the ontology.

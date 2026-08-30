@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use ontolius::TermId;
 use thiserror::Error;
@@ -39,7 +39,7 @@ impl CohortError {
         MissingCellValue(tid.to_string())
     }
 
-    pub fn io_error(path: &PathBuf, file_error: &str) -> Self {
+    pub fn io_error(path: &Path, file_error: &str) -> Self {
         let msg =  format!("Could not extract CohortData string from {}: {}", path.to_string_lossy(), file_error);
         CohortError::CohortIoError(msg)
     }

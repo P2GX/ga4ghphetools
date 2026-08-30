@@ -109,14 +109,9 @@ impl HpoTermArranger {
         let arranged_tids = self.arrange_term_ids(hpo_terms_for_curation);
         let mut arranged_terms: Vec<HpoTermDuplet> = Vec::new();
         for tid in arranged_tids {
-            match self.hpo.term_by_id(&tid) {
-                Some(term) => {
-                    arranged_terms.push(HpoTermDuplet::new(term.name(), tid.to_string()));
-                },
-                None => {
-                    return Err(OntologyError::missing_tid(tid.to_string(), "arrange terms"));
-                }
-            }
+            let term = self.hpo.term_by_id(&tid)
+                .ok_or_else(||OntologyError::missing_tid(tid.to_string(), "arrange terms"))?;
+            arranged_terms.push(HpoTermDuplet::new(term.name(), tid.to_string()));
         }
         Ok(arranged_terms)
     }

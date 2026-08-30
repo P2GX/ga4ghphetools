@@ -1,7 +1,7 @@
-
+//! HpoUtil
+//! A collection of utility functions for working with HPO
 
 use crate::dto::hpo_term_dto::HpoTermData;
-use crate::dto::validation_errors::ValidationErrors;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::error::ontology_error::OntologyError;
 use ontolius::ontology::csr::FullCsrOntology;
@@ -38,12 +38,8 @@ impl HpoUtil {
     ) -> std::result::Result<HashMap<TermId, String>, OntologyError> {
         let mut dto_map: HashMap<TermId, String> = HashMap::new();
         for dto in hpo_dto_list {
-            match dto.ontolius_term_id() {
-                Ok(term_id) => {dto_map.insert(term_id.clone(), dto.label().to_string());},
-                Err(_) => {
-                    return Err(OntologyError::term_not_found(dto.term_id()));
-                },
-            } 
+            let term_id = dto.ontolius_term_id()?;
+            dto_map.insert(term_id.clone(), dto.label().to_string());
         }
         Ok(dto_map)
     }
@@ -51,49 +47,36 @@ impl HpoUtil {
     pub fn term_label_map_from_duplet_list(
         &self, 
         hpo_duplet_list: &Vec<HpoTermDuplet>
-    ) -> std::result::Result<HashMap<TermId, String>, String> {
+    ) -> std::result::Result<HashMap<TermId, String>, OntologyError> {
         let mut dto_map: HashMap<TermId, String> = HashMap::new();
         for dto in hpo_duplet_list {
-            match dto.to_term_id() {
-                Ok(term_id) => {dto_map.insert(term_id.clone(), dto.hpo_label().to_string());},
-                Err(_) => {
-                    return Err(format!("Could not map termId: '{}'", dto.hpo_id()));
-                },
-            } 
+            let term_id = dto.to_term_id()?;
+            dto_map.insert(term_id.clone(), dto.hpo_label().to_string());
         }
         Ok(dto_map)
     }
 
 
     /// Update the HPO duplets with the current term names from the ontology
-    /// This will automatically update term labels if they have changed
-    /// This function is only used for the legacy Excel files and we will
-    /// need a better solution for the new JSON templates
-    /// update_labels: if true, automatically update outdated labels. Otherwise, throw an error if a label does not match.
+    /// Useful if a template is using term identifiers/labels that have subsequently been edited 
+    /// in the hp.json (as a result of merging/obsoleting terms)
     pub fn update_hpo_duplets(
         &self,
-        hpo_duplets: &Vec<HpoTermDuplet>,
+        hpo_duplets: &[HpoTermDuplet],
     ) -> std::result::Result<Vec<HpoTermDuplet>, OntologyError> {
         let mut updated_duplets = vec![];
         for duplet in hpo_duplets {
-            let tid = match duplet.to_term_id() {
-                Ok(tid) => tid,
-                Err(_) => { return Err(OntologyError::term_duplet_conversion_error(duplet)) ; }
-            };
-            if let Some(term) = self.hpo.term_by_id(&tid) {
-                if term.name() != duplet.hpo_label() {
-                    // This usually happens if the name of the HPO term was changed after the Excel template
-                    // was created. If the user chooses to update labels, this is fixed automatically here.
-                    let err_str = format!("{}: expected '{}' but got '{}'", duplet.hpo_id(), term.name(), duplet.hpo_label());
-                    updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
-                    print!("[INFO] Updating HPO label {err_str}"); // Output to shell, this is expected behavior.
-                    // consider sending a signal to update user
-                } else {
-                    updated_duplets.push(HpoTermDuplet::new(term.name(), tid.to_string()));
-                }
-            } else {
-                return Err(OntologyError::term_not_found(tid.to_string()));
+            let tid =  duplet.to_term_id()?;
+            let term = self.hpo.term_by_id(&tid).ok_or_else(||OntologyError::term_not_found(tid.to_string()))?;
+            if tid != *term.identifier() {
+                println!("[INFO] Updating outdated term id {}->{}", tid, term.identifier());
             }
+            if term.name() != duplet.hpo_label() {
+                // Output to shell, this is expected behavior.
+                println!("[INFO] Updating HPO label {}->{} for {}",
+                    duplet.hpo_label(), term.name(), duplet.hpo_id()); 
+            }
+            updated_duplets.push(HpoTermDuplet::new(term.name(), term.identifier().to_string()));
         }
         Ok(updated_duplets)
     }
@@ -119,25 +102,20 @@ impl HpoUtil {
         Ok(false)
     }
 
+    /// Check a list of HpoTermDuplet objects and return an error at the first case where a Term identifier or label
+    /// does not match the corresponding items from the HPO Ontolius object. The indended use case is to catch
+    /// ids/labels that are out of date because the corresponding term has been revised (merged, obsoleted) in the HPO
     pub fn check_hpo_duplets(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> std::result::Result<(), String> {
         for hpo_dup in hpo_dup_list {
-            match hpo_dup.to_term_id() {
-                Ok(tid) => {
-                    match self.hpo.term_by_id(&tid) {
-                        Some(term) => {
-                            if term.name() != hpo_dup.hpo_label() {
-                                return Err(format!("Expected label '{}' but got '{}' for TermId '{}'",
-                                                term.name(), hpo_dup.hpo_label(), tid.to_string()));
-                            }
-                        },
-                        None => {
-                            return Err( format!("No HPO Term found for '{}'", &tid));
-                        },
-                    }
-                },
-                Err(_) => {
-                    return Err(format!("Failed to parse TermId: {}", hpo_dup.hpo_id()));
-                },
+            let tid = hpo_dup.to_term_id().map_err(|e|e.to_string())?;
+            let term = self.hpo.term_by_id(&tid).ok_or_else(||format!("No HPO Term found for '{}'", &tid))?;
+            if tid != *term.identifier() {
+                return Err(format!("Expected primary term id '{}' but got '{}' for Term '{}'",
+                                term.identifier(), tid.to_string(), term.name()));
+            }
+            if term.name() != hpo_dup.hpo_label() {
+                return Err(format!("Expected label '{}' but got '{}' for TermId '{}'",
+                                term.name(), hpo_dup.hpo_label(), tid.to_string()));
             }
         }
         Ok(())

@@ -12,6 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .subcommand(commands::etl::command())
         .subcommand(commands::compare::command())
         .subcommand(commands::json::command())
+        .subcommand(commands::qc::command())
         .subcommand(commands::removeterm::command())
         .subcommand(commands::update::command());
 
@@ -22,6 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(("extract", sub_matches)) => commands::extract::handle(sub_matches)?,
         Some(("etl", sub_matches)) => commands::etl::handle(sub_matches)?,
         Some(("json", sub_matches)) => commands::json::handle(sub_matches)?,
+        Some(("qc", sub_matches)) => commands::qc::handle(sub_matches)?,
         Some(("remove-term", sub_matches)) => commands::removeterm::handle(sub_matches)?,
         Some(("update", sub_matches)) => commands::update::handle(sub_matches)?,
         _ => cmd.print_help()?,

@@ -60,6 +60,7 @@ impl CohortQc {
             .collect();
 
         errs.extend(self.check_moi());
+        errs.extend(self.check_acronyms());
 
         errs.extend(
             self.disease_qc_list
@@ -96,6 +97,12 @@ impl CohortQc {
     pub fn check_moi(&self) -> Vec<QcReport> {
         self.disease_qc_list.iter()
             .flat_map(|dqc|dqc.check_moi())
+            .collect()
+    }
+
+    pub fn check_acronyms(&self) -> Vec<QcReport> {
+         self.disease_qc_list.iter()
+            .flat_map(|dqc|dqc.check_acronym())
             .collect()
     }
 
