@@ -29,7 +29,7 @@ pub mod hpo;
 pub mod hpoa;
 pub mod factory;
 pub mod persistence;
-pub mod ppkt;
+pub(crate) mod ppkt;
 pub mod repo;
 pub mod variant;
 

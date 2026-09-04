@@ -37,6 +37,7 @@ export default defineConfig({
             items: [
               { text: 'Excel', link: '/commands/excel' },
               { text: 'Extract', link: '/commands/extract' },
+              { text: 'qc', link: '/commands/qc' },
               { text: 'Update', link: '/commands/update' }
             ]
           },

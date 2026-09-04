@@ -2,50 +2,21 @@
 
 
 use std::collections::HashMap;
-use std::str::FromStr;
+
 use std::sync::Arc;
-use std::sync::LazyLock;
-use ontolius::term::MinimalTerm;
-use ontolius::{Identified, TermId};
 use ontolius::ontology::csr::FullCsrOntology;
-use ontolius::ontology::{HierarchyQueries, MetadataAware, OntologyTerms};
-use phenopacket_tools::builders::time_elements::time_element_from_str;
-use phenopackets::schema::v2::core::{KaryotypicSex, OntologyClass};
-use phenopackets::schema::v2::core::vital_status::Status;
-use phenopackets::schema::v2::core::{Disease, ExternalReference, Individual, MetaData, PhenotypicFeature, Sex, VitalStatus};
+
+use phenopackets::schema::v2::core::{ExternalReference, MetaData};
 use phenopackets::schema::v2::Phenopacket;
-use regex::Regex;
-use serde_json::Value;
 use crate::dto::cohort_dto::{CohortData, DiseaseData, RowData};
-use crate::dto::hpo_term_dto::HpoTermDuplet;
+use crate::ppkt::ppkt_builder::{DEFAULT_GENO_VERSION, DEFAULT_HGNC_VERSION, DEFAULT_OMIM_VERSION, DEFAULT_SO_VERSION, PhenopacketBuilder};
 use crate::ppkt::ppkt_variant_exporter::PpktVariantExporter;
 use phenopacket_tools;
 use phenopacket_tools::builders::builder::Builder;
 
 
-const DEFAULT_HGNC_VERSION: &str =  "06/01/25";
-const DEFAULT_OMIM_VERSION: &str =  "06/01/25";
-const DEFAULT_GENO_VERSION: &str =  "2025-07-25";
-const DEFAULT_SO_VERSION: &str = "2024-11-18";
 
-static CLINICAL_MODIFIER: LazyLock<TermId> = LazyLock::new(|| {
-    "HP:0012823".parse().expect("Failed to parse static HP:0012823")
-});
 
-/// All valid severity terms
-static SEVERITY_MAP: LazyLock<HashMap<String, OntologyClass>> = LazyLock::new(||{
-    let mut smap = HashMap::new();
-    for (label, id) in [
-        ("Borderline","HP:0012827"),
-        ("Mild", "HP:0012825"),
-        ("Moderate", "HP:0012826"),
-        ("Severe", "HP:0012828"),
-        ("Profound", "HP:0012829")
-    ] {
-        smap.insert(id.to_string(), OntologyClass{id: id.to_string(), label: label.to_string()});
-    }
-    smap
-});
 
 
 /// Structure to export phenopackets from a CohortData object.
@@ -105,48 +76,6 @@ impl PpktExporter {
     }
 
 
-    /// Create a GA4GH Individual message
-    pub fn extract_individual(&self, ppkt_row: &RowData) -> Result<Individual, String> {
-        let individual_dto = &ppkt_row.individual_data;
-        let mut idvl = Individual{ 
-            id: individual_dto.individual_id.clone(), 
-            alternate_ids: vec![], 
-            date_of_birth: None, 
-            time_at_last_encounter: None, 
-            vital_status: None, 
-            sex: Sex::UnknownSex.into(), 
-            karyotypic_sex: KaryotypicSex::UnknownKaryotype.into(), 
-            gender: None, 
-            taxonomy: None };
-        match individual_dto.sex.as_ref() {
-            "M" => idvl.sex = Sex::Male.into(),
-            "F" => idvl.sex = Sex::Female.into(),
-            "O" => idvl.sex = Sex::OtherSex.into(),
-            "U" => idvl.sex = Sex::UnknownSex.into(),
-            _ => { return Err(format!("Did not recognize sex string '{}' for '{}' ({})", idvl.sex, idvl.id, ppkt_row.individual_data.pmid)); }
-        };
-        let last_enc = &individual_dto.age_at_last_encounter;
-        if last_enc != "na" {
-            let age = time_element_from_str(last_enc)
-                .map_err(|e| format!("malformed time_element for last encounter '{}':{} for {}",last_enc, e.to_string(), idvl.id))?;
-            idvl.time_at_last_encounter = Some(age);
-        }
-        if individual_dto.deceased == "yes" {
-            idvl.vital_status = Some(VitalStatus{ 
-                status: Status::Deceased.into(), 
-                time_of_death: None, 
-                cause_of_death: None, 
-                survival_time_in_days: 0 
-            });
-        } 
-        Ok(idvl)
-
-    }
-
-    pub fn hpo_version(&self) -> &str {
-        &self.hpo.version()
-    } 
-
     pub fn geno_version(&self) -> &str {
         &self.geno_version
     } 
@@ -201,144 +130,11 @@ impl PpktExporter {
     }
 
 
-    /// Generate the phenopacket identifier from the PMID and the individual identifier
-    pub fn get_phenopacket_id(&self, ppkt_row: &RowData) -> String {
-        let individual_dto = &ppkt_row.individual_data;
-        let pmid = ppkt_row.individual_data.pmid.replace(":", "_");
-        let individual_id = individual_dto.individual_id.replace(" ", "_");
-        let ppkt_id = format!("{}_{}", pmid, individual_id);
-        let ppkt_id = ppkt_id.replace("__", "_");
-        // Replace any non-ASCII characters with _, but remove trailing "_" if it exists.
-        let mut sanitized: String = ppkt_id.chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .clone().collect();
-         // Collapse multiple underscores, if any
-        let re = Regex::new(r"_+").unwrap();
-        sanitized = re.replace_all(&sanitized, "_").to_string();
-        if let Some(stripped) = sanitized.strip_suffix('_') {
-            sanitized = stripped.to_string();
-        }
-        sanitized
-    }
-
-    pub fn get_disease_list(&self, ppkt_row: &RowData) -> Result<Vec<Disease>, String> {
-        let disease_id_list = &ppkt_row.disease_id_list;
-        if disease_id_list.is_empty() {
-            return Err("No disease data found".to_string());
-        }
-        let has_multiple_dx = disease_id_list.len() > 1;
-        let mut disease_list: Vec<Disease> = Vec::new();
-        for dx_id in disease_id_list {
-            let d_data = self.disease_id_map.get(dx_id)
-                .ok_or_else(|| format!("Disease with id {} not found", dx_id))?;
-            let dx_clz = OntologyClass { 
-                id:d_data.disease_id.clone(), 
-                label: d_data.disease_label.clone()
-            };
-            let mut disease = Disease{ 
-                term: Some(dx_clz), 
-                excluded: false, 
-                onset: None, 
-                resolution: None, 
-                disease_stage: vec![], 
-                clinical_tnm_finding: vec![], 
-                primary_site: None, 
-                laterality: None 
-            };
-            // If we have multiple diseases, we cannot automatically say when the disease onset was (which disease has the earliest onset)
-            if ! has_multiple_dx {
-                let idl_dto = ppkt_row.individual_data.individual_id.clone();
-                let onset = &ppkt_row.individual_data.age_of_onset;
-                if onset != "na" {
-                    let age = time_element_from_str(onset)
-                        .map_err(|e| format!("malformed time_element for onset '{}': {}", onset, e.to_string()))?;
-                    disease.onset = Some(age);
-                };
-            }
-            disease_list.push(disease);
-        }
-        Ok(disease_list)
-    }
-
     fn allele_not_contained(allele: &str) -> String {
         format!("'{allele}' must be validated before exporting to Phenopacket Schema")
     }
-
-
-    
-    fn get_ontology_class(&self, term: &HpoTermDuplet) -> Result<OntologyClass, String> {
-        let hpo_id = term.hpo_id();
-        let hpo_label = term.hpo_label();
-        let hpo_term_id = TermId::from_str(hpo_id).map_err(|e| e.to_string())?;
-        let hpo_term = match self.hpo.term_by_id(&hpo_term_id) {
-            Some(term) => term.clone(),
-            None => {
-                return Err(format!("Could not find HPO term for {hpo_id}"));
-            }
-        };
-        if hpo_term.identifier() != &hpo_term_id {
-            return Err(format!("{} is not the primary id ({}) for {}",
-                hpo_term_id, hpo_term.identifier(), hpo_label));
-        }
-        let hpo_term = Builder::ontology_class(term.hpo_id(), term.hpo_label())
-                .map_err(|e| format!("termid_parse_error '{:?}'", term))?;
-        Ok(hpo_term)
-    }
-
-    pub fn get_phenopacket_features(&self, ppkt_row: &RowData) -> Result<Vec<PhenotypicFeature>, String> {
-        let hpo_term_list = &self.cohort_dto.hpo_headers;
-        let hpo_data = &ppkt_row.hpo_data;
-        if hpo_data.len() != hpo_term_list.len() {
-            return Err(format!("Length of HPO headers ({}) does not match length of HPO values {}",
-            hpo_term_list.len(), hpo_data.len()));
-        }
-        let mut ppkt_feature_list: Vec<PhenotypicFeature> = Vec::with_capacity(hpo_data.len());
-        for (term, cell_contents) in hpo_term_list.iter().zip(hpo_data.iter()) {
-            if ! cell_contents.is_ascertained() {
-                continue;
-            }
-            let hpo_term = self.get_ontology_class(term)?;
-            let mut pf = PhenotypicFeature{ 
-                description: String::default(), 
-                r#type: Some(hpo_term), 
-                excluded: cell_contents.is_excluded(), 
-                severity: None, 
-                modifiers: vec![], 
-                onset: None,
-                resolution: None, 
-                evidence: vec![]
-            };
-            if cell_contents.has_onset() {
-                let ost = time_element_from_str(&cell_contents.entry())
-                    .map_err(|e| format!("malformed time_element for cell '{}': {}", cell_contents, e.to_string()))?;
-                pf.onset = Some(ost);
-            }
-            if cell_contents.has_modifier() {
-                let mut mod_list: Vec<OntologyClass> = Vec::new();
-                for mod_str in cell_contents.modifers() {
-                    let mod_id: TermId = mod_str.parse().map_err(|_| format!("Could not create TermId from modifier String '{mod_str}'"))?;
-                    let term = self.hpo.term_by_id(&mod_id).ok_or_else(|| {
-                        format!("Could not retrieve Modifier term for id '{mod_id}' for {}", ppkt_row.individual_data.pmid)
-                    })?;
-                    if let Some(severity_term) = SEVERITY_MAP.get(mod_str) {
-                        pf.severity = Some(severity_term.clone());
-                    } else if self.hpo.is_descendant_of(term.identifier(), &*CLINICAL_MODIFIER) {
-                        let label = term.name().to_string();
-                        let oclass =  OntologyClass {
-                            id: label,
-                            label: mod_str.clone(),
-                        };
-                        mod_list.push(oclass);
-                    }
-                }
-                pf.modifiers = mod_list;
-            }
-            ppkt_feature_list.push(pf);
-        }
-        Ok(ppkt_feature_list)
-    }
-
- fn extract_phenopacket_from_row(
+   
+    fn extract_phenopacket_from_row(
         &self, 
         ppkt_row_dto: &RowData, 
     ) -> Result<Phenopacket, String> {
@@ -361,44 +157,9 @@ impl PpktExporter {
         };
     
         Ok(ppkt)
-
-
     }
 
-/// The serde JSON serialization outputs certain fields that have concrete default values. For instance, karyotypic_sex is an integer enumeration,
-/// and the first value (zero) stands for UNKNOWN_KARYOTYPE. Even though we did not actually enter this value into out Phenopacket, the serialization
-/// routine outputs this default value, which essentially just clutters the output and does not provide useful information. Another default value is
-/// survival_time_in_days of zero - this would appear if we list the subject as deceased even though we do not provide survival time information. In the latter
-/// case, this is incorrect. Therefore, we manually strip these two values in the output.
-/// Remove default-but-unset fields from a Phenopacket JSON without touching `subject` itself.
-/// Note that we use the preserve_order option for serde_json; otherwise, this step
-/// is likely to rearrange order of top-level elements.
-/// - Drops `subject.karyotypic_sex` if it's "UNKNOWN_KARYOTYPE" or 0
-/// - Optionally drops `survival_time_in_days` if it's 0, wherever you expect it (subject or nested)
-pub fn strip_phenopacket_defaults(root: &mut Value) {
-    // Top-level `subject`
-    if let Value::Object(root_map) = root {
-        if let Some(Value::Object(subject)) = root_map.get_mut("subject") {
-            // Remove karyotypic_sex if it's the unknown/default
-            let drop_karyotype = match subject.get("karyotypicSex") {
-                Some(Value::String(s)) if s == "UNKNOWN_KARYOTYPE" => true,
-                Some(Value::Number(n)) if n.as_i64() == Some(0) => true,
-                _ => false,
-            };
-            if drop_karyotype {
-                subject.remove("karyotypicSex");
-            }
 
-            if let Some(Value::Object(vs)) = subject.get_mut("vitalStatus") {
-                if let Some(Value::Number(n)) = vs.get("survivalTimeInDays") {
-                    if n.as_i64() == Some(0) {
-                        vs.remove("survivalTimeInDays");
-                    }
-                }
-            }
-        }
-    }
-}
 
     pub fn get_all_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {
         let mut ppkt_list: Vec<Phenopacket> = Vec::new();
@@ -413,13 +174,24 @@ pub fn strip_phenopacket_defaults(root: &mut Value) {
 
 }
 
+impl PhenopacketBuilder for PpktExporter {
+    fn hpo(&self) -> &Arc<FullCsrOntology> { &self.hpo }
+    fn cohort(&self) -> &CohortData { &self.cohort_dto }
+    fn disease_id_map(&self) -> &HashMap<String, DiseaseData> { &self.disease_id_map }
+    fn orcid(&self) -> &str { &self.orcid_id }
+    fn geno_version(&self) -> &str { &self.geno_version }
+    fn omim_version(&self) -> &str { &self.omim_version }
+    fn hgnc_version(&self) -> &str { &self.hgnc_version }
+    fn so_version(&self) -> &str { &self.so_version }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rstest::rstest;
     use std::path::PathBuf;  
     use serde_json::json;
-    use crate::test_utils::fixtures::hpo;
+    use crate::{ppkt::json_cleanup::strip_phenopacket_defaults, test_utils::fixtures::hpo};
 
     /// Remove the redundant field while leaving all else intact
     #[test]
@@ -431,7 +203,7 @@ mod tests {
                 "karyotypicSex": "UNKNOWN_KARYOTYPE"
             }
         });
-        PpktExporter::strip_phenopacket_defaults(&mut packet);
+        strip_phenopacket_defaults(&mut packet);
         // karyotypic_sex should be gone
         assert!(!packet["subject"].get("karyotypicSex").is_some());
         // id and sex should remain
@@ -455,7 +227,7 @@ mod tests {
             }
         });
 
-        PpktExporter::strip_phenopacket_defaults(&mut packet);
+        strip_phenopacket_defaults(&mut packet);
         assert!(! packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
         assert_eq!(packet["subject"]["vitalStatus"]["status"], "DECEASED");
     }
@@ -474,7 +246,7 @@ mod tests {
                 }
             }
         });
-        PpktExporter::strip_phenopacket_defaults(&mut packet);
+        strip_phenopacket_defaults(&mut packet);
         assert!(!packet["subject"].get("karyotypicSex").is_some());
     }
 
@@ -485,7 +257,7 @@ mod tests {
                 "id": "PMID_29198722_p_Arg913Ter_Affected_Individual_1",
             }
         });
-        PpktExporter::strip_phenopacket_defaults(&mut packet);
+        strip_phenopacket_defaults(&mut packet);
         assert!(!packet["subject"].get("sex").is_some());
     }
 
@@ -506,7 +278,7 @@ mod tests {
             }
         });
 
-        PpktExporter::strip_phenopacket_defaults(&mut packet);
+        strip_phenopacket_defaults(&mut packet);
 
         // Nothing should be removed
         assert_eq!(packet["subject"]["karyotypicSex"], "XY");
@@ -527,7 +299,7 @@ mod tests {
             }
         });
 
-        PpktExporter::strip_phenopacket_defaults(&mut packet);
+        strip_phenopacket_defaults(&mut packet);
         assert!(!packet["subject"].get("karyotypicSex").is_some());
         assert!(!packet["subject"]["vitalStatus"].get("survivalTimeInDays").is_some());
     }
@@ -546,6 +318,8 @@ mod tests {
         #[case] onset_string: &str,
         #[case] is_valid: bool
     ) {
+        use phenopacket_tools::builders::time_elements::time_element_from_str;
+
         let result = time_element_from_str(onset_string);
         if is_valid {
             assert!(result.is_ok());

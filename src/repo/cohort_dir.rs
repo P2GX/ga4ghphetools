@@ -2,13 +2,13 @@
 
 
 /// Represents a directory for one gene with all of the contained files.
-use std::{fs::{self, File}, io::BufReader, path::PathBuf};
+use std::{collections::HashMap, fs::{self, File}, io::BufReader, path::PathBuf};
 use serde_json::{Value, json};
 use phenopackets::schema::v2::Phenopacket;
 use walkdir::WalkDir;
 use std::path::Path;
 
-use crate::{dto::cohort_dto::CohortData, error::cohort_error::CohortError, repo::cohort_qc::CohortQc};
+use crate::{dto::cohort_dto::CohortData, error::cohort_error::CohortError, ppkt, repo::cohort_qc::CohortQc};
 /// Represents a directory for one gene with all contained files and metadata.
 #[derive(Debug, Default)]
 pub struct CohortDir {
@@ -19,7 +19,7 @@ pub struct CohortDir {
     /// The specific file or files like "ZRSR2_OFD21_individuals.json" (there must be at least one but can be many)
     pub individuals_json: Vec<PathBuf>,
     /// All JSON files inside the 'phenopackets' subdirectory (there must be at least one)
-    pub phenopackets: Vec<PathBuf>,
+    pub ppkt_path_list: Vec<PathBuf>,
     /// Any files or directories that don't belong in the standard structure
     pub unexpected_entries: Vec<PathBuf>,
 }
@@ -43,7 +43,7 @@ impl CohortDir {
 
             if entry.file_type().is_dir() && file_name == "phenopackets" {
                 // Recurse into phenopackets
-                gene_dir.phenopackets = WalkDir::new(entry.path())
+                gene_dir.ppkt_path_list = WalkDir::new(entry.path())
                     .min_depth(1)
                     .into_iter()
                     .filter_map(|e| e.ok())
@@ -61,8 +61,8 @@ impl CohortDir {
     }
 
     
-    fn read_cohort(path: &PathBuf) -> Result<CohortData, CohortError> {
-        let file_data = fs::read_to_string(path.clone())
+    pub fn read_cohort(path: &Path) -> Result<CohortData, CohortError> {
+        let file_data = fs::read_to_string(path)
             .map_err(|e| CohortError::io_error(path, &e.to_string()))?;
         let cohort: CohortData = serde_json::from_str(&file_data)
             .map_err(|e| CohortError::json_error(&file_data, &e.to_string()))?;
@@ -77,6 +77,7 @@ impl CohortDir {
         }
         Ok(cohorts)
     }
+    
 
     fn load_phenopacket<P: AsRef<Path>>(path: P) -> Result<Phenopacket, String> {
         let file = File::open(path).map_err(|e| e.to_string())?;
@@ -120,11 +121,20 @@ impl CohortDir {
 
     pub fn get_phenopackets(&self) -> Result<Vec<Phenopacket>, String> {
         let mut ppkt_list = Vec::new();
-        for ppkt_path in &self.phenopackets {
+        for ppkt_path in &self.ppkt_path_list {
             let ppkt = Self::load_phenopacket(ppkt_path)?;
             ppkt_list.push(ppkt);
         }
         Ok(ppkt_list)
+    }
+
+    pub fn get_ppkt_map(&self) -> Result<HashMap<PathBuf, Phenopacket>, String> {
+        let mut ppkt_map: HashMap<PathBuf, Phenopacket> = HashMap::new();
+        for ppkt_path in &self.ppkt_path_list {
+            let ppkt = Self::load_phenopacket(ppkt_path)?;
+            ppkt_map.insert(ppkt_path.clone(),ppkt);
+        }
+        Ok(ppkt_map)
     }
 
     pub fn get_unexpected_file_names(&self) -> Vec<String> {
@@ -145,6 +155,14 @@ impl CohortDir {
         let phenopackets = self.get_phenopackets()?;
         let unexpected_files = self.get_unexpected_file_names();
         CohortQc::new(&self.cohort_name, cohorts, phenopackets, unexpected_files)
+    }
+
+
+    /// The GENE_DISEASE_individuals.json files are the files that contain information
+    /// about the cohorts. This function returns a list of references to these files 
+    /// so that clients can iterate over all cohorts in a cohort (gene) directory.
+    pub fn get_individuals_json_files(&self) -> Vec<&Path> {
+        self.individuals_json.iter().map(|p| p.as_path()).collect()
     }
 
     

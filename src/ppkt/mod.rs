@@ -8,10 +8,13 @@ use std::{fs::OpenOptions, path::PathBuf, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::cohort_dto::CohortData, ppkt::ppkt_exporter::PpktExporter};
+use crate::{dto::cohort_dto::CohortData, ppkt::{json_cleanup::strip_phenopacket_defaults, ppkt_builder::PhenopacketBuilder, ppkt_exporter::PpktExporter, ppkt_updater::PpktUpdater}};
 
+mod json_cleanup;
+mod ppkt_builder;
 mod ppkt_variant_exporter;
 pub mod ppkt_exporter;
+pub (crate) mod ppkt_updater;
 pub mod ppkt_row;
 mod ppkt_utils;
 pub use ppkt_utils::get_gene_symbol_from_interpretation;
@@ -88,7 +91,7 @@ pub fn write_phenopackets(
             continue;
         }
         n_phenopackets += 1;
-        write_ppkt(&ppkt, file_path)?;
+        write_ppkt(&ppkt, &file_path)?;
     }
     Ok(n_phenopackets)
 }
@@ -105,7 +108,7 @@ pub fn write_phenopackets(
 /// # Errors
 ///
 /// Returns an error if the file cannot be opened/created, or if JSON serialization fails.
-fn write_ppkt(ppkt: &Phenopacket, file_path: PathBuf) -> Result<(), String> {
+pub fn write_ppkt(ppkt: &Phenopacket, file_path: &PathBuf) -> Result<(), String> {
     let file = OpenOptions::new()
         .write(true)
         .create(true)
@@ -114,7 +117,7 @@ fn write_ppkt(ppkt: &Phenopacket, file_path: PathBuf) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let mut json_value = serde_json::to_value(ppkt).map_err(|e| e.to_string())?;
-    PpktExporter::strip_phenopacket_defaults(&mut json_value);
+    strip_phenopacket_defaults(&mut json_value);
     
     serde_json::to_writer_pretty(file, &json_value)
         .map_err(|e| e.to_string())?; 
@@ -158,3 +161,8 @@ pub fn get_phenopackets(
     let ppkt_list: Vec<Phenopacket> = exporter.get_all_phenopackets()?;
     Ok(ppkt_list)
 }
+
+
+
+
+

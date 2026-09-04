@@ -88,6 +88,7 @@ impl HpoUtil {
     /// returns true, we will use the uupdate_hpo_duplets method to revise
     pub fn needs_update(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> Result<bool, OntologyError> {
         for hpo_dup in hpo_dup_list {
+            println!("'{}' '{}'", hpo_dup.hpo_label(), hpo_dup.hpo_id());
             let tid = hpo_dup.to_term_id()?;
             let term = self.hpo.term_by_id(&tid).ok_or_else(|| OntologyError::term_not_found(hpo_dup.hpo_id()))?;
             if term.name() != hpo_dup.hpo_label() {

@@ -1,6 +1,7 @@
+//! QcReport
+//! Structure to record various kinds of Q/C issues to report back to the user
+
 use std::{collections::HashSet, path::PathBuf};
-
-
 
 
 #[derive(Debug, Clone, serde::Serialize)] 
@@ -23,10 +24,7 @@ pub struct QcReport {
 }
 
 
-
-
 impl QcReport {
-    
 
     pub fn unexpected_file(cohort_name: &str, unexpected: &str) -> Self {
         let msg = format!("Unexpected file: {}", unexpected);
@@ -80,8 +78,6 @@ impl QcReport {
         }
     }
 
-
-   
 }
 
 

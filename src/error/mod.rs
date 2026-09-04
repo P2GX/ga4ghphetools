@@ -21,4 +21,12 @@ pub enum PheToolsError {
     Ontology(#[from] OntologyError),
     #[error(transparent)]
     Parse(#[from] ParseError), 
+    #[error("{0}")]
+    Message(String),
+}
+
+impl From<String> for PheToolsError {
+    fn from(s: String) -> Self {
+        Self::Message(s)
+    }
 }
