@@ -4,6 +4,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "ga4ghphetools",
   description: "Rust library for curating GA4GH Phenopackets",
+  base: '/ga4ghphetools/',
   themeConfig: {
     nav: [
   { text: 'Home', link: '/' },

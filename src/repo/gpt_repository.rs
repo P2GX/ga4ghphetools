@@ -4,7 +4,6 @@
 use std::{fs::File, io::Write, path::{Path, PathBuf}, sync::Arc};
 
 use ontolius::ontology::{MetadataAware, csr::FullCsrOntology};
-use phenopackets::schema::v1::interpretation::PhenopacketOrFamily::Phenopacket;
 use crate::ppkt::ppkt_updater::PpktUpdater;
 use walkdir::WalkDir;
 
@@ -142,15 +141,6 @@ use rstest::{fixture, rstest};
         absolute_path.to_string_lossy().to_string()
     }
 
-    #[rstest]
-    fn test_all(repo_path: String) {
-        let root_path: PathBuf = repo_path.into();
-        let gptr = GptRepository::new(&root_path);
-        let rqc = gptr.repo_qc().unwrap();
-        for e in &rqc.errors {
-            println!("{:?}", e);
-        }
-    } 
 
      #[rstest]
      fn test_update(hpo: Arc<FullCsrOntology>) {
