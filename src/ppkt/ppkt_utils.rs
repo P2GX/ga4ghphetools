@@ -31,7 +31,9 @@ use phenopackets::{ga4gh::vrsatile::v1::{GeneDescriptor, VariationDescriptor}, s
 
 use rstest::*;
 
-use crate::ppkt::get_gene_symbol_from_interpretation;
+use crate::ppkt::ppkt_utils::get_gene_symbol_from_interpretation;
+
+
 
 // --- FIXTURES: Building Blocks for our Harness ---
 

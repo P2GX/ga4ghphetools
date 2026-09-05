@@ -17,7 +17,6 @@ use crate::dto::cohort_dto::{CohortType, DiseaseData, GeneVariantData, Individua
 
 
 use crate::error::ontology_error::OntologyError;
-use crate::error::parse_error::ParseError;
 use crate::factory::disease_bundle::{ DiseaseBundle};
 use crate::factory::gene_variant_bundle::{ GeneVariantBundle};
 use crate::factory::individual_bundle::IndividualBundle;
@@ -41,7 +40,7 @@ pub struct PpktRow {
 
 
 impl PpktRow {
-    pub fn from_row(
+   /* pub fn from_row(
         header: Arc<HeaderDupletRow>,
         content: Vec<String>,
     ) -> std::result::Result<Self, String> {
@@ -53,7 +52,7 @@ impl PpktRow {
     }
 
     /// Create a Ppkt obkect from a row of string values. This is part of the ETL pipeline for the legacy Excel files
-    /// TODO: remove once legacy files are cleaned up.
+    
     pub fn from_mendelian_row(
         header: Arc<HeaderDupletRow>,
         content: Vec<String>
@@ -80,7 +79,7 @@ impl PpktRow {
             hpo_content 
         })
     }
-
+*/
     /// Create a new PpktRow. This is used when we create a row (phenopacket) with terms that
     /// may not be included in the previous phenopackets and which may not have values for all of the
     /// terms in the previous phenopackets. 

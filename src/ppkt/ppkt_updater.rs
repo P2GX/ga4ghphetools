@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
 use phenopackets::schema::v2::{Phenopacket, core::Resource};

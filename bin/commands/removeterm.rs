@@ -21,7 +21,7 @@ pub fn handle(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let hpo_path = sub_matches.get_one::<String>("hpo").expect("Could not retrieve hp.json path");
     let hpo = crate::load_hpo(hpo_path).expect("Could not construct HPO ontology");
     println!("Remove HPO Term {hpo_id} from Cohort {input_json}");
-    let cohort = ga4ghphetools::factory::load_json_cohort(input_json).expect("Could not load Cohort JSON file");
+    let cohort = ga4ghphetools::load_json_cohort(input_json).expect("Could not load Cohort JSON file");
     let modified_cohort = cohort.remove_hpo_column(&tid)?;
     let fname = extract_file_name(input_json);
     let outname = format!("modified-{fname}");

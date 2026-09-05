@@ -8,7 +8,7 @@ use std::{fs::OpenOptions, path::PathBuf, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::cohort_dto::CohortData, ppkt::{json_cleanup::strip_phenopacket_defaults, ppkt_builder::PhenopacketBuilder, ppkt_exporter::PpktExporter, ppkt_updater::PpktUpdater}};
+use crate::{dto::cohort_dto::CohortData, ppkt::{json_cleanup::strip_phenopacket_defaults, ppkt_exporter::PpktExporter}};
 
 mod json_cleanup;
 mod ppkt_builder;
@@ -17,7 +17,6 @@ pub mod ppkt_exporter;
 pub (crate) mod ppkt_updater;
 pub mod ppkt_row;
 mod ppkt_utils;
-pub use ppkt_utils::get_gene_symbol_from_interpretation;
 
 
 /// Write all `Phenopacket`s derived from a given `CohortData` to disk.

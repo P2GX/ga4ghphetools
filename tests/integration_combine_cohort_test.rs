@@ -55,7 +55,7 @@ fn test_combine_cohort(
     cohort_data_2: CohortData,
     hpo: Arc<FullCsrOntology>
 )  {
-    let result = ga4ghphetools::factory::merge_cohort_data_from_etl_dto(cohort_data_1, cohort_data_2, hpo.clone());
+    let result = ga4ghphetools::merge_cohort_data_from_etl_dto(cohort_data_1, cohort_data_2, hpo.clone());
     assert!(result.is_ok());
 }
 
@@ -78,7 +78,7 @@ fn test_individual_1(
     cohort_data_2: CohortData,
     hpo: Arc<FullCsrOntology>
 )  {
-    let cohort = ga4ghphetools::factory::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2, hpo.clone()).unwrap();
+    let cohort = ga4ghphetools::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2, hpo.clone()).unwrap();
     let row_1_val_map = get_map_current_annotations(&cohort_data_1.hpo_headers, &cohort_data_1.rows[0]);
     let hpo_duplets = cohort.hpo_headers.clone();
     let row_1_merged = cohort.rows[0].clone();
@@ -98,7 +98,7 @@ fn test_individual_2(
     cohort_data_2: CohortData,
     hpo: Arc<FullCsrOntology>
 )  {
-    let cohort = ga4ghphetools::factory::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2, hpo.clone()).unwrap();
+    let cohort = ga4ghphetools::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2, hpo.clone()).unwrap();
     let row_2_val_map = get_map_current_annotations(&cohort_data_1.hpo_headers, &cohort_data_1.rows[1]);
     let hpo_duplets = cohort.hpo_headers.clone();
     let row_2_merged = cohort.rows[1].clone();
@@ -118,7 +118,7 @@ fn test_individual_3(
     cohort_data_2: CohortData,
     hpo: Arc<FullCsrOntology>
 )  {
-    let cohort = ga4ghphetools::factory::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2.clone(), hpo.clone()).unwrap();
+    let cohort = ga4ghphetools::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2.clone(), hpo.clone()).unwrap();
     let row_3_val_map = get_map_current_annotations(&cohort_data_2.hpo_headers, &cohort_data_2.rows[0]);
     let hpo_duplets = cohort.hpo_headers.clone();
     let row_3_merged = cohort.rows[2].clone();
@@ -138,7 +138,7 @@ fn test_individual_4(
     cohort_data_2: CohortData,
     hpo: Arc<FullCsrOntology>
 )  {
-    let cohort = ga4ghphetools::factory::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2.clone(), hpo.clone()).unwrap();
+    let cohort = ga4ghphetools::merge_cohort_data_from_etl_dto(cohort_data_1.clone(), cohort_data_2.clone(), hpo.clone()).unwrap();
     let row_4_val_map = get_map_current_annotations(&cohort_data_2.hpo_headers, &cohort_data_2.rows[1]);
     let hpo_duplets = cohort.hpo_headers.clone();
     let row_4_merged = cohort.rows[3].clone();

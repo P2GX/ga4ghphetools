@@ -452,11 +452,11 @@ fn test_valid_etl(
     etl_dto_valid: EtlDto,
     test_orcid: CurationEvent,
     hpo: Arc<FullCsrOntology>) {
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_valid);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_valid);
     assert!(result.is_ok());
     let mut cohort_dto = result.unwrap();
     cohort_dto.curation_history.push(test_orcid);
-    let qc = ga4ghphetools::factory::qc_assessment(hpo, &cohort_dto);
+    let qc = ga4ghphetools::qc_assessment(hpo, &cohort_dto);
     assert!(qc.is_ok());
 }
 
@@ -468,7 +468,7 @@ fn test_invalid_column_type_raw(
 ) {
     let table = make_table(vec![column_ptosis_invalid_raw]);
     let etl = make_etl(table, disease_valid);
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "'Ptosis' column type not set (Raw)");
@@ -482,7 +482,7 @@ fn test_empty_columns(
     let table: Vec<ColumnDto> = vec![];
     let table_dto = ColumnTableDto{ file_name: "/Users/fakename.xlsx".to_string(), columns: table };
     let etl = make_etl(table_dto, disease_valid);
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "EtlDto table with no columns");
@@ -502,7 +502,7 @@ fn test_column_type_with_leading_whitespace(
     } else {
         panic!("No first value found");
     }
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_valid_clone);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl_dto_valid_clone);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "Clinical Features: leading whitespace - ' Family 1 (Turkish) BAB11420'");
@@ -520,7 +520,7 @@ fn test_column_type_with_trailing_whitespace(
     }
     let table = make_table(vec![ws_ptosis_col]);
     let etl = make_etl(table, disease_valid);
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, r#"Ptosis: trailing whitespace - '{"type":"Observed"} '"#);
@@ -539,7 +539,7 @@ fn test_missing_hgvs(
         .remove("c235CtoT_WDR83OS_NM_016145v4");
     assert!(removed.is_some(), "Entry was not found in hgvs_variants"); // make sure we actually remove the variant
     // This should be an error because the Variant row has an allele key that is not in our map
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl_dto);
     println!("{:?}", result);
     assert!(result.is_ok());
 }
@@ -550,7 +550,7 @@ fn test_missing_patient_id(
     etl_dto_lacking_patient_id: EtlDto,
     hpo: Arc<FullCsrOntology>
 ) {
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_lacking_patient_id);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl_dto_lacking_patient_id);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "No patient identifier column found")
@@ -563,7 +563,7 @@ fn test_no_hpo_column(
     etl_dto_lacking_hpo: EtlDto,
     hpo: Arc<FullCsrOntology>
 ) {
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl_dto_lacking_hpo);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl_dto_lacking_hpo);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "No HPO columns found")
@@ -578,7 +578,7 @@ fn test_no_pmid(
 ) {
     let mut etl = etl_dto_valid.clone();
     etl.pmid = None;
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "No PMID found")
@@ -593,7 +593,7 @@ fn test_malformed_pmid(
 ) {
     let mut etl = etl_dto_valid.clone();
     etl.pmid = Some("PMID: 123456".to_string());
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "Malformed PMID found 'PMID: 123456'")
@@ -606,7 +606,7 @@ fn test_no_title(
 ) {
     let mut etl = etl_dto_valid.clone();
     etl.title = None;
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "No title found")
@@ -620,7 +620,7 @@ fn test_malformed_title (
 ) {
     let mut etl = etl_dto_valid.clone();
     etl.title = Some("a".to_string());
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo, etl);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo, etl);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert_eq!(err, "Malformed title: 'a'")
@@ -637,7 +637,7 @@ fn test_column_type_with_redundancy(
     test_orcid: CurationEvent,
     hpo: Arc<FullCsrOntology>
 ) {
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_with_redudancy);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_with_redudancy);
     assert!(result.is_ok());
     let mut cohort_data = result.unwrap();
     cohort_data.curation_history.push(test_orcid);
@@ -645,9 +645,9 @@ fn test_column_type_with_redundancy(
     let delayed_gm = cohort_data.observed_hpo_count("HP:0002194");
     assert_eq!(1, delayed_sit);
     assert_eq!(1, delayed_gm);
-    let result = ga4ghphetools::factory::qc_assessment(hpo.clone(), &cohort_data);
+    let result = ga4ghphetools::qc_assessment(hpo.clone(), &cohort_data);
     assert!(result.is_err()); // expect an error because a term and its ancestor are both obeserved
-    let result2 = ga4ghphetools::factory::sanitize_cohort_data(hpo.clone(),  &cohort_data);
+    let result2 = ga4ghphetools::sanitize_cohort_data(hpo.clone(),  &cohort_data);
     println!("{:?}", result2);
     /*
     assert!(result2.is_ok());
@@ -670,14 +670,14 @@ fn test_with_excluded_redundancy(
     let  columns = vec![patient_id_column_valid, column_ptosis, column_strabismus, exclude_abn_eye];
     let table = make_table(columns);
     let etl = make_etl(table, disease_valid);
-    let mut cohort = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), etl).unwrap();
+    let mut cohort = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl).unwrap();
     cohort.curation_history.push(test_orcid);
-    let result = ga4ghphetools::factory::qc_assessment(hpo.clone(), &cohort);
+    let result = ga4ghphetools::qc_assessment(hpo.clone(), &cohort);
     assert!(result.is_err());
-    let result2 = ga4ghphetools::factory::sanitize_cohort_data(hpo.clone(),  &cohort);
+    let result2 = ga4ghphetools::sanitize_cohort_data(hpo.clone(),  &cohort);
     assert!(result2.is_ok());
     let sanitized = result2.unwrap();
-    let result3 = ga4ghphetools::factory::qc_assessment(hpo.clone(), &sanitized);
+    let result3 = ga4ghphetools::qc_assessment(hpo.clone(), &sanitized);
     assert!(result3.is_ok());
 
 }
@@ -716,7 +716,7 @@ fn test_from_file(hpo: Arc<FullCsrOntology>) {
                     .map_err(|e| format!("Failed to read file: {}", e)).unwrap();
     let dto: EtlDto = serde_json::from_str(&contents)
                     .map_err(|e| format!("Failed to deserialize JSON: {}", e)).unwrap(); 
-    let result = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), dto);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), dto);
     println!("{:?}", result);
 }
 

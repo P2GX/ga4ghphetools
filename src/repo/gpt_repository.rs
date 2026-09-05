@@ -117,63 +117,35 @@ impl GptRepository {
 
 #[cfg(test)]
 mod tests {
-    use ontolius::{TermId, ontology::OntologyTerms};
-use rstest::{fixture, rstest};
-    use crate::test_utils::fixtures::hpo;
+
     use super::*;
 
-    #[fixture]
-    fn repo_path() -> String {
-        // 1. Start from the project root (where Cargo.toml lives)
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        
-        // 2. Join the relative path components
-        let relative_path = std::path::Path::new(manifest_dir)
-            .join("..")
-            .join("phenopacket-store")
-            .join("notebooks");
-        // 3. Convert to absolute path and resolve ".."
-        // Note: canonicalize returns an error if the path doesn't exist
-        let absolute_path = std::fs::canonicalize(relative_path)
-            .expect("The path to phenopacket-store/notebooks does not exist");
+    #[test]
+    fn test_gpt_repository_initialization_and_qc() {
+        // Create a unique temporary directory for testing
+        let temp_dir = std::env::temp_dir().join(format!("gpt_repo_test_{}", uuid_or_random()));
+        let gene_dir = temp_dir.join("BRCA1");
+        std::fs::create_dir_all(&gene_dir).expect("Failed to create temporary gene directory");
 
-        // 4. Return as String
-        absolute_path.to_string_lossy().to_string()
+        // Initialize repository
+        let repo = GptRepository::new(&temp_dir);
+        assert_eq!(repo.path, temp_dir);
+        assert_eq!(repo.cohort_list.len(), 1);
+
+        // Test repository QC execution
+        let qc_result = repo.repo_qc();
+        assert!(qc_result.is_ok(), "Repository QC should execute successfully on a mock directory structure");
+
+        // Clean up temporary files
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
-
-     #[rstest]
-     fn test_update(hpo: Arc<FullCsrOntology>) {
-        let root = "/Users/peterrobinson/TMP/notebooks";
-        let pbuf: PathBuf = root.into();
-        let gptr = GptRepository::new(&pbuf);
-        let update_report = gptr.update_all_ppkt(hpo).unwrap();
-        println!("Updated: {}", update_report.directory);
-         println!("Processed {} cohorts, of which {} were updated", update_report.processed, update_report.updated);
-        assert!(true);
-     }
-
-     #[rstest]
-     fn test_failing_cohort(hpo: Arc<FullCsrOntology>) {
-        let cohort_file = "/Users/peterrobinson/TMP/notebooks/APOA4/APOA4_ADTKD6_individuals.json";
-        let pbuf: PathBuf = cohort_file.into();
-        let mut cohort = CohortDir::read_cohort(&pbuf).unwrap();
-        if crate::hpo::duplets_need_update(hpo.clone(), &cohort.hpo_headers).unwrap() {
-            cohort.hpo_headers = update_hpo_duplets(hpo.clone(), &cohort.hpo_headers).unwrap();
-            println!("Updated headers")
-        } else {
-            println!("No need to update headers")
-        }
-     }
-
-       #[rstest]
-     fn test_term_get(hpo: Arc<FullCsrOntology>) {
-        let tid: TermId = "HP:0020109".parse().unwrap();
-        let term = hpo.term_by_id(&tid);
-        assert!(term.is_some());
-        
-     }
-
-
+    fn uuid_or_random() -> u64 {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64
+    }
 
 }
