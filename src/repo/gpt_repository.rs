@@ -44,7 +44,7 @@ impl GptRepository {
     }
 
     pub fn repo_qc(&self) -> Result<RepoQc, String> {
-         let result: Result<Vec<CohortQc>, String> = self.cohort_list.iter()
+        let result: Result<Vec<CohortQc>, String> = self.cohort_list.iter()
             .map(|cl| cl.get_cohort_qc())
             .collect();
         match result {

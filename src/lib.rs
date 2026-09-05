@@ -50,6 +50,7 @@ pub use factory::add_hpo_term_to_cohort;
 pub use factory::create_new_cohort_data;
 pub use factory::add_new_row_to_cohort;
 pub use factory::merge_cohort_data_from_etl_dto;
+pub use factory::excel::read_external_excel_to_dto;
 
 
 mod persistence;
@@ -62,6 +63,8 @@ mod repo;
 pub use repo::get_repo_qc;
 pub use repo::update_all_ppkt;
 pub use repo::compare_two_phenopackets;
+pub use repo::repo_qc::RepoQc;
+pub use repo::ComparisonReport;
 
 mod variant;
 pub use variant::validate_hgvs_variant;
@@ -74,6 +77,15 @@ pub use variant::analyze_variants;
 mod tauri;
 #[cfg(feature = "tauri")]
 pub use tauri::parent_child::get_hpo_parent_and_children_terms;
+#[cfg(feature = "tauri")]
+pub use tauri::models::HierarchyMapItem;
+#[cfg(feature = "tauri")]
+pub use tauri::pick_file_and_process;
+#[cfg(feature = "tauri")]
+pub use tauri::load_ontology;
+#[cfg(feature = "tauri")]
+pub use tauri::OntologyLoadEvent;
+
 
 
 

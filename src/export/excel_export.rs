@@ -73,8 +73,6 @@ pub fn create_excel_with_merged_cells(out_filename: &str,
          worksheet2.write_string(j, 0 as u16, cite.pmid()).map_err(|e|e.to_string())?;
          worksheet2.write_string(j, 1 as u16, cite.title()).map_err(|e|e.to_string())?;
     }
-
-    println!("Saving excel file to {out_filename}");
     workbook.save(out_filename).map_err(|e|e.to_string())?;
     Ok(())
 }

@@ -105,8 +105,6 @@ mod test {
        let result = get_hpo_terms_by_toplevel(vec![arachnodactyly, asd], hpo.clone());
        assert!(result.is_ok());
        let hpo_map = result.unwrap();
-       println!("{:?}", hpo_map);
-  
        assert_eq!(3, hpo_map.len());
        assert!(hpo_map.contains_key(musculoskel.hpo_label()));
        let skel_vec = hpo_map.get(musculoskel.hpo_label()).unwrap();
