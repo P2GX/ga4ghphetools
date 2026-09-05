@@ -122,21 +122,14 @@ mod tests {
 
     #[test]
     fn test_gpt_repository_initialization_and_qc() {
-        // Create a unique temporary directory for testing
         let temp_dir = std::env::temp_dir().join(format!("gpt_repo_test_{}", uuid_or_random()));
         let gene_dir = temp_dir.join("BRCA1");
         std::fs::create_dir_all(&gene_dir).expect("Failed to create temporary gene directory");
-
-        // Initialize repository
         let repo = GptRepository::new(&temp_dir);
         assert_eq!(repo.path, temp_dir);
         assert_eq!(repo.cohort_list.len(), 1);
-
-        // Test repository QC execution
         let qc_result = repo.repo_qc();
         assert!(qc_result.is_ok(), "Repository QC should execute successfully on a mock directory structure");
-
-        // Clean up temporary files
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 

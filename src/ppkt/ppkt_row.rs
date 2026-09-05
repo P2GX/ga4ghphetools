@@ -8,11 +8,10 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use ontolius::TermId;
-use crate::dto;
 use crate::dto::hpo_term_dto::CellValue;
 use crate::dto::hpo_term_dto::CellValueInner;
 use crate::dto::hpo_term_dto::HpoTermData;
-use crate::dto::cohort_dto::{CohortType, DiseaseData, GeneVariantData, IndividualData};
+use crate::dto::cohort_dto::{DiseaseData, GeneVariantData, IndividualData};
 
 
 
@@ -246,8 +245,6 @@ impl PpktRow {
 mod test {
     use super::*;
     use rstest::fixture;
-  
-
 
     #[fixture]
     fn row1() -> Vec<String> 

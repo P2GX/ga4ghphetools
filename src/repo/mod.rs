@@ -3,7 +3,7 @@
 //! 
 //! 
 
-use std::{collections::HashSet, path::{Path, PathBuf}, sync::Arc};
+use std::{collections::HashSet, path::Path, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::Serialize;

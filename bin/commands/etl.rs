@@ -21,7 +21,7 @@ pub fn handle(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let dto: EtlDto = serde_json::from_str(&contents)
         .map_err(|e| format!("Failed to deserialize JSON: {}", e))?;
 
-    let cohort = ga4ghphetools::etl::get_cohort_data_from_etl_dto(hpo.clone(), dto)?;
+    let cohort = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), dto)?;
     let json = serde_json::to_string_pretty(&cohort)?;
     println!("{}", json);
 

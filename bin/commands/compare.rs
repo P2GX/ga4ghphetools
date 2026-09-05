@@ -2,7 +2,7 @@ use clap::{Arg, ArgMatches};
 
 
 #[cfg(feature = "excel_export")]
-use ga4ghphetools::export::output_excel_comparison;
+use ga4ghphetools::output_excel_comparison;
 
 /// Returns the `clap::Command` for this subcommand
 pub fn command() -> clap::Command {
@@ -34,6 +34,7 @@ pub fn handle(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
 
 #[cfg(not(feature = "excel_export"))]
 pub fn handle(_sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("This binary was built without the `excel_export` feature");
+    eprintln!("This binary was built without the `excel_export` feature.");
+    eprintln!("Try 'cargo build --features excel_export' before running the 'compare' command.");
     Ok(())
 }

@@ -20,7 +20,7 @@
 
 mod header;
 
-pub mod age;
+mod age;
 pub mod dto;
 pub mod error;
 
@@ -30,6 +30,8 @@ pub use etl::get_cohort_data_from_etl_dto;
 
 mod export;
 pub use export::render_html;
+#[cfg(feature = "excel_export")]
+pub use export::output_excel_comparison;
 
 mod hpo;
 pub use hpo::get_modifiers;
