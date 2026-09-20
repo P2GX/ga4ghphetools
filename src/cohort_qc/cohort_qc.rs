@@ -1,9 +1,14 @@
+//! CohortDataQc
+//! Central place for performing quality control operations on a cohort file
+
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc};
 
 use ontolius::{Identified, TermId, ontology::{HierarchyQueries, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
 
 
-use crate::{dto::{cohort_dto::{CohortData, RowData}, hpo_term_dto::HpoTermDuplet}, error::ontology_error::OntologyError, factory::CohortError};
+use crate::{
+    cohort_qc::qc_report::{self, QcReport}, dto::{cohort_dto::{CohortData, RowData}, 
+    hpo_term_dto::HpoTermDuplet}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
 
 
 /// Locally used struct for convenience
@@ -53,17 +58,18 @@ impl CohortDataQc {
     ///
     ///  * Returns
     ///
-    /// - The first error encountered.
+    /// - QcReport: Summary of all encountered errors
     ///
     pub fn qc_check(
         &self, 
-        cohort: &CohortData) -> Result<(), CohortError> {
+        cohort: &CohortData) -> Result<QcReport, CohortError> {
         let n_hpos = cohort.hpo_headers.len();
+        let mut qc_report = QcReport::new(&cohort.acronym());
         // check correct length
         for row in &cohort.rows {
             if row.hpo_data.len() != n_hpos {
                 let msg = format!("Length mismatch: Header: {} vs. row: {}", n_hpos, row.hpo_data.len());
-                return Err(CohortError::format(msg));
+                return Err(CohortError::missing_field(msg));
             }
         }
         // check for duplicates
@@ -71,95 +77,106 @@ impl CohortDataQc {
         for duplet in &cohort.hpo_headers {
             if seen.contains(duplet) {
                 let msg = format!("Duplicate entry in HPO Header: {} ({})", duplet.hpo_label(), duplet.hpo_id());
-                return Err(CohortError::format(msg));
+                return Err(CohortError::duplicate_entry(msg));
             } else {
                 seen.insert(duplet);
             }
         }
-        self.check_hpo_ids_and_labels(cohort)
-            .map_err(|e| CohortError::format(e))?;
-        self.check_for_duplicate_rows(cohort)?;
-        self.check_biocuration(cohort)?;
-        Ok(())
+        let o_errors = self.check_hpo_ids_and_labels(cohort);
+        qc_report.extend_ontology_errors(o_errors);
+        let d_errors = self.check_for_duplicate_rows(cohort);
+        qc_report.extend_cohort_errors(d_errors);
+        let c_err = self.check_biocuration(cohort);
+        qc_report.extend_cohort_errors(c_err);
+        Ok(qc_report)
     }
 
 
     /// Check the cohort for duplicate entries
     /// We rely on the cross product of PMID and individual id
-    fn check_for_duplicate_rows(&self, cohort: &CohortData) -> Result<(), CohortError> {
+    fn check_for_duplicate_rows(&self, cohort: &CohortData) -> Vec<CohortError> {
         let mut seen_entries: HashSet<String> = HashSet::new();
+        let mut duplicate_errors: Vec<CohortError> = Vec::new();
         for row in &cohort.rows {
             let key = format!("{}-{}",row.individual_data.individual_id, row.individual_data.pmid);
             if seen_entries.contains(&key) {
                 let msg = format!("Duplicate entry: {}", key);
-                return Err(CohortError::format(msg));
+                duplicate_errors.push(CohortError::duplicate_entry(msg));
             } else {
                 seen_entries.insert(key);
             }
         }
-
-        Ok(())
+        duplicate_errors
     }
 
-    fn check_biocuration(&self, cohort: &CohortData) -> Result<(), CohortError> {
+    fn check_biocuration(&self, cohort: &CohortData) -> Option<CohortError> {
         let history = &cohort.curation_history;
         if history.is_empty() {
-            return Err(CohortError::format("No curation recorded"));
+            return Some(CohortError::curation_error("No curation recorded"));
         }
         let total_count = history.len();
         let unique_count = history.iter().collect::<HashSet<_>>().len();
 
         if unique_count < total_count {
-            return Err(CohortError::format("Duplicate biocuration entries found."));
+            return Some(CohortError::curation_error("Duplicate biocuration entries found."));
         }
-        Ok(())
+        None
     }
     
 
     pub fn qc_conflicting_pairs(&self, cohort: &CohortData) -> Result<(), CohortError> {
         let conflicting_pairs = self.get_conflicting_termid_pairs(cohort)
-        .map_err(|e| CohortError::format(e.to_string()))?;
+        .map_err(|e| CohortError::ontology_error(e.to_string()))?;
         if conflicting_pairs.no_conflict() {
             Ok(())
         } else {
-            Err(CohortError::format(conflicting_pairs.report()))
+            Err(CohortError::ontology_error(conflicting_pairs.report()))
         }   
     }
 
     /// Check that the TermId and labels are up to date. Fail on the first error.
-    fn check_hpo_ids_and_labels(&self, cohort: &CohortData) -> Result<(), String> {
+    fn check_hpo_ids_and_labels(&self, cohort: &CohortData) -> Vec<OntologyError> {
+        let mut error_list: Vec<OntologyError> = Vec::new();
         for hpo_duplet in &cohort.hpo_headers {
-            let hpo_term_id = TermId::from_str(&hpo_duplet.hpo_id)
-                .map_err(|e| e.to_string())?;
-            let term = self.hpo.term_by_id(&hpo_term_id)
-                    .ok_or_else(|| format!("Could not find HPO term for {}", hpo_term_id))?;
+            let hpo_term_id = match TermId::from_str(&hpo_duplet.hpo_id) {
+                Ok(id) => id,
+                Err(_e) => {
+                    error_list.push(OntologyError::term_not_found(&hpo_duplet.hpo_id));
+                    continue;
+                }
+            };
+            let Some(term) = self.hpo.term_by_id(&hpo_term_id) else {
+                error_list.push(OntologyError::term_not_found(&hpo_term_id.to_string()));
+                continue;
+            };
             if term.identifier() != &hpo_term_id {
-                return Err(format!("{} is not the primary id ({}) for {}",
-                    hpo_term_id, term.identifier(), hpo_duplet.hpo_label()));
+                error_list.push(OntologyError::not_primary_id(
+                    &hpo_term_id.to_string(),
+                    &term.identifier().to_string(),
+                    hpo_duplet.hpo_label(),
+                ));
             }
             if term.name() != hpo_duplet.hpo_label() {
-                 return Err(format!("{} is not the current label ({}) for {}",
-                    hpo_duplet.hpo_label(), term.name(), hpo_term_id));
+                error_list.push(OntologyError::stale_label(
+                    hpo_duplet.hpo_label(),
+                    term.name(),
+                    &hpo_term_id.to_string(),
+                ));
             }
         }
-        Ok(())
+        error_list
     }
 
 
     pub fn check_metadata(&self, cohort: &CohortData) -> Result<(), CohortError> {
         let diseases = &cohort.disease_list;
         if diseases.is_empty() {
-            return Err(CohortError::format("Disease list empty"));
+            return Err(CohortError::empty_disease_list());
         }
-        let mut errors = vec![];
         for disease in diseases {
             if disease.mode_of_inheritance_list.is_empty() {
-                errors.push(format!("No mode of inheritance provided for {} ({})", disease.disease_label, disease.disease_id));
-                
+                return Err(CohortError::LackingMoi(disease.disease_label.to_string()));                
             }
-        }
-        if ! errors.is_empty() {
-            return Err(CohortError::lacking_moi(errors));
         }
         Ok(())
     }
@@ -348,5 +365,52 @@ mod tests {
         assert_eq!(duplets_with_outdated_hpo_id[2], sanitized[2]);
     }
 
+    #[rstest]
+    fn test_sanitize_header_empty(hpo: Arc<FullCsrOntology>) {
+        let qc = CohortDataQc::new(hpo.clone());
+        let result = qc.sanitize_header(&Vec::new());
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[rstest]
+    fn test_sanitize_header_already_current(hpo: Arc<FullCsrOntology>) {
+        // Dystonia's id/label in the fixture above (HP:0001332) is already primary/current,
+        // so sanitizing should leave it unchanged.
+        let qc = CohortDataQc::new(hpo.clone());
+        let dystonia = vec![HpoTermDuplet::new("Dystonia", "HP:0001332")];
+        let result = qc.sanitize_header(&dystonia).unwrap();
+        assert_eq!(result[0].hpo_id(), "HP:0001332");
+        assert_eq!(result[0].hpo_label(), "Dystonia");
+    }
+
+    #[rstest]
+    fn test_sanitize_header_unknown_id_errors(hpo: Arc<FullCsrOntology>) {
+        let qc = CohortDataQc::new(hpo.clone());
+        let bogus = vec![HpoTermDuplet::new("Not a real term", "HP:9999999")];
+        let result = qc.sanitize_header(&bogus);
+        assert!(result.is_err());
+    }
+
+    #[rstest]
+    fn test_sanitize_header_malformed_id_errors(hpo: Arc<FullCsrOntology>) {
+        let qc = CohortDataQc::new(hpo.clone());
+        let malformed = vec![HpoTermDuplet::new("Bad ID", "not-a-term-id")];
+        let result = qc.sanitize_header(&malformed);
+        assert!(result.is_err());
+    }
+
+    #[rstest]
+    fn test_sanitize_header_preserves_order(
+        hpo: Arc<FullCsrOntology>,
+        duplets_with_outdated_hpo_id: Vec<HpoTermDuplet>,
+    ) {
+        let qc = CohortDataQc::new(hpo.clone());
+        let sanitized = qc.sanitize_header(&duplets_with_outdated_hpo_id).unwrap();
+        // intoeing and dystonia should stay in the same positions even though
+        // only the first entry (gait disturbance) actually changed
+        assert_eq!(sanitized[1].hpo_label(), "Intoeing");
+        assert_eq!(sanitized[2].hpo_label(), "Dystonia");
+    }
 
 }

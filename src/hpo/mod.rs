@@ -1,9 +1,10 @@
 //! HPO module
 //! 
 //! Convenience functions for working with HPO data
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path, str::FromStr, sync::Arc};
 
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
+use phenopackets::schema::v2::Phenopacket;
 
 use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::{HpoTermData, HpoTermDuplet}}, error::ontology_error::OntologyError, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
 
@@ -245,3 +246,8 @@ pub fn get_hpo_terms_by_toplevel(
 ) -> Result<HashMap<String, Vec<HpoTermDuplet>>, String> {
     hpo_hierarchizer::get_hpo_terms_by_toplevel(cohort_dto.hpo_headers, hpo)
 }
+
+
+
+
+  

@@ -501,10 +501,17 @@ impl CohortData {
     }
 
 
+    pub fn get_mendelian_disease_id(&self) -> Result<String, PheToolsError> {
+        if ! self.is_mendelian() {
+            return Err(PheToolsError::message(format!("Attempt to get simple disease ID from non-Mendelian disease {}", self.acronym())))
+        } else {
+            let ddata = &self.disease_list[0];
+            return Ok(ddata.disease_id.clone())
+        }
+    }
+
+
     pub fn update_hpo(&mut self, hpo: Arc<FullCsrOntology>) -> Result<bool, String> {
-
-
-
         Ok(false)
     }
     

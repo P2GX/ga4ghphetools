@@ -147,7 +147,7 @@ impl HeaderDupletRow {
         }       
     }
     
-    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, OntologyError> {();
+    pub fn get_hpo_id_list(&self) -> std::result::Result<Vec<TermId>, OntologyError> {
         let mut term_id_list: Vec<TermId> = Vec::with_capacity(self.hpo_duplets.len());
         for duplet in &self.hpo_duplets {
             let tid = duplet.to_term_id()?;
@@ -219,24 +219,70 @@ mod test {
     use rstest::{fixture, rstest};
 
     #[fixture]
-    pub fn one_case_matrix() -> Vec<Vec<String>> {
-        let row1: Vec<String> = vec![ 
-            "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id", "gene_symbol", "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", "deceased", "sex", "HPO", "Failure to thrive", "Seizure"
-        ].into_iter().map(|s| s.to_owned()).collect();
-        let row2: Vec<String> = vec![
-            "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", "str", "str", "str", "str", "optional", "age", "age", "yes/no/na", "M:F:O:U", "na", "HP:0001508",  "HP:0001250" 
-        ].into_iter().map(|s| s.to_owned()).collect();
-        let row3: Vec<String> = vec![
-            "PMID:29198722", "A Recurrent De Novo Nonsense Variant in ZSWIM6 Results in Severe Intellectual Disability without Frontonasal or Limb Malformations", "p.Arg913Ter Affected Individual 1", "", "OMIM:617865", "Neurodevelopmental disorder with movement abnormalities, abnormal gait, and autistic features", "HGNC:29316", "ZSWIM6", "NM_020928.2", "c.2737C>T", "na", "", "Infantile onset", "P16Y", "na", "M", "na", "observed", "observed"
-        ].into_iter().map(|s| s.to_owned()).collect();
-        vec![row1, row2, row3]
+    fn hpo_duplets() -> Vec<HpoTermDuplet> {
+        vec![
+            HpoTermDuplet::new("Seizure", "HP:0001250"),
+            HpoTermDuplet::new("Nystagmus", "HP:0000639"),
+        ]
     }
 
     #[rstest]
-    fn test_n_fields() {
-        // We expect a total of 17 fields before the HPO Term fields start
-        assert_eq!(17, HeaderDupletRow::n_mendelian_contant_fields())
+    fn test_hpo_count(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        assert_eq!(header.hpo_count(), 2);
     }
 
+    #[rstest]
+    fn test_template_type(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        assert_eq!(*header.template_type(), CohortType::Mendelian);
+    }
+
+    #[rstest]
+    fn test_n_columns(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        // 4 (individual) + 2*1 (disease) + 6*1 (gene/variant) + 4 (demographic) + 2 (hpo) + 1 (separator)
+        assert_eq!(header.n_columns(), 19);
+    }
+
+    #[rstest]
+    fn test_get_hpo_id_list(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        let ids = header.get_hpo_id_list().unwrap();
+        assert_eq!(ids.len(), 2);
+        assert_eq!(ids[0].to_string(), "HP:0001250");
+        assert_eq!(ids[1].to_string(), "HP:0000639");
+    }
+
+    #[rstest]
+    fn test_get_hpo_content_map(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        let values = vec!["observed".to_string(), "excluded".to_string()];
+        let map = header.get_hpo_content_map(&values).unwrap();
+        assert_eq!(map.len(), 2);
+    }
+
+    #[rstest]
+    fn test_get_hpo_content_map_length_mismatch(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        let values = vec!["observed".to_string()]; // wrong length: 1 vs 2
+        assert!(header.get_hpo_content_map(&values).is_err());
+    }
+
+    #[rstest]
+    fn test_get_hpo_term_dto_list_length_mismatch(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        let values = vec!["observed".to_string()]; // wrong length
+        assert!(header.get_hpo_term_dto_list(&values).is_err());
+    }
+
+    #[rstest]
+    fn test_update_replaces_hpo_duplets(hpo_duplets: Vec<HpoTermDuplet>) {
+        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
+        let new_duplets = vec![HpoTermDuplet::new("Ataxia", "HP:0001251")];
+        let updated = header.update(&new_duplets).unwrap();
+        assert_eq!(updated.hpo_count(), 1);
+        assert_eq!(updated.get_hpo_id_list().unwrap()[0].to_string(), "HP:0001251");
+    }
 
 }

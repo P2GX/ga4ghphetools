@@ -1,7 +1,7 @@
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::error::{annotation_error::AnnotationError, cohort_error::CohortError, ontology_error::OntologyError, parse_error::ParseError};
+use crate::{error::{annotation_error::AnnotationError, cohort_error::CohortError, ontology_error::OntologyError, parse_error::ParseError}};
 
 pub mod annotation_error;
 pub mod cohort_error;
@@ -28,5 +28,12 @@ pub enum PheToolsError {
 impl From<String> for PheToolsError {
     fn from(s: String) -> Self {
         Self::Message(s)
+    }
+}
+
+
+impl PheToolsError {
+    pub fn message(msg: impl Into<String>) -> Self {
+        PheToolsError::Message(msg.into())
     }
 }

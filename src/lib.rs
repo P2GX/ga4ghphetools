@@ -15,7 +15,7 @@
 
 // for development allow this
 //#![allow(dead_code)]
-//#![allow(unused_variables)]
+#![allow(unused_variables)]
 //#![allow(unused_imports)]
 
 mod header;
@@ -23,6 +23,8 @@ mod header;
 mod age;
 pub mod dto;
 pub mod error;
+
+mod cohort_qc;
 
 mod etl;
 pub use etl::process_allele_column;
@@ -43,7 +45,6 @@ mod factory;
 pub use factory::load_json_cohort;
 pub use factory::extract_template_name;
 pub use factory::create_new_melded_cohort;
-pub use factory::qc_assessment;
 pub use factory::sanitize_cohort_data;
 pub use factory::sort_rows;
 pub use factory::add_hpo_term_to_cohort;

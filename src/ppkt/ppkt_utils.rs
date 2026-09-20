@@ -1,5 +1,10 @@
+use std::fs::File;
+use std::path::Path;
+
+use phenopackets::schema::v2::Phenopacket;
 use phenopackets::schema::v2::core::Interpretation;
 use phenopackets::schema::v2::core::genomic_interpretation::Call;
+use serde_json::json;
 
 
 
@@ -23,6 +28,51 @@ pub fn get_gene_symbol_from_interpretation(interpretation: &Interpretation) -> O
     }
 
 
+/// There are a few issues when loading V2 phenopackets with SERDE because of the way it treats default fields
+fn patch_missing_defaults(v: &mut serde_json::Value) {
+    if let Some(obj) = v.as_object_mut() {
+        // Handle "vitalStatus" fields
+        if let Some(vs) = obj.get_mut("vitalStatus").and_then(|vs| vs.as_object_mut()) {
+            // Field 1: survivalTimeInDays
+            vs.entry("survivalTimeInDays").or_insert_with(|| serde_json::json!(0));
+            
+            // Field 2: status (If it's missing, default to the 0-variant)
+            vs.entry("status").or_insert_with(|| serde_json::json!("UNKNOWN_STATUS"));
+        }
+
+        // Recurse to find vitalStatus inside nested structures (Families, etc.)
+        for child in obj.values_mut() {
+            patch_missing_defaults(child);
+        }
+    } else if let Some(array) = v.as_array_mut() {
+        for item in array {
+            patch_missing_defaults(item);
+        }
+    }
+}
+    
+pub fn load_phenopacket<P: AsRef<Path>>(path: P) -> Result<Phenopacket, String> {
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    let reader = std::io::BufReader::new(file);
+    // 1. Parse into a JSON Value
+    let mut v: serde_json::Value = serde_json::from_reader(reader).map_err(|e| e.to_string())?;
+    // 2. Patch the specific fields causing the panic
+    patch_missing_defaults(&mut v);
+    let phenopacket: Phenopacket = serde_json::from_value(v)
+        .map_err(|e| format!("Schema error after patching: {}", e))?;
+    Ok(phenopacket)
+}
+
+/// Get disease identifier for a Mendelian phenopacket. If we do not find exactly one disease id, throw an error
+pub fn get_disease_id(ppkt: &Phenopacket) -> Result<String, String> {
+    if ppkt.diseases.len() != 1 {
+        return Err(format!("Unexpected disease count {}", ppkt.diseases.len()))
+    }
+    match &ppkt.diseases[0].term {
+        Some(ot) => Ok(ot.id.clone()),
+        None => Err(format!("No ontology term for disease {:?}", ppkt.diseases[0])),
+    }
+}
 
 
 #[cfg(test)]

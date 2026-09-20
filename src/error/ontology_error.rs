@@ -19,9 +19,19 @@ pub enum OntologyError {
     #[error("Hpo terms must match but we got {0} and {0}")]
     OntologyMatch(String, String),
     #[error("{0}")]
-    TermDupletError(String)
-
-    
+    TermDupletError(String),
+    #[error("{term_id} is not the primary id ({primary_id}) for {label}")]
+    NotPrimaryId {
+        term_id: String,
+        primary_id: String,
+        label: String,
+    },
+    #[error("'{given_label}' is not the current label ('{current_label}') for {term_id}")]
+    StaleLabel {
+        given_label: String,
+        current_label: String,
+        term_id: String,
+    },
 }
 
 
@@ -67,6 +77,22 @@ impl OntologyError {
     pub fn term_duplet_conversion_error(duplet: &HpoTermDuplet) -> Self {
         let msg = format!("Failed to parse TermId from row2: {} (converting duplet: {:?})", duplet.hpo_id(), duplet); 
         OntologyError::TermDupletError(msg.into())
+    }
+
+    pub fn not_primary_id(term_id: &str, primary_id: &str, label: &str) -> Self {
+        OntologyError::NotPrimaryId {
+            term_id: term_id.to_string(),
+            primary_id: primary_id.to_string(),
+            label: label.to_string(),
+        }
+    }
+
+    pub fn stale_label(given_label: &str, current_label: &str, term_id: &str) -> Self {
+        OntologyError::StaleLabel {
+            given_label: given_label.to_string(),
+            current_label: current_label.to_string(),
+            term_id: term_id.to_string(),
+        }
     }
 
 

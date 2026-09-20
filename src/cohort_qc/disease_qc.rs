@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use phenopackets::schema::v2::{Phenopacket, core::genomic_interpretation::Call};
-
-use crate::{dto::cohort_dto::{CohortData, DiseaseData}, repo::qc_report::QcReport};
+use crate::{dto::cohort_dto::{CohortData, DiseaseData}, error::cohort_error::CohortError};
 
 
 
@@ -23,6 +22,18 @@ impl DiseaseQc {
         }
     }
 
+    pub fn from_ppkt_list(
+        disease_data: &DiseaseData, 
+        cohort: &CohortData,
+        ppkt_list: &[&Phenopacket]
+    ) -> Self {
+        Self {
+            disease_data: disease_data.clone(), 
+            ppkt_list: ppkt_list.iter().map(|p| (*p).clone()).collect(),
+            cohort: cohort.clone()
+        }
+    }
+
     pub fn add_ppkt(&mut self, ppkt: Phenopacket) {
         self.ppkt_list.push(ppkt);
     }
@@ -32,8 +43,8 @@ impl DiseaseQc {
         return self.ppkt_list.len();
     }
 
-    pub fn check_moi(&self) -> Vec<QcReport> {
-        let mut errs: Vec<QcReport> = Vec::new();
+    pub fn check_moi(&self) -> Vec<CohortError> {
+        let mut errs: Vec<CohortError> = Vec::new();
         let mut allowable_allele_counts: HashSet<usize> = HashSet::new();
         for moi in &self.disease_data.mode_of_inheritance_list {
             if moi.is_autosomal_dominant() {
@@ -53,8 +64,8 @@ impl DiseaseQc {
         for ppkt in &self.ppkt_list {
             let ac = Self::get_allele_count(ppkt);
             if ! allowable_allele_counts.contains(&ac) {
-                let qc = QcReport::moi_mismatch(&self.disease_data_display(), &ppkt.id, &allowable_allele_counts, ac);
-                errs.push(qc);
+                let err = CohortError::moi_mismatch(&ppkt.id, &allowable_allele_counts, ac);
+                errs.push(err);
             }
         }
         errs
@@ -96,36 +107,35 @@ impl DiseaseQc {
         ac
     }
 
-    pub fn check_all_rows_output_as_ppkt(&self) -> Option<QcReport> {
+    pub fn check_all_rows_output_as_ppkt(&self) -> Option<CohortError> {
         let n_nrows = self.cohort.rows.len();
         let n_phenopackets = self.phenopacket_count();
         if n_nrows == n_phenopackets {
             None
         } else {
-            Some(QcReport::count_mismatch(&self.disease_data_display(), n_nrows, n_phenopackets))
+            Some(CohortError::count_mismatch( n_nrows, n_phenopackets))
         }
     }
 
-    pub fn check_no_hpo(&self) -> Vec<QcReport> {
-        let mut errs: Vec<QcReport> = Vec::new();
+    pub fn check_no_hpo(&self) -> Vec<CohortError> {
+        let mut errs: Vec<CohortError> = Vec::new();
         for ppkt in &self.ppkt_list {
             let n_hpo = ppkt.phenotypic_features.iter().filter(|p| ! p.excluded )
             .count();
             if n_hpo == 0 {
-                errs.push(QcReport::no_hpo(&self.disease_data_display(), &ppkt.id));
+                errs.push(CohortError::no_observed_hpo_annots(&ppkt.id));
             }
         }
         errs
     }
     
-    pub fn check_acronym(&self) -> Vec<QcReport> {
-       let mut errs: Vec<QcReport> = Vec::new();
-       let acronym = self.cohort.acronym();
-       let acronym = self.cohort.acronym();
-       if ! acronym.contains("_") {
-            errs.push(QcReport::malformed_acronym(acronym));
-       }
-       errs
+    pub fn check_acronym(&self) -> Option<CohortError> {
+        let acronym = self.cohort.acronym();
+        if ! acronym.contains("_") {
+            Some(CohortError::malformed_acronym(&acronym))
+        } else {
+            None
+        }
     }
 }
 
@@ -163,7 +173,7 @@ mod test {
 
      #[rstest]
     fn check_invalid_acronym(disease_qc_invalid_acronym: DiseaseQc) {
-        let qc_report_list = disease_qc_invalid_acronym.check_acronym();
+        let qc_report_list = disease_qc_invalid_acronym.check_acronym().unwrap();
         assert_eq!(1, qc_report_list.len());
     }
 

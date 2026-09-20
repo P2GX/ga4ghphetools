@@ -18,6 +18,9 @@ pub (crate) mod ppkt_updater;
 pub mod ppkt_row;
 mod ppkt_utils;
 
+pub use ppkt_utils::load_phenopacket;
+pub use ppkt_utils::get_disease_id;
+
 
 /// Write all `Phenopacket`s derived from a given `CohortData` to disk.
 ///

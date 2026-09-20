@@ -2,22 +2,21 @@
 //! 
 //! 
 //! 
+//! 
+pub(crate) mod gpt_repository;
+mod compare_ppkt;
+pub mod update_report;
+mod ppkt_wrapper;
+mod cohort_wrapper;
+pub mod repo_qc;
 
 use std::{collections::HashSet, path::Path, sync::Arc};
-
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::Serialize;
 
-use crate::repo::{compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::GptRepository, qc_report::UpdateReport, repo_qc::RepoQc};
+use crate::{RepoQc, cohort_qc::{cohort_qc::CohortDataQc, qc_report::QcReport}, repo::{compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::GptRepository, update_report::UpdateReport}};
 
 
-mod cohort_dir;
-mod cohort_qc;
-mod disease_qc;
-mod gpt_repository;
-pub mod qc_report;
-pub mod repo_qc;
-mod compare_ppkt;
 
 
 #[derive(Clone, Debug, Serialize)]
@@ -76,14 +75,7 @@ pub fn compare_two_phenopackets(path1: String, path2: String, hpo: Arc<FullCsrOn
  }
 
 
-/// Perform a general quality check on the entire phenopacket store repository
-/// ppkt_store_notebook_path points to the directory in PPKT Store that contains the individual gene folders
-pub fn get_repo_qc(
-    ppkt_store_notebook_path: &Path,
-    hpo: Arc<FullCsrOntology>) -> Result<RepoQc, String> {
-    let repo = GptRepository::new(ppkt_store_notebook_path);
-    repo.repo_qc()
-}
+
 
 /// Update all HPO ids/labels in the entire phenopacket store
 pub fn update_all_ppkt(
@@ -92,4 +84,23 @@ pub fn update_all_ppkt(
 ) -> Result<UpdateReport, String> {
     let repo = GptRepository::new(ppkt_store_notebook_path);
     repo.update_all_ppkt(hpo).map_err(|e|e.to_string())
+}
+
+
+/// Perform a general quality check on the entire phenopacket store repository
+/// ppkt_store_notebook_path points to the directory in PPKT Store that contains the individual gene folders
+pub fn get_repo_qc(
+    ppkt_store_notebook_path: &Path,
+    hpo: Arc<FullCsrOntology>) -> Result<RepoQc, String> {
+    let repo = GptRepository::new(ppkt_store_notebook_path);
+    let cohort_wrapper_list = repo.get_all_cohort_wrappers().map_err(|e|e.to_string())?;
+    let qc_report_list: Vec<QcReport> = Vec::new();
+    let cohort_qc = CohortDataQc::new(hpo.clone());
+    for cohort_wrap in cohort_wrapper_list.into_iter() {
+        let cohort_data = cohort_wrap.cohort_data();
+        let qc = cohort_qc.qc_check(cohort_data).map_err(|e|e.to_string())?;
+        
+    }
+    Err("xc".to_ascii_lowercase())
+    //repo.repo_qc(hpo.clone())
 }
