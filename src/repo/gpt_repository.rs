@@ -183,7 +183,7 @@ mod tests {
         let repo = GptRepository::new(&temp_dir);
         assert_eq!(repo.path, temp_dir);
         assert_eq!(repo.cohort_map.len(), 1);
-        let qc_result = repo.repo_qc(hpo.clone());
+        let qc_result = crate::get_repo_qc(&temp_dir, hpo.clone());
         assert!(qc_result.is_ok(), "Repository QC should execute successfully on a mock directory structure");
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

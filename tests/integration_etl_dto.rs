@@ -456,7 +456,7 @@ fn test_valid_etl(
     assert!(result.is_ok());
     let mut cohort_dto = result.unwrap();
     cohort_dto.curation_history.push(test_orcid);
-    let qc = ga4ghphetools::qc_assessment(hpo, &cohort_dto);
+    let qc = ga4ghphetools::validate_cohort_template(hpo, &cohort_dto);
     assert!(qc.is_ok());
 }
 
@@ -645,7 +645,7 @@ fn test_column_type_with_redundancy(
     let delayed_gm = cohort_data.observed_hpo_count("HP:0002194");
     assert_eq!(1, delayed_sit);
     assert_eq!(1, delayed_gm);
-    let result = ga4ghphetools::qc_assessment(hpo.clone(), &cohort_data);
+    let result = ga4ghphetools::validate_cohort_template(hpo.clone(), &cohort_data);
     assert!(result.is_err()); // expect an error because a term and its ancestor are both obeserved
     let result2 = ga4ghphetools::sanitize_cohort_data(hpo.clone(),  &cohort_data);
     println!("{:?}", result2);
@@ -672,12 +672,12 @@ fn test_with_excluded_redundancy(
     let etl = make_etl(table, disease_valid);
     let mut cohort = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl).unwrap();
     cohort.curation_history.push(test_orcid);
-    let result = ga4ghphetools::qc_assessment(hpo.clone(), &cohort);
+    let result = ga4ghphetools::validate_cohort_template(hpo.clone(), &cohort);
     assert!(result.is_err());
     let result2 = ga4ghphetools::sanitize_cohort_data(hpo.clone(),  &cohort);
     assert!(result2.is_ok());
     let sanitized = result2.unwrap();
-    let result3 = ga4ghphetools::qc_assessment(hpo.clone(), &sanitized);
+    let result3 = ga4ghphetools::validate_cohort_template(hpo.clone(), &sanitized);
     assert!(result3.is_ok());
 
 }

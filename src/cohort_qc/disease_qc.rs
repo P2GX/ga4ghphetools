@@ -167,14 +167,14 @@ mod test {
 
     #[rstest]
     fn check_valid_acronym(disease_qc_valid_acronym: DiseaseQc) {
-        let qc_report_list = disease_qc_valid_acronym.check_acronym();
-        assert!(qc_report_list.is_empty());
+        let opt = disease_qc_valid_acronym.check_acronym();
+        assert!(opt.is_none());
     }
 
      #[rstest]
     fn check_invalid_acronym(disease_qc_invalid_acronym: DiseaseQc) {
-        let qc_report_list = disease_qc_invalid_acronym.check_acronym().unwrap();
-        assert_eq!(1, qc_report_list.len());
+        let opt = disease_qc_invalid_acronym.check_acronym();
+        assert!(opt.is_some());
     }
 
 

@@ -593,7 +593,7 @@ impl CohortFactory {
 
 #[cfg(test)]
 mod test {
-    use crate::{dto::cohort_dto::{DiseaseData, GeneTranscriptData}, qc_assessment, test_utils::fixtures::{acvr1_cohort, acvr1_disease_data, cell_values_two_terms, cohort_with_na_column, hpo_headers_two_terms, individual_data}};
+    use crate::{dto::cohort_dto::{DiseaseData, GeneTranscriptData}, test_utils::fixtures::{acvr1_cohort, acvr1_disease_data, cell_values_two_terms, cohort_with_na_column, hpo_headers_two_terms, individual_data}};
     use crate::test_utils::fixtures::hpo;
     use super::*;
     use rstest::{fixture, rstest};
@@ -720,7 +720,7 @@ fn test_add_one_hpo_term(
         let rdata = RowData{ individual_data, disease_id_list: vec![acvr1_disease_data.disease_id.to_string()], allele_count_map: HashMap::new(), hpo_data: cell_values_two_terms };
 
         let cohort_data = CohortData::mendelian(acvr1_disease_data, hpo_headers_two_terms, vec![rdata], hpo.version());
-        let result = qc_assessment(hpo, &cohort_data);
+        let result = crate::validate_cohort_template(hpo, &cohort_data);
         assert!(result.is_err());
         let err_str = result.err().unwrap();
         assert_eq!("Format error: Duplicate entry in HPO Header: Ectopic ossification in muscle tissue (HP:0011987)", err_str.to_string());

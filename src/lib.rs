@@ -25,6 +25,7 @@ pub mod dto;
 pub mod error;
 
 mod cohort_qc;
+pub use cohort_qc::validate_cohort_template;
 
 mod etl;
 pub use etl::process_allele_column;
