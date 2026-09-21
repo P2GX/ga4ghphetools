@@ -15,7 +15,7 @@ pub fn handle(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let hpo = crate::load_hpo(hpo_path).expect("Could not construct HPO ontology");
     let cohort = ga4ghphetools::load_json_cohort(json_input_path).expect("Could not load Cohort JSON file");
     let cohort_file_name = extract_file_name(json_input_path);
-    match ga4ghphetools::qc_assessment(hpo, &cohort) {
+    match ga4ghphetools::validate_cohort_template(hpo, &cohort) {
         Ok(_) => println!("No Q/C issues identified for {cohort_file_name}."),
         Err(e) => eprint!("Error for {cohort_file_name}: {e}"),
     }

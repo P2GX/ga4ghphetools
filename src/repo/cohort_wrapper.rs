@@ -57,8 +57,21 @@ impl CohortWrapper {
      pub fn get_cohort_wrapper_list(individual_file_list: &[PathBuf]) -> Result<Vec<CohortWrapper>, PheToolsError> {
         let mut  ppkt_w_list = Vec::new();
         for path in individual_file_list.iter() {
-            let ppkt = ppkt::load_phenopacket(path)?;
-            let ppkt_disease_id = ppkt::get_disease_id(&ppkt)?;
+            let ppkt = match ppkt::load_phenopacket(path) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Warning: Failed to load phenopacket at {:?}: {}", path, e);
+                    continue; // Skip this file and move to the next
+                }
+            };
+
+            let ppkt_disease_id = match ppkt::get_disease_id(&ppkt) {
+                Ok(id) => id,
+                Err(e) => {
+                    eprintln!("Warning: Failed to get disease ID for {:?}: {}", path, e);
+                    continue;
+                }
+            };
             let ppkt_wrap = PpktWrapper::new(path, ppkt_disease_id, ppkt);
             ppkt_w_list.push(ppkt_wrap);
         }

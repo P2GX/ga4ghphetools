@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use phenopackets::schema::v2::Phenopacket;
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct  PpktWrapper {
     pub path: PathBuf,
     pub disease_id: String,

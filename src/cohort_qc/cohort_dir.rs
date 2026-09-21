@@ -2,13 +2,13 @@
 //! Represents a directory for one gene with all contained files and metadata.
 //! We use the data for Q/C reports
 
-use std::{collections::HashMap, fs::self, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fs::self, hash::Hash, path::PathBuf, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use phenopackets::schema::v2::Phenopacket;
 use walkdir::WalkDir;
 use std::path::Path;
 use crate::{
-    cohort_qc::{disease_qc::DiseaseQc, qc_report::QcReport}, dto::cohort_dto::CohortData, error::{PheToolsError, cohort_error::CohortError}, ppkt};
+    cohort_qc::{disease_qc::DiseaseQc, qc_report::QcReport}, dto::cohort_dto::CohortData, error::{PheToolsError, cohort_error::CohortError}, ppkt, repo::PpktWrapper};
 
 
 #[derive(Clone, Debug, Default)]
@@ -24,10 +24,12 @@ pub struct CohortDir {
     pub individuals_json: Vec<PathBuf>,
     /// All JSON files inside the 'phenopackets' subdirectory (there must be at least one)
     pub ppkt_path_list: Vec<PathBuf>,
-    /// Map from disease id to list of phenopackets for that disease (one folder can contain multiple diseases)
-    pub ppkt_path_map: HashMap<String, Vec<PathBuf>>,
+    /// Map from disease id to list of phenopacket wrappers with info about disease id, Path, and the phenopacket
+    pub ppkt_path_map: HashMap<String, Vec<PpktWrapper>>,
     /// Any files or directories that don't belong in the standard structure
     pub unexpected_entries: Vec<PathBuf>,
+    /// Any errors encountered during loading of data
+    pub loading_errors: Vec<String>,
 }
 
 
@@ -37,19 +39,20 @@ impl CohortDir {
     /// Each gene directory is named according to the gene symbol (e.g., FBN1) and
     /// contains one or multiple CohortData files -- one per disease associated with the gene.
     pub fn process_gene_directory(path: &Path) -> CohortDir {
-        let mut gene_dir = CohortDir {
+        let mut cohort_dir = CohortDir {
             directory_name: path.file_name().unwrap_or_default().to_string_lossy().into(),
             directory_path: path.to_path_buf(),
             ..Default::default()
         };
-
+        let mut loading_errors: Vec<String> = Vec::new();
+        let mut ppkt_map: HashMap<String, Vec<PpktWrapper>> = HashMap::new();
         // Iterate through the immediate children of the gene directory
         for entry in WalkDir::new(path).min_depth(1).max_depth(1).into_iter().filter_map(|e| e.ok()) {
             let file_name = entry.file_name().to_string_lossy();
 
             if entry.file_type().is_dir() && file_name == "phenopackets" {
                 // Recurse into phenopackets
-                gene_dir.ppkt_path_list = WalkDir::new(entry.path())
+                cohort_dir.ppkt_path_list = WalkDir::new(entry.path())
                     .min_depth(1)
                     .into_iter()
                     .filter_map(|e| e.ok())
@@ -57,14 +60,33 @@ impl CohortDir {
                     .map(|e| e.into_path())
                     .collect();
             } else if entry.file_type().is_file() && file_name.ends_with("_individuals.json") {
-                gene_dir.individuals_json.push(entry.into_path());
+                cohort_dir.individuals_json.push(entry.into_path());
             } else {
                 // Anything else (odd files, extra folders) is flagged
-                gene_dir.unexpected_entries.push(entry.into_path());
+                cohort_dir.unexpected_entries.push(entry.into_path());
             }
         }
-        //let ppkt_map = gene_dir.get_ppkt_map()
-        gene_dir
+        // Iterate through phenopackets and assign them to the respective disease ids
+        for ppkt_json in cohort_dir.ppkt_path_list.iter() {
+            let ppkt = match ppkt::load_phenopacket(ppkt_json) {
+                Ok(p) => p,
+                Err(e) => {
+                    loading_errors.push(format!("Could not load phenopacket at '{:?}': {}", ppkt_json, e));
+                    continue;
+                }
+            };
+            let disease_id = match ppkt::get_disease_id(&ppkt) {
+                Ok(id) => id,
+                Err(e) => {
+                    loading_errors.push(format!("Could not extract disease id for phenopacket at '{:?}': {}", ppkt_json, e));
+                    continue;
+                }
+            };
+            let ppkt_w = PpktWrapper::new(ppkt_json, &disease_id, ppkt);
+            ppkt_map.entry(disease_id).or_default().push(ppkt_w);
+        }
+        cohort_dir.ppkt_path_map = ppkt_map;
+        cohort_dir
     }
 
     
@@ -87,6 +109,12 @@ impl CohortDir {
         Ok(cohorts)
     }
 
+
+    pub fn get_ppkt_w_list_by_disease_id(&self, disease_id: &str) -> &[PpktWrapper] {
+        self.ppkt_path_map
+            .get(disease_id)
+            .map_or(&[], Vec::as_slice)
+    }
 
 
    pub fn filter_ppkt_by_disease(ppkt_list: &[Phenopacket], disease_id: &str) -> Result<Vec<Phenopacket>, PheToolsError> {
@@ -118,15 +146,6 @@ impl CohortDir {
         Ok(ppkt_map)
     }
 
-    pub fn get_disease_id_to_ppkt_list_map(&self) -> Result<HashMap<String, Vec<Phenopacket>>, String>{
-        let ppkt_map: HashMap<PathBuf, Phenopacket> = self.get_ppkt_map()?;
-        let mut ppkt_list_map: HashMap<String, Vec<Phenopacket>> = HashMap::new();
-        for ppkt in ppkt_map.values() {
-            let disease_id = ppkt::get_disease_id(ppkt)?;
-            ppkt_list_map.entry(disease_id).or_insert_with(Vec::new).push(ppkt.clone());
-        }
-        Ok(ppkt_list_map)
-    }
  
     pub fn get_unexpected_file_names(&self) -> Vec<String> {
         let mut fnames: Vec<String> = Vec::new();

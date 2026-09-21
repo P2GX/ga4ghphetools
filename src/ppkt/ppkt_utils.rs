@@ -6,6 +6,8 @@ use phenopackets::schema::v2::core::Interpretation;
 use phenopackets::schema::v2::core::genomic_interpretation::Call;
 use serde_json::json;
 
+use crate::error::annotation_error::AnnotationError;
+
 
 
 pub fn get_gene_symbol_from_interpretation(interpretation: &Interpretation) -> Option<String> {
@@ -60,17 +62,21 @@ pub fn load_phenopacket<P: AsRef<Path>>(path: P) -> Result<Phenopacket, String> 
     patch_missing_defaults(&mut v);
     let phenopacket: Phenopacket = serde_json::from_value(v)
         .map_err(|e| format!("Schema error after patching: {}", e))?;
+    // If the ID is empty or it lacks essential fields, reject it immediately!
+    if phenopacket.id.is_empty() && phenopacket.subject.is_none() {
+        return Err(format!("Parsed file ({:?}) is empty or not a valid individual phenopacket"));
+    }
     Ok(phenopacket)
 }
 
 /// Get disease identifier for a Mendelian phenopacket. If we do not find exactly one disease id, throw an error
-pub fn get_disease_id(ppkt: &Phenopacket) -> Result<String, String> {
+pub fn get_disease_id(ppkt: &Phenopacket) -> Result<String, AnnotationError> {
     if ppkt.diseases.len() != 1 {
-        return Err(format!("Unexpected disease count {}", ppkt.diseases.len()))
+        return Err(AnnotationError::unexpected_disease_count(ppkt.diseases.len(), &ppkt.id));
     }
     match &ppkt.diseases[0].term {
         Some(ot) => Ok(ot.id.clone()),
-        None => Err(format!("No ontology term for disease {:?}", ppkt.diseases[0])),
+        None => Err(AnnotationError::malformed_disease_label(format!("No ontology term for disease {:?}", ppkt.diseases[0]))),
     }
 }
 

@@ -25,20 +25,17 @@ pub struct GptRepository {
 impl GptRepository {
     pub fn new(root_path: &Path) -> Self {
         let mut cohort_map: HashMap<PathBuf, CohortDir> = HashMap::new();
-        
         let entries = WalkDir::new(root_path)
             .min_depth(1)
             .max_depth(1)
             .into_iter()
             .filter_map(|e| e.ok());
-
         for entry in entries {
             if entry.file_type().is_dir() {
                 let dir_path = entry.path().to_path_buf();
                 let cohort_dir = Self::process_directory(entry.path());
+                cohort_dir.get_ppkt_map();
                 cohort_map.insert(dir_path, cohort_dir);
-                //let gene_data = Self::process_directory(entry.path());
-                //all_cohorts.push(gene_data);
             }
         }
     
@@ -102,8 +99,8 @@ impl GptRepository {
     pub fn get_all_cohort_wrappers(&self) -> Result<Vec<CohortWrapper>, PheToolsError> {
         let mut cohort_wrap_list = Vec::new();
         for (path, cohort_dir) in self.cohort_map.iter() {
-        let individuals = cohort_dir.get_individuals_json_files();
-           let cohort_w_list =  CohortWrapper::get_cohort_wrapper_list(individuals)?;
+            let individuals = cohort_dir.get_individuals_json_files();
+            let cohort_w_list =  CohortWrapper::get_cohort_wrapper_list(individuals)?;
            cohort_wrap_list.extend(cohort_w_list);
         }
         Ok(cohort_wrap_list)
