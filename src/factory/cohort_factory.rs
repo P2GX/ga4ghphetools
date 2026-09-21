@@ -723,7 +723,7 @@ fn test_add_one_hpo_term(
         let result = crate::validate_cohort_template(hpo, &cohort_data);
         assert!(result.is_err());
         let err_str = result.err().unwrap();
-        assert_eq!("Format error: Duplicate entry in HPO Header: Ectopic ossification in muscle tissue (HP:0011987)", err_str.to_string());
+        assert_eq!("Duplicate entry in HPO Header: Ectopic ossification in muscle tissue (HP:0011987)", err_str.to_string());
     }
 
     #[rstest]

@@ -94,13 +94,13 @@ pub fn get_repo_qc(
     hpo: Arc<FullCsrOntology>) -> Result<RepoQc, String> {
     let repo = GptRepository::new(ppkt_store_notebook_path);
     let cohort_wrapper_list = repo.get_all_cohort_wrappers().map_err(|e|e.to_string())?;
-    let qc_report_list: Vec<QcReport> = Vec::new();
+    let mut qc_report_list: Vec<QcReport> = Vec::new();
     let cohort_qc = CohortDataQc::new(hpo.clone());
     for cohort_wrap in cohort_wrapper_list.into_iter() {
         let cohort_data = cohort_wrap.cohort_data();
         let qc = cohort_qc.qc_check(cohort_data).map_err(|e|e.to_string())?;
-        
+        qc_report_list.push(qc);        
     }
-    Err("xc".to_ascii_lowercase())
-    //repo.repo_qc(hpo.clone())
+    let repo_qc = RepoQc::new(ppkt_store_notebook_path, qc_report_list);
+    Ok(repo_qc)
 }

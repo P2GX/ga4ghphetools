@@ -21,6 +21,9 @@
 mod header;
 
 mod age;
+pub use age::convert_raw_age_string_to_validated_age_string;
+pub use age::is_valid_age_string;
+
 pub mod dto;
 pub mod error;
 

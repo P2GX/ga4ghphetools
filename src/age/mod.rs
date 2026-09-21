@@ -8,7 +8,7 @@
 //!
 //! Example:
 //! ```
-//! use ga4ghphetools::age::is_valid_age_string;
+//! use ga4ghphetools::is_valid_age_string;
 //!
 //! assert!(is_valid_age_string("P3Y6M4D")); // ISO 8601
 //! assert!(is_valid_age_string("Congenital onset")); // HPO onset
@@ -87,7 +87,7 @@ pub fn get_onset_term(cell_value: &str) -> Result<HpoTermDuplet, String> {
 /// # Examples
 ///
 /// ```
-/// use ga4ghphetools::age::convert_raw_age_string_to_validated_age_string;
+/// use ga4ghphetools::convert_raw_age_string_to_validated_age_string;
 /// let result = convert_raw_age_string_to_validated_age_string("neonate");
 /// assert_eq!(result, Some("Neonatal onset".to_string()));
 ///
