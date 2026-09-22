@@ -149,3 +149,10 @@ impl CohortError {
         CohortError::Curation(message.into())
     }
 }
+
+/*
+impl std::fmt::Display for CohortError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self) 
+    }
+} */

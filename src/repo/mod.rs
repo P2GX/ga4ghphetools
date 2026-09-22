@@ -5,6 +5,8 @@
 //! 
 pub(crate) mod gpt_repository;
 pub(crate) use ppkt_wrapper::PpktWrapper;
+pub(crate) use cohort_wrapper::CohortWrapper;
+pub(crate) mod cohort_dir_iter;
 mod compare_ppkt;
 pub mod update_report;
 mod ppkt_wrapper;
@@ -94,13 +96,22 @@ pub fn get_repo_qc(
     ppkt_store_notebook_path: &Path,
     hpo: Arc<FullCsrOntology>) -> Result<RepoQc, String> {
     let repo = GptRepository::new(ppkt_store_notebook_path);
-    let cohort_wrapper_list = repo.get_all_cohort_wrappers().map_err(|e|e.to_string())?;
-    let mut qc_report_list: Vec<QcReport> = Vec::new();
     let cohort_qc = CohortDataQc::new(hpo.clone());
-    for cohort_wrap in cohort_wrapper_list.into_iter() {
-        let cohort_data = cohort_wrap.cohort_data();
-        let qc = cohort_qc.qc_check(cohort_data).map_err(|e|e.to_string())?;
-        qc_report_list.push(qc);        
+    let mut qc_report_list: Vec<QcReport> = Vec::new();
+    // iterator over each gene directory, calling CohortDir::process_gene_directory
+    for cohort_dir in repo.cohort_dirs().map_err(|e|e.to_string())? {
+        println!("cohort dir: {:?}", cohort_dir);
+        if !cohort_dir.loading_errors.is_empty() {
+            eprintln!("{}: {} errors", cohort_dir.directory_name, cohort_dir.loading_errors.len());
+        }
+        for cohort_wrap in cohort_dir.cohort_list.iter() {
+          let cohort_data = cohort_wrap.cohort_data();
+          let qc = cohort_qc.qc_check(cohort_data).map_err(|e|e.to_string())?;
+            eprintln!("{:?}", qc);   
+            qc_report_list.push(qc);     
+            
+        }
+        
     }
     let repo_qc = RepoQc::new(ppkt_store_notebook_path, qc_report_list);
     Ok(repo_qc)

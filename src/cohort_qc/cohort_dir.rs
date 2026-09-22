@@ -8,7 +8,7 @@ use phenopackets::schema::v2::Phenopacket;
 use walkdir::WalkDir;
 use std::path::Path;
 use crate::{
-    cohort_qc::{disease_qc::DiseaseQc, qc_report::QcReport}, dto::cohort_dto::CohortData, error::{PheToolsError, cohort_error::CohortError}, ppkt, repo::PpktWrapper};
+    cohort_qc::{disease_qc::DiseaseQc, qc_report::QcReport}, dto::cohort_dto::CohortData, error::{PheToolsError, cohort_error::CohortError}, ppkt, repo::{CohortWrapper, PpktWrapper}};
 
 
 #[derive(Clone, Debug, Default)]
@@ -26,6 +26,8 @@ pub struct CohortDir {
     pub ppkt_path_list: Vec<PathBuf>,
     /// Map from disease id to list of phenopacket wrappers with info about disease id, Path, and the phenopacket
     pub ppkt_path_map: HashMap<String, Vec<PpktWrapper>>,
+    /// One of these for each disease in the current directory (e.g., all diseases associated with a gene)
+    pub cohort_list: Vec<CohortWrapper>,
     /// Any files or directories that don't belong in the standard structure
     pub unexpected_entries: Vec<PathBuf>,
     /// Any errors encountered during loading of data
@@ -44,6 +46,8 @@ impl CohortDir {
             directory_path: path.to_path_buf(),
             ..Default::default()
         };
+        let mut individuals_json: Vec<PathBuf> = Vec::new();
+        let mut ppkt_path_list: Vec<PathBuf> = Vec::new();
         let mut loading_errors: Vec<String> = Vec::new();
         let mut ppkt_map: HashMap<String, Vec<PpktWrapper>> = HashMap::new();
         // Iterate through the immediate children of the gene directory
@@ -52,7 +56,7 @@ impl CohortDir {
 
             if entry.file_type().is_dir() && file_name == "phenopackets" {
                 // Recurse into phenopackets
-                cohort_dir.ppkt_path_list = WalkDir::new(entry.path())
+                ppkt_path_list = WalkDir::new(entry.path())
                     .min_depth(1)
                     .into_iter()
                     .filter_map(|e| e.ok())
@@ -66,26 +70,63 @@ impl CohortDir {
                 cohort_dir.unexpected_entries.push(entry.into_path());
             }
         }
-        // Iterate through phenopackets and assign them to the respective disease ids
-        for ppkt_json in cohort_dir.ppkt_path_list.iter() {
+         // 2. Load and group phenopackets by disease id.
+        let mut ppkt_wrappers: Vec<PpktWrapper> = Vec::new();
+        for ppkt_json in &ppkt_path_list {
             let ppkt = match ppkt::load_phenopacket(ppkt_json) {
                 Ok(p) => p,
                 Err(e) => {
-                    loading_errors.push(format!("Could not load phenopacket at '{:?}': {}", ppkt_json, e));
+                    cohort_dir.loading_errors.push(format!(
+                        "Could not load phenopacket at '{}': {}",
+                        ppkt_json.display(), e
+                    ));
                     continue;
                 }
             };
             let disease_id = match ppkt::get_disease_id(&ppkt) {
                 Ok(id) => id,
                 Err(e) => {
-                    loading_errors.push(format!("Could not extract disease id for phenopacket at '{:?}': {}", ppkt_json, e));
+                    cohort_dir.loading_errors.push(format!(
+                        "Could not extract disease id for phenopacket at '{}': {}",
+                        ppkt_json.display(), e
+                    ));
                     continue;
                 }
             };
-            let ppkt_w = PpktWrapper::new(ppkt_json, &disease_id, ppkt);
-            ppkt_map.entry(disease_id).or_default().push(ppkt_w);
+            ppkt_wrappers.push(PpktWrapper::new(ppkt_json, &disease_id, ppkt));
         }
-        cohort_dir.ppkt_path_map = ppkt_map;
+        // 3. Build one CohortWrapper per individuals_json file (one per disease).
+        //    <-- THIS is where the `for cohort_path in individuals_json` loop goes.
+        for cohort_path in individuals_json {
+            let cohort = match Self::read_cohort(&cohort_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    cohort_dir.loading_errors.push(format!(
+                        "Could not load cohort data at '{}': {}",
+                        cohort_path.display(), e
+                    ));
+                    continue;
+                }
+            };
+            let disease_id = match Self::derive_disease_id_from_cohort(&cohort) {
+                Ok(id) => id,
+                Err(e) => {
+                    cohort_dir.loading_errors.push(format!(
+                        "Could not determine disease id for '{}': {}",
+                        cohort_path.display(), e
+                    ));
+                    continue;
+                }
+            };
+            cohort_dir.cohort_list.push(CohortWrapper::new(
+                disease_id,
+                cohort,
+                cohort_path,
+                &ppkt_wrappers,
+            ));
+        }
+ 
+    
         cohort_dir
     }
 
@@ -226,6 +267,14 @@ impl CohortDir {
         Ok(qc_report)
     }
 
-
+    fn derive_disease_id_from_cohort(cohort: &CohortData) -> Result<String, String> {
+        if cohort.disease_list.len() != 1 {
+            return Err(format!("Invalid disease count for {}: n={}", cohort.acronym(), cohort.disease_list.len()));
+        }
+        Ok(cohort.disease_list[0].disease_id.clone())
+    }
     
 }
+
+
+

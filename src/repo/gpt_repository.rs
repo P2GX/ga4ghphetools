@@ -3,7 +3,7 @@
 
 use std::{collections::HashMap, fs::File, io::Write, path::{Path, PathBuf}, sync::Arc};
 use ontolius::ontology::{MetadataAware, csr::FullCsrOntology};
-use crate::{cohort_qc::cohort_dir::CohortDir, error::ontology_error::OntologyError, ppkt::ppkt_updater::PpktUpdater, repo::{cohort_wrapper::CohortWrapper, update_report::UpdateReport}};
+use crate::{cohort_qc::cohort_dir::CohortDir, error::ontology_error::OntologyError, ppkt::ppkt_updater::PpktUpdater, repo::{cohort_dir_iter::CohortDirIter, cohort_wrapper::CohortWrapper, update_report::UpdateReport}};
 use walkdir::WalkDir;
 
 use crate::{
@@ -14,7 +14,8 @@ use crate::{
 /// A structure representing the entire phenopacket store (GA4GHPhenoTools) repository
 pub struct GptRepository {
      /// Path of the overarching root repository containing multiple gene folders with cohorts
-    pub path: PathBuf,
+     /// Either phenopackete store or a similarly structured repository
+    pub phenopacket_store_path: PathBuf,
     /// Map of all Cohort directories (one per directory (usually: gene) in phenopacket store)
     cohort_map: HashMap<PathBuf, CohortDir> 
 }
@@ -42,7 +43,7 @@ impl GptRepository {
     
         println!("Processed {} gene directories.", cohort_map.len());
         Self {
-            path: root_path.into(),
+            phenopacket_store_path: root_path.into(),
             cohort_map,
         }
     }
@@ -75,6 +76,10 @@ impl GptRepository {
             }
         }
         dir
+    }
+
+     pub fn cohort_dirs(&self) -> std::io::Result<CohortDirIter> {
+        CohortDirIter::new(&self.phenopacket_store_path)
     }
 
     /// Reads and parses a single cohort JSON file.
@@ -163,7 +168,7 @@ impl GptRepository {
     /// # Returns
     /// An `UpdateReport` object used to present the update results to the user.
     pub fn update_all_ppkt(&self, hpo: Arc<FullCsrOntology>) -> Result<UpdateReport, PheToolsError> {
-        let mut report = UpdateReport::new(&self.path);
+        let mut report = UpdateReport::new(&self.phenopacket_store_path);
         let hpo_version = hpo.version();
         let cohort_w_list: Vec<CohortWrapper> = self.get_all_cohort_wrappers()?;
         for cohort_w in cohort_w_list {
@@ -198,7 +203,7 @@ mod tests {
         let gene_dir = temp_dir.join("BRCA1");
         std::fs::create_dir_all(&gene_dir).expect("Failed to create temporary gene directory");
         let repo = GptRepository::new(&temp_dir);
-        assert_eq!(repo.path, temp_dir);
+        assert_eq!(repo.phenopacket_store_path, temp_dir);
         assert_eq!(repo.cohort_map.len(), 1);
     }
 

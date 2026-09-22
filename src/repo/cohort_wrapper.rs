@@ -10,7 +10,7 @@ use crate::{cohort_qc::cohort_dir::CohortDir, dto::cohort_dto::CohortData, error
 
 
 
-
+#[derive(Clone, Debug)]
 pub(crate) struct CohortWrapper {
     disease_id: String,
     cohort: CohortData,
