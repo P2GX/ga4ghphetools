@@ -54,6 +54,7 @@ fn patch_missing_defaults(v: &mut serde_json::Value) {
 }
     
 pub fn load_phenopacket<P: AsRef<Path>>(path: P) -> Result<Phenopacket, String> {
+    let path = path.as_ref();
     let file = File::open(path).map_err(|e| e.to_string())?;
     let reader = std::io::BufReader::new(file);
     // 1. Parse into a JSON Value
@@ -64,7 +65,7 @@ pub fn load_phenopacket<P: AsRef<Path>>(path: P) -> Result<Phenopacket, String> 
         .map_err(|e| format!("Schema error after patching: {}", e))?;
     // If the ID is empty or it lacks essential fields, reject it immediately!
     if phenopacket.id.is_empty() && phenopacket.subject.is_none() {
-        return Err(format!("Parsed file ({:?}) is empty or not a valid individual phenopacket"));
+        return Err(format!("Parsed file ({:?}) is empty or not a valid individual phenopacket.", path.display()));
     }
     Ok(phenopacket)
 }

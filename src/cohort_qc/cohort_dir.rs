@@ -140,6 +140,7 @@ impl CohortDir {
     pub fn get_ppkt_map(&self) -> Result<HashMap<PathBuf, Phenopacket>, String> {
         let mut ppkt_map: HashMap<PathBuf, Phenopacket> = HashMap::new();
         for ppkt_path in &self.ppkt_path_list {
+            eprint!("get_ppm{:?}", ppkt_path);
             let ppkt = ppkt::load_phenopacket(ppkt_path)?;
             ppkt_map.insert(ppkt_path.clone(),ppkt);
         }

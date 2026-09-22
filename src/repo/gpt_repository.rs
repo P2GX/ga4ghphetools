@@ -33,8 +33,9 @@ impl GptRepository {
         for entry in entries {
             if entry.file_type().is_dir() {
                 let dir_path = entry.path().to_path_buf();
-                let cohort_dir = Self::process_directory(entry.path());
-                cohort_dir.get_ppkt_map();
+                let cohort_dir = CohortDir::process_gene_directory(&dir_path);
+                //Self::process_directory(entry.path());
+                //cohort_dir.get_ppkt_map();
                 cohort_map.insert(dir_path, cohort_dir);
             }
         }
@@ -100,8 +101,27 @@ impl GptRepository {
         let mut cohort_wrap_list = Vec::new();
         for (path, cohort_dir) in self.cohort_map.iter() {
             let individuals = cohort_dir.get_individuals_json_files();
-            let cohort_w_list =  CohortWrapper::get_cohort_wrapper_list(individuals)?;
-           cohort_wrap_list.extend(cohort_w_list);
+            for individual_json_file in cohort_dir.get_individuals_json_files() {
+                let i_json_file_str = individual_json_file.to_str()
+                    .ok_or_else(|| PheToolsError::message(format!("Could not read file at {:?}", individual_json_file)))?;
+                let cdata = crate::load_json_cohort(i_json_file_str)?;
+                if cdata.disease_list.len() != 1 {
+                    return Err(PheToolsError::message(format!("Cohort does not have exactly one disease n={}", cdata.disease_list.len())));
+                }
+                let disease_id = cdata.disease_list[0].disease_id.clone();
+                let ppkt_w = match cohort_dir.ppkt_path_map.get(&disease_id) {
+                    Some(p) => p,
+                    None => {
+                       eprintln!("Could not get PpktWrapper for '{}'", disease_id);
+                        continue;
+                    }
+                };
+
+              //  let ppkt_w = cohort_dir.ppkt_path_map.get(&disease_id)
+                //    .ok_or_else(|| PheToolsError::message(format!("Could not get PpktWrapper for '{}'", disease_id)))?;
+                let cohort_w = CohortWrapper::new(disease_id, cdata, path.to_path_buf(), ppkt_w);
+                cohort_wrap_list.push(cohort_w);
+            }
         }
         Ok(cohort_wrap_list)
     }
