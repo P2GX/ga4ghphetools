@@ -30,7 +30,14 @@ Note that `log4rs.*` can be a json, yaml, or toml file.
 
 Then provide the configuration file (the `log4rs.toml` we use is shown below).
 
---![toml](../log4rs.toml)
+<script setup>
+import log4rsConfig from './../log4rs.toml?raw'
+</script>
+
+```toml
+{{ log4rsConfig }}
+```
+
 
 ## Important
 
