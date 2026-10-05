@@ -17,7 +17,7 @@ use std::{collections::HashSet, path::Path, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::Serialize;
 
-use crate::{RepoQc, cohort_qc::{cohort_qc::CohortDataQc, qc_report::QcReport}, repo::{compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::GptRepository, update_report::UpdateReport}};
+use crate::{RepoQc, cohort_qc::{cohort_dir::CohortDir, cohort_qc::CohortDataQc, qc_report::QcReport}, error::PheToolsError, repo::{cohort_dir_iter::CohortDirIter, compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::GptRepository, update_report::UpdateReport}};
 
 
 
@@ -85,7 +85,8 @@ pub fn update_all_ppkt(
     ppkt_store_notebook_path: &Path,
     hpo: Arc<FullCsrOntology>
 ) -> Result<UpdateReport, String> {
-    let repo = GptRepository::new(ppkt_store_notebook_path);
+    let repo = GptRepository::new(ppkt_store_notebook_path)
+        .map_err(|e|e.to_string())?;
     repo.update_all_ppkt(hpo).map_err(|e|e.to_string())
 }
 
@@ -98,13 +99,15 @@ pub fn get_repo_qc(
     let repo = GptRepository::new(ppkt_store_notebook_path);
     let cohort_qc = CohortDataQc::new(hpo.clone());
     let mut qc_report_list: Vec<QcReport> = Vec::new();
+    let cohort_dirs: Result<Vec<CohortDir>, PheToolsError> = CohortDirIter::new(&ppkt_store_notebook_path)
+        .map_err(|e|e.to_string())?.collect();
     // iterator over each gene directory, calling CohortDir::process_gene_directory
-    for cohort_dir in repo.cohort_dirs().map_err(|e|e.to_string())? {
+   /* for cohort_dir in cohort_dirs.map_err(|e|e.to_string())? {
         println!("cohort dir: {:?}", cohort_dir);
         if !cohort_dir.loading_errors.is_empty() {
             eprintln!("{}: {} errors", cohort_dir.directory_name, cohort_dir.loading_errors.len());
         }
-        for cohort_wrap in cohort_dir.cohort_list.iter() {
+        for cohort_wrap in cohort_dir.cohort_wrapper_list.iter() {
           let cohort_data = cohort_wrap.cohort_data();
           let qc = cohort_qc.qc_check(cohort_data).map_err(|e|e.to_string())?;
             eprintln!("{:?}", qc);   
@@ -112,7 +115,7 @@ pub fn get_repo_qc(
             
         }
         
-    }
+    }*/ 
     let repo_qc = RepoQc::new(ppkt_store_notebook_path, qc_report_list);
     Ok(repo_qc)
 }
@@ -123,7 +126,8 @@ pub fn get_repo_qc(
 
 #[cfg(test)]
 mod tests {
-    use rstest::{fixture, rstest};
+    use phenopackets::ga4gh;
+use rstest::{fixture, rstest};
 
     use crate::{dto::variant_dto::VariantType, test_utils::fixtures::http_client};
 
@@ -151,21 +155,17 @@ mod tests {
         }   
     }
 
-/*
- let ppkt_store_directory = sub_matches.get_one::<String>("dir").expect("Could not read phenopacket store directory");
-    let hpo_path = sub_matches.get_one::<String>("hpo").expect("Could not retrieve hp.json path");
-    let hpo = crate::load_hpo(hpo_path).expect("Could not construct HPO ontology");
-    let path: PathBuf = PathBuf::from(ppkt_store_directory);
-    let repo_qc = ga4ghphetools::get_repo_qc(&path, hpo)?;    
-    println!("Q/C report for {}", repo_qc.repo_path.to_string_lossy());
-    println!("Cohorts: n={}; total phenopackets: todo", repo_qc.cohort_count);
-    let mut i=0;
-    for qc_report in repo_qc.errors {
-        i += 1;
-        for issue in qc_report.issues.iter() {
-            println!("[{}-{}-{:?}] {}", i, qc_report.cohort_name, issue.domain, issue.message);
-        }
-        
+    #[rstest]
+    #[ignore = "local file call"]
+    fn test_update() {
+        let ppkt_store_directory = "/Users/peterrobinson/TMP/notebooks";
+        let hpo_path = "/Users/peterrobinson/data/hpo/hp.json";
+        let loader = ontolius::io::OntologyLoaderBuilder::new().obographs_parser().build();
+        let hpo: FullCsrOntology = loader.load_from_path(hpo_path).unwrap();
+        let hpo_arc = Arc::new(hpo);
+        let path: std::path::PathBuf = std::path::PathBuf::from(ppkt_store_directory);
+        let update_report = crate::update_all_ppkt(&path, hpo_arc).expect("Could not create update report");
     }
-     */
+
+
 }

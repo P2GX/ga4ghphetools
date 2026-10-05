@@ -36,4 +36,9 @@ impl PheToolsError {
     pub fn message(msg: impl Into<String>) -> Self {
         PheToolsError::Message(msg.into())
     }
+
+    pub fn misassigned_ppkt(n_ppkt: usize, n_accounted: usize) -> Self {
+        let msg = format!("Gene directory with {} phenopackets, but {} assigned to disease-specific cohorts.", n_ppkt, n_accounted);
+        PheToolsError::Message(msg)
+    }
 }

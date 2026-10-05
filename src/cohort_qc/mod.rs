@@ -8,7 +8,7 @@ use crate::{cohort_qc::cohort_qc::CohortDataQc, dto::cohort_dto::CohortData, err
 pub(crate) mod cohort_dir;
 pub mod qc_report;
 pub(crate) mod cohort_qc;
-mod disease_qc;
+pub(crate) mod disease_qc;
 
 
 

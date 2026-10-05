@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::cohort_qc::cohort_dir::CohortDir;
+use crate::{cohort_qc::cohort_dir::CohortDir, error::PheToolsError};
 
 pub struct CohortDirIter {
     dirs: std::vec::IntoIter<PathBuf>,
@@ -19,7 +19,7 @@ impl CohortDirIter {
 }
 
 impl Iterator for CohortDirIter {
-    type Item = CohortDir;
+    type Item = Result<CohortDir, PheToolsError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let path = self.dirs.next()?;

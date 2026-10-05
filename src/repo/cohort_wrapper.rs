@@ -6,7 +6,7 @@
 use std::{collections::HashMap, path::{Path, PathBuf}};
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{cohort_qc::cohort_dir::CohortDir, dto::cohort_dto::CohortData, error::PheToolsError, ppkt, repo::ppkt_wrapper::PpktWrapper};
+use crate::{cohort_qc::{cohort_dir::CohortDir, disease_qc::DiseaseQc}, dto::cohort_dto::CohortData, error::PheToolsError, ppkt, repo::ppkt_wrapper::PpktWrapper};
 
 
 
@@ -88,6 +88,20 @@ impl CohortWrapper {
         }
         Ok(cohort_wrappers)
 
+    }
+
+
+    pub fn get_disease_data(&self) -> Result<DiseaseQc, PheToolsError> {
+        let cohort = self.cohort_data();
+        let disease_data = match cohort.disease_list.as_slice() {
+            [disease] => disease,
+            other => return Err(PheToolsError::message(format!(
+                "Expected exactly one disease for {} but got {}", 
+                cohort.acronym(), 
+                other.len()
+            ))),
+        };
+        Ok(DiseaseQc::new(disease_data, cohort))
     }
 
 }

@@ -24,7 +24,7 @@ pub struct GptRepository {
 
 
 impl GptRepository {
-    pub fn new(root_path: &Path) -> Self {
+    pub fn new(root_path: &Path) -> Result<Self, PheToolsError> {
         let mut cohort_map: HashMap<PathBuf, CohortDir> = HashMap::new();
         let entries = WalkDir::new(root_path)
             .min_depth(1)
@@ -34,7 +34,7 @@ impl GptRepository {
         for entry in entries {
             if entry.file_type().is_dir() {
                 let dir_path = entry.path().to_path_buf();
-                let cohort_dir = CohortDir::process_gene_directory(&dir_path);
+                let cohort_dir = CohortDir::process_gene_directory(&dir_path)?;
                 //Self::process_directory(entry.path());
                 //cohort_dir.get_ppkt_map();
                 cohort_map.insert(dir_path, cohort_dir);
@@ -42,40 +42,10 @@ impl GptRepository {
         }
     
         println!("Processed {} gene directories.", cohort_map.len());
-        Self {
+        Ok(Self {
             phenopacket_store_path: root_path.into(),
             cohort_map,
-        }
-    }
-
-     /// Builds a `CohortDir` by walking one directory's immediate children:
-    /// cohort JSON files, the `phenopackets/` subdirectory, and anything unexpected.
-    /// This does not parse any file contents — pure path discovery, cannot fail.
-    fn process_directory(path: &Path) -> CohortDir {
-        let mut dir = CohortDir {
-            directory_name: path.file_name().unwrap_or_default().to_string_lossy().into(),
-            directory_path: path.to_path_buf(),
-            ..Default::default()
-        };
-
-        for entry in WalkDir::new(path).min_depth(1).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-            let file_name = entry.file_name().to_string_lossy();
-
-            if entry.file_type().is_dir() && file_name == "phenopackets" {
-                dir.ppkt_path_list = WalkDir::new(entry.path())
-                    .min_depth(1)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.file_type().is_file())
-                    .map(|e| e.into_path())
-                    .collect();
-            } else if entry.file_type().is_file() && file_name.ends_with("_individuals.json") {
-                dir.individuals_json.push(entry.into_path());
-            } else {
-                dir.unexpected_entries.push(entry.into_path());
-            }
-        }
-        dir
+        })
     }
 
      pub fn cohort_dirs(&self) -> std::io::Result<CohortDirIter> {
@@ -105,28 +75,7 @@ impl GptRepository {
     pub fn get_all_cohort_wrappers(&self) -> Result<Vec<CohortWrapper>, PheToolsError> {
         let mut cohort_wrap_list = Vec::new();
         for (path, cohort_dir) in self.cohort_map.iter() {
-            let individuals = cohort_dir.get_individuals_json_files();
-            for individual_json_file in cohort_dir.get_individuals_json_files() {
-                let i_json_file_str = individual_json_file.to_str()
-                    .ok_or_else(|| PheToolsError::message(format!("Could not read file at {:?}", individual_json_file)))?;
-                let cdata = crate::load_json_cohort(i_json_file_str)?;
-                if cdata.disease_list.len() != 1 {
-                    return Err(PheToolsError::message(format!("Cohort does not have exactly one disease n={}", cdata.disease_list.len())));
-                }
-                let disease_id = cdata.disease_list[0].disease_id.clone();
-                let ppkt_w = match cohort_dir.ppkt_path_map.get(&disease_id) {
-                    Some(p) => p,
-                    None => {
-                       eprintln!("Could not get PpktWrapper for '{}'", disease_id);
-                        continue;
-                    }
-                };
-
-              //  let ppkt_w = cohort_dir.ppkt_path_map.get(&disease_id)
-                //    .ok_or_else(|| PheToolsError::message(format!("Could not get PpktWrapper for '{}'", disease_id)))?;
-                let cohort_w = CohortWrapper::new(disease_id, cdata, path.to_path_buf(), ppkt_w);
-                cohort_wrap_list.push(cohort_w);
-            }
+            cohort_wrap_list.extend(cohort_dir.cohort_wrapper_list.clone());
         }
         Ok(cohort_wrap_list)
     }
