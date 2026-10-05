@@ -7,7 +7,7 @@ use std::{collections::HashMap, path::{Path, PathBuf}};
 use phenopackets::schema::v2::Phenopacket;
 
 use crate::{cohort_qc::{cohort_dir::CohortDir, disease_qc::DiseaseQc}, dto::cohort_dto::CohortData, error::PheToolsError, ppkt, repo::ppkt_wrapper::PpktWrapper};
-
+use log::{trace, error};
 
 
 #[derive(Clone, Debug)]
@@ -60,7 +60,7 @@ impl CohortWrapper {
             let ppkt = match ppkt::load_phenopacket(path) {
                 Ok(p) => p,
                 Err(e) => {
-                    eprintln!("Warning: Failed to load phenopacket at {:?}: {}", path, e);
+                    error!("Warning: Failed to load phenopacket at {:?}: {}", path, e);
                     continue; // Skip this file and move to the next
                 }
             };
@@ -68,7 +68,7 @@ impl CohortWrapper {
             let ppkt_disease_id = match ppkt::get_disease_id(&ppkt) {
                 Ok(id) => id,
                 Err(e) => {
-                    eprintln!("Warning: Failed to get disease ID for {:?}: {}", path, e);
+                    error!("Warning: Failed to get disease ID for {:?}: {}", path, e);
                     continue;
                 }
             };

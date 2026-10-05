@@ -87,6 +87,9 @@ pub fn update_all_ppkt(
 ) -> Result<UpdateReport, String> {
     let repo = GptRepository::new(ppkt_store_notebook_path)
         .map_err(|e|e.to_string())?;
+    eprintln!("####################");
+    eprintln!("repo.update_all_ppkt(hpo).map_err(|e|e.to_string()");
+     eprintln!("####################");
     repo.update_all_ppkt(hpo).map_err(|e|e.to_string())
 }
 
@@ -165,6 +168,7 @@ use rstest::{fixture, rstest};
         let hpo_arc = Arc::new(hpo);
         let path: std::path::PathBuf = std::path::PathBuf::from(ppkt_store_directory);
         let update_report = crate::update_all_ppkt(&path, hpo_arc).expect("Could not create update report");
+        eprintln!("{:?}", update_report);
     }
 
 

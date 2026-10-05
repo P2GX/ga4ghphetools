@@ -3,6 +3,8 @@
 
 use std::path::PathBuf;
 
+
+#[derive(Debug)]
 pub struct UpdateReport {
     pub directory: String,
     pub processed: usize,

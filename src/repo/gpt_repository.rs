@@ -41,7 +41,7 @@ impl GptRepository {
             }
         }
     
-        println!("Processed {} gene directories.", cohort_map.len());
+        println!("Ingested {} gene directories.", cohort_map.len());
         Ok(Self {
             phenopacket_store_path: root_path.into(),
             cohort_map,
@@ -120,6 +120,7 @@ impl GptRepository {
         let mut report = UpdateReport::new(&self.phenopacket_store_path);
         let hpo_version = hpo.version();
         let cohort_w_list: Vec<CohortWrapper> = self.get_all_cohort_wrappers()?;
+         eprintln!("[INFO] Got {} cohort wrpaeers", cohort_w_list.len());
         for cohort_w in cohort_w_list {
             let cohort_data = cohort_w.cohort_data();
             if hpo::duplets_need_update(hpo.clone(), &cohort_data.hpo_headers).map_err(OntologyError::from)? {
@@ -134,6 +135,7 @@ impl GptRepository {
             } else {
                 report.processed();
             }
+            break;
         }
         Ok(report)
     }
@@ -151,7 +153,7 @@ mod tests {
         let temp_dir = std::env::temp_dir().join(format!("gpt_repo_test_{}", uuid_or_random()));
         let gene_dir = temp_dir.join("BRCA1");
         std::fs::create_dir_all(&gene_dir).expect("Failed to create temporary gene directory");
-        let repo = GptRepository::new(&temp_dir);
+        let repo = GptRepository::new(&temp_dir).unwrap();
         assert_eq!(repo.phenopacket_store_path, temp_dir);
         assert_eq!(repo.cohort_map.len(), 1);
     }

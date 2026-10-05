@@ -9,7 +9,7 @@ use walkdir::WalkDir;
 use std::path::Path;
 use crate::{
     cohort_qc::{disease_qc::DiseaseQc, qc_report::QcReport}, dto::cohort_dto::CohortData, error::{PheToolsError, cohort_error::CohortError}, ppkt, repo::{CohortWrapper, PpktWrapper}};
-
+use log::{trace, error};
 
 #[derive(Clone, Debug, Default)]
 pub struct CohortDir {
@@ -44,6 +44,7 @@ impl CohortDir {
     /// cohort JSON files, the `phenopackets/` subdirectory, and anything unexpected.
     /// This does not parse any file contents — pure path discovery, cannot fail.
     pub fn process_gene_directory(path: &Path) -> Result<CohortDir, PheToolsError> {
+       eprintln!("*****\n[INFO] process gene directory\n\n\n");
         let mut cohort_dir = CohortDir {
             directory_name: path.file_name().unwrap_or_default().to_string_lossy().into(),
             directory_path: path.to_path_buf(),
@@ -55,7 +56,7 @@ impl CohortDir {
         // Iterate through the immediate children of the gene directory
         for entry in WalkDir::new(path).min_depth(1).max_depth(1).into_iter().filter_map(|e| e.ok()) {
             let file_name = entry.file_name().to_string_lossy();
-            eprintln!("process gd {}", file_name);
+            trace!("process gd {}", file_name);
             if entry.file_type().is_dir() && file_name == "phenopackets" {
                 // Recurse into phenopackets
                 ppkt_path_list = WalkDir::new(entry.path())
@@ -139,7 +140,9 @@ impl CohortDir {
             ));
         }
         if n_ppkt_accounted_for != n_ppkt {
-            return Err(PheToolsError::misassigned_ppkt(n_ppkt, n_ppkt_accounted_for));
+             let msg = format!("Gene directory with {} phenopackets, but {} assigned to disease-specific cohorts.", n_ppkt, n_ppkt_accounted_for);
+            //return Err(PheToolsError::misassigned_ppkt(n_ppkt, n_ppkt_accounted_for));
+            error!("{}",msg);
         }
         Ok(cohort_dir)
     }
@@ -205,7 +208,7 @@ impl CohortDir {
                 let name_str = file_name.to_string_lossy();
                 fnames.push(name_str.to_string());
             } else {
-                eprintln!("Error: Could not extract filename from {:?}", pth);
+                error!("Error: Could not extract filename from {:?}", pth);
             }
         }
         fnames

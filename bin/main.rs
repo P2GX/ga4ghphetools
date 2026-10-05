@@ -3,8 +3,11 @@ mod commands;
 use clap::Command;
 use ontolius::{io::OntologyLoaderBuilder, ontology::csr::FullCsrOntology};
 use std::sync::Arc;
+use log4rs::init_config;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    log4rs::init_file("log4rs.toml", Default::default()).expect("Failed to initialize log4rs");
+
      let mut cmd = Command::new("phetools")
         .about("GA4GH Phenopacket Schema: phetools")
         .version(env!("CARGO_PKG_VERSION"))
