@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{age, dto::{cohort_dto::CohortData, hpo_term_dto::HpoTermDuplet}, hpoa::counted_hpo_term::CountedHpoTerm};
+use crate::{age, dto::{cohort_data::CohortData, hpo_term_dto::HpoTermDuplet}, hpoa::counted_hpo_term::CountedHpoTerm};
 
 
 /// structure to get counts of HPO Onset terms per PMID.

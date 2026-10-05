@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::LazyLock;
 
-use crate::{dto::cohort_dto::GeneVariantData, header::gene_variant_header::GeneVariantHeader};
+use crate::{dto::cohort_data::GeneVariantData, header::gene_variant_header::GeneVariantHeader};
 
 
 static SHARED_HEADER: LazyLock<Arc<GeneVariantHeader>> = LazyLock::new(|| {

@@ -7,18 +7,25 @@ kind = "console"
 kind = "pattern"
 pattern = "{d(%Y-%m-%d %H:%M:%S)} [{l}] - {m}{n}"
 
-# Rolling File Appender
 [appenders.rolling_file]
 kind = "rolling_file"
 path = "log/phetools.log"
-# Uncomment for Pattern for rotated historical files (e.g., phetools.1.log, phetools.2.log)
-# roller = { kind = "fixed_window", base = 1, count = 3, pattern = "log/phetools.{}.log" }
-# Trigger when file size reaches 50 KB
-policy = { kind = "size", limit = "50 kb" }
 
 [appenders.rolling_file.encoder]
 kind = "pattern"
 pattern = "{d} [{l}] [{t}] - {m}{n}"
+
+[appenders.rolling_file.policy]
+kind = "compound"
+
+[appenders.rolling_file.policy.trigger]
+kind = "size"
+limit = "20 mb"
+
+
+
+[appenders.rolling_file.policy.roller]
+kind = "delete"
 
 [root]
 level = "trace"

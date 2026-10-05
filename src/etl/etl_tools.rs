@@ -4,12 +4,12 @@ use std::{collections::HashMap, fmt, sync::Arc};
 use ontolius::ontology::{csr::FullCsrOntology, MetadataAware};
 use regex::Regex;
 
-use crate::dto::cohort_dto::DiseaseData;
+use crate::dto::cohort_data::DiseaseData;
 use crate::dto::etl_dto::{ColumnDto, EtlCellStatus, EtlCellValue};
 use crate::dto::etl_dto::{EtlColumnType::{self, *}, EtlDto};
 use crate::dto::hpo_term_dto::{CellValue, CellValueInner, HpoTermData};
 use crate::variant::variant_manager::VariantManager;
-use crate::{dto::{cohort_dto::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
+use crate::{dto::{cohort_data::{CohortData, CohortType, IndividualData, RowData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermDuplet}, hpo};
 
 const UNKNOWN_SEX: &str = "U";
 const NOT_AVAILABLE: &str = "na";

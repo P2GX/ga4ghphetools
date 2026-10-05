@@ -13,7 +13,7 @@ use ontolius::term::{MinimalTerm};
 use ontolius::{Identified, TermId};
 
 use crate::dto::hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet};
-use crate::dto::cohort_dto::CohortType;
+use crate::dto::cohort_data::CohortType;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::error::PheToolsError;
 use crate::error::ontology_error::OntologyError;

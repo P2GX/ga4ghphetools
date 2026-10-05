@@ -2,7 +2,7 @@ use std::{collections::HashSet, fs, path::PathBuf, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use phenopackets::schema::v2::Phenopacket;
 use serde::Deserialize;
-use crate::{dto::cohort_dto::CohortData};
+use crate::{dto::cohort_data::CohortData};
 
 
 /// A private helper enum to facilitate "smart" deserialization.

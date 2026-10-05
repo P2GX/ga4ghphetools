@@ -7,7 +7,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::cohort_dto::CohortData, hpoa::hpoa_table::HpoaTable};
+use crate::{dto::cohort_data::CohortData, hpoa::hpoa_table::HpoaTable};
 
 
 mod counted_hpo_term;

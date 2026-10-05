@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::{thread};
 use std::time::Duration;
 
-use crate::dto::cohort_dto::{CohortData, GeneTranscriptData};
+use crate::dto::cohort_data::{CohortData, GeneTranscriptData};
 use crate::dto::intergenic_variant::IntergenicHgvsVariant;
 use crate::dto::variant_dto::{VariantDto, VariantType};
 use crate::dto::hgvs_variant::HgvsVariant;

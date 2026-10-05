@@ -3,9 +3,9 @@ use std::sync::Arc;
 use ontolius::ontology::csr::FullCsrOntology;
 
 use crate::cohort_qc::cohort_qc::CohortDataQc;
-use crate::dto::cohort_dto::CohortData;
+use crate::dto::cohort_data::CohortData;
 use crate::{
-    dto::{cohort_dto::{CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, 
+    dto::{cohort_data::{CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, 
     factory::cohort_factory::CohortFactory};
 
 pub(crate) mod disease_bundle;
@@ -287,13 +287,13 @@ pub fn create_new_cohort_data(
     if template_type != CohortType::Mendelian {
         return Err(format!("CohortData generation not supported for {:?} cohorts", template_type));
     }
-    let mut cohort_dto = CohortFactory::create_pyphetools_template(
+    let mut cohort_data = CohortFactory::create_ga4ghphetools_template(
         template_type, 
         disease_data,
         hpo.clone()
     ).map_err(|e| e.to_string())?;
-    cohort_dto.cohort_acronym = Some(acronym);
-    Ok(cohort_dto)
+    cohort_data.cohort_acronym = Some(acronym);
+    Ok(cohort_data)
 }
 
 

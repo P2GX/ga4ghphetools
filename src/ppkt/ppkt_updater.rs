@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use phenopackets::schema::v2::{Phenopacket, core::Resource};
 
-use crate::{dto::cohort_dto::{CohortData, DiseaseData}, ppkt::ppkt_builder::{DEFAULT_SO_VERSION, PhenopacketBuilder}};
+use crate::{dto::cohort_data::{CohortData, DiseaseData}, ppkt::ppkt_builder::{DEFAULT_SO_VERSION, PhenopacketBuilder}};
 
 pub struct PpktUpdater {
     hpo: Arc<FullCsrOntology>,

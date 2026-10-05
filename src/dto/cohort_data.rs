@@ -514,5 +514,14 @@ impl CohortData {
     pub fn update_hpo(&mut self, hpo: Arc<FullCsrOntology>) -> Result<bool, String> {
         Ok(false)
     }
+
+     pub fn get_orcid(&self) -> Result<String, PheToolsError> {
+        match self.curation_history.last() {
+            Some(curation) => {
+                return Ok(curation.orcid.clone());
+            },
+            None => return Err(PheToolsError::Cohort(CohortError::no_orcid())),
+        }
+    }
     
 }

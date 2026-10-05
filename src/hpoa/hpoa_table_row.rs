@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::{dto::cohort_dto::{DiseaseData, ModeOfInheritance}, hpoa::counted_hpo_term::CountedHpoTerm};
+use crate::{dto::cohort_data::{DiseaseData, ModeOfInheritance}, hpoa::counted_hpo_term::CountedHpoTerm};
 use std::sync::LazyLock;
 
 

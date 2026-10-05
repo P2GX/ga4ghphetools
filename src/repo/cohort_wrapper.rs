@@ -6,7 +6,7 @@
 use std::{collections::HashMap, path::{Path, PathBuf}};
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{cohort_qc::{cohort_dir::CohortDir, disease_qc::DiseaseQc}, dto::cohort_dto::CohortData, error::PheToolsError, ppkt, repo::ppkt_wrapper::PpktWrapper};
+use crate::{cohort_qc::{cohort_dir::CohortDir, disease_qc::DiseaseQc}, dto::{cohort_data::CohortData, hpo_term_dto::HpoTermDuplet}, error::PheToolsError, ppkt, repo::ppkt_wrapper::PpktWrapper};
 use log::{trace, error};
 
 
@@ -64,7 +64,6 @@ impl CohortWrapper {
                     continue; // Skip this file and move to the next
                 }
             };
-
             let ppkt_disease_id = match ppkt::get_disease_id(&ppkt) {
                 Ok(id) => id,
                 Err(e) => {
@@ -89,6 +88,12 @@ impl CohortWrapper {
         Ok(cohort_wrappers)
 
     }
+
+
+    pub fn update_headers(mut self, updated_headers: Vec<HpoTermDuplet>) -> Self {
+        self.cohort.hpo_headers = updated_headers;
+        self
+    }  
 
 
     pub fn get_disease_data(&self) -> Result<DiseaseQc, PheToolsError> {

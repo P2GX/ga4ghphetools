@@ -28,7 +28,7 @@ use phenopackets::schema::v2::{Phenopacket, core::{Disease, ExternalReference, I
 use regex::Regex;
 
 use phenopacket_tools::builders::time_elements::time_element_from_str;
-use crate::{dto::{cohort_dto::{CohortData, DiseaseData, RowData}, hpo_term_dto::HpoTermDuplet}, ppkt::ppkt_variant_exporter::PpktVariantExporter};
+use crate::{dto::{cohort_data::{CohortData, DiseaseData, RowData}, hpo_term_dto::HpoTermDuplet}, ppkt::ppkt_variant_exporter::PpktVariantExporter};
 
 static CLINICAL_MODIFIER: LazyLock<TermId> = LazyLock::new(|| {
     "HP:0012823".parse().expect("Failed to parse static HP:0012823")

@@ -4,6 +4,7 @@
 use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::error::ontology_error::OntologyError;
+use log::trace;
 use ontolius::ontology::csr::FullCsrOntology;
 use ontolius::ontology::OntologyTerms;
 use ontolius::term::MinimalTerm;
@@ -68,15 +69,17 @@ impl HpoUtil {
         for duplet in hpo_duplets {
             let tid =  duplet.to_term_id()?;
             let term = self.hpo.term_by_id(&tid).ok_or_else(||OntologyError::term_not_found(tid.to_string()))?;
+            let mut current_label = duplet.hpo_label().to_string();
+
             if tid != *term.identifier() {
-                println!("[INFO] Updating outdated term id {}->{}", tid, term.identifier());
+                trace!("Updating outdated term id {}->{}", tid, term.identifier());
             }
             if term.name() != duplet.hpo_label() {
-                // Output to shell, this is expected behavior.
-                println!("[INFO] Updating HPO label {}->{} for {}",
+                trace!("Updating HPO label '{}' -> '{}' for {}",
                     duplet.hpo_label(), term.name(), duplet.hpo_id()); 
+                current_label = term.name().to_string();
             }
-            updated_duplets.push(HpoTermDuplet::new(term.name(), term.identifier().to_string()));
+            updated_duplets.push(HpoTermDuplet::new(&current_label, term.identifier().to_string()));
         }
         Ok(updated_duplets)
     }
@@ -88,7 +91,6 @@ impl HpoUtil {
     /// returns true, we will use the uupdate_hpo_duplets method to revise
     pub fn needs_update(&self, hpo_dup_list: &Vec<HpoTermDuplet>) -> Result<bool, OntologyError> {
         for hpo_dup in hpo_dup_list {
-            println!("'{}' '{}'", hpo_dup.hpo_label(), hpo_dup.hpo_id());
             let tid = hpo_dup.to_term_id()?;
             let term = self.hpo.term_by_id(&tid).ok_or_else(|| OntologyError::term_not_found(hpo_dup.hpo_id()))?;
             if term.name() != hpo_dup.hpo_label() {
@@ -101,6 +103,46 @@ impl HpoUtil {
         }
 
         Ok(false)
+    }
+
+    /// Syncs a slice of HPO term duplets with the latest ontology state.
+    /// Returns the updated duplets and a boolean indicating whether any changes were made.
+    pub fn sync_hpo_duplets(
+        hpo: Arc<FullCsrOntology>,
+        hpo_duplets: &[HpoTermDuplet],
+    ) -> std::result::Result<(Vec<HpoTermDuplet>, bool), OntologyError> {
+        let mut updated_duplets = Vec::with_capacity(hpo_duplets.len());
+        let mut changed = false;
+
+        for duplet in hpo_duplets {
+            let tid = duplet.to_term_id()?;
+            let term = hpo
+                .term_by_id(&tid)
+                .ok_or_else(|| OntologyError::term_not_found(tid.to_string()))?;
+
+            let new_id = term.identifier().to_string();
+            let new_name = term.name();
+
+            // Check if either the identifier or the label differs from the template
+            if tid != *term.identifier() {
+                trace!("Syncing outdated term ID {} -> {}", tid, new_id);
+                changed = true;
+            }
+
+            if new_name != duplet.hpo_label() {
+                trace!(
+                    "Syncing HPO label '{}' -> '{}' for {}",
+                    duplet.hpo_label(),
+                    new_name,
+                    duplet.hpo_id()
+                );
+                changed = true;
+            }
+
+            updated_duplets.push(HpoTermDuplet::new(new_name, new_id));
+        }
+
+        Ok((updated_duplets, changed))
     }
 
     /// Check a list of HpoTermDuplet objects and return an error at the first case where a Term identifier or label

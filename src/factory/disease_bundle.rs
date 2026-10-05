@@ -2,7 +2,7 @@ use core::{result::Result, todo};
 use std::sync::Arc;
 use std::sync::LazyLock;
 
-use crate::{dto::cohort_dto::{CohortData, CohortType, DiseaseData}, header::disease_header::DiseaseHeader};
+use crate::{dto::cohort_data::{CohortData, CohortType, DiseaseData}, header::disease_header::DiseaseHeader};
 
 
 static SHARED_HEADER: LazyLock<Arc<DiseaseHeader>> = LazyLock::new(|| {

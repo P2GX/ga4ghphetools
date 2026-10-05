@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{dto::{cohort_dto::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, intergenic_variant::IntergenicHgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
+use crate::{dto::{cohort_data::{CohortData, GeneTranscriptData}, hgvs_variant::HgvsVariant, intergenic_variant::IntergenicHgvsVariant, structural_variant::StructuralVariant, variant_dto::VariantDto}, variant::variant_manager::VariantManager};
 mod acmg;
 mod structural_validator;
 pub mod variant_manager;

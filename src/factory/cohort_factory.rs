@@ -1,6 +1,6 @@
 //! CohortDtoBuilder
 //!
-//! The struct that creates and edits the [`CohortDto`] object that we use
+//! The struct that creates and edits the [`CohortData`] object that we use
 //! to store information about the Cohort. It uses the PPKtRow object as an intermediate stage in ETL 
 //! for each row of the legacy template to be ingested. This class can be simplified
 //! after we are finished refactoring the legacy files.
@@ -9,7 +9,7 @@ use ontolius::{
     Identified, TermId, ontology::{MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::{MinimalTerm, simple::{SimpleMinimalTerm, SimpleTerm}},
 };
 use crate::{
-    dto::{cohort_dto::{CohortData, CohortType, DiseaseData, IndividualData, RowData}, 
+    dto::{cohort_data::{CohortData, CohortType, DiseaseData, IndividualData, RowData}, 
     hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, 
     structural_variant::StructuralVariant}, 
     error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError, annotation_error::AnnotationError}, 
@@ -52,20 +52,6 @@ impl CohortFactory {
             tid_list.push(tid);
         }
         Ok(tid_list)
-    }
-
-    #[deprecated]
-    pub fn get_updated_header_dto_list(arranged_terms: &Vec<SimpleTerm>) 
-    -> Vec<HpoTermDuplet> {
-        let mut dto_list: Vec<HpoTermDuplet> = Vec::new();
-        for st in arranged_terms {
-            let dto = HpoTermDuplet{
-                hpo_label: st.name().to_string(),
-                hpo_id: st.identifier().to_string()
-            };
-            dto_list.push(dto);
-        }
-        dto_list
     }
 
     pub fn get_previous_hpo_id_list(cohort_dto: &CohortData) -> Result<Vec<TermId>, OntologyError> {
@@ -118,7 +104,7 @@ impl CohortFactory {
         //let arranged_terms = hpo::hpo_terms_to_dfs_order(hpo, &all_tids).arrange_terms()?;
          // === Step 3: Rearrange the existing PpktRow objects to have the new HPO terms set to "na"
         // 3a. transform the simple terms to HeaderDupletDto objects
-        let updated_header_duplet_dto_list = arranged_terms.clone();// Self::get_updated_header_dto_list(&arranged_terms);
+        let updated_header_duplet_dto_list = arranged_terms.clone();
         
         // 3b. Update the existing PpktRow objects
         let mut updated_row_dto_list: Vec<RowData> = Vec::new();
@@ -309,7 +295,7 @@ impl CohortFactory {
 
 
 
-    pub fn create_pyphetools_template(
+    pub fn create_ga4ghphetools_template(
         template_type: CohortType,
         disease_data: DiseaseData,
         hpo: Arc<FullCsrOntology>,
@@ -593,7 +579,7 @@ impl CohortFactory {
 
 #[cfg(test)]
 mod test {
-    use crate::{dto::cohort_dto::{DiseaseData, GeneTranscriptData}, test_utils::fixtures::{acvr1_cohort, acvr1_disease_data, cell_values_two_terms, cohort_with_na_column, hpo_headers_two_terms, individual_data}};
+    use crate::{dto::cohort_data::{DiseaseData, GeneTranscriptData}, test_utils::fixtures::{acvr1_cohort, acvr1_disease_data, cell_values_two_terms, cohort_with_na_column, hpo_headers_two_terms, individual_data}};
     use crate::test_utils::fixtures::hpo;
     use super::*;
     use rstest::{fixture, rstest};

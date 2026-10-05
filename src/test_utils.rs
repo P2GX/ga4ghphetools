@@ -13,7 +13,7 @@ pub mod fixtures {
     use flate2::read::GzDecoder;
     use std::time::Duration;
 
-    use crate::dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
+    use crate::dto::{cohort_data::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
 
 
 

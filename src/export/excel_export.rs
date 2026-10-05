@@ -4,7 +4,7 @@ use ontolius::ontology::csr::FullCsrOntology;
 #[cfg(feature = "excel_export")]
 use rust_xlsxwriter::{Format, Workbook};
 
-use crate::{dto::cohort_dto::CohortData, export::table_compare::{RowCounter, TableCompare}};
+use crate::{dto::cohort_data::CohortData, export::table_compare::{RowCounter, TableCompare}};
 
 
 fn get_header_format() -> Format {

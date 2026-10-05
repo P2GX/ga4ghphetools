@@ -2,12 +2,13 @@
 //! This class is used to model a file-based repository with directories and files created by this software
 
 use std::{collections::HashMap, fs::File, io::Write, path::{Path, PathBuf}, sync::Arc};
+use log::{error, info, trace};
 use ontolius::ontology::{MetadataAware, csr::FullCsrOntology};
-use crate::{cohort_qc::cohort_dir::CohortDir, error::ontology_error::OntologyError, ppkt::ppkt_updater::PpktUpdater, repo::{cohort_dir_iter::CohortDirIter, cohort_wrapper::CohortWrapper, update_report::UpdateReport}};
+use crate::{cohort_qc::cohort_dir::CohortDir, error::ontology_error::OntologyError, ppkt::ppkt_updater::PpktUpdater, repo::{self, cohort_dir_iter::CohortDirIter, cohort_wrapper::CohortWrapper, update_report::UpdateReport}};
 use walkdir::WalkDir;
 
 use crate::{
-    dto::cohort_dto::CohortData, 
+    dto::cohort_data::CohortData, 
     error::{PheToolsError, cohort_error::CohortError}, 
     hpo::self};
 
@@ -41,7 +42,7 @@ impl GptRepository {
             }
         }
     
-        println!("Ingested {} gene directories.", cohort_map.len());
+        info!("Ingested {} gene directories.", cohort_map.len());
         Ok(Self {
             phenopacket_store_path: root_path.into(),
             cohort_map,
@@ -104,6 +105,24 @@ impl GptRepository {
         Ok(())
     }
 
+
+    pub fn write_updated_cohort(&self, cohort_w: &CohortWrapper, hpo: Arc<FullCsrOntology>) -> Result<(), PheToolsError> {
+        /// First write the updated CohortData
+        let cohort_data = cohort_w.cohort_data();
+        let orcid = cohort_data.get_orcid()?; // use existing ORCID id, latest used for this cohort
+        let path = cohort_w.cohort_path();
+        let json = serde_json::to_string_pretty(&cohort_data).map_err(|_|"Could not serialize to JSON".to_string())?;
+        let mut file = File::create(&path).map_err(|_|"Could not create file".to_string())?;
+        file.write_all(json.as_bytes()).map_err(|_|"Could not write file".to_string())?;
+        /// Now write the updated phenopackets
+        /// We use the updated CohortData to create updated phenopackets and write them.
+        let ppkt_path: PathBuf = path.join("phenopackets");
+        let overwrite = true;
+        crate::write_phenopackets(cohort_data.clone(), ppkt_path, orcid, hpo.clone(), overwrite)?;
+        info!("Wrote updated phenopackets for cohort {}; n={} phenopackets written", cohort_data.acronym(), cohort_data.rows.len());
+        Ok(())
+    }
+
     /// Process all cohort files in the directory.
     ///
     /// This method is intended to be used to update Phenopacket Store using the `path` argument 
@@ -119,25 +138,27 @@ impl GptRepository {
     pub fn update_all_ppkt(&self, hpo: Arc<FullCsrOntology>) -> Result<UpdateReport, PheToolsError> {
         let mut report = UpdateReport::new(&self.phenopacket_store_path);
         let hpo_version = hpo.version();
+        trace!("update_all_ppkt with HPO version {}", hpo_version);
         let cohort_w_list: Vec<CohortWrapper> = self.get_all_cohort_wrappers()?;
-         eprintln!("[INFO] Got {} cohort wrpaeers", cohort_w_list.len());
+        info!("Got {} cohort wrappers from {} gene directories.", cohort_w_list.len(), self.cohort_dir_count());
         for cohort_w in cohort_w_list {
             let cohort_data = cohort_w.cohort_data();
-            if hpo::duplets_need_update(hpo.clone(), &cohort_data.hpo_headers).map_err(OntologyError::from)? {
-                let disease_id = cohort_w.disease_id();
-                for (path, ppkt) in cohort_w.ppkt_map() {
-                    let ppkt_updater = PpktUpdater::from_existing(hpo.clone(), cohort_data,ppkt)?;
-                    let updated_ppkt = ppkt_updater.get_ppkt();
-                    crate::ppkt::write_ppkt(&updated_ppkt, &path)?;
-                    println!("[INFO]\twrote updated phenopacket to {}", &path.to_string_lossy().into_owned());
-                }
+            let (updated_duplets, changed) = hpo::sync_hpo_duplets(hpo.clone(), &cohort_data.hpo_headers)?;
+            if changed {
+                 info!("About to write updated cohort {}", cohort_data.acronym());
+                let updated_cohort_w = cohort_w.update_headers(updated_duplets);
+                self.write_updated_cohort(&updated_cohort_w, hpo.clone());
                 report.updated();
             } else {
                 report.processed();
             }
-            break;
         }
+        info!("Processed {:?} cohorts of which {:?} were updated.", report.n_processed(), report.n_updated());
         Ok(report)
+    }
+
+    pub fn cohort_dir_count(&self) -> usize {
+        self.cohort_map.len()
     }
 
 }

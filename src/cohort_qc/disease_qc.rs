@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use phenopackets::schema::v2::{Phenopacket, core::genomic_interpretation::Call};
-use crate::{dto::cohort_dto::{CohortData, DiseaseData}, error::cohort_error::CohortError};
+use crate::{dto::cohort_data::{CohortData, DiseaseData}, error::cohort_error::CohortError};
 
 
 

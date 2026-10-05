@@ -32,6 +32,7 @@ export default defineConfig({
               { text: 'Phenotype.hpoa', link: '/background/phenotype-hpoa' },
             ]
           },
+          { text: 'Logging', link: '/logging'},
           { text: 'Application', 
             link: '/app',
             collapsed: false,

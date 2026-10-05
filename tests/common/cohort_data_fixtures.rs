@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use ga4ghphetools::dto::{cohort_dto::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
+use ga4ghphetools::dto::{cohort_data::{CohortData, CohortType, DiseaseData, GeneTranscriptData, IndividualData, ModeOfInheritance, RowData}, hpo_term_dto::{CellValue, HpoTermDuplet}};
 
 use rstest::fixture;
 

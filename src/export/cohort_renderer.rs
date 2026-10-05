@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::{Deserialize,Serialize};
 
-use crate::dto::{cohort_dto::{CohortData, DiseaseData, RowData}, hpo_term_dto::HpoTermDuplet};
+use crate::dto::{cohort_data::{CohortData, DiseaseData, RowData}, hpo_term_dto::HpoTermDuplet};
 
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

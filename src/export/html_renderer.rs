@@ -45,7 +45,7 @@ mod tests {
     use ontolius::ontology::csr::FullCsrOntology;
     use rstest::rstest;
     use super::*;
-    use crate::{dto::cohort_dto::CohortData, export::cohort_renderer::CohortRenderer};
+    use crate::{dto::cohort_data::CohortData, export::cohort_renderer::CohortRenderer};
     use crate::test_utils::fixtures::hpo;
     
 

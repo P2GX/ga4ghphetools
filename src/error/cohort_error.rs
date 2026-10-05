@@ -148,6 +148,11 @@ impl CohortError {
     pub fn curation_error(message: impl Into<String>) -> Self {
         CohortError::Curation(message.into())
     }
+
+    pub fn no_orcid() -> Self {
+        CohortError::Curation("No ORCID found".to_string())
+    }
+
 }
 
 /*

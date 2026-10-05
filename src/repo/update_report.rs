@@ -28,6 +28,14 @@ impl UpdateReport {
     pub fn processed(&mut self) {
         self.processed += 1;
     }
+
+    pub fn n_updated(&self) -> usize {
+        self.updated
+    }
+
+    pub fn n_processed(&self) -> usize {
+        self.processed
+    }
 }
 
 #[cfg(test)]

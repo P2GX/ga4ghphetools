@@ -8,7 +8,7 @@ use std::{fs::OpenOptions, path::PathBuf, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::cohort_dto::CohortData, ppkt::{json_cleanup::strip_phenopacket_defaults, ppkt_exporter::PpktExporter}};
+use crate::{dto::cohort_data::CohortData, ppkt::{json_cleanup::strip_phenopacket_defaults, ppkt_exporter::PpktExporter}};
 
 mod json_cleanup;
 mod ppkt_builder;

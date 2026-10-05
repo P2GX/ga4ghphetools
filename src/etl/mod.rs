@@ -41,7 +41,7 @@ use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{dto::{cohort_dto::CohortData, etl_dto::EtlDto}, etl::etl_tools::EtlTools};
+use crate::{dto::{cohort_data::CohortData, etl_dto::EtlDto}, etl::etl_tools::EtlTools};
 
 
 

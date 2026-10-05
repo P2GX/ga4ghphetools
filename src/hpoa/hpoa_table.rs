@@ -5,7 +5,7 @@ use chrono::Local;
 use ontolius::ontology::csr::FullCsrOntology;
 use regex::Regex;
 
-use crate::{dto::cohort_dto::{CohortData, DiseaseData}, hpoa::{counted_hpo_term::CountedHpoTerm, hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, hpo_term_counter::HpoTermCounter}};
+use crate::{dto::cohort_data::{CohortData, DiseaseData}, hpoa::{counted_hpo_term::CountedHpoTerm, hpoa_onset_calculator::HpoaOnsetCalculator, hpoa_table_row::HpoaTableRow, hpo_term_counter::HpoTermCounter}};
 
 
 

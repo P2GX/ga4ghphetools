@@ -6,7 +6,7 @@ use std::{collections::HashMap, fs::File, io::BufReader, path::Path, str::FromSt
 use ontolius::{ontology::csr::FullCsrOntology, TermId};
 use phenopackets::schema::v2::Phenopacket;
 
-use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::{HpoTermData, HpoTermDuplet}}, error::ontology_error::OntologyError, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
+use crate::{dto::{cohort_data::CohortData, hpo_term_dto::{HpoTermData, HpoTermDuplet}}, error::ontology_error::OntologyError, hpo::{hpo_term_arranger::HpoTermArranger, hpo_util::HpoUtil}};
 
 mod hpo_hierarchizer;
 mod hpo_term_arranger;
@@ -14,6 +14,7 @@ mod hpo_util;
 mod hpo_modifiers;
 
 pub use hpo_modifiers::get_modifiers;
+
 
 /// Arrange a list of HPO terms into a curator-friendly order using depth-first search (DFS).
 ///
@@ -141,6 +142,14 @@ pub fn update_hpo_duplets(
 ) -> std::result::Result<Vec<HpoTermDuplet>, OntologyError> {
     let hpo_util = HpoUtil::new(hpo);
     hpo_util.update_hpo_duplets(hpo_duplets)
+}
+
+
+pub fn sync_hpo_duplets( 
+    hpo: Arc<FullCsrOntology>,  
+    hpo_duplets: &Vec<HpoTermDuplet>,
+) -> std::result::Result<(Vec<HpoTermDuplet>, bool), OntologyError> {
+    HpoUtil::sync_hpo_duplets(hpo, hpo_duplets)   
 }
 
 

@@ -6,7 +6,7 @@ use std::{path::Path, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use tera::Context;
 
-use crate::{dto::cohort_dto::CohortData, export::{cohort_renderer::CohortRenderer, html_renderer::HtmlRenderer, table_compare::TableCompare}, factory};
+use crate::{dto::cohort_data::CohortData, export::{cohort_renderer::CohortRenderer, html_renderer::HtmlRenderer, table_compare::TableCompare}, factory};
 
 
 mod cohort_renderer;

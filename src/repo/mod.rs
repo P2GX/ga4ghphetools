@@ -87,9 +87,6 @@ pub fn update_all_ppkt(
 ) -> Result<UpdateReport, String> {
     let repo = GptRepository::new(ppkt_store_notebook_path)
         .map_err(|e|e.to_string())?;
-    eprintln!("####################");
-    eprintln!("repo.update_all_ppkt(hpo).map_err(|e|e.to_string()");
-     eprintln!("####################");
     repo.update_all_ppkt(hpo).map_err(|e|e.to_string())
 }
 

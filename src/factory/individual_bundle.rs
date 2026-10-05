@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::sync::LazyLock;
 
-use crate::{dto::cohort_dto::IndividualData, header::individual_header::IndividualHeader};
+use crate::{dto::cohort_data::IndividualData, header::individual_header::IndividualHeader};
 
 
 static SHARED_HEADER: LazyLock<Arc<IndividualHeader>> = LazyLock::new(|| {

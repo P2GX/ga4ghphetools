@@ -8,7 +8,7 @@ use ontolius::ontology::csr::FullCsrOntology;
 
 use phenopackets::schema::v2::core::{ExternalReference, MetaData};
 use phenopackets::schema::v2::Phenopacket;
-use crate::dto::cohort_dto::{CohortData, DiseaseData, RowData};
+use crate::dto::cohort_data::{CohortData, DiseaseData, RowData};
 use crate::ppkt::ppkt_builder::{DEFAULT_GENO_VERSION, DEFAULT_HGNC_VERSION, DEFAULT_OMIM_VERSION, DEFAULT_SO_VERSION, PhenopacketBuilder};
 use crate::ppkt::ppkt_variant_exporter::PpktVariantExporter;
 use phenopacket_tools;

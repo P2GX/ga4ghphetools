@@ -3,7 +3,7 @@
 
 use std:: path::{Path, PathBuf};
 
-use crate::{dto::cohort_dto::CohortData, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
+use crate::{dto::cohort_data::CohortData, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
 
 /// Designed for easy manipulation in front end.
 /// If we ever need it, we can expand to use the various types of the various errors

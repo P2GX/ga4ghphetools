@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::{cohort_qc::cohort_qc::CohortDataQc, dto::cohort_dto::CohortData, error::cohort_error::CohortError};
+use crate::{cohort_qc::cohort_qc::CohortDataQc, dto::cohort_data::CohortData, error::cohort_error::CohortError};
 
 
 pub(crate) mod cohort_dir;

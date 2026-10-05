@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{dto::{cohort_dto::CohortData, hpo_term_dto::HpoTermData}, hpoa::counted_hpo_term::CountedHpoTerm};
+use crate::{dto::{cohort_data::CohortData, hpo_term_dto::HpoTermData}, hpoa::counted_hpo_term::CountedHpoTerm};
 
 
 

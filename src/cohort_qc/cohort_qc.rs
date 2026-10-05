@@ -7,7 +7,7 @@ use ontolius::{Identified, TermId, ontology::{HierarchyQueries, OntologyTerms, c
 
 
 use crate::{
-    cohort_qc::qc_report::{self, QcReport}, dto::{cohort_dto::{CohortData, RowData}, 
+    cohort_qc::qc_report::{self, QcReport}, dto::{cohort_data::{CohortData, RowData}, 
     hpo_term_dto::HpoTermDuplet}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
 
 

@@ -11,7 +11,7 @@ use ontolius::TermId;
 use crate::dto::hpo_term_dto::CellValue;
 use crate::dto::hpo_term_dto::CellValueInner;
 use crate::dto::hpo_term_dto::HpoTermData;
-use crate::dto::cohort_dto::{DiseaseData, GeneVariantData, IndividualData};
+use crate::dto::cohort_data::{DiseaseData, GeneVariantData, IndividualData};
 
 
 
