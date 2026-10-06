@@ -39,46 +39,7 @@ pub struct PpktRow {
 
 
 impl PpktRow {
-   /* pub fn from_row(
-        header: Arc<HeaderDupletRow>,
-        content: Vec<String>,
-    ) -> std::result::Result<Self, String> {
-        match header.template_type() {
-            CohortType::Mendelian => Self::from_mendelian_row(header, content),
-            CohortType::Melded => panic!("No legacy row is Melded (this option is never true)"),
-            CohortType::Digenic => panic!("No legacy row is Digenic (this option is never true)"),
-        }
-    }
 
-    /// Create a Ppkt obkect from a row of string values. This is part of the ETL pipeline for the legacy Excel files
-    
-    pub fn from_mendelian_row(
-        header: Arc<HeaderDupletRow>,
-        content: Vec<String>
-    ) -> std::result::Result<Self, String> {
-        let ibundle = IndividualBundle::from_row(&content, DEMOGRAPHIC_IDX)?;
-        let disease_bundle = DiseaseBundle::from_row(&content, 4)?; // todo -- put index contents in same place
-        let gene_variant_bundle = GeneVariantBundle::from_row(&content, 6)?;
-        let mut hpo_content: Vec<String> = Vec::new();
-        let number_of_constant_cells_to_skip = 17;
-        // HPO data begins at cell 17 in the legacy Excel files -- need to skip 17 (zero based)
-        for item in content.iter().skip(number_of_constant_cells_to_skip) {
-            let cell = if item.trim().is_empty() { "na" } else { item }; // transform empty cells to "na" for consistency
-            match dto::hpo_term_dto::CellValueInner::is_valid_cell_value(cell) {
-                true => hpo_content.push(item.clone()),
-                false => { return Err(format!("Invalid table cell '{cell}' for {}", ibundle.individual_id()));},
-            }
-        }
-
-       
-        Ok(Self { header: header.clone(), 
-            individual_bundle: ibundle, 
-            disease_bundle_list: vec![disease_bundle], 
-            gene_var_bundle_list: vec![gene_variant_bundle],
-            hpo_content 
-        })
-    }
-*/
     /// Create a new PpktRow. This is used when we create a row (phenopacket) with terms that
     /// may not be included in the previous phenopackets and which may not have values for all of the
     /// terms in the previous phenopackets. 

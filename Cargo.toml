@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.7.8"
+version = "0.7.9"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -54,7 +54,7 @@ log4rs = { version = "1.4", default-features = false, features = [
     "rolling_file_appender", 
     "compound_policy", 
     "size_trigger", 
-    "fixed_window_roller", 
+    "delete_roller", 
     "pattern_encoder"] }
 
 [features]

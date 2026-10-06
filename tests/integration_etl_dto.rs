@@ -626,11 +626,10 @@ fn test_malformed_title (
     assert_eq!(err, "Malformed title: 'a'")
 }
 
-/** Tests whether we set a redundant entry to "na" 
- * The ETL has both:    
- * Delayed ability to sit  HP:0025336
-Delayed gross motor development HP:0002194 (parent of Delayed ability to sit)
-*/
+///Tests whether we set a redundant entry to "na" 
+/// * The ETL has both:    
+/// * Delayed ability to sit  HP:0025336
+/// Delayed gross motor development HP:0002194 (parent of Delayed ability to sit)
 #[rstest]
 fn test_column_type_with_redundancy(
     etl_dto_with_redudancy: EtlDto,
