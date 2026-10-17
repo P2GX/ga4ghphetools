@@ -63,6 +63,7 @@ pub use persistence::initialize_project_dir;
 
 mod ppkt;
 pub use ppkt::write_phenopackets;
+pub use ppkt::get_gene_symbol_from_interpretation;
 
 mod repo;
 pub use repo::get_repo_qc;

@@ -20,6 +20,7 @@ mod ppkt_utils;
 
 pub use ppkt_utils::load_phenopacket;
 pub use ppkt_utils::get_disease_id;
+pub use ppkt_utils::get_gene_symbol_from_interpretation;
 
 
 /// Write all `Phenopacket`s derived from a given `CohortData` to disk.

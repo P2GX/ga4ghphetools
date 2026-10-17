@@ -84,15 +84,10 @@ pub fn get_disease_id(ppkt: &Phenopacket) -> Result<String, AnnotationError> {
 
 #[cfg(test)]
 mod test {
-use phenopackets::{ga4gh::vrsatile::v1::{GeneDescriptor, VariationDescriptor}, schema::v2::core::{Diagnosis, GenomicInterpretation, Interpretation, VariantInterpretation, genomic_interpretation::Call}};
-
+use phenopackets::{ga4gh::vrsatile::v1::{GeneDescriptor, VariationDescriptor}, schema::v2::core::{Diagnosis, GenomicInterpretation, Interpretation, VariantInterpretation, genomic_interpretation::Call, interpretation::ProgressStatus}};
 use rstest::*;
 
 use crate::ppkt::ppkt_utils::get_gene_symbol_from_interpretation;
-
-
-
-// --- FIXTURES: Building Blocks for our Harness ---
 
 #[fixture]
 fn base_interpretation() -> Interpretation {
@@ -179,6 +174,23 @@ fn test_returns_none_when_diagnosis_is_missing() {
     // Assert
     assert!(result.is_none());
 }
+    
+    #[rstest]
+    fn test_get_gene_symbol_empty_genomic_interpretations() {
+        // Test edge case: genomic_interpretations list is empty. Do not expect to get a Gene symbol 
+        let interpretation = Interpretation {
+            id: "identifier".to_string(),
+            progress_status: ProgressStatus::UnknownProgress.into(),
+            summary: "n/a".to_string(),
+            diagnosis: Some(Diagnosis {
+                disease: None,
+                genomic_interpretations: vec![],
+            }),
+        };
+
+        let result = get_gene_symbol_from_interpretation(&interpretation);
+        assert_eq!(result, None);
+    }
 
     
 }
