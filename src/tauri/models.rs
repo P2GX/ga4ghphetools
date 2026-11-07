@@ -1,5 +1,7 @@
 use serde::{Serialize, Deserialize};
 
+use crate::dto::hpo_term_dto::HpoTermDuplet;
+
 
 /// OntologyLoadEvent is designed to be used with tauri User Interfaces
 /// Upon successful/failed loading of an ontology (e.g., HPO), a signal
@@ -71,17 +73,11 @@ impl OntologyLoadEvent {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HpoTermMinimal {
-    pub term_id: String,
-    pub label: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct HierarchyMapItem {
     pub current_term_id: String,
-    pub parents: Vec<HpoTermMinimal>,
-    pub children: Vec<HpoTermMinimal>,
+    pub parents: Vec<HpoTermDuplet>,
+    pub children: Vec<HpoTermDuplet>,
 }

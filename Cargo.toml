@@ -1,6 +1,6 @@
 [package]
 name = "ga4ghphetools"
-version = "0.7.12"
+version = "0.7.13"
 edition = "2021"
 keywords = ["GA4GH", "Phenopacket Schema", "Human Phenotype Ontology"]
 description = "Generate GA4GH phenopackets from tabular data"
@@ -76,5 +76,5 @@ warnings = "allow"
 
 
 [dev-dependencies]
-flate2 = "1.1.9"
-rstest = "0.26.1"
+flate2 = "1.1.11"
+rstest = "0.28.0"
