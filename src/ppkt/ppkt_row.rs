@@ -16,7 +16,6 @@ use crate::dto::cohort_data::{DiseaseData, GeneVariantData, IndividualData};
 use crate::cohort_qc::field_checks;
 
 use crate::error::ontology_error::OntologyError;
-use crate::factory::gene_variant_bundle::{ GeneVariantBundle};
 
 use crate::factory::header_duplet_row::{ HeaderDupletRow};
 
@@ -29,7 +28,7 @@ pub struct PpktRow {
     header: Arc<HeaderDupletRow>,
     individual_data: IndividualData,
     disease_list: Vec<DiseaseData>,
-    gene_var_bundle_list: Vec<GeneVariantBundle>,
+    gene_var_list: Vec<GeneVariantData>,
     hpo_content: Vec<String>
 }
 
@@ -59,11 +58,10 @@ impl PpktRow {
             let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
             items.push(value);
         }
-        let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 
             individual_data: individual_dto, 
             disease_list: vec![disease_data], 
-            gene_var_bundle_list: gvb_list, 
+            gene_var_list: gene_variant_list, 
             hpo_content: items
         })
     }
@@ -85,11 +83,7 @@ impl PpktRow {
     }
 
     pub fn get_gene_var_dto_list(&self) -> Vec<GeneVariantData> {
-        let mut gbdto_list: Vec<GeneVariantData> = Vec::new();
-        for gvb in &self.gene_var_bundle_list{
-            gbdto_list.push(gvb.to_dto());
-        }
-        gbdto_list
+        self.gene_var_list.clone()
     }
 
     pub fn get_hpo_value_list(&self) -> Result<Vec<CellValue>, String> {
@@ -115,8 +109,8 @@ impl PpktRow {
             field_checks::check_disease_id(&db.disease_id)?;
             field_checks::check_disease_label(&db.disease_label)?;
         }
-        for gvb in &self.gene_var_bundle_list {
-            gvb.do_qc()?;
+        for gvb in &self.gene_var_list {
+            field_checks::check_gene_variant_data(gvb)?;
         }
         for item in &self.hpo_content {
             if ! CellValueInner::is_valid_cell_value(item){
@@ -149,7 +143,7 @@ impl PpktRow {
             header: updated_hdr, 
             individual_data: self.individual_data.clone(), 
             disease_list: self.disease_list.clone(), 
-            gene_var_bundle_list: self.gene_var_bundle_list.clone(), 
+            gene_var_list: self.gene_var_list.clone(), 
             hpo_content: content 
         })
     }
@@ -201,42 +195,6 @@ mod test {
     use super::*;
     use rstest::fixture;
 
-    #[fixture]
-    fn row1() -> Vec<String> 
-    {
-        let row: Vec<&str> = vec![
-            "PMID", "title", "individual_id", "comment", "disease_id", "disease_label", "HGNC_id",	"gene_symbol", 
-            "transcript", "allele_1", "allele_2", "variant.comment", "age_of_onset", "age_at_last_encounter", 
-            "deceased", "sex", "HPO",	"Clinodactyly of the 5th finger", "Hallux valgus",	"Short 1st metacarpal", 
-            "Ectopic ossification in muscle tissue", "Long hallux", "Pain", "Short thumb"
-        ];
-        row.into_iter().map(|s| s.to_owned()).collect()
-    }
-
-    #[fixture]
-    fn row2() -> Vec<String> 
-    {
-        let row: Vec<&str> = vec![
-            "CURIE", "str", "str", "optional", "CURIE", "str", "CURIE", "str", "str", "str", "str", "optional", "age", "age", "yes/no/na", "M:F:O:U", "na",
-            "HP:0004209", "HP:0001822", "HP:0010034", "HP:0011987", "HP:0001847", "HP:0012531", "HP:0009778"];
-        row.into_iter().map(|s| s.to_owned()).collect()
-    }
-
-    #[fixture]
-    fn row3() -> Vec<String> {
-        let row: Vec<&str> =  vec![
-            "PMID:29482508", "Difficult diagnosis and genetic analysis of fibrodysplasia ossificans progressiva: a case report", "current case", "", 
-            "OMIM:135100", "Fibrodysplasia ossificans progressiva", "HGNC:171", "ACVR1", 
-            "NM_001111067.4", "c.617G>A", "na", "NP_001104537.1:p.(Arg206His)", 
-            "P9Y", "P16Y", "no", "M", "na", "na", "P16Y", "na", "P16Y", "P16Y", "P16Y", "na"];
-        row.into_iter().map(|s| s.to_owned()).collect()
-    }
-
-
-    #[fixture]
-    fn original_matrix(row1: Vec<String>, row2: Vec<String>, row3: Vec<String>)  -> Vec<Vec<String>> {
-        vec![row1, row2, row3]
-    }
 
 
     #[fixture]

@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::sync::LazyLock;
 use regex::Regex;
 
-use crate::dto::cohort_data::IndividualData;
+use crate::dto::cohort_data::{GeneVariantData, IndividualData};
 
 
 
@@ -165,6 +165,89 @@ pub(crate) fn check_individual_data(d: &IndividualData) -> Result<(), String> {
     check_age_string(&d.age_at_last_encounter)?;
     check_deceased(&d.deceased)?;
     check_sex(&d.sex)
+}
+
+
+
+/// We will be sending all HGVS variants to variant validator. Here, we just do 
+/// a rough screening to reject some obvious mistakes.
+/// - must start with c./n.
+/// - must not contain whitespace
+/// - must contain at least one digit
+/// - If has '>', must have bases before and after
+/// - If ins insertion, must have bases after 'ins'
+pub fn is_plausible_hgvs(hgvs: &str) -> bool {
+    if !(hgvs.starts_with("c.") || hgvs.starts_with("n.")) {
+        return false;
+    }
+    if hgvs.contains(char::is_whitespace) {
+        return false;
+    }
+    if !hgvs.chars().any(|c| c.is_ascii_digit()) {
+        return false;
+    }
+    if let Some(pos) = hgvs.find('>') {
+        // get the characters before and after '>'
+        let (before, after) = (&hgvs[..pos], &hgvs[pos + 1..]);
+        if !before.chars().rev().take_while(|c| c.is_ascii_alphabetic()).all(|c| "ACGT".contains(c)) {
+            return false;
+        }
+        if !after.chars().take_while(|c| c.is_ascii_alphabetic()).all(|c| "ACGT".contains(c)) {
+            return false;
+        }
+    }
+
+    if let Some(pos) = hgvs.find("ins") {
+        let after = &hgvs[pos + 3..]; // after 'ins'
+        if after.is_empty() || !after.chars().all(|c| "ACGT".contains(c)) {
+            return false;
+        }
+    }
+    true
+}
+
+
+pub(crate) fn check_hgnc_id(s: &str) -> Result<(), String> {
+    check_valid_curie(s)?;
+    if !s.starts_with("HGNC") {
+        return Err(format!("HGNC id has invalid prefix: '{}'", s));
+    }
+    Ok(())
+}
+
+pub(crate) fn check_gene_symbol(s: &str) -> Result<(), String> {
+    check_empty(s)?;
+    check_white_space(s)?;
+    if s.contains(' ') {
+        return Err(format!("Gene symbol must not contain whitespace: '{s}'"));
+    }
+    Ok(())
+}
+
+pub(crate) fn check_transcript(s: &str) -> Result<(), String> {
+    check_empty(s)?;
+    if !ALLOWED_TRANSCRIPT_PREFIXES.iter().any(|p| s.starts_with(p)) {
+        return Err(format!("Unrecognized transcript prefix '{s}'"));
+    }
+    if !s.contains('.') {
+        return Err(format!("Transcript '{}' is missing a version", s));
+    }
+    if let Some((before_last, last)) = s.rsplit_once('.') {
+        if before_last.is_empty() {
+            return Err(format!("Malformed transcript: '{}'", s));
+        }
+        if last.is_empty() || !last.chars().all(|c| c.is_ascii_digit()) {
+            return Err(format!("Malformed transcript version: '{}'", s));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn check_gene_variant_data(d: &GeneVariantData) -> Result<(), String> {
+    check_hgnc_id(&d.hgnc_id)?;
+    check_gene_symbol(&d.gene_symbol)?;
+    check_transcript(&d.transcript)?;
+    Ok(())
 }
 
 
@@ -371,4 +454,50 @@ mod tests {
                                     "P2Y", "Adult onset", "no", "X"); // two errors
         assert_eq!("Invalid CURIE with no colon: 'PMID29482508'", check_individual_data(&bad).unwrap_err());
     }
+
+    #[rstest]
+    #[case("HGNC:3603")]
+    fn hgnc_valid(#[case] s: &str) { assert!(check_hgnc_id(s).is_ok()); }
+
+    #[rstest]
+    #[case("", "Empty CURIE")]
+    #[case("HGNC3603", "Invalid CURIE with no colon: 'HGNC3603'")]
+    #[case("HGNC: 3603", "Contains stray whitespace: 'HGNC: 3603'")]
+    #[case("HGNC:36a", "Invalid CURIE with non-digit characters in suffix: 'HGNC:36a'")]
+    #[case("NCBI:1234", "HGNC id has invalid prefix: 'NCBI:1234'")]
+    fn hgnc_invalid(#[case] s: &str, #[case] expected: &str) {
+        assert_eq!(expected, check_hgnc_id(s).unwrap_err());
+    }
+
+    #[rstest]
+    #[case("FBN1")]
+    #[case("MT-ND1")]
+    fn gene_symbol_valid(#[case] s: &str) { assert!(check_gene_symbol(s).is_ok()); }
+
+    #[rstest]
+    #[case("", "Value must not be empty")]
+    #[case(" FBN1", "Leading whitespace in ' FBN1'")]
+    #[case("FBN1 ", "Trailing whitespace in 'FBN1 '")]
+    #[case("FB  N1", "Consecutive whitespace in 'FB  N1'")]
+    #[case("FBN 1", "Gene symbol must not contain whitespace: 'FBN 1'")]
+    fn gene_symbol_invalid(#[case] s: &str, #[case] expected: &str) {
+        assert_eq!(expected, check_gene_symbol(s).unwrap_err());
+    }
+
+    #[rstest]
+    #[case("NM_000138.5")]
+    #[case("NR_024540.1")]
+    #[case("ENST00000316623.10")]
+    fn transcript_valid(#[case] s: &str) { assert!(check_transcript(s).is_ok()); }
+
+    #[rstest]
+    #[case("", "Value must not be empty")]
+    #[case("XM_000138.5", "Unrecognized transcript prefix 'XM_000138.5'")]
+    #[case("NM_000138", "Transcript 'NM_000138' is missing a version")]
+    #[case("NM_000138.x", "Malformed transcript version: 'NM_000138.x'")]
+    #[case("NM_000138.", "Malformed transcript version: 'NM_000138.'")]
+    fn transcript_invalid(#[case] s: &str, #[case] expected: &str) {
+        assert_eq!(expected, check_transcript(s).unwrap_err());
+    }
+
 }

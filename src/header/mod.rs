@@ -8,4 +8,3 @@
 
 mod allele_util;
 pub mod duplet_item;
-pub mod gene_variant_header;

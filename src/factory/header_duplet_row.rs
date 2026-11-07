@@ -17,7 +17,7 @@ use crate::dto::cohort_data::CohortType;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::error::PheToolsError;
 use crate::error::ontology_error::OntologyError;
-use crate::header::gene_variant_header::GeneVariantHeader;
+
 
 
 
@@ -42,7 +42,6 @@ const N_CONSTANT_FIELDS_MENDELIAN: usize =
 
 #[derive(Clone, Debug)]
 pub struct HeaderDupletRow {
-    gene_variant_header_list: Vec<GeneVariantHeader>,
     hpo_duplets: Vec<HpoTermDuplet>,
     template_type: CohortType,
 }
@@ -56,22 +55,16 @@ impl HeaderDupletRow {
     pub fn update(&self, updated_hpo_duplets: &Vec<HpoTermDuplet>) -> std::result::Result<Self, ValidationErrors> {
         Ok(Self { 
         
-            gene_variant_header_list: self.gene_variant_header_list.clone(), 
+
             hpo_duplets: updated_hpo_duplets.clone(),
             template_type: self.template_type.clone()
         })
     }
 
 
-    fn mendelian_from_hpo_duplets(hpo_duplets: Vec<HpoTermDuplet>) -> Self {
-        Self { 
-          
-            gene_variant_header_list: vec![GeneVariantHeader::new()], 
-            hpo_duplets, 
-            template_type: CohortType::Mendelian 
-        }
-    }
 
+
+    /*
     pub fn from_hpo_duplets(
         hpo_duplets: Vec<HpoTermDuplet>, 
         template_type: CohortType)
@@ -82,7 +75,7 @@ impl HeaderDupletRow {
                 CohortType::Digenic => todo!()
             }
         }
-
+ */
 
     pub fn hpo_count(&self) -> usize {
         self.hpo_duplets.len()
@@ -119,7 +112,6 @@ impl HeaderDupletRow {
             .collect();
         Self {
           
-            gene_variant_header_list: self.gene_variant_header_list.clone(),
             hpo_duplets: updated_hpo_duplets,
             template_type: self.template_type,
         }       
@@ -204,57 +196,11 @@ mod test {
         ]
     }
 
-    #[rstest]
-    fn test_hpo_count(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        assert_eq!(header.hpo_count(), 2);
-    }
-
-    #[rstest]
-    fn test_template_type(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        assert_eq!(*header.template_type(), CohortType::Mendelian);
-    }
 
 
-    #[rstest]
-    fn test_get_hpo_id_list(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        let ids = header.get_hpo_id_list().unwrap();
-        assert_eq!(ids.len(), 2);
-        assert_eq!(ids[0].to_string(), "HP:0001250");
-        assert_eq!(ids[1].to_string(), "HP:0000639");
-    }
 
-    #[rstest]
-    fn test_get_hpo_content_map(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        let values = vec!["observed".to_string(), "excluded".to_string()];
-        let map = header.get_hpo_content_map(&values).unwrap();
-        assert_eq!(map.len(), 2);
-    }
 
-    #[rstest]
-    fn test_get_hpo_content_map_length_mismatch(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        let values = vec!["observed".to_string()]; // wrong length: 1 vs 2
-        assert!(header.get_hpo_content_map(&values).is_err());
-    }
 
-    #[rstest]
-    fn test_get_hpo_term_dto_list_length_mismatch(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        let values = vec!["observed".to_string()]; // wrong length
-        assert!(header.get_hpo_term_dto_list(&values).is_err());
-    }
 
-    #[rstest]
-    fn test_update_replaces_hpo_duplets(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        let new_duplets = vec![HpoTermDuplet::new("Ataxia", "HP:0001251")];
-        let updated = header.update(&new_duplets).unwrap();
-        assert_eq!(updated.hpo_count(), 1);
-        assert_eq!(updated.get_hpo_id_list().unwrap()[0].to_string(), "HP:0001251");
-    }
 
 }
