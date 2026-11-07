@@ -15,7 +15,6 @@ mod ppkt_builder;
 mod ppkt_variant_exporter;
 pub mod ppkt_exporter;
 pub (crate) mod ppkt_updater;
-pub mod ppkt_row;
 mod ppkt_utils;
 
 pub use ppkt_utils::load_phenopacket;

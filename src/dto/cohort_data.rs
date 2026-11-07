@@ -19,8 +19,6 @@ use crate::dto::hpo_term_dto::HpoTermDuplet;
 use crate::error::PheToolsError;
 use crate::error::cohort_error::CohortError;
 use crate::error::ontology_error::OntologyError;
-use crate::ppkt::ppkt_row::PpktRow;
-
 
 
 
@@ -214,21 +212,6 @@ pub struct RowData {
     pub hpo_data: Vec<CellValue>
 }
 
-impl RowData {
-    pub fn from_ppkt_row(ppkt_row: &PpktRow, allele_key_list: Vec<String>) -> Result<Self, String> {
-        let mut allele_count_map: HashMap<String, usize> = HashMap::new();
-        for allele in allele_key_list {
-            *allele_count_map.entry(allele).or_insert(0) += 1;
-        };
-        let hpo_list = ppkt_row.get_hpo_value_list()?;
-        Ok(Self { 
-            individual_data: ppkt_row.get_individual_dto(), 
-            disease_id_list: ppkt_row.get_disease_id_list(), 
-            allele_count_map, 
-            hpo_data: hpo_list,
-        })
-    }
-}
 
 
 

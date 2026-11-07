@@ -13,8 +13,7 @@ use crate::{
     hgvs_variant::HgvsVariant, hpo_term_dto::{CellValue, HpoTermData, HpoTermDuplet}, 
     structural_variant::StructuralVariant}, 
     error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError, annotation_error::AnnotationError}, 
-    hpo, 
-    ppkt::ppkt_row::PpktRow};
+    hpo};
 
 
 
@@ -364,59 +363,7 @@ impl CohortFactory {
         }
         Ok(())
     }
-
-    
-
-    fn get_hgvs_variants(
-        &self,
-        row: &PpktRow,
-        hgvs_dict: &HashMap<String, HgvsVariant>) 
-    -> std::result::Result<Vec<HgvsVariant>, String> {
-        let mut var_list: Vec<HgvsVariant> = Vec::new();
-        for dto in row.get_gene_var_dto_list() {
-            if dto.allele1_is_hgvs() {
-                let key = dto.get_key_allele1();
-                let variant = hgvs_dict
-                    .get(&key)
-                    .ok_or_else(|| format!("No variant found for allele1: '{}'", key))?;
-                var_list.push(variant.clone());
-            }
-            if dto.allele2_is_hgvs() {
-                let key = dto.get_key_allele2();
-                let variant = hgvs_dict
-                    .get(&key)
-                    .ok_or_else(|| format!("No variant found for allele2: '{}'", key))?;
-                var_list.push(variant.clone());
-            }
-        }
-        Ok(var_list)
-    }
-
-    fn get_structural_variants(
-        &self,
-        row: &PpktRow,
-        sv_dict: &HashMap<String, StructuralVariant>) 
-    -> std::result::Result<Vec<StructuralVariant>, String> {
-        let mut var_list: Vec<StructuralVariant> = Vec::new();
-        for dto in row.get_gene_var_dto_list() {
-            if ! dto.allele1_is_sv() {
-                let key = dto.get_key_allele1();
-                let variant = sv_dict
-                    .get(&key)
-                    .ok_or_else(|| format!("No structural variant found for allele1: '{}'", key))?;
-                var_list.push(variant.clone());
-            }
-            if dto.allele2_is_sv() {
-                let key = dto.get_key_allele2();
-                let variant = sv_dict
-                    .get(&key)
-                    .ok_or_else(|| format!("No structural variant found for allele2: '{}'", key))?;
-                var_list.push(variant.clone());
-            }
-        }
-        Ok(var_list)
-    }
-
+  
 
     /// Compare the old header with the new header and update the RowData object to have the new HPO columns but set the value to na for these columns because we do not yet have the value for them
     fn update_hpo_row_with_new_term(

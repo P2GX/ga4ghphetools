@@ -9,7 +9,6 @@ use crate::{
     factory::cohort_factory::CohortFactory};
 
 pub mod excel;
-pub mod header_duplet_row;
 pub mod cohort_factory;
 
 
