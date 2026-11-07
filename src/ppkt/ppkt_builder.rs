@@ -22,7 +22,7 @@
 //!   that version is the entire point of this path. 
 use std::{collections::HashMap, str::FromStr, sync::{Arc, LazyLock}};
 
-use ontolius::{Identified, TermId, ontology::{HierarchyQueries, MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
+use ontolius::{Identified, TermId, ontology::{TaxonomyQuery, MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
 use phenopacket_tools::builders::{builder::Builder, resources::Resources};
 use phenopackets::schema::v2::{Phenopacket, core::{Disease, ExternalReference, Individual, KaryotypicSex, MetaData, OntologyClass, PhenotypicFeature, Sex, VitalStatus, vital_status::Status}};
 use regex::Regex;

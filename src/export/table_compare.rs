@@ -1,10 +1,10 @@
-//! TableCompare: Compare two sets of phenopacketes with respect to the distribution of HPO terms
+//! TableCompare: Compare two sets of phenopackets with respect to the distribution of HPO terms
 use crate::{dto::{
     cohort_data::CohortData,
     hpo_term_dto::{CellValueInner, HpoTermDuplet},
 }, error::ontology_error::OntologyError};
 use ontolius::{
-    ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms},
+    ontology::{csr::FullCsrOntology, TaxonomyQuery, TaxonomyWalk, OntologyTerms},
     term::MinimalTerm,
     Identified, TermId,
 };

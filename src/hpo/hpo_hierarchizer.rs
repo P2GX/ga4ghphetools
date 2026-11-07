@@ -1,7 +1,7 @@
 //! HPO Hierarchizer
 //! Function to create a map with the top-level terms for each term in a list of HPO Term Duplets (e.g., from a cohort)
 use std::{collections::HashMap, str::FromStr, sync::Arc};
-use ontolius::{ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::MinimalTerm, TermId};
+use ontolius::{ontology::{csr::FullCsrOntology, TaxonomyQuery, TaxonomyWalk, OntologyTerms}, term::MinimalTerm, TermId};
 use crate::dto::hpo_term_dto::HpoTermDuplet;
 
 /// Convenience structure, not to be used outside of this module.

@@ -7,7 +7,7 @@
 use std::{collections::HashSet, str::FromStr, sync::Arc};
 
 use ontolius::{
-    common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, HierarchyQueries, HierarchyWalks, OntologyTerms}, term::MinimalTerm, TermId
+    common::hpo::PHENOTYPIC_ABNORMALITY, ontology::{csr::FullCsrOntology, TaxonomyQuery, HierarchyWalks, OntologyTerms}, term::MinimalTerm, TermId
 };
 
 use crate::{dto::hpo_term_dto::HpoTermDuplet, error::ontology_error::OntologyError};

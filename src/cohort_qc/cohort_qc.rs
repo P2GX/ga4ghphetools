@@ -3,7 +3,7 @@
 
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc};
 
-use ontolius::{Identified, TermId, ontology::{HierarchyQueries, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
+use ontolius::{Identified, TermId, ontology::{OntologyTerms, TaxonomyQuery, csr::FullCsrOntology}, term::MinimalTerm};
 
 
 use crate::{

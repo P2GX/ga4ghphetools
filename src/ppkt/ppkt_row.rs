@@ -16,8 +16,8 @@ use crate::dto::cohort_data::{DiseaseData, GeneVariantData, IndividualData};
 use crate::cohort_qc::field_checks;
 
 use crate::error::ontology_error::OntologyError;
+use crate::factory::header_duplet_row::HeaderDupletRow;
 
-use crate::factory::header_duplet_row::{ HeaderDupletRow};
 
 /// The index where the Mendelian demographic part starts
 const DEMOGRAPHIC_IDX:usize = 12;

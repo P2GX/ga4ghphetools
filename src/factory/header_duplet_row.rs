@@ -61,22 +61,6 @@ impl HeaderDupletRow {
         })
     }
 
-
-
-
-    /*
-    pub fn from_hpo_duplets(
-        hpo_duplets: Vec<HpoTermDuplet>, 
-        template_type: CohortType)
-    -> Self {
-            match template_type {
-                CohortType::Mendelian => Self::mendelian_from_hpo_duplets(hpo_duplets),
-                CohortType::Melded => todo!(),
-                CohortType::Digenic => todo!()
-            }
-        }
- */
-
     pub fn hpo_count(&self) -> usize {
         self.hpo_duplets.len()
     }
