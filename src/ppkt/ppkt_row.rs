@@ -13,17 +13,16 @@ use crate::dto::hpo_term_dto::CellValueInner;
 use crate::dto::hpo_term_dto::HpoTermData;
 use crate::dto::cohort_data::{DiseaseData, GeneVariantData, IndividualData};
 
-
+use crate::cohort_qc::field_checks;
 
 use crate::error::ontology_error::OntologyError;
-use crate::factory::disease_bundle::{ DiseaseBundle};
 use crate::factory::gene_variant_bundle::{ GeneVariantBundle};
 use crate::factory::individual_bundle::IndividualBundle;
 
 
 use crate::factory::header_duplet_row::{ HeaderDupletRow};
 
-/// The index where the Mendelian demographic part sars
+/// The index where the Mendelian demographic part starts
 const DEMOGRAPHIC_IDX:usize = 12;
 
 
@@ -31,7 +30,7 @@ const DEMOGRAPHIC_IDX:usize = 12;
 pub struct PpktRow {
     header: Arc<HeaderDupletRow>,
     individual_bundle: IndividualBundle,
-    disease_bundle_list: Vec<DiseaseBundle>,
+    disease_list: Vec<DiseaseData>,
     gene_var_bundle_list: Vec<GeneVariantBundle>,
     hpo_content: Vec<String>
 }
@@ -49,7 +48,7 @@ impl PpktRow {
     /// * `individual_dto` - DTO with demographic information about the new individual
     /// * `gene_variant_list` - genotypes
     /// * `tid_to_value_map` - this has values (e.g., observed, na, P32Y2M) for which we have information in the new phenopacket
-    /// * `cohort_dto`- DTO for the entire previous cohort (TODO probably we need a better DTO with the new DiseaseBundle!)
+    /// * `disease_data`- DTO for cohort disease data
     pub fn from_dtos(
         header: Arc<HeaderDupletRow>, 
         individual_dto: IndividualData,
@@ -63,11 +62,10 @@ impl PpktRow {
             items.push(value);
         }
         let ibundle = IndividualBundle::from_dto(individual_dto);
-        let disease_bundle_list = DiseaseBundle::from_disease_gene_dto(disease_data);
         let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 
             individual_bundle: ibundle, 
-            disease_bundle_list, 
+            disease_list: vec![disease_data], 
             gene_var_bundle_list: gvb_list, 
             hpo_content: items
         })
@@ -85,7 +83,7 @@ impl PpktRow {
     /// For melded, we will have two or more
     pub fn get_disease_id_list(&self) -> Vec<String> {
         let mut dto_list: Vec<String> = Vec::new();
-        for disease in &self.disease_bundle_list {
+        for disease in &self.disease_list {
             dto_list.push(disease.disease_id.clone())
         }
         dto_list
@@ -118,8 +116,9 @@ impl PpktRow {
     /// This function checks the current PpktRow for syntactical errors
     pub fn check_for_errors(&self) -> std::result::Result<(), String> {
         self.individual_bundle.do_qc()?;
-        for db in &self.disease_bundle_list {
-            db.do_qc()?;
+        for db in &self.disease_list {
+            field_checks::check_disease_id(&db.disease_id)?;
+            field_checks::check_disease_label(&db.disease_label)?;
         }
         for gvb in &self.gene_var_bundle_list {
             gvb.do_qc()?;
@@ -154,7 +153,7 @@ impl PpktRow {
         Ok(Self { 
             header: updated_hdr, 
             individual_bundle: self.individual_bundle.clone(), 
-            disease_bundle_list: self.disease_bundle_list.clone(), 
+            disease_list: self.disease_list.clone(), 
             gene_var_bundle_list: self.gene_var_bundle_list.clone(), 
             hpo_content: content 
         })

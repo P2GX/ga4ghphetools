@@ -17,7 +17,6 @@ use crate::dto::cohort_data::CohortType;
 use crate::dto::validation_errors::ValidationErrors;
 use crate::error::PheToolsError;
 use crate::error::ontology_error::OntologyError;
-use crate::header::disease_header::DiseaseHeader;
 use crate::header::gene_variant_header::GeneVariantHeader;
 use crate::header::individual_header::IndividualHeader;
 
@@ -46,7 +45,6 @@ const N_CONSTANT_FIELDS_MENDELIAN: usize =
 #[derive(Clone, Debug)]
 pub struct HeaderDupletRow {
     individual_header: IndividualHeader,
-    disease_header_list: Vec<DiseaseHeader>,
     gene_variant_header_list: Vec<GeneVariantHeader>,
     hpo_duplets: Vec<HpoTermDuplet>,
     template_type: CohortType,
@@ -61,7 +59,6 @@ impl HeaderDupletRow {
     pub fn update(&self, updated_hpo_duplets: &Vec<HpoTermDuplet>) -> std::result::Result<Self, ValidationErrors> {
         Ok(Self { 
             individual_header: self.individual_header.clone(), 
-            disease_header_list: self.disease_header_list.clone(), 
             gene_variant_header_list: self.gene_variant_header_list.clone(), 
             hpo_duplets: updated_hpo_duplets.clone(),
             template_type: self.template_type.clone()
@@ -72,7 +69,6 @@ impl HeaderDupletRow {
     fn mendelian_from_hpo_duplets(hpo_duplets: Vec<HpoTermDuplet>) -> Self {
         Self { 
             individual_header: IndividualHeader::new(), 
-            disease_header_list: vec![DiseaseHeader::new()], 
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
             hpo_duplets, 
             template_type: CohortType::Mendelian 
@@ -115,19 +111,12 @@ impl HeaderDupletRow {
     pub fn new_mendelian_ppkt_from_dto(duplet_list: &[HpoTermDuplet]) -> Self {
         Self { 
             individual_header: IndividualHeader::new(), 
-            disease_header_list: vec![DiseaseHeader::new()], 
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
             hpo_duplets: duplet_list.to_vec(), 
             template_type: CohortType::Mendelian
         }
     }
 
-
-
-    /// Total number of columns in the template, including separator column
-    pub fn n_columns(&self) -> usize {
-        4 + 2*self.disease_header_list.len() + 6*self.gene_variant_header_list.len() + 4 + self.hpo_duplets.len() +1
-    }
 
 
     /// We use this function when we add new HPO terms to the cohort; since the previous HeaderRowDuplet does not
@@ -140,7 +129,6 @@ impl HeaderDupletRow {
             .collect();
         Self {
             individual_header: self.individual_header.clone(),
-            disease_header_list: self.disease_header_list.clone(),
             gene_variant_header_list: self.gene_variant_header_list.clone(),
             hpo_duplets: updated_hpo_duplets,
             template_type: self.template_type,
@@ -238,12 +226,6 @@ mod test {
         assert_eq!(*header.template_type(), CohortType::Mendelian);
     }
 
-    #[rstest]
-    fn test_n_columns(hpo_duplets: Vec<HpoTermDuplet>) {
-        let header = HeaderDupletRow::from_hpo_duplets(hpo_duplets, CohortType::Mendelian);
-        // 4 (individual) + 2*1 (disease) + 6*1 (gene/variant) + 4 (demographic) + 2 (hpo) + 1 (separator)
-        assert_eq!(header.n_columns(), 19);
-    }
 
     #[rstest]
     fn test_get_hpo_id_list(hpo_duplets: Vec<HpoTermDuplet>) {

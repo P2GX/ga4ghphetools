@@ -8,7 +8,6 @@ use crate::{
     dto::{cohort_data::{CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, 
     factory::cohort_factory::CohortFactory};
 
-pub(crate) mod disease_bundle;
 pub mod excel;
 pub mod gene_variant_bundle;
 pub mod header_duplet_row;

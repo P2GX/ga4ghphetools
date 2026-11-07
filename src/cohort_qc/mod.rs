@@ -9,7 +9,7 @@ pub(crate) mod cohort_dir;
 pub mod qc_report;
 pub(crate) mod cohort_qc;
 pub(crate) mod disease_qc;
-
+pub(crate) mod field_checks;
 
 
 

@@ -22,7 +22,7 @@ use crate::tauri::models::{HierarchyMapItem};
 /// # Returns
 ///
 /// Returns a [`HierarchyMapItem`] containing the original term ID along with vectors of its 
-/// parsed parents and children as [`HpoTermMinimal`]. If the term ID is invalid or cannot be found, 
+/// parsed parents and children as [`HpoTermDuplet`]. If the term ID is invalid or cannot be found, 
 /// the returned struct fields will be empty.
 pub fn get_hpo_parent_and_children_terms(
     term_id: &str,
