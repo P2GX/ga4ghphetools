@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::sync::LazyLock;
 use regex::Regex;
 
-
+use crate::dto::cohort_data::IndividualData;
 
 
 
@@ -22,45 +22,6 @@ static ALLOWED_TRANSCRIPT_PREFIXES: &[&str] = &[
     "NR_",
     "ENST",
 ];
-
-
-
-/// TODO -- remove from here, this should go to HpoCellValue
-pub static ALLOWED_AGE_LABELS: LazyLock<HashSet<String>> = LazyLock::new(|| {
-    [
-        "Late onset",
-        "Middle age onset",
-        "Young adult onset",
-        "Late young adult onset",
-        "Intermediate young adult onset",
-        "Early young adult onset",
-        "Adult onset",
-        "Juvenile onset",
-        "Childhood onset",
-        "Infantile onset",
-        "Neonatal onset",
-        "Congenital onset",
-        "Antenatal onset",
-        "Embryonal onset",
-        "Fetal onset",
-        "Late first trimester onset",
-        "Second trimester onset",
-        "Third trimester onset",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect()
-});
-
-/// Regex for ISO 8601 durations
-pub static ISO8601_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$").expect("valid ISO 8601 regex")
-});
-
-/// Regex for gestational age format
-pub static GESTATIONAL_AGE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"G\d+w[0-6]d").expect("valid gestational age regex")
-});
 
 pub static ALLOWED_DECEASED_ITEMS: LazyLock<HashSet<String>> = LazyLock::new(||{
     let mut hset = HashSet::new();
@@ -151,6 +112,59 @@ pub(crate) fn check_disease_label(cell_contents: &str) -> Result<(), String> {
     check_empty(cell_contents)?;
     check_white_space(cell_contents)?;
     Ok(())
+}
+
+
+
+pub(crate) fn check_pmid(s: &str) -> Result<(), String> {
+    check_valid_curie(s)?;
+    if !s.starts_with("PMID") {
+        return Err(format!("Invalid PubMed prefix: '{}'", s));
+    }
+    Ok(())
+}
+pub(crate) fn check_title(s: &str) -> Result<(), String> {
+    check_white_space(s)?;
+    check_empty(s)
+}
+pub(crate) fn check_individual_id(s: &str) -> Result<(), String> {
+    check_forbidden_chars(s)?;
+    check_empty(s)?;
+    check_white_space(s)
+}
+pub(crate) fn check_comment(s: &str) -> Result<(), String> {
+    check_forbidden_chars(s)
+}
+pub(crate) fn check_age_string(s: &str) -> Result<(), String> { 
+     if s.is_empty() {
+            return Err("Empty age string not allowed (use na)".to_string());
+        }
+    if crate::age::is_valid_age_string(s) {
+        Ok(())
+    } else {
+        Err(format!("Malformed age string '{}'", s))
+    }
+}
+
+
+
+pub(crate) fn check_deceased(s: &str) -> Result<(), String> {
+    if ALLOWED_DECEASED_ITEMS.contains(s) { Ok(()) } else { Err(format!("Malformed deceased entry: '{}'", s)) }
+}
+pub(crate) fn check_sex(s: &str) -> Result<(), String> {
+    if ALLOWED_SEX_ITEMS.contains(s) { Ok(()) } else { Err(format!("Malformed sex entry: '{}'", s)) }
+}
+
+/// Same order as the old IndividualHeader::qc_data.
+pub(crate) fn check_individual_data(d: &IndividualData) -> Result<(), String> {
+    check_pmid(&d.pmid)?;
+    check_title(&d.title)?;
+    check_individual_id(&d.individual_id)?;
+    check_comment(&d.comment)?;
+    check_age_string(&d.age_of_onset)?;
+    check_age_string(&d.age_at_last_encounter)?;
+    check_deceased(&d.deceased)?;
+    check_sex(&d.sex)
 }
 
 
@@ -294,5 +308,67 @@ mod tests {
     #[case("Segawa  syndrome", "Consecutive whitespace in 'Segawa  syndrome'")]
     fn disease_label_invalid(#[case] s: &str, #[case] expected: &str) {
         assert_eq!(expected, check_disease_label(s).unwrap_err());
+    }
+
+    #[rstest]
+    #[case("PMID29482508", "Invalid CURIE with no colon: 'PMID29482508'")]
+    #[case("PMID: 29482508", "Contains stray whitespace: 'PMID: 29482508'")]
+    #[case("", "Empty CURIE")]
+    #[case("MID:29482508", "Invalid PubMed prefix: 'MID:29482508'")]
+    fn pmid_invalid(#[case] s: &str, #[case] expected: &str) {
+        assert_eq!(expected, check_pmid(s).unwrap_err());
+    }
+
+    #[rstest]
+    #[case("individual\\1", "Forbidden character '\\' found in label 'individual\\1'")]
+    #[case("individual  A", "Consecutive whitespace in 'individual  A'")]
+    #[case("", "Value must not be empty")]
+    fn individual_id_invalid(#[case] s: &str, #[case] expected: &str) {
+        assert_eq!(expected, check_individual_id(s).unwrap_err());
+    }
+
+    #[test]
+    fn title_consecutive_whitespace() {
+        assert_eq!("Consecutive whitespace in 'a  b'", check_title("a  b").unwrap_err());
+    }
+
+    #[rstest]
+    #[case("P2")]
+    #[case("P22")]
+    #[case("Adultonset")]
+    fn age_invalid(#[case] s: &str) {
+        assert_eq!(format!("Malformed age string '{s}'"), check_age_string(s).unwrap_err());
+    }
+
+    #[rstest]
+    #[case("P2Y")]
+    #[case("P12Y6M")]
+    #[case("Adult onset")]
+    #[case("na")]
+    #[case("G32w3d")]
+    fn age_valid(#[case] s: &str) { assert!(check_age_string(s).is_ok()); }
+
+    #[rstest]
+    #[case("?", "Malformed deceased entry: '?'")]
+    #[case("alive", "Malformed deceased entry: 'alive'")]
+    fn deceased_invalid(#[case] s: &str, #[case] expected: &str) {
+        assert_eq!(expected, check_deceased(s).unwrap_err());
+    }
+
+    #[rstest]
+    #[case("male", "Malformed sex entry: 'male'")]
+    #[case("f", "Malformed sex entry: 'f'")]
+    fn sex_invalid(#[case] s: &str, #[case] expected: &str) {
+        assert_eq!(expected, check_sex(s).unwrap_err());
+    }
+
+    #[test]
+    fn individual_data_valid_and_first_error_wins() {
+        let ok = IndividualData::new("PMID:29482508", "A title", "individual A", "comment",
+                                    "P2Y", "Adult onset", "no", "F");
+        assert!(check_individual_data(&ok).is_ok());
+        let bad = IndividualData::new("PMID29482508", "A title", "individual A", "comment",
+                                    "P2Y", "Adult onset", "no", "X"); // two errors
+        assert_eq!("Invalid CURIE with no colon: 'PMID29482508'", check_individual_data(&bad).unwrap_err());
     }
 }

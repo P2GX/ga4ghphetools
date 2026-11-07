@@ -17,8 +17,6 @@ use crate::cohort_qc::field_checks;
 
 use crate::error::ontology_error::OntologyError;
 use crate::factory::gene_variant_bundle::{ GeneVariantBundle};
-use crate::factory::individual_bundle::IndividualBundle;
-
 
 use crate::factory::header_duplet_row::{ HeaderDupletRow};
 
@@ -29,7 +27,7 @@ const DEMOGRAPHIC_IDX:usize = 12;
 #[derive(Clone, Debug)]
 pub struct PpktRow {
     header: Arc<HeaderDupletRow>,
-    individual_bundle: IndividualBundle,
+    individual_data: IndividualData,
     disease_list: Vec<DiseaseData>,
     gene_var_bundle_list: Vec<GeneVariantBundle>,
     hpo_content: Vec<String>
@@ -61,10 +59,9 @@ impl PpktRow {
             let value: String =  tid_to_value_map.get(&tid).map_or("na", |v| v).to_string();
             items.push(value);
         }
-        let ibundle = IndividualBundle::from_dto(individual_dto);
         let gvb_list = GeneVariantBundle::from_dto_list(gene_variant_list);
         Ok(Self { header, 
-            individual_bundle: ibundle, 
+            individual_data: individual_dto, 
             disease_list: vec![disease_data], 
             gene_var_bundle_list: gvb_list, 
             hpo_content: items
@@ -73,9 +70,7 @@ impl PpktRow {
 
 
     pub fn get_individual_dto(&self) -> IndividualData {
-        let ibdl = &self.individual_bundle;
-        IndividualData::new(ibdl.pmid(), ibdl.title(), ibdl.individual_id(), ibdl.comment(),
-            ibdl.age_of_onset(), ibdl.age_at_last_encounter(), ibdl.deceased(), ibdl.sex())
+        self.individual_data.clone()
     }
 
     /// Get a list of disease identifiers, e.g., OMIM:157000
@@ -115,7 +110,7 @@ impl PpktRow {
 
     /// This function checks the current PpktRow for syntactical errors
     pub fn check_for_errors(&self) -> std::result::Result<(), String> {
-        self.individual_bundle.do_qc()?;
+        field_checks::check_individual_data(&self.individual_data)?;
         for db in &self.disease_list {
             field_checks::check_disease_id(&db.disease_id)?;
             field_checks::check_disease_label(&db.disease_label)?;
@@ -152,7 +147,7 @@ impl PpktRow {
 
         Ok(Self { 
             header: updated_hdr, 
-            individual_bundle: self.individual_bundle.clone(), 
+            individual_data: self.individual_data.clone(), 
             disease_list: self.disease_list.clone(), 
             gene_var_bundle_list: self.gene_var_bundle_list.clone(), 
             hpo_content: content 

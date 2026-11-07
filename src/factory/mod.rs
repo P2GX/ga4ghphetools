@@ -11,7 +11,6 @@ use crate::{
 pub mod excel;
 pub mod gene_variant_bundle;
 pub mod header_duplet_row;
-pub(crate) mod individual_bundle;
 pub mod cohort_factory;
 
 

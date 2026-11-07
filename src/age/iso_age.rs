@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{fmt::format, sync::LazyLock};
 use regex::Regex;
 
 use crate::{age::hpo_age, dto::hpo_term_dto::HpoTermDuplet};
@@ -13,18 +13,21 @@ static ISO8601_RE: LazyLock<Regex> = LazyLock::new(|| {
 pub struct Iso8601Age{}
 
 impl Iso8601Age {
+    /// Check whether the string value is a valid ISO match. It is efficient to check the length of the string
+    /// so that a bare "P" is not matched; then the regex is correct.
     pub fn is_valid(cell_value: &str) -> bool {
-        ISO8601_RE.is_match(cell_value)
+        cell_value.len() > 1 && ISO8601_RE.is_match(cell_value)
     }
 
 
-     pub fn get_hpo_onset_term_from_iso8601(isostring: &str) -> Result<String, String> {
-        let iso8601_regex = Regex::new(r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?$")
-            .map_err(|e| format!("Invalid regex: {}", e))?;
+     pub fn get_hpo_onset_term_from_iso8601(iso_string: &str) -> Result<String, String> {
+        if iso_string.len() < 3 {
+            return Err(format!("Malformed iso age string: {}", iso_string));
+        }
 
-        let captures = iso8601_regex
-            .captures(isostring)
-            .ok_or_else(|| format!("Could not parse ISO8601 string: {}", isostring))?;
+        let captures = ISO8601_RE
+            .captures(iso_string)
+            .ok_or_else(|| format!("Could not parse ISO8601 string: {}", iso_string))?;
 
         let years: usize = captures
             .get(1)
@@ -58,7 +61,7 @@ impl Iso8601Age {
         } else if days == 0 {
             "Congenital onset"
         } else {
-            return Err(format!("Could not determine onset label from: {}", isostring));
+            return Err(format!("Could not determine onset label from: {}", iso_string));
         };
         Ok(label.to_string())
     }

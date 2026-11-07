@@ -18,8 +18,6 @@ use crate::dto::validation_errors::ValidationErrors;
 use crate::error::PheToolsError;
 use crate::error::ontology_error::OntologyError;
 use crate::header::gene_variant_header::GeneVariantHeader;
-use crate::header::individual_header::IndividualHeader;
-
 
 
 
@@ -44,7 +42,6 @@ const N_CONSTANT_FIELDS_MENDELIAN: usize =
 
 #[derive(Clone, Debug)]
 pub struct HeaderDupletRow {
-    individual_header: IndividualHeader,
     gene_variant_header_list: Vec<GeneVariantHeader>,
     hpo_duplets: Vec<HpoTermDuplet>,
     template_type: CohortType,
@@ -58,7 +55,7 @@ impl HeaderDupletRow {
     /// code should have arranged the HPO term list previously). We will then use this to update the existing PpktRow objects
     pub fn update(&self, updated_hpo_duplets: &Vec<HpoTermDuplet>) -> std::result::Result<Self, ValidationErrors> {
         Ok(Self { 
-            individual_header: self.individual_header.clone(), 
+        
             gene_variant_header_list: self.gene_variant_header_list.clone(), 
             hpo_duplets: updated_hpo_duplets.clone(),
             template_type: self.template_type.clone()
@@ -68,7 +65,7 @@ impl HeaderDupletRow {
 
     fn mendelian_from_hpo_duplets(hpo_duplets: Vec<HpoTermDuplet>) -> Self {
         Self { 
-            individual_header: IndividualHeader::new(), 
+          
             gene_variant_header_list: vec![GeneVariantHeader::new()], 
             hpo_duplets, 
             template_type: CohortType::Mendelian 
@@ -108,14 +105,7 @@ impl HeaderDupletRow {
         Ok(hpo_dto_list)
     }
 
-    pub fn new_mendelian_ppkt_from_dto(duplet_list: &[HpoTermDuplet]) -> Self {
-        Self { 
-            individual_header: IndividualHeader::new(), 
-            gene_variant_header_list: vec![GeneVariantHeader::new()], 
-            hpo_duplets: duplet_list.to_vec(), 
-            template_type: CohortType::Mendelian
-        }
-    }
+
 
 
 
@@ -128,7 +118,7 @@ impl HeaderDupletRow {
             .map(|term| HpoTermDuplet::new(term.name(), &term.identifier().to_string()))
             .collect();
         Self {
-            individual_header: self.individual_header.clone(),
+          
             gene_variant_header_list: self.gene_variant_header_list.clone(),
             hpo_duplets: updated_hpo_duplets,
             template_type: self.template_type,
