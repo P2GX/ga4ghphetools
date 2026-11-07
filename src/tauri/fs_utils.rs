@@ -18,7 +18,7 @@ use crate::tauri::models::OntologyLoadEvent;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// let full_path = get_full_path_as_str(file_path)?;
 /// println!("Selected file path: {}", full_path);
 /// ```
@@ -52,7 +52,7 @@ fn get_full_path_as_str(file_path: FilePath) -> Result<String, String> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use tauri::AppHandle;
 /// 
 /// #[tauri::command]
