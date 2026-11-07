@@ -18,8 +18,6 @@
 #![allow(unused_variables)]
 //#![allow(unused_imports)]
 
-mod header;
-
 mod age;
 pub use age::convert_raw_age_string_to_validated_age_string;
 pub use age::is_valid_age_string;
