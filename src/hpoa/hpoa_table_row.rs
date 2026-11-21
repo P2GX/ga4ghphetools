@@ -20,6 +20,7 @@ pub static VALID_MODES_OF_INHERITANCE: LazyLock<HashMap<String, String>> = LazyL
         ("HP:0001450", "Y-linked inheritance"),
         ("HP:0034340", "Pseudoautosomal dominant inheritance"),
         ("HP:0034341", "Pseudoautosomal recessive inheritance"),
+        ("HP:0001442", "Typified by somatic mosaicism', selected: false"),
         ];
     for tpl in moi_terms {
         moi_map.insert(tpl.0.to_string(), tpl.1.to_string());
