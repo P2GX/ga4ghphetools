@@ -28,11 +28,8 @@ use phenopackets::schema::v2::{Phenopacket, core::{Disease, ExternalReference, I
 use regex::Regex;
 
 use phenopacket_tools::builders::time_elements::time_element_from_str;
-use crate::{dto::{cohort_data::{CohortData, DiseaseData, RowData}, hpo_term_dto::HpoTermDuplet}, ppkt::ppkt_variant_exporter::PpktVariantExporter};
+use crate::{dto::{cohort_data::{CohortData, DiseaseData, RowData}, hpo_term_dto::HpoTermDuplet}, hpo, ppkt::ppkt_variant_exporter::PpktVariantExporter};
 
-static CLINICAL_MODIFIER: LazyLock<TermId> = LazyLock::new(|| {
-    "HP:0012823".parse().expect("Failed to parse static HP:0012823")
-});
 
 /// All valid severity terms
 static SEVERITY_MAP: LazyLock<HashMap<String, OntologyClass>> = LazyLock::new(||{
@@ -281,7 +278,7 @@ pub trait PhenopacketBuilder {
         }
         if hpo_term.name() != hpo_label {
             return Err(format!("{} is not the correct label ({}) for {}",
-                hpo_label, hpo_term.identifier(), hpo_label));
+                hpo_label, hpo_term.identifier(), hpo_term.name()));
         }
         let hpo_term = Builder::ontology_class(term.hpo_id(), term.hpo_label())
                 .map_err(|e| format!("termid_parse_error '{:?}'", term))?;
@@ -328,13 +325,17 @@ pub trait PhenopacketBuilder {
                     })?;
                     if let Some(severity_term) = SEVERITY_MAP.get(mod_str) {
                         pf.severity = Some(severity_term.clone());
-                    } else if self.hpo().is_descendant_of(term.identifier(), &*CLINICAL_MODIFIER) {
-                        let label = term.name().to_string();
+                    } else if hpo::hpo_modifiers::is_clinical_modifier(self.hpo(), term.identifier()) {
                         let oclass =  OntologyClass {
-                            id: label,
-                            label: mod_str.clone(),
+                            id: term.identifier().to_string(),
+                            label: term.name().to_string(),
                         };
                         mod_list.push(oclass);
+                    } else {
+                         return Err(format!(
+                            "Invalid modifier {} ('{}') for {} (PMID {}): not a descendant of Clinical modifier (HP:0012823)",
+                            term.identifier(), term.name(),
+                            ppkt_row.individual_data.individual_id, ppkt_row.individual_data.pmid));
                     }
                 }
                 pf.modifiers = mod_list;
@@ -369,3 +370,4 @@ pub trait PhenopacketBuilder {
             .collect()
     }
 }
+

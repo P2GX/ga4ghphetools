@@ -11,7 +11,7 @@ use crate::{dto::{cohort_data::CohortData, hpo_term_dto::{HpoTermData, HpoTermDu
 mod hpo_hierarchizer;
 mod hpo_term_arranger;
 mod hpo_util;
-mod hpo_modifiers;
+pub(crate) mod hpo_modifiers;
 
 pub use hpo_modifiers::get_modifiers;
 
@@ -112,36 +112,6 @@ pub fn term_label_map_from_duplet_list(
 ) -> std::result::Result<HashMap<TermId, String>, String> {
     let hpo_util = HpoUtil::new(hpo);
     hpo_util.term_label_map_from_duplet_list(hpo_duplet_list).map_err(|e|e.to_string())
-}
-
-/// Update HPO term duplets with the latest labels from the ontology.
-///
-/// This function refreshes a list of [`HpoTermDuplet`]s by ensuring that
-/// each HPO ID is associated with its **current, canonical label** as
-/// defined in the provided [`FullCsrOntology`].  
-///
-/// It is primarily used to migrate or validate legacy Excel-based data
-/// against the current ontology.  
-///
-/// # Arguments
-/// * `hpo` - Shared reference to the ontology used for term resolution
-/// * `hpo_duplets` - List of HPO term duplets (ID + label) to be updated
-///
-/// # Returns
-/// * `Ok(Vec<HpoTermDuplet>)` - Updated duplets with refreshed labels
-/// * `Err(String)` - If a label cannot be matched or updated
-///
-/// # Notes
-/// - For **legacy Excel files**, this function helps reconcile outdated
-///   term labels with the ontology.  
-/// - For **new JSON templates**, a different, more robust solution will
-///   eventually be needed.  
-pub fn update_hpo_duplets(
-    hpo: Arc<FullCsrOntology>,  
-    hpo_duplets: &Vec<HpoTermDuplet>,
-) -> std::result::Result<Vec<HpoTermDuplet>, OntologyError> {
-    let hpo_util = HpoUtil::new(hpo);
-    hpo_util.update_hpo_duplets(hpo_duplets)
 }
 
 

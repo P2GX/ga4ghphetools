@@ -3,11 +3,11 @@
 
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc};
 
-use ontolius::{Identified, TermId, ontology::{OntologyTerms, TaxonomyQuery, csr::FullCsrOntology}, term::MinimalTerm};
+use ontolius::{Identified, TermId, ontology::{MetadataAware, OntologyTerms, TaxonomyQuery, csr::FullCsrOntology}, term::MinimalTerm};
 
 
 use crate::{
-    age::is_valid_onset_string, cohort_qc::qc_report::{self, QcReport}, dto::{cohort_data::{CohortData, RowData}, hpo_term_dto::{CellValueInner, HpoTermDuplet}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
+    age::is_valid_onset_string, cohort_qc::qc_report::{self, QcReport}, dto::{cohort_data::{CohortData, RowData}, hpo_term_dto::{CellValue, CellValueInner, HpoTermDuplet}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
 
 
 /// Locally used struct for convenience
@@ -81,16 +81,7 @@ impl CohortDataQc {
                 seen.insert(duplet);
             }
         }
-        // Look for errors in onset/na formatting
-        for (r, row) in cohort.rows.iter().enumerate() {
-            for (c, cell) in row.hpo_data.iter().enumerate() {
-                if let CellValueInner::OnsetAge(a) = &cell.entry {
-                    if !is_valid_onset_string(a) {
-                        // push an error naming row r (individual id) and column c (HPO label)
-                    }
-                }
-            }
-        }
+        qc_report.extend_cohort_errors(self.check_cells(cohort));
         let o_errors = self.check_hpo_ids_and_labels(cohort);
         qc_report.extend_ontology_errors(o_errors);
         let d_errors = self.check_for_duplicate_rows(cohort);
@@ -203,17 +194,44 @@ impl CohortDataQc {
         Ok(sanitized)
     }
 
-    /// This function corrects some "obvious" errors that do not require human intervention
-    /// Duplicate Curation events are removed
-    /// Ontology redundancies (e.g., have a term and its parent both being Observed) are resolved.
+    /// Correct "obvious" problems that do not need a human decision, and return the corrected
+    /// cohort. The cohort passed in is never modified.
+    ///
+    /// # What it does
+    ///
+    /// 1. Replaces every HPO header with the current id and label from the loaded ontology
+    ///    (outdated ids become the primary id), and records the ontology's version in
+    ///    `hpo_version`.
+    /// 2. Resolves redundant annotations for each individual by setting cells to `na`:
+    ///    * an observed term and an observed descendant: the (less specific) ancestor is set to `na`;
+    ///    * an excluded term and an observed descendant: the excluded ancestor is set to `na`;
+    ///    * two excluded terms, one a descendant of the other: the descendant is set to `na`.
+    ///
+    ///    A cell set to `na` loses everything else it held, including modifiers.
+    /// 3. Removes duplicate curation events.
+    /// 4. Runs [`CohortDataQc::qc_check`] on the result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error, and no cohort, if
+    /// * an HPO id is malformed or not in the loaded ontology;
+    /// * a term that would be set to `na` has an onset age. The onset would be lost, so the
+    ///   user must resolve it by hand. The message lists every affected individual and term;
+    /// * `qc_check` fails (a row has the wrong number of cells, or a header is duplicated).
+    ///
+    /// # Not fixed here
+    ///
+    /// Problems that need a curator's decision are left in place and are reported by
+    /// [`CohortDataQc::qc_check`]: duplicate rows, missing biocuration, malformed cells and
+    /// invalid modifiers.
     pub fn sanitize(&self, 
         cohort_dto: &CohortData) 
     -> Result<CohortData, String> {
-       
-        let term_id_to_index_map = self.generate_term_id_to_index_map(cohort_dto).map_err(|e|e.to_string())?;
         let hpo_terms = self.sanitize_header(&cohort_dto.hpo_headers)?;
         let mut cohort = cohort_dto.clone();
+        let term_id_to_index_map = self.generate_term_id_to_index_map(&cohort).map_err(|e|e.to_string())?;
         cohort.hpo_headers = hpo_terms.clone();
+        cohort.hpo_version = self.hpo.version().to_string();
         let mut onset_conflicts: Vec<String> = Vec::new();
         for row in cohort.rows.iter_mut() {
             let conflict_map = self.get_conflicting_termid_pairs_for_row(row, &hpo_terms).map_err(|e|e.to_string())?;
@@ -230,7 +248,7 @@ impl CohortDataQc {
                             h.hpo_label(), h.hpo_id(), onset
                     ));
                 } else {
-                    row.hpo_data[idx].entry = crate::dto::hpo_term_dto::CellValueInner::Na;
+                    row.hpo_data[idx] = CellValue::na();
                 }
             }
         }
@@ -287,6 +305,58 @@ impl CohortDataQc {
         })
     }
 
+    /// Check the content of every HPO cell. Report only: nothing is changed.
+    fn check_cells(&self, cohort: &CohortData) -> Vec<CohortError> {
+        let mut errors = Vec::new();
+        for row in &cohort.rows {
+            let who = format!("{} ({})", row.individual_data.individual_id, row.individual_data.pmid);
+            for (header, cell) in cohort.hpo_headers.iter().zip(&row.hpo_data) {
+                let term = format!("{} ({})", header.hpo_label(), header.hpo_id());
+                match &cell.entry {
+                    CellValueInner::OnsetAge(a) if a == "na" => errors.push(CohortError::FormatErr {
+                        message: format!("{who}: {term}: onset is 'na'; the cell should have the \
+                                        value 'na' instead. Please check manually."),
+                    }),
+                    CellValueInner::OnsetAge(a) if !is_valid_onset_string(a) => {
+                        errors.push(CohortError::FormatErr {
+                            message: format!("{who}: {term}: invalid onset '{a}'"),
+                        })
+                    }
+                    CellValueInner::Na | CellValueInner::Excluded if cell.has_modifier() => {
+                        errors.push(CohortError::FormatErr {
+                            message: format!("{who}: {term}: an 'na' or excluded cell cannot have modifiers ({})",
+                                            cell.modifiers().join(", ")),
+                        })
+                    }
+                    _ => {}
+                }
+                for m in cell.modifiers() {
+                    errors.extend(self.check_modifier(&who, &term, m));
+                }
+            }
+        }
+        errors
+    }
+
+    fn check_modifier(&self, who: &str, term: &str, modifier: &str) -> Option<CohortError> {
+        let err = |problem: String| {
+            CohortError::ontology_error(format!("{who}: {term}: modifier '{modifier}' {problem}"))
+        };
+        let Ok(tid) = TermId::from_str(modifier) else {
+            return Some(err("is not a valid HPO id".to_string()));
+        };
+        let Some(t) = self.hpo.term_by_id(&tid) else {
+            return Some(err("is not in the loaded HPO".to_string()));
+        };
+        if t.identifier() != &tid {
+            return Some(err(format!("is an outdated id; the current id is {}", t.identifier())));
+        }
+        if !crate::hpo::hpo_modifiers::is_clinical_modifier(&self.hpo, &tid) {
+            return Some(err(format!("('{}') is neither a severity term nor a clinical modifier", t.name())));
+        }
+        None
+    }
+
     /// See if there are differing results (observed/excluded) for text-mined
     /// HPO annotations. Note that we do not currently check if there
     /// are discrepancies for onset dates or modifiers (TODO)
@@ -308,7 +378,7 @@ impl CohortDataQc {
                     excluded.push(tid);
                 },
                 crate::dto::hpo_term_dto::CellValueInner::Na => {},
-                crate::dto::hpo_term_dto::CellValueInner::OnsetAge(onset) => {
+                crate::dto::hpo_term_dto::CellValueInner::OnsetAge(_) => {
                     let tid = header.to_term_id()?;
                     observed.push(tid);
                 },

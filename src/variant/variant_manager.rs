@@ -1,8 +1,5 @@
 //! VariantManager
-//! This class is meant to help with the refactoring of the legacy Excel sheets to our new
-//! format for recording variants. When we ingest an Excel file, we store all information
-//! about variants from the legacy sheets here. We know that we only have Mendelian variants
-//! (possibly structural or HGVS). The user can send requests from the GUI to validate these
+//! This class is meant to help validating HGVS variants. The user can send requests from the GUI to validate these
 //! variants. If we start with a large number of such variants, then it is possible that the
 //! VariantValidator API may not correctly validate all variants; but we add all validated variants
 //! to the CohortDto (that the user sends from the front end, because the CohortDto in the front-end
@@ -240,65 +237,6 @@ impl VariantManager {
         let vv_dto = VariantDto::sv(sv, &self.transcript, &self.hgnc_id, &self.gene_symbol, VariantType::Sv);
         self.structural_validator.validate(vv_dto)
     }
-
-
-
-
-    /// Columns 6,7,8 "HGNC_id",	"gene_symbol",  "transcript"
-    ///   'Legacy' method for transforming the Excel files. 
-    /// TODO delete after last legacy file has been transformed!
-    /* 
-    pub fn from_mendelian_matrix<F>(
-        matrix: &Vec<Vec<String>>,  
-        progress_cb: F) 
-    -> Result<Self, String> 
-        where F: FnMut(u32, u32) {
-        let hgnc_id_index = 6_usize;
-        let gene_symbol_index = 7_usize;
-        let transcript_index = 8_usize;
-        let allele1_idx = 9_usize;
-        let allele2_idx = 10_usize;
-        if matrix.len() < 3 {
-            return Err(format!("Error: Mendelian matrix with too few rows: {}", matrix.len()));
-        } 
-        let row0 = matrix.first().unwrap(); // we know we have the first row
-        if row0.len() < 11 {
-            return Err(format!("First matrix row too short: {} fields", row0.len()));
-        }
-        if row0[hgnc_id_index] != "HGNC_id" {
-            return Err(format!("Expected 'HGNC_id' at index {} but got {}", hgnc_id_index, row0[hgnc_id_index] ));
-        }
-         if row0[gene_symbol_index] != "gene_symbol" {
-            return Err(format!("Expected 'gene_symbol' at index {} but got {}", gene_symbol_index, row0[gene_symbol_index] ));
-        }
-        if row0[transcript_index] != "transcript" {
-            return Err(format!("Expected 'transcript' at index {} but got {}", transcript_index, row0[transcript_index] ));
-        }
-        // get the information from the third row
-        let row2 = matrix.get(2).unwrap();
-        let hgnc = &row2[hgnc_id_index];
-        let symbol = &row2[gene_symbol_index];
-        let transcript = &row2[transcript_index];
-        let mut vmanager = VariantManager::new(symbol, hgnc, transcript)?;
-        // extract all allele strings
-        let mut allele_set: HashSet<String> = HashSet::new();
-        let n_header_rows = 2;
-        for row in matrix.iter().skip(n_header_rows) {
-            let a1 = row[allele1_idx].clone();
-            let a2 = row[allele2_idx].clone();
-            if a1 != "na" {
-                allele_set.insert(a1);
-            }
-            if a2 != "na" {
-                allele_set.insert(a2);
-            }
-        }
-        let n_datarows = matrix.len() as u32 - 2_u32;
-        vmanager.validate_all_variants(&allele_set, progress_cb, n_datarows)?;
-        Ok(vmanager)
-    }
-*/
-
     
     /// Take ownership of the map of validated HGVS variants (map is replaced with empty map in the struct)
     pub fn hgvs_map(&mut self) -> HashMap<String, HgvsVariant> {

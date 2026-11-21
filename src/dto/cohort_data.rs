@@ -74,8 +74,7 @@ pub struct GeneVariantData {
     pub variant_comment: String,
 }
 
-/// This struct is used to organize data for the import for Legacy Excel files, and also to transmit data about
-/// variants from the front end to the backend. It is not used for serialization.
+/// This struct is used to transmit data about variants from the front end to the backend. It is not used for serialization.
 impl GeneVariantData {
     pub fn new(hgnc_id: &str,
                 gene_symbol: &str,
@@ -306,8 +305,6 @@ impl CohortData {
     /// Initialize a new CohortData object for Mendelian cohorts. 
     /// Lists for validated variants are generated that should be filled using
     /// VariantValidator (for HGVS) and StructuralVariantValidator (for structural variants).
-    /// This function is only used for ingesting (legacy) Excel files, since we are migrating
-    /// to using the JSON representation of the CohortData as the serialization format.
     pub fn mendelian(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
@@ -358,33 +355,6 @@ impl CohortData {
             date: "2025-01-09".to_string(),
         }
     }
-
-    /// Legacy function for the old Excel files.
-    /// These files do not have intergenic variants, thus we just create an empty HashMap
-    /// There are less than 10 files that still need work to transform TODO -- after that DELETE this function
-   /*  TODO-DELETE  (Nov 27) 
-    pub fn mendelian_with_variants(
-            dg_data: DiseaseData,
-            hpo_headers: Vec<HpoTermDuplet>, 
-            rows: Vec<RowData>,
-            hpo_version: &str,
-            hgvs_variants: HashMap<String, HgvsVariant>,
-            structural_variants: HashMap<String, StructuralVariant>
-        ) -> Self {
-        Self { 
-            cohort_type: CohortType::Mendelian, 
-            disease_list: vec![dg_data],
-            hpo_headers, 
-            rows,
-            hgvs_variants,
-            structural_variants,
-            intergenic_variants: HashMap::new(),
-            phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
-            hpo_version: hpo_version.to_string(),
-            cohort_acronym: None,
-            curation_history: vec![Self::legacy_curation()],
-        }
-    }*/
 
     pub fn template_type(&self) -> CohortType {
         self.cohort_type
@@ -504,11 +474,6 @@ impl CohortData {
             let ddata = &self.disease_list[0];
             return Ok(ddata.disease_id.clone())
         }
-    }
-
-
-    pub fn update_hpo(&mut self, hpo: Arc<FullCsrOntology>) -> Result<bool, String> {
-        Ok(false)
     }
 
      pub fn get_orcid(&self) -> Result<String, PheToolsError> {

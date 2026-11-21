@@ -1,5 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 use std::sync::LazyLock;
+use ontolius::ontology::TaxonomyQuery;
 use ontolius::{TermId, ontology::{HierarchyWalks, OntologyTerms, csr::FullCsrOntology}, term::MinimalTerm};
 
 use crate::dto::hpo_term_dto::HpoTermDuplet;
@@ -69,6 +70,13 @@ use crate::dto::hpo_term_dto::HpoTermDuplet;
                 .ok_or_else(|| format!("Could not retrieve term for {}", tid))
         })
         .collect() 
+}
+
+/// True if `tid` is a descendant of "Clinical modifier" (HP:0012823).
+/// This includes the severity terms. Used by the phenopacket export and by the cohort QC,
+/// so both always agree on which modifiers are valid.
+pub fn is_clinical_modifier(hpo: &FullCsrOntology, tid: &TermId) -> bool {
+    hpo.is_descendant_of(tid, &*CLINICAL_MODIFIER)
 }
 
 

@@ -90,10 +90,11 @@ impl CohortWrapper {
     }
 
 
-    pub fn update_headers(mut self, updated_headers: Vec<HpoTermDuplet>) -> Self {
-        self.cohort.hpo_headers = updated_headers;
-        self
-    }  
+  pub fn update_headers(mut self, updated_headers: Vec<HpoTermDuplet>, hpo_version: &str) -> Self {
+    self.cohort.hpo_headers = updated_headers;
+    self.cohort.hpo_version = hpo_version.to_string();
+    self
+}
 
 
     pub fn get_disease_data(&self) -> Result<DiseaseQc, PheToolsError> {

@@ -2,8 +2,6 @@
 //!
 //! The struct that creates and edits the [`CohortData`] object that we use
 //! to store information about the Cohort. It uses the PPKtRow object as an intermediate stage in ETL 
-//! for each row of the legacy template to be ingested. This class can be simplified
-//! after we are finished refactoring the legacy files.
 use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc, vec};
 use ontolius::{
     Identified, TermId, ontology::{MetadataAware, OntologyTerms, csr::FullCsrOntology}, term::{MinimalTerm, simple::{SimpleMinimalTerm, SimpleTerm}},
@@ -307,49 +305,6 @@ impl CohortFactory {
             Err(format!("Creation of template of type {:?} not supported", template_type))
         } 
     }
-
-   
-    /// We are extract a DiseaseGeneData from the Excel files (version 1), all of which are
-    /// Mendelian. We know the columns are
-    /// (0) "PMID", (1) "title", (2) "individual_id", (3)"comment", 
-    /// (4*) "disease_id", (5*) "disease_label", (6*) "HGNC_id", (7*) "gene_symbol", 
-    ///  (8*)  "transcript", (9) "allele_1", (10) "allele_2", (11) "variant.comment", 
-    ///    (12) "age_of_onset", (13)"age_at_last_encounter", (14)  "deceased", (15) "sex", (16) "HPO", 
-    /// The columns with asterisk are what we need
-    /*
-    pub fn get_disease_dto_from_excel(matrix: &Vec<Vec<String>>) -> std::result::Result<DiseaseData, String> {
-        let rows: Vec<&Vec<String>> = matrix.iter().skip(2).collect();
-        if rows.is_empty() {
-            return Err("Could not extract DTO because less than three rows found".to_string());
-        };
-        let mut extracted_data: Vec<(String, String, String, String, String)> = Vec::new();
-        for (row_idx, row) in rows.iter().enumerate() {
-            if row.len() <= 16 {
-                return Err(format!("Row {} (after skipping 2) has only {} columns, need at least 16", 
-                                row_idx, row.len()));
-            }
-            extracted_data.push((row[4].clone(), row[5].clone(), row[6].clone(), row[7].clone(), row[8].clone()));
-        }
-        let first = &extracted_data[0];
-        let all_identical = extracted_data.iter().all(|tuple| tuple == first);
-        if ! all_identical {
-            return Err("DiseaseGeneData-related columns are not equal in all rows - requires manual check".to_string());
-        }
-       
-        let gtr_data = GeneTranscriptData{
-            hgnc_id: first.2.clone(),
-            gene_symbol: first.3.clone(),
-            transcript: first.4.clone(),
-        };
-         let disease_data = DiseaseData{
-            disease_id: first.0.clone(),
-            disease_label: first.1.clone(),
-            mode_of_inheritance_list: vec![],
-            gene_transcript_list: vec![gtr_data],
-        };       
-        Ok(disease_data)
-    }*/
-
 
     fn check_duplet(&self, duplet: &HpoTermDuplet) -> std::result::Result<(), OntologyError> {
         let term_id = TermId::from_str(duplet.hpo_id())

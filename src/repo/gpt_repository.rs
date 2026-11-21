@@ -2,6 +2,7 @@
 //! This class is used to model a file-based repository with directories and files created by this software
 
 use std::{collections::HashMap, fs::File, io::Write, path::{Path, PathBuf}, sync::Arc};
+use std::collections::BTreeSet;
 use log::{error, info, trace};
 use ontolius::ontology::{MetadataAware, csr::FullCsrOntology};
 use serde::Serialize;
@@ -115,25 +116,111 @@ impl GptRepository {
         Ok(())
     }
 
-
-    pub fn write_updated_cohort(&self, cohort_w: &CohortWrapper, hpo: Arc<FullCsrOntology>) -> Result<(), PheToolsError> {
-        /// First write the updated CohortData
+    /// Write an updated cohort back to disk, together with its regenerated phenopackets.
+    ///
+    /// Called by [`GptRepository::update_all_ppkt`] after the HPO term identifiers or
+    /// labels of a cohort have been updated. The cohort is written back to the file it
+    /// was read from, and every phenopacket of the cohort is regenerated from it.
+    ///
+    /// # Expected directory layout
+    ///
+    /// ```text
+    /// <store>/
+    ///   FBN1/                          <- gene directory
+    ///     MFS_individuals.json         <- cohort file, `cohort_w.cohort_path()`
+    ///     phenopackets/                <- sibling directory that receives the phenopackets
+    /// ```
+    ///
+    /// The `phenopackets` directory is located relative to the **parent directory** of the
+    /// cohort file, not inside the cohort file's path.
+    ///
+    /// # What it does
+    ///
+    /// 1. Regenerates the phenopackets from the updated [`CohortData`], using the most recent
+    ///    ORCID in the cohort's curation history, and writes them to `phenopackets/`.
+    ///    Existing files with the same name are overwritten.
+    /// 2. Overwrites the cohort file with the updated cohort, as pretty-printed JSON.
+    ///
+    /// The phenopackets are written first on purpose. If step 1 fails, the cohort file is
+    /// left unchanged, so it still has outdated HPO terms and a later update run will try
+    /// the cohort again. Writing the cohort file first could leave stale phenopackets that
+    /// are never regenerated.
+    ///
+    /// # Arguments
+    ///
+    /// * `cohort_w` - the cohort, its path on disk, and its existing phenopackets.
+    /// * `hpo` - the HPO ontology used to build the phenopackets.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`PheToolsError`] if
+    /// * the cohort has no curation history (no ORCID to attribute the phenopackets to),
+    /// * the cohort path has no parent directory,
+    /// * the phenopackets cannot be generated or written, or
+    /// * the cohort file cannot be serialized, created or written.
+    ///
+    /// # Caveats
+    ///
+    /// The operation is not atomic. If it fails after some phenopackets were written, the
+    /// `phenopackets` directory can contain a mix of old and new files.
+    pub fn write_updated_cohort(
+        &self,
+        cohort_w: &CohortWrapper,
+        hpo: Arc<FullCsrOntology>,
+    ) -> Result<(), PheToolsError> {
         let cohort_data = cohort_w.cohort_data();
-        let orcid = cohort_data.get_orcid()?; // use existing ORCID id, latest used for this cohort
-        let path = cohort_w.cohort_path();
-        let json = serde_json::to_string_pretty(&cohort_data).map_err(|_|"Could not serialize to JSON".to_string())?;
-        let mut file = File::create(&path).map_err(|_|"Could not create file".to_string())?;
-        file.write_all(json.as_bytes()).map_err(|_|"Could not write file".to_string())?;
-        /// Now write the updated phenopackets
-        /// We use the updated CohortData to create updated phenopackets and write them.
-        let ppkt_path: PathBuf = path.join("phenopackets");
+        let orcid = cohort_data.get_orcid()?; // most recent ORCID in the curation history
+        let cohort_path = cohort_w.cohort_path();
+        let gene_dir = cohort_path.parent().ok_or_else(|| {
+            PheToolsError::message(format!("Cohort path has no parent: {}", cohort_path.display()))
+        })?;
+        let ppkt_dir = gene_dir.join("phenopackets");
+
+        // 1. phenopackets first (see "What it does")
         let overwrite = true;
-        crate::write_phenopackets(cohort_data.clone(), ppkt_path, orcid, hpo.clone(), overwrite)?;
-        info!("Wrote updated phenopackets for cohort {}; n={} phenopackets written", cohort_data.acronym(), cohort_data.rows.len());
+        let n = crate::write_phenopackets(cohort_data.clone(), ppkt_dir, orcid, hpo, overwrite)?;
+
+        // 2. then the cohort file
+        self.save_template_json(cohort_data, cohort_path)?;   // existing helper; error includes the path
+
+        info!("Updated cohort {}: {} phenopackets written", cohort_data.acronym(), n);
         Ok(())
     }
 
+    /// Check that every cohort's gene directory has a `phenopackets` subdirectory.
+    ///
+    /// All problems are collected and reported together, so the user can repair the store
+    /// in one pass. Nothing is written or modified.
+    ///
+    /// # Errors
+    /// Returns a [`PheToolsError`] listing each gene directory that has no `phenopackets`
+    /// subdirectory (or whose cohort path has no parent directory).
+    fn check_phenopackets_dirs(cohorts: &[CohortWrapper]) -> Result<(), PheToolsError> {
+        let problems: BTreeSet<String> = cohorts
+            .iter()
+            .filter_map(|w| {
+                let path = w.cohort_path();
+                match path.parent() {
+                    None => Some(format!("{} (cohort path has no parent directory)", path.display())),
+                    Some(gene_dir) => {
+                        let dir = gene_dir.join("phenopackets");
+                        (!dir.is_dir()).then(|| dir.display().to_string())
+                    }
+                }
+            })
+            .collect(); // BTreeSet: sorted, and one entry per gene directory
 
+        if problems.is_empty() {
+            return Ok(());
+        }
+        Err(PheToolsError::message(format!(
+            "Cannot update: {} gene director{} without a 'phenopackets' subdirectory. \
+             No files were changed.\n{}",
+            problems.len(),
+            if problems.len() == 1 { "y is" } else { "ies are" },
+            problems.into_iter().collect::<Vec<_>>().join("\n"),
+        )))
+    }
 
 
     /// Process all cohort files in the directory.
@@ -159,17 +246,23 @@ impl GptRepository {
         let hpo_version = hpo.version();
         trace!("update_all_ppkt with HPO version {}", hpo_version);
         let cohort_w_list: Vec<CohortWrapper> = self.get_all_cohort_wrappers()?;
+        Self::check_phenopackets_dirs(&cohort_w_list)?;
         let total = cohort_w_list.len();
         info!("Got {} cohort wrappers from {} gene directories.", cohort_w_list.len(), self.cohort_dir_count());
         for (i, cohort_w) in cohort_w_list.into_iter().enumerate() {
-            on_progress(UpdateProgress {current: i+1, total, cohort: cohort_w.cohort_data().acronym()});
-            let cohort_data = cohort_w.cohort_data();
-            let (updated_duplets, changed) = hpo::sync_hpo_duplets(hpo.clone(), &cohort_data.hpo_headers)?;
+            let acronym = cohort_w.cohort_data().acronym(); 
+            on_progress(UpdateProgress {current: i+1, total, cohort: acronym.clone()});
+            let (updated_duplets, changed) = match hpo::sync_hpo_duplets(hpo.clone(), &cohort_w.cohort_data().hpo_headers) {
+                Ok(x) => x,
+                Err(e) => { error!("Could not check {}: {}", acronym, e); report.processed(); continue; }
+            };
             if changed {
-                 info!("About to write updated cohort {}", cohort_data.acronym());
-                let updated_cohort_w = cohort_w.update_headers(updated_duplets);
-                self.write_updated_cohort(&updated_cohort_w, hpo.clone());
-                report.updated();
+                info!("About to write updated cohort {}", acronym);
+                let updated_cohort_w = cohort_w.update_headers(updated_duplets, hpo_version);
+                match self.write_updated_cohort(&updated_cohort_w, hpo.clone()) {
+                    Ok(()) => report.updated(),
+                    Err(e) => { error!("Could not update {}: {}", acronym, e); report.processed(); }
+                }
             } else {
                 report.processed();
             }

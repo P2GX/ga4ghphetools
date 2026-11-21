@@ -1,10 +1,12 @@
 //! A structure to report the results of updating the phenopacket store repository to a new HPO version.
-//! That is, we update HPO term identifiers and labels to reflect changes made in the latext HPO version.
+//! That is, we update HPO term identifiers and labels to reflect changes made in the latest HPO version.
 
 use std::path::PathBuf;
 
+use serde::Serialize;
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone, Serialize)]
 pub struct UpdateReport {
     pub directory: String,
     pub processed: usize,
