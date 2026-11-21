@@ -321,7 +321,7 @@ pub trait PhenopacketBuilder {
             }
             if cell_contents.has_modifier() {
                 let mut mod_list: Vec<OntologyClass> = Vec::new();
-                for mod_str in cell_contents.modifers() {
+                for mod_str in cell_contents.modifiers() {
                     let mod_id: TermId = mod_str.parse().map_err(|_| format!("Could not create TermId from modifier String '{mod_str}'"))?;
                     let term = self.hpo().term_by_id(&mod_id).ok_or_else(|| {
                         format!("Could not retrieve Modifier term for id '{mod_id}' for {}", ppkt_row.individual_data.pmid)

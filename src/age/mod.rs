@@ -36,7 +36,7 @@ pub fn is_valid_age_string(cell_value: &str) -> bool {
     if cell_value == "na" {
         return true;
     }
-    // check for match to HPO Onset terms (incuding gestational)
+    // check for match to HPO Onset terms (including gestational)
     if HpoTermAge::is_valid(cell_value) {
         return true;
     }
@@ -50,6 +50,11 @@ pub fn is_valid_age_string(cell_value: &str) -> bool {
     }
 
     false
+}
+
+/// For HPO cell onset values: "na" is NOT allowed, because "na" is its own cell state (CellValueInner::Na).
+pub fn is_valid_onset_string(s: &str) -> bool {
+    s != "na" && is_valid_age_string(s)
 }
 
 

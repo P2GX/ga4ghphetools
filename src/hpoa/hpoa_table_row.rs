@@ -20,7 +20,7 @@ pub static VALID_MODES_OF_INHERITANCE: LazyLock<HashMap<String, String>> = LazyL
         ("HP:0001450", "Y-linked inheritance"),
         ("HP:0034340", "Pseudoautosomal dominant inheritance"),
         ("HP:0034341", "Pseudoautosomal recessive inheritance"),
-        ("HP:0001442", "Typified by somatic mosaicism', selected: false"),
+        ("HP:0001442", "Typified by somatic mosaicism"),
         ];
     for tpl in moi_terms {
         moi_map.insert(tpl.0.to_string(), tpl.1.to_string());
@@ -163,6 +163,7 @@ mod tests {
 
     #[rstest]
     #[case("Y-linked inheritance", "HP:0001450")]
+    #[case("Typified by somatic mosaicism", "HP:0001442")]
     #[case("Autosomal recessive inheritance", "HP:0000007")]
     #[case("Pseudoautosomal recessive inheritance", "HP:0034341")]
     fn test_valid_moi(#[case] label: &str, #[case] hpo_id: &str, disease_data: DiseaseData) {

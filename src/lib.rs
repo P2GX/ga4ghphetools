@@ -69,6 +69,7 @@ pub use repo::update_all_ppkt;
 pub use repo::compare_two_phenopackets;
 pub use repo::repo_qc::RepoQc;
 pub use repo::ComparisonReport;
+pub use repo::UpdateReport;
 
 mod variant;
 pub use variant::validate_hgvs_variant;

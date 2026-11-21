@@ -4,7 +4,12 @@
 use std::{collections::HashMap, fs::File, io::Write, path::{Path, PathBuf}, sync::Arc};
 use log::{error, info, trace};
 use ontolius::ontology::{MetadataAware, csr::FullCsrOntology};
-use crate::{cohort_qc::cohort_dir::CohortDir, error::ontology_error::OntologyError, ppkt::ppkt_updater::PpktUpdater, repo::{self, cohort_dir_iter::CohortDirIter, cohort_wrapper::CohortWrapper, update_report::UpdateReport}};
+use serde::Serialize;
+use crate::{
+    cohort_qc::cohort_dir::CohortDir, 
+    error::ontology_error::OntologyError, 
+    ppkt::ppkt_updater::PpktUpdater, 
+    repo::{self, cohort_dir_iter::CohortDirIter, cohort_wrapper::CohortWrapper, update_report::UpdateReport}};
 use walkdir::WalkDir;
 
 use crate::{
@@ -15,13 +20,18 @@ use crate::{
 /// A structure representing the entire phenopacket store (GA4GHPhenoTools) repository
 pub struct GptRepository {
      /// Path of the overarching root repository containing multiple gene folders with cohorts
-     /// Either phenopackete store or a similarly structured repository
+     /// Either phenopacket store or a similarly structured repository
     pub phenopacket_store_path: PathBuf,
     /// Map of all Cohort directories (one per directory (usually: gene) in phenopacket store)
     cohort_map: HashMap<PathBuf, CohortDir> 
 }
 
-
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateProgress {
+    pub current: usize,
+    pub total: usize,
+    pub cohort: String,      // acronym, for display
+}
 
 
 impl GptRepository {
@@ -123,6 +133,9 @@ impl GptRepository {
         Ok(())
     }
 
+
+
+
     /// Process all cohort files in the directory.
     ///
     /// This method is intended to be used to update Phenopacket Store using the `path` argument 
@@ -135,13 +148,21 @@ impl GptRepository {
     ///
     /// # Returns
     /// An `UpdateReport` object used to present the update results to the user.
-    pub fn update_all_ppkt(&self, hpo: Arc<FullCsrOntology>) -> Result<UpdateReport, PheToolsError> {
+    pub fn update_all_ppkt<F>(
+            &self, 
+            hpo: Arc<FullCsrOntology>,
+            mut on_progress: F) 
+                -> Result<UpdateReport, PheToolsError> 
+                where F: FnMut(UpdateProgress)
+        {
         let mut report = UpdateReport::new(&self.phenopacket_store_path);
         let hpo_version = hpo.version();
         trace!("update_all_ppkt with HPO version {}", hpo_version);
         let cohort_w_list: Vec<CohortWrapper> = self.get_all_cohort_wrappers()?;
+        let total = cohort_w_list.len();
         info!("Got {} cohort wrappers from {} gene directories.", cohort_w_list.len(), self.cohort_dir_count());
-        for cohort_w in cohort_w_list {
+        for (i, cohort_w) in cohort_w_list.into_iter().enumerate() {
+            on_progress(UpdateProgress {current: i+1, total, cohort: cohort_w.cohort_data().acronym()});
             let cohort_data = cohort_w.cohort_data();
             let (updated_duplets, changed) = hpo::sync_hpo_duplets(hpo.clone(), &cohort_data.hpo_headers)?;
             if changed {

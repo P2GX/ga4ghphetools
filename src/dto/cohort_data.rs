@@ -173,7 +173,7 @@ impl ModeOfInheritance {
 
  
 
-/// A gene and its trasncript of reference
+/// A gene and its transcript of reference
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeneTranscriptData {
@@ -313,7 +313,19 @@ impl CohortData {
             hpo_headers: Vec<HpoTermDuplet>, 
             rows: Vec<RowData>,
             hpo_version: &str) -> Self {
-        Self::mendelian_with_variants(dg_data, hpo_headers, rows, hpo_version, HashMap::new(), HashMap::new())
+        Self {
+            cohort_type: CohortType::Mendelian,
+            disease_list: vec![dg_data],
+            hpo_headers,
+            rows,
+            hgvs_variants: HashMap::new(),
+            structural_variants: HashMap::new(),
+            intergenic_variants: HashMap::new(),
+            phetools_schema_version: PHETOOLS_SCHEMA_VERSION.to_string(),
+            hpo_version: hpo_version.to_string(),
+            cohort_acronym: None,
+            curation_history: vec![Self::legacy_curation()],
+        }
     }
 
     /// Initialize a new CohortData object for a Melded Phenotype case.
@@ -350,6 +362,7 @@ impl CohortData {
     /// Legacy function for the old Excel files.
     /// These files do not have intergenic variants, thus we just create an empty HashMap
     /// There are less than 10 files that still need work to transform TODO -- after that DELETE this function
+   /*  TODO-DELETE  (Nov 27) 
     pub fn mendelian_with_variants(
             dg_data: DiseaseData,
             hpo_headers: Vec<HpoTermDuplet>, 
@@ -371,7 +384,7 @@ impl CohortData {
             cohort_acronym: None,
             curation_history: vec![Self::legacy_curation()],
         }
-    }
+    }*/
 
     pub fn template_type(&self) -> CohortType {
         self.cohort_type
@@ -431,7 +444,7 @@ impl CohortData {
 
     pub fn acronym(&self) -> String {
         match &self.cohort_acronym {
-            Some(acro) => acro.to_string(),
+            Some(acronym) => acronym.to_string(),
             None => "n/a".to_string(),
         }
     }

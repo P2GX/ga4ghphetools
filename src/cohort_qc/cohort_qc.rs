@@ -7,8 +7,7 @@ use ontolius::{Identified, TermId, ontology::{OntologyTerms, TaxonomyQuery, csr:
 
 
 use crate::{
-    cohort_qc::qc_report::{self, QcReport}, dto::{cohort_data::{CohortData, RowData}, 
-    hpo_term_dto::HpoTermDuplet}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
+    age::is_valid_onset_string, cohort_qc::qc_report::{self, QcReport}, dto::{cohort_data::{CohortData, RowData}, hpo_term_dto::{CellValueInner, HpoTermDuplet}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
 
 
 /// Locally used struct for convenience
@@ -80,6 +79,16 @@ impl CohortDataQc {
                 return Err(CohortError::duplicate_entry(msg));
             } else {
                 seen.insert(duplet);
+            }
+        }
+        // Look for errors in onset/na formatting
+        for (r, row) in cohort.rows.iter().enumerate() {
+            for (c, cell) in row.hpo_data.iter().enumerate() {
+                if let CellValueInner::OnsetAge(a) = &cell.entry {
+                    if !is_valid_onset_string(a) {
+                        // push an error naming row r (individual id) and column c (HPO label)
+                    }
+                }
             }
         }
         let o_errors = self.check_hpo_ids_and_labels(cohort);
@@ -205,14 +214,33 @@ impl CohortDataQc {
         let hpo_terms = self.sanitize_header(&cohort_dto.hpo_headers)?;
         let mut cohort = cohort_dto.clone();
         cohort.hpo_headers = hpo_terms.clone();
+        let mut onset_conflicts: Vec<String> = Vec::new();
         for row in cohort.rows.iter_mut() {
             let conflict_map = self.get_conflicting_termid_pairs_for_row(row, &hpo_terms).map_err(|e|e.to_string())?;
             for tid in conflict_map.na_terms {
-                let idx = term_id_to_index_map
+                let idx = *term_id_to_index_map
                     .get(&tid)
                     .ok_or_else(|| format!("Could not get index for {}", tid))?;
-                row.hpo_data[*idx].entry = crate::dto::hpo_term_dto::CellValueInner::Na;
+                if let CellValueInner::OnsetAge(onset) = &row.hpo_data[idx].entry {
+                    let h = &hpo_terms[idx];
+                    onset_conflicts.push(format!(
+                        "{} ({}): '{}' ({}) has onset '{}' but is redundant with a more specific term",
+                            row.individual_data.individual_id,
+                            row.individual_data.pmid,
+                            h.hpo_label(), h.hpo_id(), onset
+                    ));
+                } else {
+                    row.hpo_data[idx].entry = crate::dto::hpo_term_dto::CellValueInner::Na;
+                }
             }
+        }
+        // requires manual correction - report back to user
+        if !onset_conflicts.is_empty() {
+            onset_conflicts.sort();    // na_terms is a HashSet, so order is otherwise random
+            return Err(format!(
+                "Cannot sanitize automatically; fix these by hand (move the onset to the \
+                specific term or remove the redundant term):\n{}",
+                onset_conflicts.join("\n")));
         }
         // One more check!
         self.sanitize_curation_history(&mut cohort)?;
@@ -261,7 +289,7 @@ impl CohortDataQc {
 
     /// See if there are differing results (observed/excluded) for text-mined
     /// HPO annotations. Note that we do not currently check if there
-    /// are discrepancies for onset dates or modifers (TODO)
+    /// are discrepancies for onset dates or modifiers (TODO)
     fn get_conflicting_termid_pairs_for_row(&self, row: &RowData, hpo_terms: &[HpoTermDuplet]) 
     -> Result<ConflictMap, OntologyError> {
         let mut na_terms: HashSet<TermId> = HashSet::new();
@@ -301,8 +329,11 @@ impl CohortDataQc {
             }
             for tid2 in &excluded {
                 if hpo.is_ancestor_of(tid2, tid1) {
-                    // tid1 (observed) is an ancestor of tid2 (excluded)
-                    // we assume that tid2 is incorrect because a specific ancestor was annotate
+                     // tid2 (excluded) is an ANCESTOR of tid1 (observed): contradictory annotation,
+                    // since excluding a term excludes all its descendants.
+                    // We assume the observed, more specific annotation is the intended one and
+                    // set the excluded ancestor to Na.
+                    // (An observed ancestor with an excluded descendant is consistent and is left alone.)
                     na_terms.insert(tid2.clone());
                 }
             }
@@ -310,9 +341,8 @@ impl CohortDataQc {
         for tid1 in &excluded {
             for tid2 in &excluded {
                 if hpo.is_descendant_of(tid1, tid2) {
-                    // tid1 (descendent) is ancestor of tid2 (ancestor) - both excluded
-                    // for excluded terms, the more general the term is, the more information it has
-                    // therefore, we retain the ancestor
+                    // Both excluded, and tid1 is a DESCENDANT of tid2. Excluding the more general term
+                    // already implies the exclusion of tid1, so keep tid2 and set tid1 to Na.
                     na_terms.insert(tid1.clone());
                 }
             }

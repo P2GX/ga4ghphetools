@@ -6,13 +6,7 @@
 //! variants. If we start with a large number of such variants, then it is possible that the
 //! VariantValidator API may not correctly validate all variants; but we add all validated variants
 //! to the CohortDto (that the user sends from the front end, because the CohortDto in the front-end
-//! represents our source of truth). This step may need to be repeated. We expect that all of the
-//! variants can eventually be validated (because they were all validated in pyphetools), but if there is
-//! an insoluble problem with one of them, then we can edit the variant by hand in the GUI or in the
-//! Excel sheet as needed. 
-//! When we import a legacy Excel file, this step needs to be completed before any other work can be done.
-//! Note that we know there is exactly one gene symbol, HGNC id, and transcript for all of our legacy 
-//! variants, so we add them here to the struct.
+//! represents our source of truth). 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::{thread};
@@ -35,9 +29,9 @@ pub struct VariantManager {
     intergenic_validator: IntergenicHgvsValidator,
     /// Gene symbol for the variants we are validating
     gene_symbol: String,
-    /// HUGO Gene Nomenclature Committee (HGNS) identifier for the above gene
+    /// HUGO Gene Nomenclature Committee (HGNC) identifier for the above gene
     hgnc_id: String,
-    /// Transcript of reference for theabove gene
+    /// Transcript of reference for the above gene
     transcript: String,
     /// Set of all allele strings (e.g., c.123A>T or DEL Ex 5)
     allele_set: HashSet<String>,   
@@ -253,6 +247,7 @@ impl VariantManager {
     /// Columns 6,7,8 "HGNC_id",	"gene_symbol",  "transcript"
     ///   'Legacy' method for transforming the Excel files. 
     /// TODO delete after last legacy file has been transformed!
+    /* 
     pub fn from_mendelian_matrix<F>(
         matrix: &Vec<Vec<String>>,  
         progress_cb: F) 
@@ -266,7 +261,7 @@ impl VariantManager {
         if matrix.len() < 3 {
             return Err(format!("Error: Mendelian matrix with too few rows: {}", matrix.len()));
         } 
-        let row0 = matrix.first().unwrap(); // we know we have thie first row
+        let row0 = matrix.first().unwrap(); // we know we have the first row
         if row0.len() < 11 {
             return Err(format!("First matrix row too short: {} fields", row0.len()));
         }
@@ -302,7 +297,7 @@ impl VariantManager {
         vmanager.validate_all_variants(&allele_set, progress_cb, n_datarows)?;
         Ok(vmanager)
     }
-
+*/
 
     
     /// Take ownership of the map of validated HGVS variants (map is replaced with empty map in the struct)

@@ -91,7 +91,7 @@ impl FromStr for CellValue {
             "observed" => CellValueInner::Observed,
             "excluded" => CellValueInner::Excluded,
             "na" => CellValueInner::Na,
-            _ if age::is_valid_age_string(s) => CellValueInner::OnsetAge(s.to_string()),
+            _ if age::is_valid_onset_string(s) => CellValueInner::OnsetAge(s.to_string()),
             _ => return Err(crate::error::parse_error::ParseError::malformed_cell_value(s)),
         };
         Ok(CellValue { entry, modifiers: Vec::default() })
@@ -130,7 +130,7 @@ impl CellValueInner {
             "observed" => true,
             "excluded" => true,
             "na" => true,
-            _ if age::is_valid_age_string(s) =>  true,
+            _ if age::is_valid_onset_string(s) =>  true,
             _ => false,
         }
     }
@@ -145,7 +145,7 @@ impl FromStr for CellValueInner {
             "observed" => Ok(CellValueInner::Observed),
             "excluded" => Ok(CellValueInner::Excluded),
             "na" => Ok(CellValueInner::Na),
-            _ if age::is_valid_age_string(s) =>  Ok(CellValueInner::OnsetAge(s.to_string())),
+            _ if age::is_valid_onset_string(s) =>  Ok(CellValueInner::OnsetAge(s.to_string())),
             _ => Err(format!("Malformed HPO cell contents: '{s}'")),
         }
     }
@@ -260,7 +260,7 @@ impl CellValue {
         ! self.modifiers.is_empty()
     }
 
-    pub fn modifers(&self) -> &[String] {
+    pub fn modifiers(&self) -> &[String] {
         &self.modifiers
     }
 }
@@ -467,7 +467,7 @@ mod test {
     /// Our EtlDto will include cells that have JSON content similar to the below
     /// Here we just perform a sanity test.
     #[rstest]
-    fn matest_deserilaize()  {
+    fn matest_deserialize()  {
         // Example JSON string from the frontend
         let json_cell = r#"
         [

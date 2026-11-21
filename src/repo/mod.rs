@@ -9,6 +9,7 @@ pub(crate) use cohort_wrapper::CohortWrapper;
 pub(crate) mod cohort_dir_iter;
 mod compare_ppkt;
 pub mod update_report;
+pub use update_report::UpdateReport;
 mod ppkt_wrapper;
 mod cohort_wrapper;
 pub mod repo_qc;
@@ -17,7 +18,7 @@ use std::{collections::HashSet, path::Path, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::Serialize;
 
-use crate::{RepoQc, cohort_qc::{cohort_dir::CohortDir, cohort_qc::CohortDataQc, qc_report::QcReport}, error::PheToolsError, repo::{cohort_dir_iter::CohortDirIter, compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::GptRepository, update_report::UpdateReport}};
+use crate::{RepoQc, cohort_qc::{cohort_dir::CohortDir, cohort_qc::CohortDataQc, qc_report::QcReport}, error::PheToolsError, repo::{cohort_dir_iter::CohortDirIter, compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::{GptRepository, UpdateProgress}}};
 
 
 
@@ -80,14 +81,19 @@ pub fn compare_two_phenopackets(path1: String, path2: String, hpo: Arc<FullCsrOn
 
 
 
-/// Update all HPO ids/labels in the entire phenopacket store
-pub fn update_all_ppkt(
+// Update all HPO ids/labels in the entire phenopacket store.
+/// `on_progress` is called once per cohort, before it is processed.
+pub fn update_all_ppkt<F>(
     ppkt_store_notebook_path: &Path,
-    hpo: Arc<FullCsrOntology>
-) -> Result<UpdateReport, String> {
+    hpo: Arc<FullCsrOntology>,
+    on_progress: F,
+) -> Result<UpdateReport, String>
+where
+    F: FnMut(UpdateProgress),
+{
     let repo = GptRepository::new(ppkt_store_notebook_path)
-        .map_err(|e|e.to_string())?;
-    repo.update_all_ppkt(hpo).map_err(|e|e.to_string())
+        .map_err(|e| e.to_string())?;
+    repo.update_all_ppkt(hpo, on_progress).map_err(|e| e.to_string())
 }
 
 
@@ -164,7 +170,8 @@ use rstest::{fixture, rstest};
         let hpo: FullCsrOntology = loader.load_from_path(hpo_path).unwrap();
         let hpo_arc = Arc::new(hpo);
         let path: std::path::PathBuf = std::path::PathBuf::from(ppkt_store_directory);
-        let update_report = crate::update_all_ppkt(&path, hpo_arc).expect("Could not create update report");
+        // swallow update progress bar here
+        let update_report = crate::update_all_ppkt(&path, hpo_arc, |_|{}).expect("Could not create update report");
         eprintln!("{:?}", update_report);
     }
 

@@ -15,7 +15,9 @@ pub fn handle(sub_matches: &ArgMatches) -> Result<(), Box<dyn std::error::Error>
     let hpo_path = sub_matches.get_one::<String>("hpo").expect("Could not retrieve hp.json path");
     let hpo = crate::load_hpo(hpo_path).expect("Could not construct HPO ontology");
     let path: PathBuf = PathBuf::from(ppkt_store_directory);
-    let update_report = ga4ghphetools::update_all_ppkt(&path, hpo)?;
+    let update_report = ga4ghphetools::update_all_ppkt(&path, hpo, |p| {
+        eprintln!("[{}/{}] {}", p.current, p.total, p.cohort);
+    })?;
     trace!("Updated phenopacket store at {}", update_report.directory);
     trace!("Processed {} cohorts, of which {} were updated", update_report.processed, update_report.updated);
     Ok(())

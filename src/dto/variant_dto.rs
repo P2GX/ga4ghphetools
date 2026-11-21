@@ -56,6 +56,7 @@ impl VariantDto {
     /// We assign it to the generic SV class. Users can edit this in the front end to 
     /// specify a specific kind of SV. We are not able to do this automatically from the
     /// legacy excel files. TODO: This should be removed once we have processed the legacy excel files.
+
     pub fn sv(
         label: &str, 
         transcript: &str,
@@ -251,7 +252,7 @@ pub enum VariantType {
     Dup, 
     /// structural_variation, not specific subtype
     Sv,
-    /// structual variant with precise specifications (not implemented yet)
+    /// structural variant with precise specifications (not implemented yet)
     PreciseSv,
     /// Not yet known or identified.
     Unknown,
