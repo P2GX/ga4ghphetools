@@ -36,7 +36,6 @@ impl From<&PheToolsError> for QcIssue {
 #[serde(rename_all = "camelCase")]
 pub struct QcReport {
     pub cohort_name: String,
-     #[serde(flatten)]
     pub issues: Vec<QcIssue>,
 }
 

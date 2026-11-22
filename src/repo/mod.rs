@@ -18,7 +18,7 @@ use std::{collections::HashSet, path::Path, sync::Arc};
 use ontolius::ontology::csr::FullCsrOntology;
 use serde::Serialize;
 
-use crate::{RepoQc, cohort_qc::{cohort_dir::CohortDir, cohort_qc::CohortDataQc, qc_report::QcReport}, error::PheToolsError, repo::{cohort_dir_iter::CohortDirIter, compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::{GptRepository, UpdateProgress}}};
+use crate::{RepoQc, cohort_qc::{cohort_dir::CohortDir, cohort_qc::CohortDataQc, qc_report::{QcIssue, QcReport}}, error::PheToolsError, repo::{cohort_dir_iter::CohortDirIter, compare_ppkt::{get_hpo_id_set, load_phenopacket_from_path}, gpt_repository::{GptRepository, UpdateProgress}}};
 
 
 
@@ -101,32 +101,55 @@ where
 /// ppkt_store_notebook_path points to the directory in PPKT Store that contains the individual gene folders
 pub fn get_repo_qc(
     ppkt_store_notebook_path: &Path,
-    hpo: Arc<FullCsrOntology>) -> Result<RepoQc, String> {
-    let repo = GptRepository::new(ppkt_store_notebook_path);
-    let cohort_qc = CohortDataQc::new(hpo.clone());
-    let mut qc_report_list: Vec<QcReport> = Vec::new();
-    let cohort_dirs: Result<Vec<CohortDir>, PheToolsError> = CohortDirIter::new(&ppkt_store_notebook_path)
-        .map_err(|e|e.to_string())?.collect();
-    // iterator over each gene directory, calling CohortDir::process_gene_directory
-   /* for cohort_dir in cohort_dirs.map_err(|e|e.to_string())? {
-        println!("cohort dir: {:?}", cohort_dir);
-        if !cohort_dir.loading_errors.is_empty() {
-            eprintln!("{}: {} errors", cohort_dir.directory_name, cohort_dir.loading_errors.len());
+    hpo: Arc<FullCsrOntology>,
+) -> Result<RepoQc, String> {
+    let cohort_qc = CohortDataQc::new(hpo);
+    let mut reports: Vec<QcReport> = Vec::new();
+    let mut cohort_count: usize = 0;
+
+    let dir_iter = CohortDirIter::new(ppkt_store_notebook_path).map_err(|e| e.to_string())?;
+    for dir_result in dir_iter {
+        let cohort_dir = match dir_result {
+            Ok(d) => d,
+            Err(e) => {
+                let mut r = QcReport::new("(unreadable directory)");
+                r.issues.push(QcIssue::from(&e));
+                reports.push(r);
+                continue;
+            }
+        };
+
+        // problems with the gene directory itself
+        let mut dir_report = QcReport::new(&cohort_dir.directory_name);
+        for msg in &cohort_dir.loading_errors {
+            dir_report.issues.push(QcIssue { domain: "Parse".to_string(), message: msg.clone() });
         }
-        for cohort_wrap in cohort_dir.cohort_wrapper_list.iter() {
-          let cohort_data = cohort_wrap.cohort_data();
-          let qc = cohort_qc.qc_check(cohort_data).map_err(|e|e.to_string())?;
-            eprintln!("{:?}", qc);   
-            qc_report_list.push(qc);     
-            
+        for p in &cohort_dir.unexpected_entries {
+            dir_report.unexpected_file(&p.to_string_lossy());
         }
-        
-    }*/ 
-    let repo_qc = RepoQc::new(ppkt_store_notebook_path, qc_report_list);
-    Ok(repo_qc)
+        if !dir_report.issues.is_empty() {
+            reports.push(dir_report);
+        }
+
+        // one QC pass per cohort file
+        for cohort_wrap in &cohort_dir.cohort_wrapper_list {
+            cohort_count += 1;
+            let cohort = cohort_wrap.cohort_data();
+            let report = match cohort_qc.qc_check(cohort) {
+                Ok(r) => r,
+                Err(e) => {
+                    let mut r = QcReport::new(&cohort.acronym());
+                    r.issues.push(QcIssue::from(&e));
+                    r
+                }
+            };
+            if !report.issues.is_empty() {
+                reports.push(report);
+            }
+        }
+    }
+    Ok(RepoQc::new(ppkt_store_notebook_path, cohort_count, reports))
 }
-
-
 
 
 
