@@ -1,7 +1,7 @@
 //! CohortDataQc
 //! Central place for performing quality control operations on a cohort file
 
-use std::{collections::{HashMap, HashSet}, str::FromStr, sync::Arc};
+use std::{collections::{BTreeSet,HashMap, HashSet}, str::FromStr, sync::Arc};
 
 use ontolius::{Identified, TermId, ontology::{MetadataAware, OntologyTerms, TaxonomyQuery, csr::FullCsrOntology}, term::MinimalTerm};
 
@@ -86,6 +86,7 @@ impl CohortDataQc {
             (!is_valid_acronym(&cohort.acronym()))
                 .then(|| CohortError::malformed_acronym(&cohort.acronym())),
         );
+        qc_report.extend_cohort_errors(self.check_alleles_validated(cohort));
         let o_errors = self.check_hpo_ids_and_labels(cohort);
         qc_report.extend_ontology_errors(o_errors);
         let d_errors = self.check_for_duplicate_rows(cohort);
@@ -111,6 +112,26 @@ impl CohortDataQc {
             }
         }
         duplicate_errors
+    }
+
+    /// Every allele used by a row must have a validated variant in the cohort.
+    fn check_alleles_validated(&self, cohort: &CohortData) -> Vec<CohortError> {
+        let mut missing: BTreeSet<&str> = BTreeSet::new();
+        for row in &cohort.rows {
+            for allele in row.allele_count_map.keys() {
+                if !cohort.hgvs_variants.contains_key(allele)
+                    && !cohort.structural_variants.contains_key(allele)
+                    && !cohort.intergenic_variants.contains_key(allele)
+                {
+                    missing.insert(allele);
+                }
+            }
+        }
+        missing
+            .into_iter()
+            .map(|a| CohortError::missing_field(
+                format!("Allele '{a}' is used in the cohort but has not been validated")))
+            .collect()
     }
 
     fn check_biocuration(&self, cohort: &CohortData) -> Option<CohortError> {

@@ -66,7 +66,7 @@ fn patient_id_column_valid(
 #[fixture]
 fn variant_column_valid() -> ColumnDto {
     let v1 = transformed_from_string("c235CtoT_WDR83OS_NM_016145v4");
-    let v2 = transformed_from_string("c156_1GtoT_WDR83OS_NM_016145v4");
+    let v2 = transformed_from_string("c156plus1GtoT_WDR83OS_NM_016145v4");
     ColumnDto {
         id: "35f95771-74cd-485d-9289-52de83dbe10d".to_string(),
         header: EtlColumnHeader{
@@ -301,7 +301,7 @@ fn hypertelorism_column_valid() -> ColumnDto {
 }
 
 #[fixture]
-fn columns_with_redudancy(
+fn columns_with_redundancy(
     patient_id_column_valid: ColumnDto,
     variant_column_valid: ColumnDto,
     age_eval_column_valid: ColumnDto,
@@ -418,12 +418,12 @@ fn etl_dto_lacking_hpo(
 
 /// Delayed sit and delayed gross motor
 #[fixture]
-fn etl_dto_with_redudancy(
-    columns_with_redudancy: Vec<ColumnDto>,
+fn etl_dto_with_redundancy(
+    columns_with_redundancy: Vec<ColumnDto>,
     disease_valid: DiseaseData,
     hgvs_map: HashMap<String, HgvsVariant>
 ) -> EtlDto {
-    let table: ColumnTableDto = make_table(columns_with_redudancy);
+    let table: ColumnTableDto = make_table(columns_with_redundancy);
     let mut etl_dto = make_etl(table, disease_valid);
     etl_dto.hgvs_variants = hgvs_map;
     etl_dto
@@ -633,11 +633,11 @@ fn test_malformed_title (
 /// Delayed gross motor development HP:0002194 (parent of Delayed ability to sit)
 #[rstest]
 fn test_column_type_with_redundancy(
-    etl_dto_with_redudancy: EtlDto,
+    etl_dto_with_redundancy: EtlDto,
     test_orcid: CurationEvent,
     hpo: Arc<FullCsrOntology>
 ) {
-    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_with_redudancy);
+    let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_with_redundancy);
     assert!(result.is_ok());
     let mut cohort_data = result.unwrap();
     cohort_data.curation_history.push(test_orcid);
@@ -646,7 +646,7 @@ fn test_column_type_with_redundancy(
     assert_eq!(1, delayed_sit);
     assert_eq!(1, delayed_gm);
     let result = ga4ghphetools::validate_cohort_template(hpo.clone(), &cohort_data);
-    assert!(result.is_err()); // expect an error because a term and its ancestor are both obeserved
+    assert!(result.is_err()); // expect an error because a term and its ancestor are both observed
     let result2 = ga4ghphetools::sanitize_cohort_data(hpo.clone(),  &cohort_data);
     println!("{:?}", result2);
     /*
