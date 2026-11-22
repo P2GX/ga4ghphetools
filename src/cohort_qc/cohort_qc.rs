@@ -7,7 +7,7 @@ use ontolius::{Identified, TermId, ontology::{MetadataAware, OntologyTerms, Taxo
 
 
 use crate::{
-    age::is_valid_onset_string, cohort_qc::qc_report::{self, QcReport}, dto::{cohort_data::{CohortData, RowData}, hpo_term_dto::{CellValue, CellValueInner, HpoTermDuplet}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
+    age::is_valid_onset_string, cohort_qc::{disease_qc::is_valid_acronym, qc_report::{self, QcReport}}, dto::{cohort_data::{CohortData, RowData}, hpo_term_dto::{CellValue, CellValueInner, HpoTermDuplet}}, error::{PheToolsError, cohort_error::CohortError, ontology_error::OntologyError}};
 
 
 /// Locally used struct for convenience
@@ -82,6 +82,10 @@ impl CohortDataQc {
             }
         }
         qc_report.extend_cohort_errors(self.check_cells(cohort));
+        qc_report.extend_cohort_errors(
+            (!is_valid_acronym(&cohort.acronym()))
+                .then(|| CohortError::malformed_acronym(&cohort.acronym())),
+        );
         let o_errors = self.check_hpo_ids_and_labels(cohort);
         qc_report.extend_ontology_errors(o_errors);
         let d_errors = self.check_for_duplicate_rows(cohort);

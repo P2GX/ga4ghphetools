@@ -131,53 +131,39 @@ impl DiseaseQc {
     
     pub fn check_acronym(&self) -> Option<CohortError> {
         let acronym = self.cohort.acronym();
-        if ! acronym.contains("_") {
-            Some(CohortError::malformed_acronym(&acronym))
-        } else {
-            None
-        }
+        if is_valid_acronym(&acronym) { None } 
+        else { Some(CohortError::malformed_acronym(&acronym)) }
     }
 }
 
+/// A cohort acronym has the form `GENE_DISEASEACRONYM`, e.g. `ARHGEF15_BSVD5`.
+pub fn is_valid_acronym(acronym: &str) -> bool {
+    match acronym.split_once('_') {
+        Some((gene, disease)) => {
+            !gene.is_empty()
+                && !disease.is_empty()
+                && !acronym.chars().any(char::is_whitespace)
+        }
+        None => false,
+    }
+}
 
 #[cfg(test)]
 mod test {
     use super::*;
     use rstest::rstest;
-    use rstest::fixture;
-  
-    // : 'RUNX2_CLCD1' -
-    #[fixture]
-    fn disease_qc_valid_acronym() -> DiseaseQc  {
-        let ddata = DiseaseData::new("OMIM:119600", "Cleidocranial dysplasia");
-        let fake_ppkt_list: Vec<Phenopacket> = Vec::new();
-        let mut cohort = CohortData::mendelian(ddata.clone(), vec![], vec![], "fake version");
-        cohort.cohort_acronym = Some("RUNX2_CLCD1".to_string());
-        DiseaseQc::new(&ddata, &cohort)
-    }
-
-    #[fixture]
-    fn disease_qc_invalid_acronym() -> DiseaseQc  {
-        let ddata = DiseaseData::new("OMIM:621280", "Retinitis pigmentosa 100");
-        let fake_ppkt_list: Vec<Phenopacket> = Vec::new();
-        let mut cohort = CohortData::mendelian(ddata.clone(), vec![], vec![], "fake version");
-        cohort.cohort_acronym = Some("RP100".to_string());
-        DiseaseQc::new(&ddata, &cohort)
-    }
-
+   
     #[rstest]
-    fn check_valid_acronym(disease_qc_valid_acronym: DiseaseQc) {
-        let opt = disease_qc_valid_acronym.check_acronym();
-        assert!(opt.is_none());
+    fn check_valid_acronym() {
+       assert!(is_valid_acronym("ARHGEF15_BSVD5"));
     }
 
      #[rstest]
-    fn check_invalid_acronym(disease_qc_invalid_acronym: DiseaseQc) {
-        let opt = disease_qc_invalid_acronym.check_acronym();
-        assert!(opt.is_some());
+    fn check_invalid_acronym() {
+        assert!(!is_valid_acronym("RP100"));
+        assert!(!is_valid_acronym("RP100_"));
+        assert!(!is_valid_acronym("RP100_ BSVD5"));
+        assert!(!is_valid_acronym("_BSVD5"));
     }
-
-
-
 
 }

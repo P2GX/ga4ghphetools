@@ -249,7 +249,7 @@ fn disease_valid() -> DiseaseData {
     let moi = ModeOfInheritance { 
         hpo_id: "HP:0000006".to_string(), 
         hpo_label: "Autosomal dominant inheritance".to_string(), 
-        citation: "PMID: 39471804".to_string()
+        citation: "PMID:39471804".to_string()
     };
     DiseaseData {
         disease_id: "OMIM:621016".to_string(),
@@ -455,9 +455,10 @@ fn test_valid_etl(
     let result = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl_dto_valid);
     assert!(result.is_ok());
     let mut cohort_dto = result.unwrap();
+    cohort_dto.cohort_acronym = Some("GENE_DISEASE".to_string());
     cohort_dto.curation_history.push(test_orcid);
     let qc = ga4ghphetools::validate_cohort_template(hpo, &cohort_dto);
-    assert!(qc.is_ok());
+    assert!(qc.is_ok(), "validation failed: {:?}", qc.err());
 }
 
 #[rstest]
@@ -670,6 +671,7 @@ fn test_with_excluded_redundancy(
     let table = make_table(columns);
     let etl = make_etl(table, disease_valid);
     let mut cohort = ga4ghphetools::get_cohort_data_from_etl_dto(hpo.clone(), etl).unwrap();
+    cohort.cohort_acronym = Some("GENE_DISEASE".to_string());
     cohort.curation_history.push(test_orcid);
     let result = ga4ghphetools::validate_cohort_template(hpo.clone(), &cohort);
     assert!(result.is_err());
