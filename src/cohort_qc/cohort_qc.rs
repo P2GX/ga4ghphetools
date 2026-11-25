@@ -4,6 +4,7 @@
 use std::{collections::{BTreeSet,HashMap, HashSet}, str::FromStr, sync::Arc};
 
 use ontolius::{Identified, TermId, ontology::{MetadataAware, OntologyTerms, TaxonomyQuery, csr::FullCsrOntology}, term::MinimalTerm};
+use serde::{Deserialize, Serialize};
 
 
 use crate::{
@@ -447,6 +448,97 @@ impl CohortDataQc {
         })
     }
 
+    /// List every (redundant ancestor with onset, specific descendant) pair.
+    /// One ancestor can appear several times if it has several descendants in the row.
+    pub fn find_onset_conflicts(&self, cohort: &CohortData) -> Result<Vec<OnsetConflict>, String> {
+        let headers = &cohort.hpo_headers;
+        let mut conflicts = Vec::new();
+        for (row_index, row) in cohort.rows.iter().enumerate() {
+            for (h1, c1) in headers.iter().zip(&row.hpo_data) {
+                let CellValueInner::OnsetAge(onset1) = &c1.entry else { continue };
+                let tid1 = h1.to_term_id().map_err(|e| e.to_string())?;
+                for (h2, c2) in headers.iter().zip(&row.hpo_data) {
+                    let specific_onset = match &c2.entry {
+                        CellValueInner::Observed => None,
+                        CellValueInner::OnsetAge(o) => Some(o.clone()),
+                        _ => continue, // na / excluded cannot conflict with an onset
+                    };
+                    let tid2 = h2.to_term_id().map_err(|e| e.to_string())?;
+                    if self.hpo.is_ancestor_of(&tid1, &tid2) {
+                        conflicts.push(OnsetConflict {
+                            row_index,
+                            individual_id: row.individual_data.individual_id.clone(),
+                            pmid: row.individual_data.pmid.clone(),
+                            redundant_term: h1.clone(),
+                            redundant_onset: onset1.clone(),
+                            specific_term: h2.clone(),
+                            specific_onset,
+                        });
+                    }
+                }
+            }
+        }
+        Ok(conflicts)
+    }
+
+    /// Apply the curator's decisions and return the corrected cohort.
+    /// The redundant term is always set to na afterwards, so `sanitize` can then succeed.
+    pub fn resolve_onset_conflicts(
+        &self,
+        cohort: &CohortData,
+        resolutions: &[OnsetResolution],
+    ) -> Result<CohortData, String> {
+        let mut cohort = cohort.clone();
+        let index_of = self.generate_term_id_to_index_map(&cohort).map_err(|e| e.to_string())?;
+        let idx = |id: &str| -> Result<usize, String> {
+            let tid = TermId::from_str(id).map_err(|e| e.to_string())?;
+            index_of.get(&tid).copied().ok_or_else(|| format!("Unknown term {}", id))
+        };
+        for r in resolutions {
+            let a = idx(&r.redundant_term_id)?;
+            let row = cohort.rows.get_mut(r.row_index)
+                .ok_or_else(|| format!("No row {}", r.row_index))?;
+            let CellValueInner::OnsetAge(onset) = &row.hpo_data[a].entry else {
+                return Err(format!("{} has no onset in row {}", r.redundant_term_id, r.row_index));
+            };
+            let onset = onset.clone();
+            if let Some(target) = &r.move_to {
+                let s = idx(target)?;
+                if matches!(row.hpo_data[s].entry, CellValueInner::OnsetAge(_)) {
+                    return Err(format!("{} already has an onset; not overwriting", target));
+                }
+                // keep the target's modifiers, replace only the entry
+                row.hpo_data[s].entry = CellValueInner::OnsetAge(onset);
+            }
+            row.hpo_data[a] = CellValue::na();
+        }
+        Ok(cohort)
+    }
+
+}
+
+/// An observed term with an onset that is redundant because a more specific
+/// descendant is also annotated in the same row.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnsetConflict {
+    pub row_index: usize,
+    pub individual_id: String,
+    pub pmid: String,
+    pub redundant_term: HpoTermDuplet,   // e.g. Seizure
+    pub redundant_onset: String,         // e.g. P5D
+    pub specific_term: HpoTermDuplet,    // e.g. Myoclonic seizure
+    pub specific_onset: Option<String>,  // None if the specific term is just "observed"
+}
+
+/// The curator's decision for one redundant term in one row.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnsetResolution {
+    pub row_index: usize,
+    pub redundant_term_id: String,
+    /// Some(id): copy the onset to this specific term. None: discard the onset.
+    pub move_to: Option<String>,
 }
 
 

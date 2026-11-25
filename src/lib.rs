@@ -27,6 +27,8 @@ pub mod error;
 
 mod cohort_qc;
 pub use cohort_qc::validate_cohort_template;
+pub use cohort_qc::cohort_qc::OnsetConflict;
+pub use cohort_qc::cohort_qc::OnsetResolution;
 
 mod etl;
 pub use etl::process_allele_column;
@@ -54,6 +56,8 @@ pub use factory::create_new_cohort_data;
 pub use factory::add_new_row_to_cohort;
 pub use factory::merge_cohort_data_from_etl_dto;
 pub use factory::excel::read_external_excel_to_dto;
+pub use factory::get_onset_conflicts;
+pub use factory::resolve_onset_conflicts;
 
 
 mod persistence;

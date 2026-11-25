@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ontolius::ontology::csr::FullCsrOntology;
 
-use crate::cohort_qc::cohort_qc::CohortDataQc;
+use crate::cohort_qc::cohort_qc::{CohortDataQc, OnsetConflict, OnsetResolution};
 use crate::dto::cohort_data::CohortData;
 use crate::{
     dto::{cohort_data::{CohortType, DiseaseData, IndividualData}, etl_dto::ColumnTableDto, hpo_term_dto::HpoTermData}, 
@@ -316,4 +316,19 @@ pub fn merge_cohort_data_from_etl_dto(
     let factory = CohortFactory::new(hpo);
     CohortFactory::disease_data_identity_validation(&previous, &transformed)?;
     factory.merge_cohort_data(previous, transformed).map_err(|e|e.to_string())
+}
+
+/// This function is called if the user has an onset for a general term (e.g. Seizure, P2Y)
+/// and also has a more specific sezure term (e.g., Myoclonic seizure) without onset
+/// This counts as a QC error. The user needs to either transfer the onset
+/// to the more specific term or to delete the onset.
+pub fn get_onset_conflicts(hpo: Arc<FullCsrOntology>, cohort: &CohortData)
+    -> Result<Vec<OnsetConflict>, String> {
+    CohortDataQc::new(hpo).find_onset_conflicts(cohort)
+}
+
+/// This function is called from the front end following get_onset_conflicts
+pub fn resolve_onset_conflicts(hpo: Arc<FullCsrOntology>, cohort: &CohortData,
+    resolutions: &[OnsetResolution]) -> Result<CohortData, String> {
+    CohortDataQc::new(hpo).resolve_onset_conflicts(cohort, resolutions)
 }
